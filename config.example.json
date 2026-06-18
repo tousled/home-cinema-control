@@ -1,0 +1,64 @@
+{
+    "oppo": {
+        "ip": "",
+        "connection_timeout_seconds": 10,
+        "playback_start_timeout_seconds": 30,
+        "nfs_mount_timeout_seconds": 30,
+        "api_connect_timeout_seconds": 1.0,
+        "api_retry_attempts": 3,
+        "autoscript": false,
+        "always_on": true,
+        "bluray_disc_mode": false,
+        "pre_mount_smb": false,
+      "use_smb": false
+    },
+    "tv": {
+        "enabled": false,
+        "ip": "",
+        "mac": "",
+        "model": "",
+        "available_hdmi_inputs": [],
+        "player_hdmi_input_id": 0,
+        "startup_script": "",
+        "shutdown_script": ""
+    },
+    "av": {
+        "enabled": false,
+        "ip": "",
+        "port": 23,
+        "model": "",
+        "always_on": true,
+        "hdmi_switch_delay_seconds": 0,
+        "power_on_command": "",
+        "hdmi_input_command": "",
+        "power_off_command": "",
+        "available_hdmi_inputs": [],
+        "player_hdmi_input": "",
+        "connection_timeout_seconds": 5,
+        "command_timeout_seconds": 1,
+        "tv_connected_input": ""
+    },
+    "app": {
+        "backup_path": "backup",
+        "language": "es-ES",
+        "status_refresh_interval_seconds": 2,
+        "include_prerelease": false,
+        "release_repository": "tousled/home-cinema-control",
+        "version_check_timeout_seconds": 10,
+        "log_level": 1
+    },
+    "playback": {
+        "hcc_controlled_device": "",
+        "use_all_libraries": true,
+        "path_mappings": [],
+        "libraries": []
+    },
+    "media_server": {
+        "type": "emby",
+        "server_url": "",
+        "display_name": ""
+    },
+  "smb": {
+    "username": ""
+    }
+}

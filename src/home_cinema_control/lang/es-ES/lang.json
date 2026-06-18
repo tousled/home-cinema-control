@@ -1,0 +1,10 @@
+{
+  "msg-playback-starting": "Iniciando en el OPPO",
+  "msg-playback-waiting-mount": "Esperando montar la carpeta..",
+  "msg-playback-waiting-play": "Esperando que se inicie la reproducción: ",
+  "msg-playback-timeout": "Timeout Reproduciendo",
+  "msg-playback-started": "Reproducción Iniciada",
+  "msg-playback-error-play": "No se ha podido reproducir el fichero",
+  "msg-playback-error-mount": "No se ha podido montar la carpeta a reproducir",
+  "msg-playback-error-no-oppo": "OPPO no disponible"
+}

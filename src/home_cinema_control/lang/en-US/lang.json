@@ -1,0 +1,10 @@
+{
+  "msg-playback-starting": "Starting on OPPO",
+  "msg-playback-waiting-mount": "Waiting to mount folder..",
+  "msg-playback-waiting-play": "Waiting for playback to start: ",
+  "msg-playback-timeout": "Playback timeout",
+  "msg-playback-started": "Playback started",
+  "msg-playback-error-play": "Could not play the file",
+  "msg-playback-error-mount": "Could not mount the folder",
+  "msg-playback-error-no-oppo": "OPPO not available"
+}

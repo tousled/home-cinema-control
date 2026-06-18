@@ -1,0 +1,109 @@
+Home Cinema Control Source Available License 1.0
+
+Copyright (c) 2026 Pedro / Home Cinema Control.
+All rights reserved except as expressly granted below.
+
+This license applies to the Home Cinema Control source code, documentation,
+configuration examples, images, screenshots, and other project assets included in
+this repository, unless a file or third-party notice states otherwise.
+
+1. Definitions
+
+"HCC" means Home Cinema Control.
+
+"You" means any individual or legal entity receiving or accessing the project.
+
+"Non-commercial use" means use that is not primarily intended for commercial
+advantage, monetary compensation, paid service delivery, resale, hosting for
+third parties, or operation as part of a paid product or paid support offering.
+
+"Commercial use" includes, without limitation, selling HCC, selling modified
+versions of HCC, offering HCC as a hosted service, bundling HCC with paid
+hardware or services, using HCC to provide paid installation or support services,
+or using HCC inside a business product or commercial service.
+
+2. Permissions Granted
+
+Subject to this license, you may:
+
+- view and study the source code;
+- clone or fork the repository using normal GitHub functionality;
+- run HCC for your own personal, non-commercial home-cinema use;
+- make local modifications for your own personal, non-commercial use;
+- use HCC internally for evaluation, testing, security review, or compatibility
+  assessment.
+
+3. Restrictions
+
+You may not, without prior written permission from the copyright holder:
+
+- use HCC for commercial use;
+- sell, rent, sublicense, or otherwise monetize HCC or modified versions of HCC;
+- distribute HCC or modified versions of HCC outside normal GitHub fork
+  functionality;
+- publish container images, packages, binaries, installers, hosted deployments,
+  or other redistributed builds of HCC;
+- offer HCC as software-as-a-service, managed hosting, hosted control panel, or
+  any similar network-accessible service for third parties;
+- remove or obscure copyright notices, license notices, attribution notices, or
+  branding notices;
+- use the Home Cinema Control name, HCC name, logos, screenshots, or other brand
+  assets to imply endorsement, partnership, sponsorship, or official status.
+
+4. Contributions
+
+This public repository does not grant an automatic right to have contributions
+accepted. Contributions are accepted only under the contribution terms published
+by the project or under a separate written agreement.
+
+Unless a separate written agreement says otherwise, by submitting a contribution
+you represent that you own or have the right to submit it, and you grant the
+project maintainer a perpetual, worldwide, irrevocable, royalty-free right to
+use, copy, modify, distribute, sublicense, and relicense that contribution as
+part of HCC.
+
+5. Third-Party Components
+
+Third-party dependencies remain governed by their own licenses. This license
+does not change the terms of Python packages, JavaScript packages, fonts, tools,
+or other third-party components used by HCC.
+
+References to Emby, OPPO, Chinoppo, LG, Denon, Marantz, Yamaha, NAD, Onkyo, or
+other third-party products are descriptive only. This license does not grant any
+rights in third-party names, trademarks, firmware, APIs, or services.
+
+6. No Warranty
+
+HCC is provided "AS IS", without warranty of any kind, express or implied,
+including but not limited to warranties of merchantability, fitness for a
+particular purpose, title, non-infringement, availability, compatibility,
+security, or error-free operation.
+
+You are responsible for verifying that HCC is appropriate for your own devices,
+network, media server, NAS, player, TV, AV receiver, and local laws.
+
+7. Limitation of Liability
+
+To the maximum extent permitted by law, the copyright holder and project
+maintainer will not be liable for any claim, damages, lost data, lost profits,
+service interruption, device malfunction, media library damage, network failure,
+or other liability arising from or related to HCC, whether under contract, tort,
+negligence, strict liability, or any other legal theory.
+
+8. Commercial Licensing
+
+Commercial use, redistribution, managed hosting, paid support bundles, OEM use,
+or other uses outside this license require prior written permission from the
+copyright holder.
+
+9. No Open Source Representation
+
+This license is source-available, not an open-source license approved by the Open
+Source Initiative. Do not describe HCC as open source unless the project later
+adopts a separate open-source license.
+
+10. Termination
+
+Any rights granted under this license terminate automatically if you violate its
+terms. Upon termination, you must stop using HCC and delete any copies obtained
+under this license, except where retention is required by law.

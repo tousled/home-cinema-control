@@ -1,0 +1,13 @@
+config.json
+config.secrets.json
+.local-config
+compose.local.yaml
+.env
+.venv
+.idea
+__pycache__
+*.pyc
+*.log
+logs
+.DS_Store
+.git

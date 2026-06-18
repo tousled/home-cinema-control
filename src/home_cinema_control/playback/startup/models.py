@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+
+from home_cinema_control.devices.oppo.playback_state import (
+    OppoPlaybackCategory,
+    OppoPlaybackStatus,
+)
+from home_cinema_control.devices.tv.models import TvInputTarget
+
+
+class DeviceCommandStatus(Enum):
+    SUCCESS = "success"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class DeviceCommandResult:
+    status: DeviceCommandStatus
+    detail: str | None = None
+
+    @property
+    def successful(self) -> bool:
+        return self.status == DeviceCommandStatus.SUCCESS
+
+    @classmethod
+    def success(cls, detail: str | None = None) -> "DeviceCommandResult":
+        return cls(status=DeviceCommandStatus.SUCCESS, detail=detail)
+
+    @classmethod
+    def skipped(cls, detail: str | None = None) -> "DeviceCommandResult":
+        return cls(status=DeviceCommandStatus.SKIPPED, detail=detail)
+
+    @classmethod
+    def failed(cls, detail: str | None = None) -> "DeviceCommandResult":
+        return cls(status=DeviceCommandStatus.FAILED, detail=detail)
+
+
+@dataclass(frozen=True)
+class PlaybackOutputSwitchRequest:
+    tv_input: TvInputTarget
+    av_input_id: str | None
+    tv_enabled: bool = True
+    av_enabled: bool = True
+    previous_tv_app_id_override: str | None = None
+
+
+@dataclass(frozen=True)
+class PlaybackOutputSwitchResult:
+    previous_tv_app_id: str | None
+    tv_input_result: DeviceCommandResult
+    av_power_result: DeviceCommandResult
+    av_input_result: DeviceCommandResult
+
+    @property
+    def successful(self) -> bool:
+        return (
+                self.tv_input_result.status != DeviceCommandStatus.FAILED
+            and self.av_power_result.status != DeviceCommandStatus.FAILED
+            and self.av_input_result.status != DeviceCommandStatus.FAILED
+        )
+
+
+@dataclass(frozen=True)
+class PlayerMediaFileLocation:
+    content_server: str
+    content_directory: str
+    playback_file_name: str
+    playback_file_format: str
+    network_protocol: str | None = None
+
+
+@dataclass(frozen=True)
+class OppoPlaybackStartRequest:
+    media_location: PlayerMediaFileLocation
+    network_protocol: str | None = None
+    assume_player_already_on: bool = True
+    startup_timeout_seconds: int | float = 30
+    poll_interval_seconds: float = 0.5
+
+
+@dataclass(frozen=True)
+class PlaybackStartupRequest:
+    output_switch_request: PlaybackOutputSwitchRequest
+    oppo_start_request: OppoPlaybackStartRequest
+
+
+@dataclass(frozen=True)
+class OppoPlaybackState:
+    status: OppoPlaybackStatus
+    category: OppoPlaybackCategory
+    raw_response: str
+    ok: bool
+
+    @property
+    def is_paused(self) -> bool:
+        return self.status == OppoPlaybackStatus.PAUSE
+
+    @property
+    def is_playing(self) -> bool:
+        return self.status == OppoPlaybackStatus.PLAY
+
+
+@dataclass(frozen=True)
+class OppoPlaybackStartResult:
+    media_mounted: bool
+    playback_command_accepted: bool
+    playback_started_on_device: bool
+    detail: str | None = None
+    mounted_path: str | None = None
+    playback_state: OppoPlaybackState | None = None
+    mount_protocol: str | None = None
+
+    @property
+    def successful(self) -> bool:
+        return (
+            self.media_mounted
+            and self.playback_command_accepted
+            and self.playback_started_on_device
+        )
+
+
+@dataclass(frozen=True)
+class PlaybackStartupResult:
+    output_switch_result: PlaybackOutputSwitchResult
+    oppo_start_result: OppoPlaybackStartResult
+
+    @property
+    def successful(self) -> bool:
+        return self.output_switch_result.successful and self.oppo_start_result.successful
+
+
+@dataclass(frozen=True)
+class OppoPlaybackPosition:
+    current_seconds: int
+    total_seconds: int
+    raw_response: str | None = None
+
+    @property
+    def has_valid_position(self) -> bool:
+        return self.total_seconds > 0 and self.current_seconds > 0

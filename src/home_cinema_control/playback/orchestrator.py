@@ -1,0 +1,316 @@
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from typing import Callable
+
+from home_cinema_control.playback.during import (
+    DuringPlaybackOrchestrator,
+    PlaybackMonitoringRequest,
+    PlaybackMonitoringResult,
+    PlaybackMonitoringStopReason,
+)
+from home_cinema_control.playback.error_handling import (
+    PlaybackErrorHandler,
+    PlaybackErrorRecoveryRequest,
+    PlaybackErrorRecoveryResult,
+)
+from home_cinema_control.playback.finish import (
+    FinishPlaybackOrchestrator,
+    PlaybackFinishRequest,
+    PlaybackFinishResult,
+)
+from home_cinema_control.playback.startup.models import (
+    PlaybackOutputSwitchResult,
+    PlaybackStartupRequest,
+    PlaybackStartupResult,
+    OppoPlaybackStartResult,
+)
+from home_cinema_control.playback.startup.completion import (
+    PlayMediaItemRequest,
+    PlaybackStartupCompletionService,
+)
+from home_cinema_control.playback.startup.orchestrator import PlaybackStartupOrchestrator
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PlaybackOrchestrationRequest:
+    startup_request: PlaybackStartupRequest
+    startup_completion_request: PlayMediaItemRequest
+    is_paused: bool = False
+    is_muted: bool = False
+    restore_outputs_on_finish: bool | Callable[[], bool] = True
+    finish_idle_confirmation_polls: int | Callable[[], int] = 5
+    on_startup_waiting: Callable[[int], None] | None = None
+    on_startup_completed: Callable[[OppoPlaybackStartResult], None] | None = None
+
+
+@dataclass(frozen=True)
+class PlaybackOrchestrationResult:
+    startup_result: PlaybackStartupResult
+    monitoring_result: PlaybackMonitoringResult | None = None
+    finish_result: PlaybackFinishResult | None = None
+    error_recovery_result: PlaybackErrorRecoveryResult | None = None
+
+    @property
+    def successful(self) -> bool:
+        return (
+            self.startup_result.successful
+            and self.monitoring_result is not None
+            and self.finish_result is not None
+            and self.finish_result.successful
+        )
+
+
+class PlaybackOrchestrator:
+    """Coordinates the normal playback lifecycle between phase orchestrators."""
+
+    def __init__(
+        self,
+        *,
+        startup_orchestrator: PlaybackStartupOrchestrator,
+        startup_completion_service: PlaybackStartupCompletionService,
+        during_playback_orchestrator: DuringPlaybackOrchestrator,
+        finish_playback_orchestrator: FinishPlaybackOrchestrator,
+        error_handler: PlaybackErrorHandler,
+    ) -> None:
+        self._startup_orchestrator = startup_orchestrator
+        self._startup_completion_service = startup_completion_service
+        self._during_playback_orchestrator = during_playback_orchestrator
+        self._finish_playback_orchestrator = finish_playback_orchestrator
+        self._error_handler = error_handler
+
+    def play_until_stopped(
+        self,
+        request: PlaybackOrchestrationRequest,
+    ) -> PlaybackOrchestrationResult:
+        startup_result = self._startup_orchestrator.start_playback(
+            request=request.startup_request,
+            on_waiting=request.on_startup_waiting,
+        )
+        self._log_startup_result(startup_result)
+
+        if not startup_result.successful:
+            recovery_result = self._recover(
+                "oppo_startup_failed",
+                request,
+                startup_result.output_switch_result,
+            )
+            return PlaybackOrchestrationResult(
+                startup_result=startup_result,
+                error_recovery_result=recovery_result,
+            )
+
+        try:
+            startup_completion_result = self._startup_completion_service.complete(
+                request.startup_completion_request
+            )
+            if request.on_startup_completed is not None:
+                request.on_startup_completed(startup_result.oppo_start_result)
+
+            self._wire_deferred_audio_if_needed(startup_completion_result)
+
+            monitoring_request = PlaybackMonitoringRequest(
+                initial_position_seconds=(
+                    startup_completion_result.start_position_seconds
+                ),
+                expected_duration_seconds=(
+                    startup_completion_result.expected_duration_seconds
+                ),
+                is_paused=request.is_paused,
+                is_muted=request.is_muted,
+            )
+            monitoring_result = self._during_playback_orchestrator.monitor_until_stopped(
+                monitoring_request
+            )
+        except Exception:
+            logger.exception("Playback during phase failed.")
+            recovery_result = self._recover(
+                "playback_during_failed",
+                request,
+                startup_result.output_switch_result,
+            )
+            return PlaybackOrchestrationResult(
+                startup_result=startup_result,
+                error_recovery_result=recovery_result,
+            )
+
+        logger.info(
+            "Playback orchestration completed | final_state=%s | category=%s | "
+            "position_seconds=%s | duration_seconds=%s",
+            monitoring_result.final_state.status.value,
+            monitoring_result.final_state.category.value,
+            monitoring_result.position_seconds,
+            monitoring_result.duration_seconds,
+        )
+
+        try:
+            restore_outputs_on_finish = _resolve_restore_outputs_on_finish(request)
+            finish_idle_confirmation_polls = (
+                _resolve_finish_idle_confirmation_polls(request)
+            )
+            finish_result = self._finish_playback_orchestrator.finish(
+                PlaybackFinishRequest(
+                    position_seconds=monitoring_result.position_seconds,
+                    duration_seconds=monitoring_result.duration_seconds,
+                    final_player_state=monitoring_result.final_state,
+                    previous_tv_app_id=(
+                        startup_result.output_switch_result.previous_tv_app_id
+                    ),
+                    media_ended=(
+                        monitoring_result.stop_reason
+                        == PlaybackMonitoringStopReason.NATURAL_END
+                    ),
+                    tv_enabled=(
+                        restore_outputs_on_finish
+                        and request.startup_request.output_switch_request.tv_enabled
+                    ),
+                    av_enabled=(
+                        restore_outputs_on_finish
+                        and request.startup_request.output_switch_request.av_enabled
+                    ),
+                    max_idle_confirmation_polls=finish_idle_confirmation_polls,
+                    is_paused=request.is_paused,
+                    is_muted=request.is_muted,
+                )
+            )
+        except Exception:
+            logger.exception("Playback finish phase failed.")
+            recovery_result = self._recover(
+                "playback_finish_failed",
+                request,
+                startup_result.output_switch_result,
+            )
+            return PlaybackOrchestrationResult(
+                startup_result=startup_result,
+                monitoring_result=monitoring_result,
+                error_recovery_result=recovery_result,
+            )
+        # OPPO_FINISH_IDLE_FAILED / TV_APP_RESTORE_FAILED / AV_AUDIO_RESTORE_FAILED
+        # are all "warning"-severity diagnostics.
+        log = logger.info if finish_result.successful else logger.warning
+        log(
+            "Playback finish completed | successful=%s | player_idle=%s | "
+            "tv=%s | av_audio=%s | final_state=%s | category=%s",
+            finish_result.successful,
+            finish_result.player_idle_result.status.value,
+            finish_result.tv_app_result.status.value,
+            finish_result.av_audio_result.status.value,
+            finish_result.final_player_state.status.value,
+            finish_result.final_player_state.category.value,
+        )
+        return PlaybackOrchestrationResult(
+            startup_result=startup_result,
+            monitoring_result=monitoring_result,
+            finish_result=finish_result,
+            error_recovery_result=(
+                self._recover(
+                    "playback_finish_unsuccessful",
+                    request,
+                    startup_result.output_switch_result,
+                )
+                if not finish_result.successful
+                else None
+            ),
+        )
+
+    def _wire_deferred_audio_if_needed(self, startup_completion_result) -> None:
+        pending_index = startup_completion_result.pending_audio_track_index
+        if pending_index is None:
+            return
+
+        set_deferred = getattr(
+            self._during_playback_orchestrator, "set_deferred_audio_selector", None
+        )
+        if set_deferred is None:
+            logger.warning(
+                "Startup audio selection failed but during orchestrator does not "
+                "support deferred selection; audio track will not be applied | "
+                "pending_index=%s",
+                pending_index,
+            )
+            return
+
+        logger.info(
+            "Startup audio selection failed; scheduling deferred selection for "
+            "first PLAY event | pending_index=%s",
+            pending_index,
+        )
+        set_deferred(
+            lambda: self._startup_orchestrator.select_oppo_audio_track(pending_index)
+        )
+
+    def _recover(
+        self,
+        reason: str,
+        request: PlaybackOrchestrationRequest,
+        output_switch_result: PlaybackOutputSwitchResult,
+    ) -> PlaybackErrorRecoveryResult:
+        return self._error_handler.recover(
+            PlaybackErrorRecoveryRequest(
+                reason=reason,
+                previous_tv_app_id=output_switch_result.previous_tv_app_id,
+                tv_enabled=request.startup_request.output_switch_request.tv_enabled,
+                av_enabled=request.startup_request.output_switch_request.av_enabled,
+            )
+        )
+
+    def _log_output_switch_result(
+        self,
+        output_switch_result: PlaybackOutputSwitchResult,
+    ) -> None:
+        # TV_INPUT_SWITCH_FAILED / AV_POWER_ON_FAILED / AV_INPUT_SWITCH_FAILED are
+        # all "warning"-severity diagnostics (see diagnostics.py) — match that here
+        # so the log level reflects what actually happened, not just INFO always.
+        log = logger.info if output_switch_result.successful else logger.warning
+        log(
+            "Playback output switch result | successful=%s | tv=%s | "
+            "av_power=%s | av_input=%s",
+            output_switch_result.successful,
+            output_switch_result.tv_input_result.status.value,
+            output_switch_result.av_power_result.status.value,
+            output_switch_result.av_input_result.status.value,
+        )
+
+    def _log_startup_result(self, startup_result: PlaybackStartupResult) -> None:
+        self._log_output_switch_result(startup_result.output_switch_result)
+        oppo_start_result = startup_result.oppo_start_result
+        playback_state = oppo_start_result.playback_state
+        # OPPO_MOUNT_FAILED / OPPO_PLAY_FAILED / OPPO_PLAYBACK_TIMEOUT are all
+        # "error"-severity diagnostics — a failed OPPO startup is a real failure,
+        # not routine narration.
+        log = logger.info if oppo_start_result.successful else logger.error
+        log(
+            "OPPO playback startup result | successful=%s | media_mounted=%s | "
+            "playback_command_accepted=%s | playback_started_on_device=%s | "
+            "status=%s | category=%s | detail=%s",
+            oppo_start_result.successful,
+            oppo_start_result.media_mounted,
+            oppo_start_result.playback_command_accepted,
+            oppo_start_result.playback_started_on_device,
+            playback_state.status.value if playback_state is not None else None,
+            playback_state.category.value if playback_state is not None else None,
+            oppo_start_result.detail,
+        )
+
+
+def _resolve_restore_outputs_on_finish(
+    request: PlaybackOrchestrationRequest,
+) -> bool:
+    restore_outputs = request.restore_outputs_on_finish
+    if callable(restore_outputs):
+        return bool(restore_outputs())
+
+    return bool(restore_outputs)
+
+
+def _resolve_finish_idle_confirmation_polls(
+    request: PlaybackOrchestrationRequest,
+) -> int:
+    polls = request.finish_idle_confirmation_polls
+    if callable(polls):
+        return max(0, int(polls()))
+
+    return max(0, int(polls))

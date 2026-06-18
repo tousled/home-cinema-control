@@ -1,0 +1,41 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# Local config / secrets
+# Keep sanitized config template under version control
+!config.example.json
+
+config.json
+config.secrets.json
+*.local.json
+*.secret.json
+.env.*
+.local-config/
+compose.local.yaml
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Backups / temporales
+*.bak
+*.backup
+*.tmp
+*.tar.gz
+*.zip
