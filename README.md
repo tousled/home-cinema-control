@@ -9,7 +9,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/version-1.0.0-rc.1-gold" alt="version"/>
+    <img src="https://img.shields.io/badge/version-1.0.0-gold" alt="version"/>
     <img src="https://img.shields.io/badge/license-source--available-lightgrey" alt="license"/>
     <img src="https://img.shields.io/badge/python-3.14-blue" alt="python"/>
     <img src="https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white" alt="docker"/>
