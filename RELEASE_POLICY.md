@@ -23,6 +23,10 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
 - The release workflow validates tag placement:
     - tags containing `-` are treated as pre-releases and must be contained in `develop`;
     - plain `MAJOR.MINOR.PATCH` tags are stable releases and must be contained in `main`.
+- `develop` and `main` are both branch-protected on GitHub (PR + passing status checks required, `enforce_admins`
+  enabled). Nobody pushes a commit directly to either branch, including release-prep version bumps — those go through
+  a `chore/release-<version>` branch and PR like any other change. Git tags are not protected, so `git push origin
+  <tag>` after the merge remains a direct push.
 
 ## Release artifacts
 
@@ -54,23 +58,39 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
 Release candidate:
 
 ```bash
+git checkout develop && git pull
+git checkout -b chore/release-1.0.0-rc.1
 tools/prepare_release.py 1.0.0-rc.1
-git push origin develop
+git add .env README.md README.en.md
+git commit -m "chore(release): prepare 1.0.0-rc.1"
+git push -u origin chore/release-1.0.0-rc.1
+# open PR chore/release-1.0.0-rc.1 -> develop, wait for checks, merge
+
+git checkout develop && git pull
 git tag 1.0.0-rc.1
 git push origin 1.0.0-rc.1
 ```
 
-Stable release:
+Stable release (after the RC has been validated):
 
 ```bash
+git checkout develop && git pull
+git checkout -b chore/release-1.0.0
 tools/prepare_release.py 1.0.0
-git checkout main
-git merge --ff-only develop
+git add .env README.md README.en.md
+git commit -m "chore(release): prepare 1.0.0"
+git push -u origin chore/release-1.0.0
+# open PR chore/release-1.0.0 -> develop, wait for checks, merge
+
+# open PR develop -> main, wait for checks, merge
+git checkout main && git pull
 git tag 1.0.0
-git push origin main 1.0.0
+git push origin 1.0.0
 ```
 
-The stable tag publishes `:<version>` and `:latest`. The RC tag publishes `:<version>` and `:rc`.
+The PR merging `develop` into `main` is a regular merge commit (not squash/rebase) so `main`'s history stays a
+superset of `develop`'s — squash or rebase merge must stay disabled for that PR direction in the repo's merge button
+settings. The stable tag publishes `:<version>` and `:latest`. The RC tag publishes `:<version>` and `:rc`.
 
 ## Upgrade behavior (config & secrets)
 
