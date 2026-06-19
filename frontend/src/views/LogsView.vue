@@ -1,45 +1,53 @@
 <template>
-  <div class="view-content view-ambient">
+  <div class="view-content view-ambient logs-view">
     <div :style="{ backgroundImage: `url(${heroBg})` }" class="ambient-bg"></div>
-    <div :style="{ backgroundImage: `url(${heroBg})` }" class="view-hero-bg">
-      <div class="view-hero-eyebrow">{{ $t('x-nav-support-section') }}</div>
-      <h1 class="view-hero-title">{{ $t('x-logs-title') }}</h1>
-      <div class="view-hero-sub">{{ $t('x-logs-subtitle') }}</div>
-      <div class="icon-action-row mt-3">
-        <IconActionButton :label="$t('x-logs-refresh')" icon="refresh" @click="loadLogs"/>
-        <IconActionButton
-            :href="downloadHref"
-            :label="$t('x-logs-download')"
-            download="hcc.log"
-            icon="download"
-        />
-      </div>
-    </div>
+    <div :style="{ backgroundImage: `url(${heroBg})` }" class="logs-scene-bg"></div>
 
-    <div class="view-body">
-    <div v-if="loading" style="font-size:12px;color:var(--text-muted)">{{ $t('x-logs-loading') }}</div>
+    <div class="view-body logs-view-body">
+      <section class="logs-showcase">
+        <h1 class="logs-title">{{ $t('x-logs-title') }}</h1>
+        <p class="logs-subtitle">{{ $t('x-logs-subtitle') }}</p>
+        <div class="icon-action-row mt-3">
+          <IconActionButton :label="$t('x-logs-refresh')" icon="refresh" @click="loadLogs"/>
+          <IconActionButton
+              :href="downloadHref"
+              :label="$t('x-logs-download')"
+              download="hcc.log"
+              icon="download"
+          />
+        </div>
+      </section>
+
+      <div v-if="loading" style="font-size:12px;color:var(--text-muted)">{{ $t('x-logs-loading') }}</div>
 
       <template v-else>
-        <div class="form-label label-with-help mb-2">
-          <label for="logs-severity-filter">{{ $t('x-logs-filter-label') }}</label>
+        <div class="logs-kicker">
+          <span class="s-dot dim"></span>
+          <span>{{ $t('x-nav-support-section') }}</span>
         </div>
-        <FormSelect
-            id="logs-severity-filter"
-            v-model="minSeverity"
-            :options="severityOptions"
-            class="mb-3"
-            style="max-width:280px"
-        />
-
-        <div v-if="entries.length" class="log-output">
-          <div v-for="(entry, index) in filteredEntries" :key="index" class="log-line">
-            <span class="log-timestamp">{{ entry.timestamp }}</span>
-            <span :class="['log-level-chip', levelChipClass(entry.level)]">{{ levelLabel(entry.level) }}</span>
-            <span class="log-message">{{ entry.message }}</span>
+        <div class="logs-console">
+          <div class="logs-filter-row">
+            <div class="form-label label-with-help mb-2">
+              <label for="logs-severity-filter">{{ $t('x-logs-filter-label') }}</label>
+            </div>
+            <FormSelect
+                id="logs-severity-filter"
+                v-model="minSeverity"
+                :options="severityOptions"
+                style="max-width:280px"
+            />
           </div>
-          <p v-if="!filteredEntries.length" class="caption">{{ $t('x-logs-filter-empty') }}</p>
+
+          <div v-if="entries.length" class="log-output">
+            <div v-for="(entry, index) in filteredEntries" :key="index" class="log-line">
+              <span class="log-timestamp">{{ entry.timestamp }}</span>
+              <span :class="['log-level-chip', levelChipClass(entry.level)]">{{ levelLabel(entry.level) }}</span>
+              <span class="log-message">{{ entry.message }}</span>
+            </div>
+            <p v-if="!filteredEntries.length" class="caption">{{ $t('x-logs-filter-empty') }}</p>
+          </div>
+          <pre v-else class="log-output log-output-raw">{{ rawText }}</pre>
         </div>
-        <pre v-else class="log-output log-output-raw">{{ rawText }}</pre>
       </template>
     </div>
   </div>
@@ -128,16 +136,120 @@ onMounted(loadLogs)
 </script>
 
 <style scoped>
+.logs-view {
+  position: relative;
+  min-height: 100dvh;
+}
+
+.logs-scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.97;
+  filter: saturate(1.2) contrast(1.04) brightness(1.12) sepia(0.08) hue-rotate(-5deg);
+}
+
+.logs-scene-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 18% 26%, rgba(80, 122, 142, 0.18), transparent 34%),
+  radial-gradient(circle at 78% 18%, rgba(245, 165, 36, 0.18), transparent 34%),
+  radial-gradient(circle at 12% 8%, rgba(194, 161, 107, 0.13), transparent 32%);
+}
+
+.logs-scene-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 16, 20, 0.6), rgba(32, 56, 68, 0.12) 46%, rgba(8, 16, 20, 0.34)),
+  linear-gradient(180deg, rgba(35, 61, 74, 0.08), rgba(8, 16, 20, 0.18) 52%, rgba(6, 13, 17, 0.68));
+}
+
+.logs-view-body {
+  position: relative;
+  z-index: 1;
+  padding: clamp(40px, 7vh, 78px) clamp(22px, 5vw, 76px) clamp(28px, 5vh, 54px);
+}
+
+.logs-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: var(--accent-secondary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  margin-bottom: 12px;
+}
+
+.logs-title {
+  max-width: 1050px;
+  margin: 0;
+  color: var(--text-main);
+  font-size: clamp(40px, 5vw, 78px);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 30px 88px rgba(0, 0, 0, 0.62);
+}
+
+.logs-subtitle {
+  max-width: 690px;
+  margin: 12px 0 0;
+  color: rgba(245, 247, 255, 0.78);
+  font-size: clamp(17px, 1.4vw, 23px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+.logs-showcase {
+  display: flex;
+  min-height: clamp(150px, 24dvh, 260px);
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: clamp(16px, 2.2vh, 26px);
+}
+
+.logs-console {
+  display: grid;
+  width: min(100%, 1480px);
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.58), rgba(13, 18, 20, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(7px);
+}
+
+.logs-filter-row {
+  min-width: 0;
+}
+
 .log-output {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.72), rgba(13, 18, 20, 0.42));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 12px;
   padding: 16px;
   font-family: var(--mono);
   font-size: 11px;
   overflow: auto;
   max-height: 70vh;
   line-height: 1.7;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .log-output-raw {

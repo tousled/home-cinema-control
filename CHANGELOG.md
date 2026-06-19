@@ -32,6 +32,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Redesigned the Remote Control view: a real cross-shaped D-pad, grouped and
   labeled button sections, Lucide icons replacing emoji glyphs, and an
   OLED-style live status screen.
+- Reworked the Remote Control layout into the primary cinematic playback and
+  control surface, with full-screen backdrop treatment, poster-led media
+  details, status/protocol/format chips, route details, and a more physical
+  remote body.
+- Kept Control Room as the room-ready landing experience in both idle and active
+  playback states, with playback reflected only through compact card/status
+  indicators instead of replacing the landing with a now-playing panel.
+- Reworked Control Room idle state into a full-screen room-ready landing view
+  with centered setup cards, a remote-control entry point, and secondary system
+  resource metadata instead of a redundant idle playback panel.
 - Changed the Remote Control view's "Current playback" panel to scale
   responsively up to the same `max-width` cap used by other configuration
   screens, instead of a fixed pixel width.

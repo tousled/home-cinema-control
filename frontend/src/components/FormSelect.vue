@@ -78,8 +78,8 @@ function pick(opt) {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(220, 228, 226, 0.045);
+  border: 1px solid rgba(176, 190, 190, 0.12);
   border-radius: 6px;
   padding: 8px 11px;
   color: var(--text-main);
@@ -93,8 +93,8 @@ function pick(opt) {
 
 .form-select-trigger:focus,
 .form-select-trigger--open {
-  border-color: rgba(47, 128, 237, 0.45);
-  box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.08);
+  border-color: rgba(127, 166, 181, 0.45);
+  box-shadow: 0 0 0 3px rgba(127, 166, 181, 0.08);
 }
 
 .form-select-trigger:disabled {
@@ -105,7 +105,7 @@ function pick(opt) {
 .form-select-chevron {
   width: 13px;
   height: 13px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(176, 190, 190, 0.48);
   flex-shrink: 0;
   transition: transform 0.15s;
 }
@@ -134,7 +134,7 @@ function pick(opt) {
   padding: 8px 12px;
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(176, 190, 190, 0.08);
   color: var(--text-muted);
   font-family: var(--font);
   font-size: 13px;
@@ -147,12 +147,12 @@ function pick(opt) {
 }
 
 .form-select-opt:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(176, 190, 190, 0.08);
   color: var(--text-main);
 }
 
 .form-select-opt--active {
   color: var(--accent-secondary);
-  background: rgba(86, 204, 242, 0.06);
+  background: rgba(194, 161, 107, 0.06);
 }
 </style>

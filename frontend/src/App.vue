@@ -182,7 +182,7 @@
 </template>
 
 <script setup>
-import {onMounted, ref, computed, watch, nextTick} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {RouterLink, RouterView, useRoute} from 'vue-router'
 import {api} from './api/index.js'
 import ToastContainer from './components/ToastContainer.vue'
@@ -310,7 +310,7 @@ async function skipMigration() {
   left: 8px;
   padding: 8px 16px;
   background: var(--accent-primary);
-  color: #fff;
+  color: #071014;
   border-radius: 0 0 6px 6px;
   font-size: 13px;
   font-weight: 600;
@@ -344,9 +344,9 @@ async function skipMigration() {
   align-items: center;
   gap: 10px;
   padding: 0 14px;
-  background: rgba(5, 7, 17, 0.94);
+  background: rgba(7, 11, 13, 0.94);
   border: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(176, 190, 190, 0.1);
   color: var(--text-main);
   z-index: 260;
   backdrop-filter: blur(14px);
@@ -389,7 +389,7 @@ async function skipMigration() {
   width: 208px;
   flex-shrink: 0;
   background: var(--bg-sidebar);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(176, 190, 190, 0.08);
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -402,7 +402,7 @@ async function skipMigration() {
   align-items: center;
   gap: 10px;
   padding: 18px 16px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(176, 190, 190, 0.08);
 }
 
 .logo-mark {
@@ -425,7 +425,7 @@ async function skipMigration() {
   font-size: 13px;
   font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .logo-sub {
@@ -492,12 +492,12 @@ async function skipMigration() {
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(176, 190, 190, 0.06);
   color: var(--text-main);
 }
 
 .nav-item.router-link-active {
-  background: rgba(47, 128, 237, 0.10);
+  background: rgba(127, 166, 181, 0.10);
   color: var(--accent-secondary);
   border-left: 2px solid var(--accent-primary);
   padding-left: 8px;
@@ -506,7 +506,7 @@ async function skipMigration() {
 /* ─── SIDEBAR FOOTER / LANG PICKER ──────────────────────────────────── */
 .sidebar-footer {
   padding: 12px 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(176, 190, 190, 0.08);
   position: relative;
 }
 
@@ -521,7 +521,7 @@ async function skipMigration() {
 }
 
 .lang-picker:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(176, 190, 190, 0.06);
 }
 
 .lang-flag {
@@ -547,7 +547,7 @@ async function skipMigration() {
   left: 10px;
   right: 10px;
   background: var(--bg-panel-elevated);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(176, 190, 190, 0.12);
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -573,7 +573,7 @@ async function skipMigration() {
 }
 
 .lang-opt:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(176, 190, 190, 0.07);
   color: var(--text-main);
 }
 
@@ -647,7 +647,7 @@ async function skipMigration() {
 
 .modal-box {
   background: var(--bg-panel-elevated);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(176, 190, 190, 0.13);
   border-radius: 12px;
   padding: 24px;
   max-width: 420px;

@@ -1,22 +1,28 @@
 <template>
-  <div class="view-content view-ambient">
+  <div class="view-content view-ambient media-server-view">
     <div :style="{ backgroundImage: `url(${heroBg})` }" class="ambient-bg"></div>
-    <div :style="{ backgroundImage: `url(${heroBg})` }" class="view-hero-bg">
-      <div class="view-hero-eyebrow">{{ $t('x-nav-config-section') }}</div>
-      <h1 class="view-hero-title">{{ $t('x-media-server-title') }}</h1>
-      <div class="view-hero-sub">{{ $t('x-media-server-subtitle') }}</div>
-    </div>
+    <div :style="{ backgroundImage: `url(${heroBg})` }" class="media-server-scene-bg"></div>
 
-    <div class="view-body">
-    <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
+    <div class="view-body media-server-view-body">
+      <section class="media-server-showcase">
+        <h1 class="media-server-showcase-title">{{ $t('x-media-server-title') }}</h1>
+        <p class="media-server-showcase-subtitle">{{ $t('x-media-server-subtitle') }}</p>
+      </section>
+
+      <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
 
     <template v-else>
+      <div class="media-server-kicker">
+        <span class="s-dot dim"></span>
+        <span>{{ $t('x-nav-config-section') }}</span>
+      </div>
       <div class="media-server-grid">
         <div class="media-server-main">
           <!-- Connection -->
-          <div class="panel mb-3">
+          <div :class="connectionAccentClass" class="panel mb-3">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
+                <Plug :size="13" :stroke-width="2.3"/>
                 {{ $t('x-media-server-section-connection') }}
                 <HelpTooltip :text="$t('x-media-server-tooltip-connection')"/>
               </h2>
@@ -37,9 +43,10 @@
           </div>
 
           <!-- Auth -->
-          <div class="panel mb-3">
+          <div :class="authAccentClass" class="panel mb-3">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
+                <KeyRound :size="13" :stroke-width="2.3"/>
                 {{ $t('x-media-server-section-auth') }}
                 <HelpTooltip :text="$t('x-media-server-tooltip-auth')"/>
               </h2>
@@ -97,9 +104,10 @@
           </div>
 
           <!-- Monitored device -->
-          <div class="panel mb-3">
+          <div :class="deviceAccentClass" class="panel mb-3">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
+                <MonitorPlay :size="13" :stroke-width="2.3"/>
                 {{ $t('x-media-server-section-device') }}
                 <HelpTooltip :text="$t('x-media-server-tooltip-device')"/>
               </h2>
@@ -139,9 +147,10 @@
 
         <!-- Library paths readiness -->
         <aside v-if="config.media_server.access_token_configured" class="media-server-side">
-          <div class="panel">
+          <div :class="libraryPathsAccentClass" class="panel">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
+                <FolderCheck :size="13" :stroke-width="2.3"/>
                 {{ $t('x-media-server-section-library-paths') }}
                 <HelpTooltip :text="$t('x-media-server-tooltip-library-paths')"/>
               </h2>
@@ -200,9 +209,9 @@
 </template>
 
 <script setup>
-import {computed, onMounted, ref} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {AlertTriangle, CheckCircle} from '@lucide/vue'
+import {AlertTriangle, CheckCircle, FolderCheck, KeyRound, MonitorPlay, Plug} from '@lucide/vue'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-media-server.png'
 import {useToast} from '../composables/useToast.js'
@@ -239,6 +248,31 @@ const canGetToken = computed(() =>
 const mediaServerTypeLabel = computed(() => {
   const type = config.value.media_server?.type || 'emby'
   return type.charAt(0).toUpperCase() + type.slice(1)
+})
+
+const connectionTested = ref(false)
+
+watch(() => config.value.media_server?.server_url, () => {
+  connectionTested.value = false
+})
+
+const connectionAccentClass = computed(() => {
+  if (!config.value.media_server?.server_url) return 'panel-accent-dim'
+  return connectionTested.value ? 'panel-accent-ok' : 'panel-accent-info'
+})
+
+const authAccentClass = computed(() =>
+    config.value.media_server?.access_token_configured ? 'panel-accent-ok' : 'panel-accent-dim',
+)
+
+const deviceAccentClass = computed(() =>
+    config.value.playback?.hcc_controlled_device ? 'panel-accent-ok' : 'panel-accent-dim',
+)
+
+const libraryPathsAccentClass = computed(() => {
+  if (libraryPathsError.value) return 'panel-accent-err'
+  if (!libraryPaths.value.length) return 'panel-accent-warn'
+  return 'panel-accent-ok'
 })
 
 function cancelChangePassword() {
@@ -284,6 +318,7 @@ async function getToken() {
     config.value = updated
     login.value.password = ''
     changingPassword.value = false
+    connectionTested.value = true
     toast.success(t('x-media-server-token-ok'))
     await Promise.all([loadDevices(), loadLibraryPaths()])
   } catch (e) {
@@ -298,6 +333,7 @@ async function checkEmby() {
   try {
     const updated = await api.checkEmby(await configWithServerSetup())
     config.value = updated
+    connectionTested.value = true
     toast.success(t('x-media-server-connection-ok'))
     await Promise.all([loadDevices(), loadLibraryPaths()])
   } catch (e) {
@@ -351,6 +387,7 @@ onMounted(async () => {
     if (data.media_server?.access_token_configured) {
       await Promise.all([loadDevices(), loadLibraryPaths()])
     }
+    connectionTested.value = !!data.media_server?.access_token_configured
   } finally {
     loading.value = false
   }
@@ -358,12 +395,106 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.media-server-view {
+  position: relative;
+  min-height: 100dvh;
+}
+
+.media-server-scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.97;
+  filter: saturate(1.2) contrast(1.04) brightness(1.12) sepia(0.08) hue-rotate(-5deg);
+}
+
+.media-server-scene-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 18% 26%, rgba(80, 122, 142, 0.18), transparent 34%),
+  radial-gradient(circle at 78% 18%, rgba(245, 165, 36, 0.18), transparent 34%),
+  radial-gradient(circle at 12% 8%, rgba(194, 161, 107, 0.13), transparent 32%);
+}
+
+.media-server-scene-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 16, 20, 0.6), rgba(32, 56, 68, 0.12) 46%, rgba(8, 16, 20, 0.34)),
+  linear-gradient(180deg, rgba(35, 61, 74, 0.08), rgba(8, 16, 20, 0.18) 52%, rgba(6, 13, 17, 0.68));
+}
+
+.media-server-view-body {
+  position: relative;
+  z-index: 1;
+  padding: clamp(40px, 7vh, 78px) clamp(22px, 5vw, 76px) clamp(28px, 5vh, 54px);
+}
+
+.media-server-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: var(--accent-secondary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  margin-bottom: 12px;
+}
+
+.media-server-showcase-title {
+  max-width: 1050px;
+  margin: 0;
+  color: var(--text-main);
+  font-size: clamp(34px, 4.1vw, 62px);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 30px 88px rgba(0, 0, 0, 0.62);
+}
+
+.media-server-showcase-subtitle {
+  max-width: 690px;
+  margin: 12px 0 0;
+  color: rgba(245, 247, 255, 0.78);
+  font-size: clamp(15px, 1.15vw, 19px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+.media-server-showcase {
+  display: flex;
+  min-height: clamp(126px, 20dvh, 218px);
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: clamp(16px, 2.2vh, 26px);
+}
+
 .media-server-grid {
   display: grid;
   grid-template-columns: minmax(480px, 1fr) minmax(360px, 0.8fr);
-  gap: 18px;
+  gap: 16px;
   align-items: start;
-  max-width: 1180px;
+  width: min(100%, 1320px);
+  max-width: none;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.58), rgba(13, 18, 20, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(7px);
 }
 
 .media-server-main,

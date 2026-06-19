@@ -89,7 +89,7 @@ function select(d) {
   padding: 8px 12px;
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(176, 190, 190, 0.08);
   cursor: pointer;
   text-align: left;
 }
@@ -99,7 +99,7 @@ function select(d) {
 }
 
 .ip-option:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(176, 190, 190, 0.08);
 }
 
 .ip-option-addr {
