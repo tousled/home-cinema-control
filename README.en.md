@@ -150,6 +150,28 @@ These items are roadmap direction, not current compatibility claims.
 
 HCC runs as a Docker container with host networking.
 
+Quick start:
+
+```bash
+docker volume create home-cinema-control-config
+
+docker run -d \
+  --name home-cinema-control \
+  --network host \
+  --cap-add NET_RAW \
+  --restart unless-stopped \
+  -e TZ=Europe/Madrid \
+  -e PYTHONUNBUFFERED=1 \
+  -e HCC_CONFIG_FILE=/config/config.json \
+  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
+  -v home-cinema-control-config:/config \
+  ghcr.io/tousled/home-cinema-control:latest
+```
+
+Open `http://<your-host>:8090` and follow the setup screens.
+
+For long-running installs, updates, and rollback, Docker Compose is the recommended option:
+
 ```yaml
 services:
   home-cinema-control:
@@ -177,8 +199,6 @@ docker compose pull
 docker compose up -d
 ```
 
-Open `http://<your-host>:8090` and follow the setup screens.
-
 Read the complete guide in [INSTALL.en.md](INSTALL.en.md).
 
 ## NAS And Player Preparation
@@ -188,7 +208,7 @@ QNAP, Windows, Unraid, and player-side preparation, use the AVPasion Xnoppo comm
 
 https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867
 
-Use that guide for NAS permissions, share setup, and player context. Use this repository's `compose.yaml`,
+Use that guide for NAS permissions, share setup, and player context. Use this repository's Docker commands,
 `HCC_CONFIG_FILE`, `HCC_SECRETS_FILE_PATH`, and web setup for HCC itself.
 
 ## Documentation

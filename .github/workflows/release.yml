@@ -85,7 +85,24 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.docker-tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=Home Cinema Control
+            org.opencontainers.image.description=Emby-to-OPPO/Chinoppo playback bridge with verified NAS paths, room control, diagnostics, and Docker-first updates.
+            org.opencontainers.image.source=https://github.com/tousled/home-cinema-control
+            org.opencontainers.image.documentation=https://github.com/tousled/home-cinema-control/blob/main/README.md
+            org.opencontainers.image.licenses=LicenseRef-HCC-Source-Available-1.0
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
             SETUPTOOLS_SCM_PRETEND_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Update Docker Hub overview
+        uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DH_IMAGE }}
+          short-description: Emby-to-OPPO/Chinoppo playback with NAS paths, room control, diagnostics, and Docker updates.
+          readme-filepath: ./DOCKERHUB.md
