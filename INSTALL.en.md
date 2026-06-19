@@ -36,7 +36,33 @@ Recommendations:
 - If your AV receiver switches back to TV Audio after HCC selects the player input, review HDMI CEC/ARC. In some setups,
   disabling CEC/ARC on the AVR is the stable fix.
 
-## 2. Docker Compose
+## 2. Quick Start With Docker
+
+You can start HCC directly with `docker run`:
+
+```bash
+docker volume create home-cinema-control-config
+
+docker run -d \
+  --name home-cinema-control \
+  --network host \
+  --cap-add NET_RAW \
+  --restart unless-stopped \
+  -e TZ=Europe/Madrid \
+  -e PYTHONUNBUFFERED=1 \
+  -e HCC_CONFIG_FILE=/config/config.json \
+  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
+  -v home-cinema-control-config:/config \
+  ghcr.io/tousled/home-cinema-control:latest
+```
+
+Open `http://<your-host>:8090`.
+
+Host networking is required so HCC can reach Emby, the player, TV, AVR, and network discovery tools directly.
+
+## 3. Recommended Install With Docker Compose
+
+For long-running installs, create `compose.yaml`. It is easier to update, pin to a specific version, or roll back:
 
 ```yaml
 services:
@@ -69,7 +95,7 @@ Open `http://<your-host>:8090`.
 
 Host networking is required so HCC can reach Emby, the player, TV, AVR, and network discovery tools directly.
 
-## 3. Migration Or Fresh Setup
+## 4. Migration Or Fresh Setup
 
 If HCC finds a compatible older configuration, it shows a migration screen.
 
@@ -79,7 +105,7 @@ If HCC finds a compatible older configuration, it shows a migration screen.
 
 HCC now saves setup by section and keeps secrets in `/config/secrets.json`.
 
-## 4. Media Server
+## 5. Media Server
 
 Configure Emby URL, authentication, and the Emby client/device HCC should monitor.
 
@@ -89,7 +115,7 @@ Configure Emby URL, authentication, and the Emby client/device HCC should monito
 
 This screen avoids manual token editing, reloads Emby devices, and prepares library discovery for path mapping.
 
-## 5. Media Player
+## 6. Media Player
 
 Configure the OPPO/Chinoppo IP address and test the MediaControl API.
 
@@ -108,7 +134,7 @@ The search filters by IP, name, or vendor when that information is available. To
 `denon`, configure device names, DHCP reservations, or local DNS in your router. If your network does not return names,
 you can still search or type the IP address directly.
 
-## 6. Media Paths: The Important Part
+## 7. Media Paths: The Important Part
 
 This is the critical setup step because it solves the real problem: Emby knows where the movie lives on the server, but
 the OPPO/Chinoppo needs to reach that same movie as a NAS network share.
@@ -278,7 +304,7 @@ Once routes are verified, HCC can treat playback as a controlled flow instead of
 The difference is not always visible on screen, but it matters: less noise toward the player, fewer random behaviours,
 and better information when something fails.
 
-## 7. Room Setup
+## 8. Room Setup
 
 TV and AV receiver control are optional and configured separately.
 
@@ -295,7 +321,7 @@ The same network scan helps locate the TV and AV receiver when you configure **R
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
 
-## 8. Diagnostics
+## 9. Diagnostics
 
 The Status screen shows readiness, playback state, latest failure, version status, and support summary.
 
@@ -305,7 +331,7 @@ The Status screen shows readiness, playback state, latest failure, version statu
 
 Use it to understand whether the issue is Emby, path mapping, OPPO mount, optional room control, or deployment/update.
 
-## 9. Readable Logs
+## 10. Readable Logs
 
 The Logs screen renders structured logs with severity and filtering.
 
@@ -315,7 +341,7 @@ The Logs screen renders structured logs with severity and filtering.
 
 This makes support easier than sharing raw unfiltered logs.
 
-## 10. First Playback Validation
+## 11. First Playback Validation
 
 Once the setup screens are saved and verified, test one movie from an intercepted library. Do not only check that the
 player starts; check the full cycle.
@@ -335,7 +361,7 @@ Real hardware validation still matters: original OPPO players, Chinoppo clones, 
 can behave differently. If something fails, copy the support summary from **Diagnostics** and filter logs by warnings or
 errors.
 
-## 11. NAS And Player Preparation
+## 12. NAS And Player Preparation
 
 HCC does not change NAS permissions or player settings. Before testing paths:
 
@@ -346,16 +372,38 @@ HCC does not change NAS permissions or player settings. Before testing paths:
 
 Use the AVPasion thread linked above for platform-specific screenshots.
 
-## 12. Updating
+## 13. Updating
+
+If you installed with Docker Compose:
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
+If you installed with `docker run`:
+
+```bash
+docker pull ghcr.io/tousled/home-cinema-control:latest
+docker stop home-cinema-control
+docker rm home-cinema-control
+
+docker run -d \
+  --name home-cinema-control \
+  --network host \
+  --cap-add NET_RAW \
+  --restart unless-stopped \
+  -e TZ=Europe/Madrid \
+  -e PYTHONUNBUFFERED=1 \
+  -e HCC_CONFIG_FILE=/config/config.json \
+  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
+  -v home-cinema-control-config:/config \
+  ghcr.io/tousled/home-cinema-control:latest
+```
+
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
-## 13. Frequent Issues
+## 14. Frequent Issues
 
 ### HCC cannot reach the player
 

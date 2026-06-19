@@ -40,9 +40,39 @@ Recomendaciones antes de instalar:
   seleccionar la entrada de TV después de que HCC haya cambiado a la entrada del reproductor. Si ves ese comportamiento,
   desactiva CEC/ARC en el AVR o ajusta la configuración HDMI del receptor.
 
-## 2. Docker Compose
+## 2. Arranque rápido con Docker
 
-Crea `compose.yaml`:
+Puedes arrancar HCC directamente con `docker run`:
+
+```bash
+docker volume create home-cinema-control-config
+
+docker run -d \
+  --name home-cinema-control \
+  --network host \
+  --cap-add NET_RAW \
+  --restart unless-stopped \
+  -e TZ=Europe/Madrid \
+  -e PYTHONUNBUFFERED=1 \
+  -e HCC_CONFIG_FILE=/config/config.json \
+  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
+  -v home-cinema-control-config:/config \
+  ghcr.io/tousled/home-cinema-control:latest
+```
+
+Abre:
+
+```text
+http://<tu-host>:8090
+```
+
+`--network host` es importante porque HCC habla directamente con Emby, el OPPO/Chinoppo, TV, AVR y herramientas de
+descubrimiento como `arp-scan`.
+
+## 3. Instalación recomendada con Docker Compose
+
+Para una instalación permanente, crea `compose.yaml`. Es más cómodo para actualizar, fijar una versión concreta o hacer
+rollback:
 
 ```yaml
 services:
@@ -82,7 +112,7 @@ http://<tu-host>:8090
 `network_mode: host` es importante porque HCC habla directamente con Emby, el OPPO/Chinoppo, TV, AVR y herramientas de
 descubrimiento como `arp-scan`.
 
-## 3. Migración o instalación limpia
+## 4. Migración o instalación limpia
 
 Si HCC encuentra una configuración anterior compatible, mostrará una pantalla de migración. Puedes importar la
 configuración o empezar desde cero.
@@ -94,7 +124,7 @@ configuración o empezar desde cero.
 La migración existe para conservar lo reutilizable, pero HCC guarda ahora la configuración por secciones y separa los
 secretos en `/config/secrets.json`.
 
-## 4. Media Server: conecta Emby
+## 5. Media Server: conecta Emby
 
 En **Media Server** se configura la URL de Emby, el usuario y el dispositivo de Emby que HCC debe monitorizar.
 
@@ -113,7 +143,7 @@ Qué resuelve esta pantalla:
 El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo de
 Emby.
 
-## 5. Media Player: localiza el OPPO/Chinoppo
+## 6. Media Player: localiza el OPPO/Chinoppo
 
 En **Media Player** se configura la IP del reproductor y se prueba la API MediaControl.
 
@@ -140,7 +170,7 @@ Usa **Probar OPPO** antes de continuar. Si falla, revisa:
 - red host de Docker;
 - que el reproductor exponga la API compatible con OPPO MediaControl.
 
-## 6. Rutas de medios: la parte importante
+## 7. Rutas de medios: la parte importante
 
 Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby sabe dónde está la
 película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red del NAS.
@@ -324,7 +354,7 @@ intentos:
 La diferencia no siempre se ve en pantalla, pero sí importa: menos ruido hacia el reproductor, menos comportamientos
 aleatorios y más información cuando algo falla.
 
-## 7. Sala: TV y receptor AV son opcionales
+## 8. Sala: TV y receptor AV son opcionales
 
 La pantalla **Sala** controla qué debe hacer HCC al iniciar y terminar una reproducción: cambiar entrada de TV, encender
 o cambiar entrada del AVR, restaurar audio de TV, etc.
@@ -353,7 +383,7 @@ Si el receptor AV cambia a la entrada correcta pero vuelve solo a TV Audio, ARC 
 En ese caso, desactiva CEC/ARC en el receptor o revisa la configuración HDMI. HCC puede reintentar cambios de entrada,
 pero si el AVR o la TV fuerzan otra fuente por CEC, la automatización será inestable.
 
-## 8. Diagnóstico: saber qué falla
+## 9. Diagnóstico: saber qué falla
 
 La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y acciones de soporte.
 
@@ -372,7 +402,7 @@ La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y 
 El objetivo es que un fallo no sea simplemente “no reproduce”, sino una pista concreta: servidor no accesible, ruta sin
 verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
 
-## 9. Logs entendibles
+## 10. Logs entendibles
 
 La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtrar.
 
@@ -383,7 +413,7 @@ La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtr
 Esto sustituye el patrón de revisar logs crudos sin contexto. Los errores y avisos quedan marcados visualmente para que
 sea más fácil compartir información útil en soporte.
 
-## 10. Primera reproducción de validación
+## 11. Primera reproducción de validación
 
 Cuando las pantallas anteriores estén guardadas y verificadas, haz una primera prueba con una película de una biblioteca
 interceptada. No pruebes solo que el OPPO empieza a reproducir; prueba el ciclo completo.
@@ -405,7 +435,7 @@ La validación real de hardware sigue siendo importante: OPPO original, clones C
 comportarse de forma distinta. Si algo falla, copia el resumen de soporte desde **Diagnóstico** y revisa los logs
 filtrando por avisos o errores.
 
-## 11. Configuración del NAS y del reproductor
+## 12. Configuración del NAS y del reproductor
 
 HCC no cambia permisos del NAS ni configura el reproductor por ti. Antes de probar rutas:
 
@@ -416,17 +446,39 @@ HCC no cambia permisos del NAS ni configura el reproductor por ti. Antes de prob
 
 Para capturas de Synology, QNAP, Windows, Unraid y M9702/M920x, usa el hilo de AVPasion enlazado al principio.
 
-## 12. Actualización
+## 13. Actualización
+
+Si instalaste con Docker Compose:
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
+Si instalaste con `docker run`:
+
+```bash
+docker pull ghcr.io/tousled/home-cinema-control:latest
+docker stop home-cinema-control
+docker rm home-cinema-control
+
+docker run -d \
+  --name home-cinema-control \
+  --network host \
+  --cap-add NET_RAW \
+  --restart unless-stopped \
+  -e TZ=Europe/Madrid \
+  -e PYTHONUNBUFFERED=1 \
+  -e HCC_CONFIG_FILE=/config/config.json \
+  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
+  -v home-cinema-control-config:/config \
+  ghcr.io/tousled/home-cinema-control:latest
+```
+
 Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
 muestra el comando para ejecutarlo manualmente.
 
-## 13. Problemas frecuentes
+## 14. Problemas frecuentes
 
 ### HCC no llega al reproductor
 
