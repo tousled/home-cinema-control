@@ -9,6 +9,32 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-19
+
+### Added
+
+- Added the 1.0.0 release branch policy: release candidates are tagged from `develop`, stable releases are tagged from
+  `main`, and Docker `latest` is only updated by stable tags.
+- Added release workflow version injection through `SETUPTOOLS_SCM_PRETEND_VERSION=<tag>`, making the Git tag the source
+  of truth for the runtime version shown by the app.
+- Added updated product screenshots for the redesigned setup, diagnostics, logs, and room-control experience.
+
+### Changed
+
+- Redesigned the web UI around a cinematic Control Room and Remote visual language, then extended that direction across
+  configuration and support screens.
+- Rebalanced the visual system away from the earlier navy/cyan direction toward graphite, blue-steel, and restrained
+  brass, with warmer background imagery and subtle blue-steel ambient shadows.
+- Reworked the main screen headlines and subtitles in Spanish and English so setup/support screens read like one
+  coherent product instead of separate utility pages.
+- Reduced configuration-screen hero typography and vertical hero height so forms feel better proportioned beside the new
+  landing-style copy.
+- Changed the Media Paths "Intercepted libraries" card to open by default.
+- Changed the Diagnostics "Restart service" action from red danger styling to a brass service-action treatment, keeping
+  red reserved for destructive actions.
+- Updated README and release documentation to describe 1.0.0 as the stable product release line rather than future
+  pre-release work.
+
 ## [0.9.1] - 2026-06-18
 
 ### Added

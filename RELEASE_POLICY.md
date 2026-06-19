@@ -5,26 +5,72 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
 ## Versioning
 
 - Versions follow `MAJOR.MINOR.PATCH` (no `v` prefix on tags — the release workflow matches `[0-9]*.[0-9]*.[0-9]*`).
-- **`0.x` is pre-1.0.** Breaking changes to config shape, secrets layout, or behavior may still happen between minor
-  versions, as already stated in `CHANGELOG.md`.
-- **`0.9.x` is the 1.0.0 stabilization line.** Starting from the `0.9.0` tag, new work lands on `0.9.x` patch/minor
-  releases for final hardening (bug fixes, polish, hardware validation) rather than directly on `1.0.0`. No new feature
-  scope is added during this phase — see "1.0.0 readiness" below for what's actually gating the jump.
-- **`1.0.0`** is the first release where config/secrets shape is considered stable across upgrades without a
-  breaking-change note. The project is source-available, not open source; commercial distribution still requires an
-  explicit licensing decision or written permission.
+- **`0.x` was the pre-1.0 stabilization period.** Breaking changes to config shape, secrets layout, or behavior were
+  allowed there while the legacy bridge architecture was removed.
+- **`1.0.0` is the first stable public release line.** From here, persisted config/secrets shape is considered stable
+  across upgrades unless a migration path and changelog entry explicitly say otherwise. The project is source-available,
+  not open source; commercial distribution still requires an explicit licensing decision or written permission.
 - Post-1.0.0, breaking changes to persisted config or secrets require a migration path in `config/migration.py`, not
   just a changelog note.
+
+## Branch and tag flow
+
+- Feature, bugfix, refactor, docs, and chore branches merge into `develop`.
+- `develop` is the integration branch and may be tagged with release candidates such as `1.0.0-rc.1`.
+- `main` is the stable release branch. Stable tags such as `1.0.0`, `1.0.1`, or `1.1.0` must point to commits contained
+  in `main`.
+- Pull requests into `main` come only from `develop`, enforced by `.github/workflows/branch-policy.yml`.
+- The release workflow validates tag placement:
+    - tags containing `-` are treated as pre-releases and must be contained in `develop`;
+    - plain `MAJOR.MINOR.PATCH` tags are stable releases and must be contained in `main`.
 
 ## Release artifacts
 
 - **Docker images** are the only supported release artifact. There is no separate source tarball/zip release process.
-- Images publish to two registries on every tag push matching `[0-9]*.[0-9]*.[0-9]*` (`.github/workflows/release.yml`):
-    - `ghcr.io/tousled/home-cinema-control:<version>` and `:latest` (primary)
-    - `tousled/home-cinema-control:<version>` and `:latest` (Docker Hub mirror)
+- Images publish to two registries on every matching tag push (`.github/workflows/release.yml`):
+    - stable tag: `ghcr.io/tousled/home-cinema-control:<version>` and `:latest` (primary)
+    - stable tag: `tousled/home-cinema-control:<version>` and `:latest` (Docker Hub mirror)
+    - release candidate tag: `:<version>` and `:rc`, never `:latest`
 - Both are multi-arch (`linux/amd64`, `linux/arm64`).
 - `compose.yaml` pins the image via `${HCC_VERSION:-latest}` so a deployment can stay on a known-good tag instead of
   always tracking `latest`.
+
+## Version source of truth
+
+- The Git tag is the release source of truth.
+- The Python package version is dynamic through `setuptools_scm`.
+- The Docker release workflow passes `SETUPTOOLS_SCM_PRETEND_VERSION=<tag>` during image build, so the runtime version
+  shown by the app matches the pushed tag even though `.git` is excluded from Docker context.
+- `.env` is only a local compose convenience for pinning `HCC_VERSION`; it is not used by GitHub Actions to decide the
+  release version.
+- For stable release preparation, set `.env` to the target stable tag only as local documentation/convenience.
+  Forgetting
+  it no longer creates a wrongly-versioned Docker image.
+- Run `tools/prepare_release.py <version>` before opening the release PR if you want local metadata (`.env` and README
+  badges) to match the intended tag.
+
+## Release procedure
+
+Release candidate:
+
+```bash
+tools/prepare_release.py 1.0.0-rc.1
+git push origin develop
+git tag 1.0.0-rc.1
+git push origin 1.0.0-rc.1
+```
+
+Stable release:
+
+```bash
+tools/prepare_release.py 1.0.0
+git checkout main
+git merge --ff-only develop
+git tag 1.0.0
+git push origin main 1.0.0
+```
+
+The stable tag publishes `:<version>` and `:latest`. The RC tag publishes `:<version>` and `:rc`.
 
 ## Upgrade behavior (config & secrets)
 

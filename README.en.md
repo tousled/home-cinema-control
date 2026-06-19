@@ -9,7 +9,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.9.0-gold" alt="version"/>
+    <img src="https://img.shields.io/badge/version-1.0.0-gold" alt="version"/>
     <img src="https://img.shields.io/badge/license-source--available-lightgrey" alt="license"/>
     <img src="https://img.shields.io/badge/python-3.14-blue" alt="python"/>
     <img src="https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white" alt="docker"/>
@@ -117,24 +117,24 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 | Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.    |
 | Docker                           | Primary deployment path with host networking and persistent `/config`. |
 
-## What Is Being Closed For 1.0
+## What Defines 1.0.0
 
-The internal specs do not frame 1.0 as a prettier wrapper around the old flow. The goal is end-to-end confidence and
-clear support boundaries.
+1.0.0 is the first stable cut of HCC as an independent product: Emby + OPPO/Chinoppo playback, per-library paths,
+optional room control, operational diagnostics, and documented Docker releases. It is not only a visual redesign; it is
+the point where setup, support, and updates become part of the product.
 
-| 1.0 work                    | Why it matters                                                                                     |
-|-----------------------------|----------------------------------------------------------------------------------------------------|
-| Real playback matrix        | Validate MKV, ISO, Blu-ray/UHD folders, stop, replacement, natural end, and recovery.              |
-| Watched/resume state        | Prevent Emby progress from drifting when playback stops from OPPO, Emby, or the room flow.         |
-| Interactive sync            | Cover pause, seek, audio, and subtitles without coupling Emby to OPPO internals.                   |
-| Hardware compatibility      | Separate validated, untested, and out-of-scope hardware across players, TVs, and AVRs.             |
-| Exportable support evidence | Turn logs, latest failure, and component state into useful support information.                    |
-| Docker release path         | Publish image, rollback, update policy, and license clarity before treating the release as stable. |
+| 1.0.0 area                  | What is covered                                                                                 |
+|-----------------------------|-------------------------------------------------------------------------------------------------|
+| Real playback               | MKV, ISO, Blu-ray/UHD folders, stop, replacement, natural end, and recovery validated.          |
+| Watched/resume state        | Coherent progress when playback stops from OPPO, Emby, or the room flow.                        |
+| Interactive sync            | Pause, play, stop, track state, and player status without coupling Emby to OPPO internals.      |
+| Hardware compatibility      | OPPO/Chinoppo, TV, and AVR support documented with clear validated/untested/out-of-scope lines. |
+| Exportable support evidence | Diagnostics, filterable logs, latest failure, and support summary from the UI.                  |
+| Docker release path         | Versioned images, rollback, update policy, and source-available license clarity.                |
 
 ## Roadmap Direction
 
-The immediate priority is a reliable 1.0 release for Emby + OPPO/Chinoppo + room control. After that, the architecture
-is intended to grow without mixing future integrations into the playback core.
+After 1.0.0, the architecture is intended to grow without mixing future integrations into the playback core.
 
 | Future area       | Intent                                                                                         |
 |-------------------|------------------------------------------------------------------------------------------------|
