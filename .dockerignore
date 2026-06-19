@@ -11,3 +11,10 @@ __pycache__
 logs
 .DS_Store
 .git
+.claude
+**/node_modules
+**/dist
+**/build
+**/*.egg-info
+**/.agents
+**/.claude
