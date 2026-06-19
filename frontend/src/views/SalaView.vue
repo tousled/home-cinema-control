@@ -1,44 +1,43 @@
 <template>
-  <div class="view-content view-ambient">
+  <div class="view-content view-ambient sala-view">
     <div :style="{ backgroundImage: `url(${heroBg})` }" class="ambient-bg"></div>
-    <div :style="{ backgroundImage: `url(${heroBg})` }" class="view-hero-bg">
-      <div class="view-hero-eyebrow">{{ $t('x-nav-config-section') }}</div>
-      <h1 class="view-hero-title">{{ $t('x-nav-sala') }}</h1>
-      <div class="view-hero-sub">{{ $t('x-sala-subtitle') }}</div>
-    </div>
+    <div :style="{ backgroundImage: `url(${heroBg})` }" class="sala-scene-bg"></div>
 
-    <div class="view-body">
-    <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
+    <div class="view-body sala-view-body">
+      <section class="sala-showcase">
+        <h1 class="sala-showcase-title">{{ $t('x-sala-title') }}</h1>
+        <p class="sala-showcase-subtitle">{{ $t('x-sala-subtitle') }} {{ $t('x-sala-summary-title') }}</p>
+        <div class="sala-showcase-actions">
+          <HelpTooltip v-if="arpAvailable" :text="$t('x-network-tooltip-scan')">
+            <IconActionButton
+                :label="$t('x-network-scan')"
+                :loading="scanning"
+                :loading-label="$t('x-network-scanning')"
+                icon="network"
+                @click="scan"
+            />
+          </HelpTooltip>
+          <span v-if="devices.length" class="caption">
+            {{ devices.length }} {{ $t('x-network-scan-found') }}
+          </span>
+        </div>
+      </section>
 
-    <template v-else>
-      <div class="sala-shell">
-        <section class="room-summary">
-          <div>
-            <p class="room-summary-kicker">{{ $t('x-sala-summary-kicker') }}</p>
-            <p class="room-summary-title">{{ $t('x-sala-summary-title') }}</p>
-          </div>
-          <div class="room-summary-actions">
-            <HelpTooltip v-if="arpAvailable" :text="$t('x-network-tooltip-scan')">
-              <IconActionButton
-                  :label="$t('x-network-scan')"
-                  :loading="scanning"
-                  :loading-label="$t('x-network-scanning')"
-                  icon="network"
-                  @click="scan"
-              />
-            </HelpTooltip>
-            <span v-if="devices.length" class="caption">
-              {{ devices.length }} {{ $t('x-network-scan-found') }}
-            </span>
-          </div>
-        </section>
+      <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
 
+      <template v-else>
+        <div class="sala-kicker">
+          <span class="s-dot dim"></span>
+          <span>{{ $t('x-nav-config-section') }}</span>
+        </div>
+        <div class="sala-shell">
         <div class="sala-grid">
           <!-- TV section -->
-          <section class="panel room-device-card">
+          <section :class="roomAccentClass(tvState)" class="panel room-device-card">
             <div class="panel-head room-card-head">
               <div>
                 <h2 class="panel-title label-with-help">
+                  <Tv :size="13" :stroke-width="2.3"/>
                   {{ $t('x-tv-title') }}
                   <HelpTooltip :text="$t('x-tv-tooltip-section')"/>
                 </h2>
@@ -143,10 +142,11 @@
           </section>
 
           <!-- AV section -->
-          <section class="panel room-device-card">
+          <section :class="roomAccentClass(avState)" class="panel room-device-card">
             <div class="panel-head room-card-head">
               <div>
                 <h2 class="panel-title label-with-help">
+                  <Speaker :size="13" :stroke-width="2.3"/>
                   {{ $t('x-av-title') }}
                   <HelpTooltip :text="$t('x-av-tooltip-section')"/>
                 </h2>
@@ -277,7 +277,10 @@
 
           <aside class="room-help-column">
             <div class="room-help-card">
-              <p class="room-help-title">{{ $t('x-sala-help-title') }}</p>
+              <p class="room-help-title">
+                <Info :size="13" :stroke-width="2.3"/>
+                {{ $t('x-sala-help-title') }}
+              </p>
               <ol class="room-help-list">
                 <li>{{ $t('x-sala-help-step-tv') }}</li>
                 <li>{{ $t('x-sala-help-step-av') }}</li>
@@ -297,6 +300,7 @@
 <script setup>
 import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {Info, Speaker, Tv} from '@lucide/vue'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-sala.png'
 import {useToast} from '../composables/useToast.js'
@@ -358,6 +362,17 @@ function roomStateLabel(state) {
 
 function roomStateClass(state) {
   return `room-state--${state}`
+}
+
+const ROOM_ACCENT_BY_STATE = {
+  tested: 'panel-accent-ok',
+  configured: 'panel-accent-info',
+  incomplete: 'panel-accent-warn',
+  disabled: 'panel-accent-dim',
+}
+
+function roomAccentClass(state) {
+  return ROOM_ACCENT_BY_STATE[state] || 'panel-accent-dim'
 }
 
 async function configWithSection(section, value) {
@@ -553,47 +568,112 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.sala-view {
+  position: relative;
+  min-height: 100dvh;
+}
+
+.sala-scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.97;
+  filter: saturate(1.2) contrast(1.04) brightness(1.12) sepia(0.08) hue-rotate(-5deg);
+}
+
+.sala-scene-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 18% 26%, rgba(80, 122, 142, 0.18), transparent 34%),
+  radial-gradient(circle at 78% 18%, rgba(245, 165, 36, 0.18), transparent 34%),
+  radial-gradient(circle at 12% 8%, rgba(194, 161, 107, 0.13), transparent 32%);
+}
+
+.sala-scene-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 16, 20, 0.6), rgba(32, 56, 68, 0.12) 46%, rgba(8, 16, 20, 0.34)),
+  linear-gradient(180deg, rgba(35, 61, 74, 0.08), rgba(8, 16, 20, 0.18) 52%, rgba(6, 13, 17, 0.68));
+}
+
+.sala-view-body {
+  position: relative;
+  z-index: 1;
+  padding: clamp(40px, 7vh, 78px) clamp(22px, 5vw, 76px) clamp(28px, 5vh, 54px);
+}
+
+.sala-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: var(--accent-secondary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  margin-bottom: 12px;
+}
+
+.sala-showcase-title {
+  max-width: 1050px;
+  margin: 0;
+  color: var(--text-main);
+  font-size: clamp(34px, 4.1vw, 62px);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 30px 88px rgba(0, 0, 0, 0.62);
+}
+
+.sala-showcase-subtitle {
+  max-width: 800px;
+  margin: 12px 0 0;
+  color: rgba(245, 247, 255, 0.78);
+  font-size: clamp(15px, 1.15vw, 19px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+.sala-showcase-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.sala-showcase {
+  display: flex;
+  min-height: clamp(132px, 21dvh, 228px);
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: clamp(16px, 2.2vh, 26px);
+}
+
 .sala-shell {
   display: grid;
   gap: 18px;
-  max-width: 1380px;
-}
-
-.room-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
-  border: 1px solid rgba(86, 204, 242, 0.16);
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(86, 204, 242, 0.08), rgba(47, 128, 237, 0.03)),
-  var(--bg-panel);
-  box-shadow: inset 0 1px 0 var(--panel-specular);
-}
-
-.room-summary-kicker {
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent-secondary);
-  margin-bottom: 4px;
-}
-
-.room-summary-title {
-  font-size: 17px;
-  font-weight: 750;
-  color: var(--text-main);
-  margin: 0;
-}
-
-.room-summary-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
+  width: min(100%, 1500px);
+  max-width: none;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.58), rgba(13, 18, 20, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(7px);
 }
 
 .sala-grid {
@@ -698,12 +778,17 @@ onMounted(async () => {
 
 .room-help-card {
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.018);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.005) 40%, transparent),
+  var(--bg-panel);
+  box-shadow: inset 0 1px 0 var(--panel-specular), 0 18px 40px -16px rgba(7, 11, 13, 0.65);
 }
 
 .room-help-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   color: var(--text-main);
   font-size: 12px;
   font-weight: 750;
@@ -740,15 +825,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 860px) {
-  .room-summary {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .room-summary-actions {
-    justify-content: flex-start;
-  }
-
   .sala-grid,
   .room-help-column {
     grid-template-columns: 1fr;

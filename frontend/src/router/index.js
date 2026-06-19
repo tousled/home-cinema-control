@@ -10,7 +10,6 @@ const routes = [
     {path: '/sala', component: () => import('../views/SalaView.vue'), meta: {title: 'Room Setup'}},
     {path: '/tv', redirect: '/sala'},
     {path: '/av', redirect: '/sala'},
-    {path: '/settings', component: () => import('../views/AppSettingsView.vue'), meta: {title: 'Settings'}},
     {path: '/remote', component: () => import('../views/RemoteView.vue'), meta: {title: 'Remote'}},
     {path: '/logs', component: () => import('../views/LogsView.vue'), meta: {title: 'Logs'}},
 ]

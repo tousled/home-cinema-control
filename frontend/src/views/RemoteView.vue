@@ -1,27 +1,78 @@
 <template>
-  <div class="view-content view-ambient">
-    <div :style="{ backgroundImage: `url(${activeBg})` }" class="ambient-bg"></div>
-    <div :style="{ backgroundImage: `url(${heroBg})` }" class="view-hero-bg">
-      <div class="view-hero-eyebrow">{{ $t('x-nav-operation-section') }}</div>
-      <h1 class="view-hero-title">{{ $t('x-remote-title') }}</h1>
-      <div class="view-hero-sub">{{ $t('x-remote-subtitle') }}</div>
-    </div>
+  <div class="view-content view-ambient remote-view">
+    <div :style="{ backgroundImage: `url(${remoteBg})` }" class="ambient-bg"></div>
+    <div :style="{ backgroundImage: `url(${remoteBg})` }" class="remote-scene-bg"></div>
 
-    <div class="view-body">
-      <div :class="['remote-layout', !hasNowPlaying && 'remote-layout--solo']">
-        <div class="remote-device">
-          <!-- OLED status strip -->
-          <div class="remote-screen">
-            <div v-if="stateLoading" class="remote-screen-loading">…</div>
-            <template v-else>
-              <div class="remote-screen-row">
-                <span :class="stateDotClass" class="s-dot"></span>
-                <span class="remote-screen-state">{{ playstateLabel }}</span>
-              </div>
-              <div class="remote-screen-title">{{ state.ActiveSession?.title || $t('x-remote-idle') }}</div>
-            </template>
+    <div class="view-body remote-view-body">
+      <section :class="['remote-experience', hasNowPlaying ? 'remote-experience--playing' : 'remote-experience--idle']">
+        <div class="remote-showcase">
+          <div class="remote-showcase-kicker">
+            <span :class="stateDotClass" class="s-dot"></span>
+            <span>{{ hasNowPlaying ? $t('x-remote-now-playing-title') : $t('x-nav-operation-section') }}</span>
           </div>
 
+          <h1 class="remote-showcase-title">
+            {{ hasNowPlaying ? (state.ActiveSession?.title || '—') : $t('x-remote-title') }}
+          </h1>
+
+          <p v-if="!hasNowPlaying" class="remote-showcase-subtitle">
+            {{ $t('x-remote-subtitle') }}
+          </p>
+
+          <div v-if="hasNowPlaying" class="remote-media-deck">
+            <div class="remote-poster-frame">
+              <img
+                  v-if="posterSrc && !posterError"
+                  :alt="state.ActiveSession?.title || ''"
+                  :src="posterSrc"
+                  class="remote-poster"
+                  @error="posterError = true"
+              />
+              <div v-else class="remote-poster-fallback">
+                {{ state.ActiveSession?.title || 'HCC' }}
+              </div>
+            </div>
+
+            <div class="remote-media-details">
+              <div v-if="state.ActiveSession?.production_year" class="remote-media-year">
+                {{ state.ActiveSession.production_year }}
+              </div>
+
+              <div class="remote-media-pills">
+                <div class="remote-media-pill">
+                  <span>{{ $t('x-remote-info-status') }}</span>
+                  <strong>{{ playstateLabel }}</strong>
+                </div>
+                <div class="remote-media-pill">
+                  <span>{{ $t('x-remote-info-protocol') }}</span>
+                  <strong>{{ protocolLabel }}</strong>
+                </div>
+                <div v-if="state.ActiveSession?.playback_file_format" class="remote-media-pill">
+                  <span>{{ $t('x-remote-info-format') }}</span>
+                  <strong>{{ state.ActiveSession.playback_file_format.toUpperCase() }}</strong>
+                </div>
+              </div>
+
+              <dl class="remote-media-info">
+                <div class="remote-media-row">
+                  <dt>{{ $t('x-remote-info-server') }}</dt>
+                  <dd class="mono">{{ state.ActiveSession?.content_server || '—' }}</dd>
+                </div>
+                <div class="remote-media-row">
+                  <dt>{{ $t('x-remote-info-folder') }}</dt>
+                  <dd class="mono truncate">{{ state.ActiveSession?.content_directory || '—' }}</dd>
+                </div>
+                <div class="remote-media-row">
+                  <dt>{{ $t('x-remote-info-file') }}</dt>
+                  <dd class="mono truncate">{{ state.ActiveSession?.playback_file_name || '—' }}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </div>
+
+        <aside class="remote-control-dock">
+          <div :class="['remote-device', hasNowPlaying && 'remote-device--active']">
           <div class="remote-body">
             <!-- Power row -->
             <div class="remote-group remote-group--power">
@@ -116,58 +167,9 @@
               </button>
             </div>
           </div>
-        </div>
-
-        <div v-if="hasNowPlaying" class="panel now-playing">
-          <div class="panel-head">
-            <h2 class="panel-title">{{ $t('x-remote-now-playing-title') }}</h2>
           </div>
-          <div class="panel-body now-playing-body">
-            <img
-                v-if="posterSrc && !posterError"
-                :alt="state.ActiveSession?.title || ''"
-                :src="posterSrc"
-                class="now-playing-poster"
-                @error="posterError = true"
-            />
-            <dl class="now-playing-info">
-              <div class="now-playing-row">
-                <dt>{{ $t('x-remote-info-status') }}</dt>
-                <dd>{{ playstateLabel }}</dd>
-              </div>
-              <div class="now-playing-row">
-                <dt>{{ $t('x-remote-info-title') }}</dt>
-                <dd>
-                  {{ state.ActiveSession?.title || '—' }}
-                  <span v-if="state.ActiveSession?.production_year" class="now-playing-year">
-                    ({{ state.ActiveSession.production_year }})
-                  </span>
-                </dd>
-              </div>
-              <div class="now-playing-row">
-                <dt>{{ $t('x-remote-info-protocol') }}</dt>
-                <dd>{{ protocolLabel }}</dd>
-              </div>
-              <div class="now-playing-row">
-                <dt>{{ $t('x-remote-info-server') }}</dt>
-                <dd class="mono">{{ state.ActiveSession?.content_server || '—' }}</dd>
-              </div>
-              <div class="now-playing-row">
-                <dt>{{ $t('x-remote-info-folder') }}</dt>
-                <dd class="mono truncate">{{ state.ActiveSession?.content_directory || '—' }}</dd>
-              </div>
-              <div class="now-playing-row">
-                <dt>{{ $t('x-remote-info-file') }}</dt>
-                <dd class="mono truncate">{{ state.ActiveSession?.playback_file_name || '—' }}</dd>
-              </div>
-              <div v-if="state.ActiveSession?.playback_file_format" class="now-playing-row">
-                <dt>{{ $t('x-remote-info-format') }}</dt>
-                <dd class="mono">{{ state.ActiveSession.playback_file_format.toUpperCase() }}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-      </div>
+        </aside>
+      </section>
     </div>
   </div>
 </template>
@@ -197,7 +199,7 @@ import {
   Subtitles,
 } from '@lucide/vue'
 import {api} from '../api/index.js'
-import heroBg from '../assets/backgrounds/bg-control-room.png'
+import idleSceneBg from '../assets/backgrounds/bg-control-room-idle.png'
 import {useToast} from '../composables/useToast.js'
 import {usePoll} from '../composables/usePoll.js'
 
@@ -205,14 +207,15 @@ const {t} = useI18n()
 const toast = useToast()
 
 const state = ref({})
-const stateLoading = ref(true)
 
 const activeBg = computed(() => {
   const itemId = state.value.ActiveSession?.media_item_id
-  return itemId ? `/api/now-playing/backdrop?item=${itemId}` : heroBg
+  return itemId ? `/api/now-playing/backdrop?item=${itemId}` : idleSceneBg
 })
 
-const hasNowPlaying = computed(() => Boolean(state.value.ActiveSession?.media_item_id))
+const hasNowPlaying = computed(() => Boolean(state.value.ActiveSession?.title))
+
+const remoteBg = computed(() => hasNowPlaying.value ? activeBg.value : idleSceneBg)
 
 const posterError = ref(false)
 const posterSrc = computed(() => {
@@ -259,11 +262,7 @@ async function refreshState() {
 }
 
 onMounted(async () => {
-  try {
-    state.value = await api.getState()
-  } finally {
-    stateLoading.value = false
-  }
+  state.value = await api.getState()
 })
 
 async function key(k) {
@@ -276,89 +275,337 @@ async function key(k) {
 </script>
 
 <style scoped>
-.remote-layout {
-  display: flex;
-  gap: 32px;
-  align-items: flex-start;
-  max-width: 1180px;
+.remote-view {
+  position: relative;
+  min-height: 100dvh;
 }
 
-.remote-layout--solo {
-  justify-content: center;
+.remote-scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.92;
+  filter: saturate(1.1) contrast(1.04) brightness(1.04);
 }
 
-@media (max-width: 760px) {
-  .remote-layout {
-    flex-direction: column;
-    align-items: center;
-    gap: 28px;
-  }
+.remote-scene-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(7, 11, 13, 0.64), rgba(7, 11, 13, 0.22) 45%, rgba(7, 11, 13, 0.46)),
+  linear-gradient(180deg, rgba(7, 11, 13, 0.02), rgba(7, 11, 13, 0.32) 58%, rgba(7, 11, 13, 0.72));
 }
 
-/* ─── REMOTE DEVICE SHELL ────────────────────────────────────────────── */
-.remote-device {
-  width: 296px;
-  flex-shrink: 0;
-  padding: 18px;
-  border-radius: 28px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01)), var(--bg-panel);
-  border: 1px solid var(--panel-border);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45),
-  inset 0 1px 0 var(--panel-specular),
-  0 0 56px -12px rgba(47, 128, 237, 0.42);
+.remote-view-body {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  padding: clamp(32px, 6vh, 72px) clamp(22px, 4vw, 68px);
 }
 
-.remote-screen {
-  border-radius: 14px;
-  background: #04060c;
-  border: 1px solid rgba(86, 204, 242, 0.14);
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.6);
-  padding: 12px 14px;
-  min-height: 56px;
-  font-family: var(--mono);
-  margin-bottom: 16px;
-}
-
-.remote-screen-loading {
-  font-size: 10px;
-  color: var(--text-subtle);
-}
-
-.remote-screen-row {
-  display: flex;
+.remote-experience {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(310px, 360px);
   align-items: center;
-  gap: 7px;
-  margin-bottom: 3px;
+  gap: clamp(28px, 4vw, 64px);
+  width: min(100%, 1580px);
+  min-height: calc(100dvh - clamp(64px, 12vh, 144px));
+  margin: 0 auto;
 }
 
-.remote-screen-state {
+.remote-experience--idle {
+  grid-template-columns: minmax(0, 1fr) minmax(310px, 380px);
+}
+
+.remote-showcase {
+  min-width: 0;
+}
+
+.remote-experience--idle .remote-showcase {
+  align-self: center;
+  max-width: 760px;
+}
+
+.remote-showcase-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: var(--accent-secondary);
   font-size: 10px;
-  letter-spacing: 0.04em;
+  font-weight: 900;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  backdrop-filter: blur(8px);
 }
 
-.remote-screen-title {
-  font-size: 13px;
-  font-weight: 600;
+.remote-showcase-title {
+  max-width: 1050px;
+  margin: 18px 0 0;
   color: var(--text-main);
+  font-size: clamp(46px, 6vw, 100px);
+  font-weight: 900;
+  line-height: 0.94;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 30px 88px rgba(0, 0, 0, 0.72);
+}
+
+.remote-experience--playing .remote-showcase-title {
+  max-width: 980px;
+  font-size: clamp(42px, 5.4vw, 88px);
+}
+
+.remote-showcase-subtitle {
+  max-width: 620px;
+  margin: 18px 0 0;
+  color: rgba(245, 247, 255, 0.72);
+  font-size: clamp(17px, 1.35vw, 22px);
+  line-height: 1.45;
+  text-wrap: balance;
+}
+
+.remote-media-deck {
+  display: grid;
+  grid-template-columns: minmax(220px, 330px) minmax(0, 1fr);
+  gap: clamp(22px, 3vw, 40px);
+  align-items: end;
+  width: min(100%, 1030px);
+  margin-top: clamp(24px, 4vh, 44px);
+}
+
+.remote-poster-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  padding: 5px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.26), rgba(194, 161, 107, 0.18) 42%, rgba(245, 165, 36, 0.22));
+  box-shadow: 0 32px 84px rgba(0, 0, 0, 0.62),
+  0 0 58px -14px rgba(194, 161, 107, 0.52);
+}
+
+.remote-poster-frame::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  pointer-events: none;
+  border-radius: 13px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.13);
+}
+
+.remote-poster,
+.remote-poster-fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border-radius: 13px;
+}
+
+.remote-poster {
+  object-fit: cover;
+}
+
+.remote-poster-fallback {
+  align-items: flex-end;
+  justify-content: center;
+  padding: 26px;
+  background: radial-gradient(circle at 50% 18%, rgba(220, 228, 226, 0.18), transparent 32%),
+  linear-gradient(160deg, #172126, #0A0F12 58%, #2A1114);
+  color: var(--text-main);
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.remote-media-details {
+  min-width: 0;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.72), rgba(13, 18, 20, 0.42));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: 0 28px 74px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(8px);
+}
+
+.remote-media-year {
+  margin-bottom: 13px;
+  color: rgba(245, 247, 255, 0.56);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.remote-media-pills {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.remote-media-pill {
+  min-width: 0;
+  padding: 12px 13px;
+  border-radius: 12px;
+  background: rgba(7, 11, 13, 0.44);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.remote-media-pill span {
+  display: block;
+  margin-bottom: 5px;
+  color: rgba(139, 147, 167, 0.78);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.remote-media-pill strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remote-media-info {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.remote-media-row {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 18px;
+  padding: 11px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.remote-media-row:last-child {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.remote-media-row dt {
+  color: rgba(139, 147, 167, 0.62);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.remote-media-row dd {
+  min-width: 0;
+  margin: 0;
+  color: rgba(245, 247, 255, 0.72);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+}
+
+.remote-media-row dd.truncate {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.remote-control-dock {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.remote-device {
+  position: relative;
+  width: 336px;
+  flex-shrink: 0;
+  padding: 22px;
+  border-radius: 34px;
+  background: radial-gradient(circle at 50% 0%, rgba(194, 161, 107, 0.16), transparent 36%),
+  linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 42%, rgba(0, 0, 0, 0.2)),
+  repeating-linear-gradient(101deg, rgba(255, 255, 255, 0.016) 0px, rgba(255, 255, 255, 0.016) 1px, transparent 1px, transparent 4px),
+  #172228;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 86px rgba(0, 0, 0, 0.52),
+  0 0 70px -18px rgba(194, 161, 107, 0.46),
+  inset 0 1px 0 var(--panel-specular),
+  inset 0 -18px 44px rgba(0, 0, 0, 0.28);
+  transition: box-shadow 0.6s ease;
+}
+
+.remote-device--active {
+  animation: remote-device-glow 3.2s ease-in-out infinite;
+}
+
+@keyframes remote-device-glow {
+  0%, 100% {
+    box-shadow: 0 30px 86px rgba(0, 0, 0, 0.52),
+    0 0 70px -18px rgba(194, 161, 107, 0.46),
+    inset 0 1px 0 var(--panel-specular),
+    inset 0 -18px 44px rgba(0, 0, 0, 0.28);
+  }
+  50% {
+    box-shadow: 0 30px 86px rgba(0, 0, 0, 0.52),
+    0 0 88px -10px rgba(194, 161, 107, 0.72),
+    inset 0 1px 0 var(--panel-specular),
+    inset 0 -18px 44px rgba(0, 0, 0, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remote-device--active {
+    animation: none;
+  }
+}
+
+.remote-device::before {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  pointer-events: none;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+.remote-device::after {
+  content: '';
+  position: absolute;
+  top: 28px;
+  right: 22px;
+  bottom: 28px;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.12), transparent);
+  opacity: 0.4;
+}
+
 .remote-body {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .remote-divider {
-  width: 100%;
   display: flex;
   align-items: center;
+  width: 100%;
   gap: 8px;
-  margin: 14px 0 10px;
+  margin: 18px 0 12px;
 }
 
 .remote-divider::before,
@@ -366,24 +613,24 @@ async function key(k) {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--panel-border);
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.09), transparent);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 .remote-divider span {
+  color: rgba(139, 147, 167, 0.6);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-subtle);
   white-space: nowrap;
 }
 
-/* ─── KEYS ───────────────────────────────────────────────────────────── */
 .remote-group {
   display: flex;
   justify-content: center;
-  gap: 8px;
   width: 100%;
+  gap: 9px;
 }
 
 .remote-group--power {
@@ -394,249 +641,371 @@ async function key(k) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   padding: 0;
-  border-radius: 10px;
+  border-radius: 13px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--bg-panel-elevated);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+  var(--bg-panel-elevated);
   color: var(--text-muted);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
+  inset 0 -2px 4px rgba(0, 0, 0, 0.22),
+  0 8px 18px rgba(0, 0, 0, 0.24);
   font-family: var(--font);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, transform 0.1s ease, box-shadow 0.14s ease;
 }
 
 .remote-key--labeled {
   width: auto;
-  gap: 6px;
-  padding: 0 12px;
+  gap: 7px;
+  padding: 0 13px;
 }
 
 .remote-key:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035)),
+  #1B272B;
   border-color: rgba(255, 255, 255, 0.16);
   color: var(--text-main);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
+  inset 0 -2px 4px rgba(0, 0, 0, 0.18),
+  0 12px 24px rgba(0, 0, 0, 0.3);
   transform: translateY(-1px);
 }
 
 .remote-key:active {
-  transform: translateY(0);
+  transform: translateY(1px) scale(0.97);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.42),
+  0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Continuous "instrument strip" treatment for the info & seek rows —
+   adjoining keys read as one machined bar instead of loose squares. */
+.remote-group--info,
+.remote-group--seek {
+  gap: 0;
+  padding: 3px;
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+  inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.remote-group--info .remote-key,
+.remote-group--seek .remote-key {
+  flex: 1;
+  border-radius: 11px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.remote-group--info .remote-key:not(:last-child),
+.remote-group--seek .remote-key:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
+}
+
+.remote-group--info .remote-key:first-child,
+.remote-group--seek .remote-key:first-child {
+  border-radius: 11px 0 0 11px;
+}
+
+.remote-group--info .remote-key:last-child,
+.remote-group--seek .remote-key:last-child {
+  border-radius: 0 11px 11px 0;
+}
+
+.remote-group--info .remote-key:hover,
+.remote-group--seek .remote-key:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  transform: none;
+  box-shadow: none;
+}
+
+.remote-group--info .remote-key:active,
+.remote-group--seek .remote-key:active {
+  transform: none;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.remote-group--info .remote-key--accent,
+.remote-group--seek .remote-key--accent {
+  color: var(--accent-secondary);
+  background: rgba(194, 161, 107, 0.1);
+}
+
+.remote-group--info .remote-key--accent:hover,
+.remote-group--seek .remote-key--accent:hover {
+  color: var(--accent-secondary);
+  background: rgba(194, 161, 107, 0.18);
+}
+
+/* Transport row keeps its primary action as a larger, glowing focal button. */
+.remote-group--transport {
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 2px;
+}
+
+.remote-group--transport .remote-key--accent {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  color: #fff;
+  border-color: rgba(194, 161, 107, 0.5);
+  background: radial-gradient(circle at 36% 26%, rgba(255, 255, 255, 0.22), transparent 38%),
+  var(--accent-primary);
+  box-shadow: 0 12px 28px rgba(127, 166, 181, 0.46),
+  0 0 0 6px rgba(194, 161, 107, 0.08),
+  inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.remote-group--transport .remote-key--accent:hover {
+  background: radial-gradient(circle at 36% 26%, rgba(255, 255, 255, 0.26), transparent 38%),
+  var(--accent-secondary);
+  border-color: rgba(194, 161, 107, 0.7);
+  color: #071014;
+  transform: translateY(-1px);
 }
 
 .remote-key:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(86, 204, 242, 0.16);
+  box-shadow: 0 0 0 3px rgba(194, 161, 107, 0.16);
 }
 
 .remote-key--accent {
   color: var(--accent-secondary);
-  border-color: rgba(86, 204, 242, 0.22);
-  background: rgba(86, 204, 242, 0.08);
+  border-color: rgba(194, 161, 107, 0.24);
+  background: linear-gradient(180deg, rgba(194, 161, 107, 0.15), rgba(194, 161, 107, 0.055)),
+  #172126;
 }
 
 .remote-key--accent:hover {
-  background: rgba(86, 204, 242, 0.16);
-  border-color: rgba(86, 204, 242, 0.34);
   color: var(--accent-secondary);
+  border-color: rgba(194, 161, 107, 0.38);
+  background: linear-gradient(180deg, rgba(194, 161, 107, 0.24), rgba(194, 161, 107, 0.08)),
+  #223136;
 }
 
 .remote-key--on {
   color: var(--status-success);
-  border-color: rgba(55, 230, 138, 0.22);
-  background: rgba(55, 230, 138, 0.08);
+  border-color: rgba(55, 230, 138, 0.24);
+  background: linear-gradient(180deg, rgba(55, 230, 138, 0.15), rgba(55, 230, 138, 0.05)),
+  #10241d;
 }
 
 .remote-key--on:hover {
-  background: rgba(55, 230, 138, 0.16);
-  border-color: rgba(55, 230, 138, 0.34);
   color: var(--status-success);
+  border-color: rgba(55, 230, 138, 0.38);
+  background: linear-gradient(180deg, rgba(55, 230, 138, 0.23), rgba(55, 230, 138, 0.08)),
+  #122b22;
 }
 
 .remote-key--off {
   color: var(--status-danger);
-  border-color: rgba(255, 92, 122, 0.22);
-  background: rgba(255, 92, 122, 0.08);
+  border-color: rgba(255, 92, 122, 0.24);
+  background: linear-gradient(180deg, rgba(255, 92, 122, 0.14), rgba(255, 92, 122, 0.05)),
+  #291621;
 }
 
 .remote-key--off:hover {
-  background: rgba(255, 92, 122, 0.16);
-  border-color: rgba(255, 92, 122, 0.34);
   color: var(--status-danger);
+  border-color: rgba(255, 92, 122, 0.38);
+  background: linear-gradient(180deg, rgba(255, 92, 122, 0.22), rgba(255, 92, 122, 0.08)),
+  #321725;
 }
 
-/* ─── D-PAD ──────────────────────────────────────────────────────────── */
 .remote-dpad {
+  position: relative;
   display: grid;
   grid-template-areas:
     ".    up    ."
     "left ok    right"
     ".    down  .";
-  grid-template-columns: 46px 52px 46px;
-  grid-template-rows: 40px 52px 40px;
-  gap: 3px;
+  grid-template-columns: 54px 64px 54px;
+  grid-template-rows: 48px 64px 48px;
   width: fit-content;
-  margin: 0 auto;
+  gap: 4px;
+  margin: 4px auto 2px;
+  padding: 14px;
+  border-radius: 30px;
+  background: radial-gradient(circle at 50% 50%, rgba(194, 161, 107, 0.14), transparent 64%),
+  rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+  inset 0 -12px 26px rgba(0, 0, 0, 0.22);
 }
 
 .remote-dpad__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--bg-panel-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+  var(--bg-panel-elevated);
   color: var(--text-muted);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.1s ease, border-color 0.14s ease;
 }
 
 .remote-dpad__btn:hover {
-  background: rgba(255, 255, 255, 0.08);
   color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035)),
+  #1B272B;
+  transform: translateY(-1px);
 }
 
 .remote-dpad__btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(86, 204, 242, 0.16);
   z-index: 1;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(194, 161, 107, 0.16);
 }
 
 .remote-dpad__btn--up {
   grid-area: up;
-  border-radius: 12px 12px 0 0;
+  border-radius: 14px 14px 5px 5px;
 }
 
 .remote-dpad__btn--left {
   grid-area: left;
-  border-radius: 12px 0 0 12px;
+  border-radius: 14px 5px 5px 14px;
 }
 
 .remote-dpad__btn--right {
   grid-area: right;
-  border-radius: 0 12px 12px 0;
+  border-radius: 5px 14px 14px 5px;
 }
 
 .remote-dpad__btn--down {
   grid-area: down;
-  border-radius: 0 0 12px 12px;
+  border-radius: 5px 5px 14px 14px;
 }
 
 .remote-dpad__btn--ok {
   grid-area: ok;
   border-radius: 50%;
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
+  background: radial-gradient(circle at 36% 26%, rgba(255, 255, 255, 0.18), transparent 34%),
+  var(--accent-primary);
+  border-color: rgba(194, 161, 107, 0.55);
   color: #fff;
+  box-shadow: 0 10px 24px rgba(127, 166, 181, 0.42),
+  0 0 0 5px rgba(194, 161, 107, 0.1),
+  inset 0 1px 0 rgba(255, 255, 255, 0.18);
   font-family: var(--font);
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  box-shadow: 0 6px 18px rgba(47, 128, 237, 0.35);
+  letter-spacing: 0;
 }
 
 .remote-dpad__btn--ok:hover {
-  background: var(--accent-secondary);
-  border-color: var(--accent-secondary);
-  color: #07101c;
+  color: #071014;
+  border-color: rgba(194, 161, 107, 0.72);
+  background: radial-gradient(circle at 36% 26%, rgba(255, 255, 255, 0.22), transparent 34%),
+  var(--accent-secondary);
 }
 
-/* ─── NOW PLAYING PANEL ──────────────────────────────────────────────── */
-.now-playing {
-  flex: 1;
-  min-width: 420px;
-  max-width: 760px;
-  align-self: flex-start;
-}
+@media (max-width: 980px) {
+  .remote-experience,
+  .remote-experience--idle {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-items: center;
+    gap: 28px;
+  }
 
-.now-playing-body {
-  display: flex;
-  gap: 24px;
-  align-items: stretch;
-}
-
-.now-playing-poster {
-  width: 190px;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
-  display: block;
-  flex-shrink: 0;
-}
-
-.now-playing-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.now-playing-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.now-playing-row:first-child {
-  padding-top: 0;
-}
-
-.now-playing-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.now-playing-row dt {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-subtle);
-  white-space: nowrap;
-}
-
-.now-playing-row dd {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main);
-  text-align: right;
-  min-width: 0;
-}
-
-.now-playing-year {
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.now-playing-row dd.mono {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-muted);
-}
-
-.now-playing-row dd.truncate {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 760px) {
-  .now-playing {
+  .remote-showcase {
     width: 100%;
-    min-width: 0;
-    max-width: 360px;
+    max-width: 820px;
+    text-align: center;
   }
 
-  .now-playing-body {
-    gap: 14px;
+  .remote-showcase-kicker {
+    margin-inline: auto;
   }
 
-  .now-playing-poster {
-    width: 100px;
+  .remote-media-deck {
+    grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+    margin-inline: auto;
+    text-align: left;
+  }
+}
+
+@media (min-width: 1280px) {
+  .remote-device {
+    width: 352px;
+  }
+}
+
+@media (min-width: 1680px) {
+  .remote-experience {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 390px);
+  }
+}
+
+@media (max-width: 720px) {
+  .remote-view-body {
+    padding: 28px 16px 30px;
+  }
+
+  .remote-experience {
+    min-height: auto;
+  }
+
+  .remote-showcase-title,
+  .remote-experience--playing .remote-showcase-title {
+    font-size: clamp(36px, 12vw, 54px);
+  }
+
+  .remote-showcase-subtitle {
+    font-size: 15px;
+  }
+
+  .remote-media-deck {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 18px;
+  }
+
+  .remote-poster-frame {
+    width: min(210px, 66vw);
+  }
+
+  .remote-media-details {
+    width: 100%;
+  }
+
+  .remote-media-pills {
+    grid-template-columns: 1fr;
+  }
+
+  .remote-media-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .remote-media-row dd {
+    text-align: left;
+  }
+
+  .remote-device {
+    width: min(100%, 336px);
+  }
+}
+
+@media (max-width: 420px) {
+  .remote-device {
+    padding: 16px;
+  }
+
+  .remote-key--labeled {
+    padding: 0 10px;
   }
 }
 </style>

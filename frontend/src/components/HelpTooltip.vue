@@ -144,9 +144,9 @@ onBeforeUnmount(removeFloatingListeners)
   justify-content: center;
   width: 17px;
   height: 17px;
-  border: 1px solid rgba(86, 204, 242, 0.28);
+  border: 1px solid rgba(194, 161, 107, 0.28);
   border-radius: 999px;
-  background: rgba(86, 204, 242, 0.08);
+  background: rgba(194, 161, 107, 0.08);
   color: var(--accent-secondary);
   font-family: var(--mono);
   font-size: 10px;
@@ -157,7 +157,7 @@ onBeforeUnmount(removeFloatingListeners)
 .help-tooltip-trigger:focus-visible {
   outline: none;
   border-color: var(--accent-secondary);
-  box-shadow: 0 0 0 3px rgba(86, 204, 242, 0.12);
+  box-shadow: 0 0 0 3px rgba(194, 161, 107, 0.12);
 }
 
 .help-tooltip-bubble {
@@ -165,9 +165,9 @@ onBeforeUnmount(removeFloatingListeners)
   z-index: 10000;
   width: min(280px, calc(100vw - 24px));
   padding: 9px 11px;
-  border: 1px solid rgba(86, 204, 242, 0.22);
+  border: 1px solid rgba(194, 161, 107, 0.22);
   border-radius: 8px;
-  background: #0b1020;
+  background: #120C08;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
   color: var(--text-main);
   font-size: 12px;
@@ -185,9 +185,9 @@ onBeforeUnmount(removeFloatingListeners)
   left: 50%;
   width: 9px;
   height: 9px;
-  border-right: 1px solid rgba(86, 204, 242, 0.22);
-  border-bottom: 1px solid rgba(86, 204, 242, 0.22);
-  background: #0b1020;
+  border-right: 1px solid rgba(194, 161, 107, 0.22);
+  border-bottom: 1px solid rgba(194, 161, 107, 0.22);
+  background: #120C08;
 }
 
 .help-tooltip-bubble--top::after {
