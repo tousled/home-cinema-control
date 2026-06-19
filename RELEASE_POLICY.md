@@ -41,31 +41,22 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
 
 ## Version source of truth
 
-- The Git tag is the release source of truth.
+- The Git tag is the release source of truth. No file in the repo needs to be edited for a release to carry the right
+  version.
 - The Python package version is dynamic through `setuptools_scm`.
 - The Docker release workflow passes `SETUPTOOLS_SCM_PRETEND_VERSION=<tag>` during image build, so the runtime version
   shown by the app matches the pushed tag even though `.git` is excluded from Docker context.
-- `.env` is only a local compose convenience for pinning `HCC_VERSION`; it is not used by GitHub Actions to decide the
-  release version.
-- For stable release preparation, set `.env` to the target stable tag only as local documentation/convenience.
-  Forgetting
-  it no longer creates a wrongly-versioned Docker image.
-- Run `tools/prepare_release.py <version>` before opening the release PR if you want local metadata (`.env` and README
-  badges) to match the intended tag.
+- The README version badge is a dynamic `img.shields.io/github/v/tag/...` badge that reads the latest tag directly
+  from GitHub (sorted by semver) — it updates itself on tag push and needs no commit.
+- `HCC_VERSION` in `compose.yaml` defaults to `latest`. To pin a deployment to a known-good tag, create a local
+  `.env` (gitignored, never committed) with `HCC_VERSION=<version>`. This is a per-deployment choice, not something
+  the release procedure produces or depends on.
 
 ## Release procedure
 
 Release candidate:
 
 ```bash
-git checkout develop && git pull
-git checkout -b chore/release-1.0.0-rc.1
-tools/prepare_release.py 1.0.0-rc.1
-git add .env README.md README.en.md
-git commit -m "chore(release): prepare 1.0.0-rc.1"
-git push -u origin chore/release-1.0.0-rc.1
-# open PR chore/release-1.0.0-rc.1 -> develop, wait for checks, merge
-
 git checkout develop && git pull
 git tag 1.0.0-rc.1
 git push origin 1.0.0-rc.1
@@ -74,14 +65,6 @@ git push origin 1.0.0-rc.1
 Stable release (after the RC has been validated):
 
 ```bash
-git checkout develop && git pull
-git checkout -b chore/release-1.0.0
-tools/prepare_release.py 1.0.0
-git add .env README.md README.en.md
-git commit -m "chore(release): prepare 1.0.0"
-git push -u origin chore/release-1.0.0
-# open PR chore/release-1.0.0 -> develop, wait for checks, merge
-
 # open PR develop -> main, wait for checks, merge
 git checkout main && git pull
 git tag 1.0.0
