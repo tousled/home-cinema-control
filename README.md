@@ -9,7 +9,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.9.0-gold" alt="version"/>
+    <img src="https://img.shields.io/github/v/tag/tousled/home-cinema-control?label=version&color=gold&sort=semver" alt="version"/>
     <img src="https://img.shields.io/badge/license-source--available-lightgrey" alt="license"/>
     <img src="https://img.shields.io/badge/python-3.14-blue" alt="python"/>
     <img src="https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white" alt="docker"/>
@@ -126,24 +126,25 @@ más seria.
 | Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.          |
 | Docker                           | Despliegue principal con red host y configuración persistente en `/config`. |
 
-## Qué se está cerrando para 1.0
+## Qué define la 1.0.0
 
-Las specs internas no plantean una 1.0 como una capa bonita encima del flujo antiguo. La meta es validar el sistema de
-punta a punta y publicar límites claros.
+La 1.0.0 marca el primer corte estable de HCC como producto independiente: flujo Emby + OPPO/Chinoppo, rutas por
+biblioteca, sala opcional, diagnóstico operativo y release Docker documentada. No es solo un rediseño visual; es el
+punto donde configuración, soporte y actualización quedan tratados como parte del producto.
 
-| Trabajo 1.0                 | Por qué importa                                                                                          |
-|-----------------------------|----------------------------------------------------------------------------------------------------------|
-| Matriz de reproducción real | Validar MKV, ISO, carpetas Blu-ray/UHD, parada, reemplazo, final natural y recuperación.                 |
-| Estado visto/reanudar       | Evitar que Emby pierda progreso cuando se para desde OPPO, Emby o la sala.                               |
-| Sincronización interactiva  | Cubrir pausa, seek, audio y subtítulos sin acoplar Emby a los detalles internos del OPPO.                |
-| Compatibilidad hardware     | Separar lo validado, lo no probado y lo fuera de alcance para OPPO, clones, TV y AVR.                    |
-| Soporte exportable          | Convertir logs, último fallo y estado de componentes en evidencia útil para pedir ayuda.                 |
-| Release Docker              | Publicar imagen, rollback, política de actualización y licencia antes de tratar la release como estable. |
+| Área 1.0.0                 | Qué queda cubierto                                                                                   |
+|----------------------------|------------------------------------------------------------------------------------------------------|
+| Reproducción real          | MKV, ISO, carpetas Blu-ray/UHD, parada, reemplazo, final natural y recuperación validados.           |
+| Estado visto/reanudar      | Progreso coherente cuando se para desde OPPO, Emby o la sala.                                        |
+| Sincronización interactiva | Pausa, reproducción, parada, pistas y estado del reproductor sin acoplar Emby a detalles internos.   |
+| Compatibilidad hardware    | OPPO/Chinoppo, TV y AVR documentados con límites claros entre validado, no probado y fuera de scope. |
+| Soporte exportable         | Diagnóstico, logs filtrables, último fallo y resumen de soporte desde la UI.                         |
+| Release Docker             | Imágenes versionadas, rollback, política de actualización y licencia source-available.               |
 
 ## Hacia dónde va
 
-La prioridad inmediata es cerrar una versión 1.0 fiable para el flujo Emby + OPPO/Chinoppo + sala. A partir de ahí, la
-arquitectura está pensada para crecer sin mezclar todo en el núcleo de reproducción.
+Después de 1.0.0, la arquitectura está pensada para crecer sin mezclar futuras integraciones en el núcleo de
+reproducción.
 
 | Futuro           | Intención                                                                                    |
 |------------------|----------------------------------------------------------------------------------------------|

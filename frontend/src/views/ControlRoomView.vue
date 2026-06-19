@@ -1,24 +1,35 @@
 <template>
   <div class="view-content view-ambient">
-    <div :style="{ backgroundImage: `url(${activeBg})` }" class="ambient-bg"></div>
-    <!-- Hero -->
-    <div :style="{ backgroundImage: `url(${heroBg})` }" class="view-hero-bg">
-      <div class="view-hero-eyebrow">{{ $t('x-control-room-eyebrow') }}</div>
-      <h1 class="view-hero-title">{{ $t('x-control-room-title') }}</h1>
-      <div class="view-hero-sub">{{ $t('x-control-room-subtitle') }}</div>
-      <div class="hero-status">
-        <span :class="systemDotClass" class="s-dot inline-block mr-1"></span>
-        {{ systemStatusLabel }}
-      </div>
-    </div>
+    <div :style="{ backgroundImage: `url(${idleSceneBg})` }" class="ambient-bg"></div>
 
-    <div class="view-body">
-    <!-- Component cards grid -->
-    <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
+    <div :class="['view-body', 'control-room-body', {'control-room-body--idle': !loading}]">
+      <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
 
-    <template v-else>
-      <div class="cards-grid mb-6">
-        <!-- Emby / Media Server -->
+      <template v-else>
+        <div
+            :style="{ backgroundImage: `url(${idleSceneBg})` }"
+            class="room-idle-art"
+        ></div>
+
+        <section class="room-idle-landing">
+          <div class="room-idle-copy">
+            <div class="view-hero-eyebrow">{{ $t('x-control-room-idle-eyebrow') }}</div>
+            <h1 class="room-idle-title">{{ $t('x-control-room-idle-title') }}</h1>
+            <p class="room-idle-subtitle">{{ $t('x-control-room-idle-subtitle') }}</p>
+            <div class="room-idle-actions">
+              <button class="btn-primary room-idle-remote-button" type="button" @click="router.push('/remote')">
+                <Gamepad2 :size="18" :stroke-width="2.2" aria-hidden="true"/>
+                <span>{{ $t('x-control-room-open-remote') }}</span>
+              </button>
+              <div class="room-idle-status">
+                <span :class="systemDotClass" class="s-dot"></span>
+                <span>{{ systemStatusLabel }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="cards-grid room-status-grid">
         <div :class="serverCardClass" class="comp-card" @click="router.push('/media-server')">
           <div class="card-name">{{ $t('x-nav-media-server') }}</div>
           <div class="card-value">{{ serverCardValue }}</div>
@@ -69,58 +80,11 @@
         </div>
       </div>
 
-      <!-- Resources + Active session row -->
-      <div class="bottom-row">
-        <!-- Resources -->
-        <div class="panel" style="flex:1">
-          <div class="panel-head">
-            <h2 class="panel-title">{{ $t('x-control-room-resources') }}</h2>
-            <span class="mono version-badge">v{{ state.Version }}</span>
-          </div>
-          <div class="panel-body">
-            <div class="mb-3">
-              <div class="flex justify-between mb-1">
-                <span class="metric-label">CPU</span>
-                <span class="mono metric-value">{{ state.cpu_perc ?? '—' }}%</span>
-              </div>
-              <div class="meter">
-                <div :class="meterClass(state.cpu_perc)" :style="{width: (state.cpu_perc||0)+'%'}"
-                     class="meter-fill"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex justify-between mb-1">
-                <span class="metric-label">RAM</span>
-                <span class="mono metric-value">{{ state.mem_perc ?? '—' }}%</span>
-              </div>
-              <div class="meter">
-                <div :class="meterClass(state.mem_perc)" :style="{width: (state.mem_perc||0)+'%'}"
-                     class="meter-fill"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Active session / Now playing -->
-        <div class="panel" style="flex:2">
-          <div class="panel-head">
-            <h2 class="panel-title">{{ $t('x-control-room-now-playing') }}</h2>
-            <span v-if="state.Playstate === 'Playing'" class="s-dot ok pulse"></span>
-          </div>
-          <div class="panel-body">
-            <template v-if="state.ActiveSession?.title">
-              <div class="now-playing-title">{{ state.ActiveSession.title }}</div>
-              <div class="mono now-playing-path">{{ state.ActiveSession.content_directory }}</div>
-              <div class="flex gap-2">
-                <button class="btn-ghost btn-compact" @click="sendKey('STP')">■ Stop</button>
-                <button class="btn-ghost btn-compact" @click="sendKey('PAU')">⏸ Pause</button>
-              </div>
-            </template>
-            <template v-else>
-              <div class="body-text">{{ playstateLabel }}</div>
-            </template>
-          </div>
-        </div>
+        <div class="room-idle-meta">
+          <span>{{ $t('x-control-room-resources') }}</span>
+          <strong>CPU {{ state.cpu_perc ?? '—' }}%</strong>
+          <strong>RAM {{ state.mem_perc ?? '—' }}%</strong>
+          <span class="mono">v{{ state.Version }}</span>
       </div>
     </template>
     </div>
@@ -128,11 +92,12 @@
 </template>
 
 <script setup>
+import {Gamepad2} from '@lucide/vue'
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import {api} from '../api/index.js'
-import heroBg from '../assets/backgrounds/bg-control-room.png'
+import idleSceneBg from '../assets/backgrounds/bg-control-room-idle.png'
 import {usePoll} from '../composables/usePoll.js'
 
 const {t} = useI18n()
@@ -142,23 +107,9 @@ const loading = ref(true)
 const state = ref({})
 const config = ref({})
 
-const activeBg = computed(() => {
-  const itemId = state.value.ActiveSession?.media_item_id
-  return itemId ? `/api/now-playing/backdrop?item=${itemId}` : heroBg
-})
+const hasActiveSession = computed(() => Boolean(state.value.ActiveSession?.title))
 
 usePoll(refresh, 8000)
-
-/* ── playstate ── */
-const playstateLabel = computed(() => {
-  const ps = state.value.Playstate
-  if (ps === 'Not_Connected') return t('x-status-not-connected')
-  if (ps === 'Free') return t('x-status-free')
-  if (ps === 'Loading') return t('x-status-loading')
-  if (ps === 'Playing') return t('x-status-playing')
-  if (ps === 'Replay') return t('x-status-replay')
-  return ps || '—'
-})
 
 const systemDotClass = computed(() => {
   const ps = state.value.Playstate
@@ -267,20 +218,6 @@ const pathsTagLabel = computed(() => {
   return unverified > 0 ? t('x-control-room-tag-unverified') : t('x-control-room-tag-ok')
 })
 
-function meterClass(pct) {
-  if (!pct) return 'meter-blue'
-  if (pct < 50) return 'meter-ok'
-  if (pct < 85) return 'meter-warn'
-  return 'meter-err'
-}
-
-async function sendKey(k) {
-  try {
-    await api.sendKey(k)
-  } catch { /* ignore */
-  }
-}
-
 async function refresh() {
   try {
     state.value = await api.getState()
@@ -301,6 +238,118 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ─── ACTIVE ROOM STAGE ──────────────────────────────────────────────── */
+.control-room-body {
+  position: relative;
+  max-width: 1600px;
+}
+
+.control-room-body--idle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(28px, 4vh, 48px);
+  min-height: 100dvh;
+  max-width: none;
+  padding: clamp(46px, 8vh, 86px) clamp(24px, 5vw, 76px) clamp(24px, 4vh, 44px);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.room-idle-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 0;
+  background-position: center right;
+  background-size: cover;
+  filter: saturate(1.08) contrast(1.03);
+  opacity: 0.9;
+}
+
+.room-idle-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(7, 11, 13, 0.62), rgba(7, 11, 13, 0.18) 42%, rgba(7, 11, 13, 0.44)),
+  linear-gradient(180deg, rgba(7, 11, 13, 0.02), rgba(7, 11, 13, 0.28) 58%, rgba(7, 11, 13, 0.7));
+}
+
+.room-status-grid,
+.room-idle-landing,
+.room-idle-meta {
+  position: relative;
+  z-index: 1;
+}
+
+.room-idle-landing {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  text-align: center;
+}
+
+.room-idle-copy {
+  width: min(980px, 100%);
+}
+
+.room-idle-title {
+  max-width: 1060px;
+  margin: 10px auto 0;
+  color: var(--text-main);
+  font-size: clamp(44px, 6.2vw, 96px);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 28px 88px rgba(0, 0, 0, 0.72);
+}
+
+.room-idle-subtitle {
+  max-width: 680px;
+  margin: 18px auto 0;
+  color: rgba(245, 247, 255, 0.72);
+  font-size: clamp(17px, 1.45vw, 23px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+.room-idle-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.room-idle-remote-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 10px 16px;
+  box-shadow: 0 16px 42px rgba(127, 166, 181, 0.32),
+  inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+
+.room-idle-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 13px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: rgba(245, 247, 255, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+}
+
 /* ─── COMP CARD ──────────────────────────────────────────────────────── */
 .comp-card {
   background: var(--bg-panel);
@@ -324,9 +373,9 @@ onMounted(async () => {
 }
 
 .comp-card.card-playing {
-  background: rgba(47, 128, 237, 0.06);
-  border-color: rgba(47, 128, 237, 0.25);
-  box-shadow: inset 0 1px 0 rgba(86, 204, 242, 0.12);
+  background: rgba(127, 166, 181, 0.06);
+  border-color: rgba(127, 166, 181, 0.25);
+  box-shadow: inset 0 1px 0 rgba(194, 161, 107, 0.12);
   animation: breathe 3s ease-in-out infinite;
 }
 
@@ -345,6 +394,38 @@ onMounted(async () => {
 .comp-card.card-dim {
   border-left: 2px solid var(--text-subtle);
   opacity: 0.7;
+}
+
+.control-room-body--idle .room-status-grid {
+  width: min(100%, 1480px);
+  align-self: center;
+  margin: 0;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.58), rgba(13, 18, 20, 0.2));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.46),
+  inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(6px);
+}
+
+.control-room-body--idle .comp-card {
+  min-height: 142px;
+  padding: 17px 17px 15px;
+  background: rgba(24, 17, 13, 0.82);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
+}
+
+.control-room-body--idle .comp-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(194, 161, 107, 0.34);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.34),
+  0 0 36px -20px rgba(194, 161, 107, 0.7);
+}
+
+.control-room-body--idle .card-value {
+  font-size: 18px;
 }
 
 .card-name {
@@ -373,45 +454,35 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 
-.hero-status {
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-  display: flex;
+.room-idle-meta {
+  align-self: center;
+  display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  color: rgba(139, 147, 167, 0.86);
+  font-size: 11px;
+  backdrop-filter: blur(8px);
 }
 
-.version-badge {
-  font-size: 9px;
-  color: var(--text-subtle);
-}
-
-.now-playing-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 6px;
-}
-
-.now-playing-path {
-  font-size: 10px;
-  color: var(--text-subtle);
-  margin-bottom: 10px;
-}
-
-.btn-compact {
-  padding: 5px 10px;
-  font-size: 12px;
+.room-idle-meta strong {
+  color: rgba(245, 247, 255, 0.72);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 @keyframes breathe {
   0%, 100% {
-    box-shadow: inset 0 1px 0 rgba(86, 204, 242, 0.12), 0 0 20px rgba(47, 128, 237, 0.04);
+    box-shadow: inset 0 1px 0 rgba(194, 161, 107, 0.12), 0 0 20px rgba(127, 166, 181, 0.04);
   }
   50% {
-    box-shadow: inset 0 1px 0 rgba(86, 204, 242, 0.18), 0 0 32px rgba(47, 128, 237, 0.10);
+    box-shadow: inset 0 1px 0 rgba(194, 161, 107, 0.18), 0 0 32px rgba(127, 166, 181, 0.10);
   }
 }
 
@@ -426,11 +497,21 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+  margin-bottom: 24px;
 }
 
 @media (max-width: 1100px) {
   .cards-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .control-room-body--idle {
+    min-height: 100dvh;
+    padding-top: 56px;
+  }
+
+  .control-room-body--idle .room-status-grid {
+    width: min(100%, 940px);
   }
 }
 
@@ -438,16 +519,54 @@ onMounted(async () => {
   .cards-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .control-room-body--idle {
+    gap: 22px;
+    padding: 36px 16px 24px;
+    overflow: visible;
+  }
+
+  .room-idle-landing {
+    align-items: center;
+  }
+
+  .room-idle-title {
+    font-size: clamp(36px, 12vw, 52px);
+  }
+
+  .room-idle-subtitle {
+    font-size: 15px;
+  }
+
+  .room-idle-actions {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .room-idle-remote-button,
+  .room-idle-status {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .control-room-body--idle .room-status-grid {
+    padding: 10px;
+  }
+
+  .control-room-body--idle .comp-card {
+    min-height: 126px;
+    padding: 14px;
+  }
 }
 
-.bottom-row {
-  display: flex;
-  gap: 10px;
-}
+@media (max-width: 520px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
 
-@media (max-width: 760px) {
-  .bottom-row {
-    flex-direction: column;
+  .room-idle-meta {
+    width: 100%;
+    border-radius: 14px;
   }
 }
 </style>

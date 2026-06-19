@@ -1,22 +1,32 @@
 <template>
-  <div class="view-content view-ambient">
+  <div class="view-content view-ambient status-view">
     <div :style="{ backgroundImage: `url(${heroBg})` }" class="ambient-bg"></div>
-    <div :style="{ backgroundImage: `url(${heroBg})` }" class="view-hero-bg">
-      <div class="view-hero-eyebrow">{{ $t('x-nav-support-section') }}</div>
-      <h1 class="view-hero-title">{{ $t('x-nav-diag') }}</h1>
-      <div class="view-hero-sub">{{ $t('x-diag-subtitle') }}</div>
-    </div>
+    <div :style="{ backgroundImage: `url(${heroBg})` }" class="status-scene-bg"></div>
 
-    <div class="view-form">
+    <div class="view-body status-view-body">
     <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
 
     <template v-else>
+      <section class="status-showcase">
+        <h1 class="status-title">{{ $t('x-diag-title') }}</h1>
+        <p class="status-subtitle">{{ $t('x-diag-subtitle') }}</p>
+      </section>
+
+      <div class="status-kicker">
+        <span :class="stateDotClass" class="s-dot"></span>
+        <span>{{ $t('x-nav-support-section') }}</span>
+      </div>
       <div class="status-grid">
         <!-- Left column -->
         <div>
       <!-- Playback state -->
-      <div class="panel mb-3">
-        <div class="panel-head"><h2 class="panel-title">{{ $t('x-nav-status') }}</h2></div>
+          <div :class="playbackAccentClass" class="panel mb-3">
+            <div class="panel-head">
+              <h2 class="panel-title">
+                <Activity :size="13" :stroke-width="2.3"/>
+                {{ $t('x-nav-status') }}
+              </h2>
+            </div>
         <div class="panel-body">
           <div class="flex items-center gap-3 mb-3">
             <span :class="stateDotClass" class="s-dot"></span>
@@ -61,9 +71,12 @@
       </div>
 
       <!-- Last failure diagnostic -->
-      <div class="panel mb-3">
+          <div :class="failureAccentClass" class="panel mb-3">
         <div class="panel-head">
-          <h2 class="panel-title">{{ $t('x-diag-section-last-failure') }}</h2>
+          <h2 class="panel-title">
+            <ShieldAlert :size="13" :stroke-width="2.3"/>
+            {{ $t('x-diag-section-last-failure') }}
+          </h2>
           <div class="flex gap-2">
             <IconActionButton :label="$t('x-diag-copy-summary')" icon="copy" @click="copySupportSummary"/>
             <IconActionButton
@@ -114,8 +127,13 @@
         <!-- Right column -->
         <div>
       <!-- Resources -->
-      <div class="panel mb-3">
-        <div class="panel-head"><h2 class="panel-title">{{ $t('x-status-resources') }}</h2></div>
+          <div :class="resourcesAccentClass" class="panel mb-3">
+            <div class="panel-head">
+              <h2 class="panel-title">
+                <Cpu :size="13" :stroke-width="2.3"/>
+                {{ $t('x-status-resources') }}
+              </h2>
+            </div>
         <div class="panel-body">
           <div class="mb-4">
             <div class="flex justify-between mb-1">
@@ -139,8 +157,13 @@
       </div>
 
       <!-- Version -->
-          <div class="panel mb-3">
-        <div class="panel-head"><h2 class="panel-title">{{ $t('x-status-section-version') }}</h2></div>
+          <div :class="versionAccentClass" class="panel mb-3">
+            <div class="panel-head">
+              <h2 class="panel-title">
+                <PackageCheck :size="13" :stroke-width="2.3"/>
+                {{ $t('x-status-section-version') }}
+              </h2>
+            </div>
         <div class="panel-body">
           <div v-if="versionLoading" class="caption">{{
               $t('x-status-checking-version')
@@ -249,7 +272,7 @@
       <!-- Actions -->
       <div class="icon-action-row" style="margin-top:16px">
         <IconActionButton :label="$t('x-status-refresh')" icon="refresh" @click="refreshState"/>
-        <button :disabled="restarting" class="btn-danger" @click="restartService">
+        <button :disabled="restarting" class="btn-service-action" @click="restartService">
           {{ restarting ? $t('x-status-restarting') : $t('x-status-restart') }}
         </button>
       </div>
@@ -262,6 +285,7 @@
 <script setup>
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {Activity, Cpu, PackageCheck, ShieldAlert} from '@lucide/vue'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-status.png'
 import {useToast} from '../composables/useToast.js'
@@ -319,17 +343,45 @@ const stateDotClass = computed(() => {
   return 'dim'
 })
 
+const playbackAccentClass = computed(() => {
+  const ps = state.value.Playstate
+  if (ps === 'Not_Connected') return 'panel-accent-err'
+  if (ps === 'Playing') return 'panel-accent-ok'
+  if (ps === 'Loading') return 'panel-accent-warn'
+  return 'panel-accent-dim'
+})
+
+const failureAccentClass = computed(() => {
+  const severity = state.value.LastDiagnostic?.severity
+  if (severity === 'error') return 'panel-accent-err'
+  if (severity === 'warning') return 'panel-accent-warn'
+  return 'panel-accent-dim'
+})
+
 function barMeterClass(pct) {
   if (pct < 50) return 'meter-ok'
   if (pct < 85) return 'meter-warn'
   return 'meter-err'
 }
 
+const resourcesAccentClass = computed(() => {
+  const worst = Math.max(state.value.cpu_perc || 0, state.value.mem_perc || 0)
+  if (worst >= 85) return 'panel-accent-err'
+  if (worst >= 50) return 'panel-accent-warn'
+  return 'panel-accent-ok'
+})
+
 function diagColor(severity) {
   if (severity === 'error') return 'var(--status-danger)'
   if (severity === 'warning') return 'var(--status-warning)'
   return 'var(--accent-primary)'
 }
+
+const versionAccentClass = computed(() => {
+  if (versionInfo.value?.error) return 'panel-accent-err'
+  if (versionInfo.value?.new_version) return 'panel-accent-warn'
+  return 'panel-accent-ok'
+})
 
 function diagBg(severity) {
   if (severity === 'error') return 'rgba(255,92,122,0.06)'
@@ -441,8 +493,90 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.view-form {
-  max-width: 1100px;
+.status-view {
+  position: relative;
+  min-height: 100dvh;
+}
+
+.status-scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.97;
+  filter: saturate(1.2) contrast(1.04) brightness(1.12) sepia(0.08) hue-rotate(-5deg);
+}
+
+.status-scene-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 18% 26%, rgba(80, 122, 142, 0.18), transparent 34%),
+  radial-gradient(circle at 78% 18%, rgba(245, 165, 36, 0.18), transparent 34%),
+  radial-gradient(circle at 12% 8%, rgba(194, 161, 107, 0.13), transparent 32%);
+}
+
+.status-scene-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 16, 20, 0.6), rgba(32, 56, 68, 0.12) 46%, rgba(8, 16, 20, 0.34)),
+  linear-gradient(180deg, rgba(35, 61, 74, 0.08), rgba(8, 16, 20, 0.18) 52%, rgba(6, 13, 17, 0.68));
+}
+
+.status-view-body {
+  position: relative;
+  z-index: 1;
+  padding: clamp(40px, 7vh, 78px) clamp(22px, 5vw, 76px) clamp(28px, 5vh, 54px);
+}
+
+.status-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: var(--accent-secondary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  margin-bottom: 12px;
+}
+
+.status-title {
+  max-width: 1050px;
+  margin: 0;
+  color: var(--text-main);
+  font-size: clamp(40px, 5vw, 78px);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 30px 88px rgba(0, 0, 0, 0.62);
+}
+
+.status-subtitle {
+  max-width: 690px;
+  margin: 12px 0 0;
+  color: rgba(245, 247, 255, 0.78);
+  font-size: clamp(17px, 1.4vw, 23px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+.status-showcase {
+  display: flex;
+  min-height: clamp(150px, 24dvh, 260px);
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: clamp(16px, 2.2vh, 26px);
 }
 
 .session-with-poster {
@@ -517,8 +651,16 @@ onMounted(async () => {
 .status-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
   align-items: start;
+  width: min(100%, 1320px);
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.58), rgba(13, 18, 20, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(7px);
 }
 
 .status-grid > div {

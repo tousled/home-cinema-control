@@ -5,26 +5,79 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
 ## Versioning
 
 - Versions follow `MAJOR.MINOR.PATCH` (no `v` prefix on tags — the release workflow matches `[0-9]*.[0-9]*.[0-9]*`).
-- **`0.x` is pre-1.0.** Breaking changes to config shape, secrets layout, or behavior may still happen between minor
-  versions, as already stated in `CHANGELOG.md`.
-- **`0.9.x` is the 1.0.0 stabilization line.** Starting from the `0.9.0` tag, new work lands on `0.9.x` patch/minor
-  releases for final hardening (bug fixes, polish, hardware validation) rather than directly on `1.0.0`. No new feature
-  scope is added during this phase — see "1.0.0 readiness" below for what's actually gating the jump.
-- **`1.0.0`** is the first release where config/secrets shape is considered stable across upgrades without a
-  breaking-change note. The project is source-available, not open source; commercial distribution still requires an
-  explicit licensing decision or written permission.
+- **`0.x` was the pre-1.0 stabilization period.** Breaking changes to config shape, secrets layout, or behavior were
+  allowed there while the legacy bridge architecture was removed.
+- **`1.0.0` is the first stable public release line.** From here, persisted config/secrets shape is considered stable
+  across upgrades unless a migration path and changelog entry explicitly say otherwise. The project is source-available,
+  not open source; commercial distribution still requires an explicit licensing decision or written permission.
 - Post-1.0.0, breaking changes to persisted config or secrets require a migration path in `config/migration.py`, not
   just a changelog note.
+
+## Branch and tag flow
+
+- Feature, bugfix, refactor, docs, and chore branches merge into `develop`.
+- `develop` is the integration branch and may be tagged with release candidates such as `1.0.0-rc.1`.
+- `main` is the stable release branch. Stable tags such as `1.0.0`, `1.0.1`, or `1.1.0` must point to commits contained
+  in `main`.
+- Pull requests into `main` come only from `develop` or from `hotfix/*` branches, enforced by
+  `.github/workflows/branch-policy.yml`.
+- `hotfix/*` branches are cut from `main` (not `develop`), for fixes that can't wait for the next regular release.
+  After merging a hotfix into `main` and tagging the patch release (e.g. `1.0.1`), open a second PR backporting the
+  same hotfix branch into `develop` so the fix isn't lost or reintroduced as a regression in the next release.
+- The release workflow validates tag placement:
+    - tags containing `-` are treated as pre-releases and must be contained in `develop`;
+    - plain `MAJOR.MINOR.PATCH` tags are stable releases and must be contained in `main`.
+- `develop` and `main` are both branch-protected on GitHub (PR + passing status checks required, `enforce_admins`
+  enabled). Nobody pushes a commit directly to either branch, including release-prep version bumps — those go through
+  a `chore/release-<version>` branch and PR like any other change. Git tags are not protected, so `git push origin
+  <tag>` after the merge remains a direct push.
 
 ## Release artifacts
 
 - **Docker images** are the only supported release artifact. There is no separate source tarball/zip release process.
-- Images publish to two registries on every tag push matching `[0-9]*.[0-9]*.[0-9]*` (`.github/workflows/release.yml`):
-    - `ghcr.io/tousled/home-cinema-control:<version>` and `:latest` (primary)
-    - `tousled/home-cinema-control:<version>` and `:latest` (Docker Hub mirror)
+- Images publish to two registries on every matching tag push (`.github/workflows/release.yml`):
+    - stable tag: `ghcr.io/tousled/home-cinema-control:<version>` and `:latest` (primary)
+    - stable tag: `tousled/home-cinema-control:<version>` and `:latest` (Docker Hub mirror)
+    - release candidate tag: `:<version>` and `:rc`, never `:latest`
 - Both are multi-arch (`linux/amd64`, `linux/arm64`).
 - `compose.yaml` pins the image via `${HCC_VERSION:-latest}` so a deployment can stay on a known-good tag instead of
   always tracking `latest`.
+
+## Version source of truth
+
+- The Git tag is the release source of truth. No file in the repo needs to be edited for a release to carry the right
+  version.
+- The Python package version is dynamic through `setuptools_scm`.
+- The Docker release workflow passes `SETUPTOOLS_SCM_PRETEND_VERSION=<tag>` during image build, so the runtime version
+  shown by the app matches the pushed tag even though `.git` is excluded from Docker context.
+- The README version badge is a dynamic `img.shields.io/github/v/tag/...` badge that reads the latest tag directly
+  from GitHub (sorted by semver) — it updates itself on tag push and needs no commit.
+- `HCC_VERSION` in `compose.yaml` defaults to `latest`. To pin a deployment to a known-good tag, create a local
+  `.env` (gitignored, never committed) with `HCC_VERSION=<version>`. This is a per-deployment choice, not something
+  the release procedure produces or depends on.
+
+## Release procedure
+
+Release candidate:
+
+```bash
+git checkout develop && git pull
+git tag 1.0.0-rc.1
+git push origin 1.0.0-rc.1
+```
+
+Stable release (after the RC has been validated):
+
+```bash
+# open PR develop -> main, wait for checks, merge
+git checkout main && git pull
+git tag 1.0.0
+git push origin 1.0.0
+```
+
+The PR merging `develop` into `main` is a regular merge commit (not squash/rebase) so `main`'s history stays a
+superset of `develop`'s — squash or rebase merge must stay disabled for that PR direction in the repo's merge button
+settings. The stable tag publishes `:<version>` and `:latest`. The RC tag publishes `:<version>` and `:rc`.
 
 ## Upgrade behavior (config & secrets)
 

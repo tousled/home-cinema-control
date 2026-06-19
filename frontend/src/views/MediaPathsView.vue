@@ -1,18 +1,45 @@
 <template>
-  <div class="view-content view-ambient">
+  <div class="view-content view-ambient paths-view">
     <div :style="{ backgroundImage: `url(${heroBg})` }" class="ambient-bg"></div>
-    <div :style="{ backgroundImage: `url(${heroBg})` }" class="view-hero-bg">
-      <div class="view-hero-eyebrow">{{ $t('x-nav-config-section') }}</div>
-      <h1 class="view-hero-title">{{ $t('x-paths-title') }}</h1>
-      <div class="view-hero-sub">{{ $t('x-paths-subtitle') }}</div>
-    </div>
+    <div :style="{ backgroundImage: `url(${heroBg})` }" class="paths-scene-bg"></div>
 
-    <div class="view-body">
+    <div class="view-body paths-view-body">
+      <section class="paths-showcase">
+        <h1 class="paths-showcase-title">{{ $t('x-paths-title') }}</h1>
+        <p class="paths-showcase-subtitle">{{ $t('x-paths-subtitle') }}</p>
+        <div class="paths-showcase-actions">
+          <HelpTooltip :text="$t('x-paths-tooltip-discover')">
+            <IconActionButton
+                :disabled="gateActive"
+                :label="$t('x-paths-refresh-libraries')"
+                :loading="libraryPathsLoading"
+                :loading-label="$t('x-paths-library-picker-loading')"
+                icon="refresh"
+                @click="refreshDetectedLibraries"
+            />
+          </HelpTooltip>
+          <span class="paths-stats">
+            {{
+              $t('x-paths-summary', {
+                detected: detectedRows.length,
+                verified: verifiedRouteCount,
+                active: activeDetectedLibraryCount,
+                pending: statusCounts.pending + statusCounts.stale + statusCounts.error + statusCounts.unconfigured
+              })
+            }}
+          </span>
+        </div>
+      </section>
+
       <div v-if="loading" class="text-sm" style="color:var(--text-muted)">
         {{ $t('x-common-loading') }}
       </div>
 
       <template v-else>
+        <div class="paths-kicker">
+          <span class="s-dot dim"></span>
+          <span>{{ $t('x-nav-config-section') }}</span>
+        </div>
         <div class="paths-shell">
           <div v-if="gateActive" class="gate-panel">
             <p class="gate-title">{{ $t('x-setup-gate-title') }}</p>
@@ -31,38 +58,13 @@
             </button>
           </div>
 
-          <section class="paths-summary">
-            <div>
-              <p class="summary-kicker">{{ $t('x-paths-summary-kicker') }}</p>
-              <p class="summary-title">
-                {{
-                  $t('x-paths-summary', {
-                    detected: detectedRows.length,
-                    verified: verifiedRouteCount,
-                    active: activeDetectedLibraryCount,
-                    pending: statusCounts.pending + statusCounts.stale + statusCounts.error + statusCounts.unconfigured
-                  })
-                }}
-              </p>
-            </div>
-            <div class="summary-actions">
-              <HelpTooltip :text="$t('x-paths-tooltip-discover')">
-                <IconActionButton
-                    :disabled="gateActive"
-                    :label="$t('x-paths-refresh-libraries')"
-                    :loading="libraryPathsLoading"
-                    :loading-label="$t('x-paths-library-picker-loading')"
-                    icon="refresh"
-                    @click="refreshDetectedLibraries"
-                />
-              </HelpTooltip>
-            </div>
-          </section>
-
           <div class="paths-workspace">
-            <section class="panel library-queue">
+            <section :class="libraryQueueAccentClass" class="panel library-queue">
               <div class="panel-head">
-                <h2 class="panel-title">{{ $t('x-paths-library-queue-title') }}</h2>
+                <h2 class="panel-title">
+                  <FolderTree :size="13" :stroke-width="2.3"/>
+                  {{ $t('x-paths-library-queue-title') }}
+                </h2>
               </div>
               <div class="panel-body">
                 <div v-if="libraryPathsLoading" class="folder-loading queue-loading">
@@ -156,9 +158,10 @@
               </div>
             </section>
 
-            <section class="panel resolution-panel">
+            <section :class="resolutionAccentClass" class="panel resolution-panel">
               <div class="panel-head">
                 <h2 class="panel-title">
+                  <Route :size="13" :stroke-width="2.3"/>
                   {{ advancedMode ? $t('x-paths-advanced-title') : $t('x-paths-resolution-title') }}
                 </h2>
               </div>
@@ -395,9 +398,10 @@
             </section>
 
             <aside class="paths-help-column">
-              <details :open="libraryFilterOpen" class="secondary-details">
+              <details class="secondary-details" open>
                 <summary>
-                  {{ $t('x-paths-library-filter-title') }}
+                  <span class="summary-label"><ListFilter :size="13"
+                                                          :stroke-width="2.3"/>{{ $t('x-paths-library-filter-title') }}</span>
                   <span v-if="librariesSaving" class="inline-saving">
                     <span class="folder-loading-spinner"></span>{{ $t('x-media-server-libraries-saving') }}
                   </span>
@@ -441,7 +445,9 @@
               </details>
 
               <details :open="statusLegendOpen" class="status-legend">
-                <summary>{{ $t('x-paths-status-legend-title') }}</summary>
+                <summary><span class="summary-label"><Info :size="13"
+                                                           :stroke-width="2.3"/>{{ $t('x-paths-status-legend-title') }}</span>
+                </summary>
                 <div class="status-legend-list">
                   <div
                       v-for="item in statusLegendItems"
@@ -477,7 +483,19 @@
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
-import {AlertTriangle, CheckCircle, Circle, Clock3, EyeOff, FolderOpen, Shield} from '@lucide/vue'
+import {
+  AlertTriangle,
+  CheckCircle,
+  Circle,
+  Clock3,
+  EyeOff,
+  FolderOpen,
+  FolderTree,
+  Info,
+  ListFilter,
+  Route,
+  Shield,
+} from '@lucide/vue'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-media-server.png'
 import {useToast} from '../composables/useToast.js'
@@ -579,7 +597,6 @@ const networkModeLabel = computed(() => smbEnabled.value ? 'SMB/CIFS' : 'NFS')
 const activeDetectedLibraryCount = computed(() => detectedRows.value.filter((row) => row.intercepted).length)
 const verifiedRouteCount = computed(() => detectedRows.value.filter((row) => row.mapping?.verified).length + manualRows.value.filter((row) => row.mapping?.verified).length)
 const libraryFilterDirty = computed(() => libraryFilterSnapshot() !== savedLibraryFilterSnapshot())
-const libraryFilterOpen = computed(() => !useAllLibraries.value || libraryFilterDirty.value)
 const statusLegendOpen = computed(() =>
     !!(statusCounts.value.not_intercepted || statusCounts.value.pending || statusCounts.value.stale || statusCounts.value.error)
 )
@@ -587,6 +604,21 @@ const navErrorLabel = computed(() => {
   if (!navError.value) return ''
   return navError.value.status === 503 ? t('x-paths-nav-error') : t('x-paths-nav-mount-error')
 })
+const libraryQueueAccentClass = computed(() => {
+  if (libraryPathsError.value) return 'panel-accent-err'
+  if (statusCounts.value.error) return 'panel-accent-err'
+  if (statusCounts.value.stale || statusCounts.value.pending) return 'panel-accent-warn'
+  if (!detectedRows.value.length) return 'panel-accent-dim'
+  return 'panel-accent-ok'
+})
+
+const resolutionAccentClass = computed(() => {
+  if (!editing.value) return 'panel-accent-dim'
+  if (form.value.verified && !formDirty.value) return 'panel-accent-ok'
+  if (formDirty.value && originalVerified.value) return 'panel-accent-warn'
+  return 'panel-accent-info'
+})
+
 const statusLegendItems = computed(() => [
   {status: 'verified', label: statusLabel('verified'), copy: t('x-paths-status-legend-verified')},
   {status: 'not_intercepted', label: statusLabel('not_intercepted'), copy: t('x-paths-status-legend-not-intercepted')},
@@ -797,47 +829,130 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.paths-view {
+  position: relative;
+  min-height: 100dvh;
+}
+
+.paths-scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.97;
+  filter: saturate(1.2) contrast(1.04) brightness(1.12) sepia(0.08) hue-rotate(-5deg);
+}
+
+.paths-scene-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 18% 26%, rgba(80, 122, 142, 0.18), transparent 34%),
+  radial-gradient(circle at 78% 18%, rgba(245, 165, 36, 0.18), transparent 34%),
+  radial-gradient(circle at 12% 8%, rgba(194, 161, 107, 0.13), transparent 32%);
+}
+
+.paths-scene-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 16, 20, 0.6), rgba(32, 56, 68, 0.12) 46%, rgba(8, 16, 20, 0.34)),
+  linear-gradient(180deg, rgba(35, 61, 74, 0.08), rgba(8, 16, 20, 0.18) 52%, rgba(6, 13, 17, 0.68));
+}
+
+.paths-view-body {
+  position: relative;
+  z-index: 1;
+  padding: clamp(40px, 7vh, 78px) clamp(22px, 5vw, 76px) clamp(28px, 5vh, 54px);
+}
+
+.paths-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: var(--accent-secondary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  margin-bottom: 12px;
+}
+
+.paths-showcase-title {
+  max-width: 1120px;
+  margin: 0;
+  color: var(--text-main);
+  font-size: clamp(34px, 4.1vw, 62px);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 30px 88px rgba(0, 0, 0, 0.62);
+}
+
+.paths-showcase-subtitle {
+  max-width: 720px;
+  margin: 12px 0 0;
+  color: rgba(245, 247, 255, 0.78);
+  font-size: clamp(15px, 1.15vw, 19px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+.paths-showcase-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.paths-stats {
+  min-height: 38px;
+  padding: 10px 13px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  color: rgba(245, 247, 255, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+}
+
+.paths-showcase {
+  display: flex;
+  min-height: clamp(132px, 21dvh, 228px);
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: clamp(16px, 2.2vh, 26px);
+}
+
+.summary-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .paths-shell {
   display: grid;
   gap: 18px;
-  max-width: 1380px;
-  width: 100%;
-}
-
-.paths-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
-  border: 1px solid rgba(86, 204, 242, 0.16);
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(86, 204, 242, 0.08), rgba(47, 128, 237, 0.03)),
-  var(--bg-panel);
-  box-shadow: inset 0 1px 0 var(--panel-specular);
-}
-
-.summary-kicker {
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent-secondary);
-  margin-bottom: 4px;
-}
-
-.summary-title {
-  font-size: 17px;
-  font-weight: 750;
-  color: var(--text-main);
-  margin: 0;
-}
-
-.summary-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  width: min(100%, 1500px);
+  max-width: none;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 18, 20, 0.58), rgba(13, 18, 20, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(7px);
 }
 
 .paths-workspace {
@@ -860,18 +975,12 @@ onMounted(async () => {
 }
 
 @media (max-width: 940px) {
-  .paths-summary,
   .paths-workspace {
     grid-template-columns: 1fr;
   }
 
   .paths-help-column {
     grid-template-columns: 1fr;
-  }
-
-  .paths-summary {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 
@@ -997,9 +1106,11 @@ onMounted(async () => {
 }
 
 .status-legend {
-  border: 1px solid rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.018);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.005) 40%, transparent),
+  var(--bg-panel);
+  box-shadow: inset 0 1px 0 var(--panel-specular), 0 18px 40px -16px rgba(7, 11, 13, 0.65);
 }
 
 .status-legend summary {
@@ -1051,9 +1162,11 @@ onMounted(async () => {
 }
 
 .secondary-details {
-  border: 1px solid rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.018);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.005) 40%, transparent),
+  var(--bg-panel);
+  box-shadow: inset 0 1px 0 var(--panel-specular), 0 18px 40px -16px rgba(7, 11, 13, 0.65);
 }
 
 .secondary-details summary {
@@ -1121,8 +1234,8 @@ onMounted(async () => {
 
 .library-row:hover,
 .library-row--active {
-  border-color: rgba(86, 204, 242, 0.26);
-  background: rgba(86, 204, 242, 0.055);
+  border-color: rgba(194, 161, 107, 0.26);
+  background: rgba(194, 161, 107, 0.055);
 }
 
 .state-dot {
@@ -1311,9 +1424,9 @@ onMounted(async () => {
   gap: 8px;
   margin-bottom: 14px;
   padding: 11px 12px;
-  border: 1px solid rgba(86, 204, 242, 0.14);
+  border: 1px solid rgba(194, 161, 107, 0.14);
   border-radius: 8px;
-  background: rgba(86, 204, 242, 0.045);
+  background: rgba(194, 161, 107, 0.045);
 }
 
 .access-config {
@@ -1363,7 +1476,7 @@ onMounted(async () => {
   width: 22px;
   height: 22px;
   border-radius: 7px;
-  background: rgba(86, 204, 242, 0.10);
+  background: rgba(194, 161, 107, 0.10);
   color: var(--accent-secondary);
   font-family: var(--mono);
   font-size: 11px;
@@ -1422,8 +1535,8 @@ onMounted(async () => {
 }
 
 .route-rail--oppo {
-  border-color: rgba(86, 204, 242, 0.16);
-  background: rgba(86, 204, 242, 0.035);
+  border-color: rgba(194, 161, 107, 0.16);
+  background: rgba(194, 161, 107, 0.035);
 }
 
 .route-rail-label {
@@ -1444,7 +1557,7 @@ onMounted(async () => {
 .route-link {
   width: 1px;
   height: 22px;
-  background: rgba(86, 204, 242, 0.28);
+  background: rgba(194, 161, 107, 0.28);
   margin-left: 24px;
 }
 
@@ -1573,8 +1686,8 @@ onMounted(async () => {
 }
 
 .path-preview {
-  background: rgba(47, 128, 237, 0.06);
-  border: 1px solid rgba(47, 128, 237, 0.15);
+  background: rgba(127, 166, 181, 0.06);
+  border: 1px solid rgba(127, 166, 181, 0.15);
   border-radius: 7px;
   padding: 10px 12px;
 }
@@ -1688,9 +1801,9 @@ onMounted(async () => {
   gap: 10px;
   align-items: flex-start;
   padding: 10px 12px;
-  border: 1px solid rgba(86, 204, 242, 0.12);
+  border: 1px solid rgba(194, 161, 107, 0.12);
   border-radius: 8px;
-  background: rgba(86, 204, 242, 0.045);
+  background: rgba(194, 161, 107, 0.045);
   margin-bottom: 14px;
 }
 

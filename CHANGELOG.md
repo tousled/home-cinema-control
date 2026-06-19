@@ -9,6 +9,32 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-19
+
+### Added
+
+- Added the 1.0.0 release branch policy: release candidates are tagged from `develop`, stable releases are tagged from
+  `main`, and Docker `latest` is only updated by stable tags.
+- Added release workflow version injection through `SETUPTOOLS_SCM_PRETEND_VERSION=<tag>`, making the Git tag the source
+  of truth for the runtime version shown by the app.
+- Added updated product screenshots for the redesigned setup, diagnostics, logs, and room-control experience.
+
+### Changed
+
+- Redesigned the web UI around a cinematic Control Room and Remote visual language, then extended that direction across
+  configuration and support screens.
+- Rebalanced the visual system away from the earlier navy/cyan direction toward graphite, blue-steel, and restrained
+  brass, with warmer background imagery and subtle blue-steel ambient shadows.
+- Reworked the main screen headlines and subtitles in Spanish and English so setup/support screens read like one
+  coherent product instead of separate utility pages.
+- Reduced configuration-screen hero typography and vertical hero height so forms feel better proportioned beside the new
+  landing-style copy.
+- Changed the Media Paths "Intercepted libraries" card to open by default.
+- Changed the Diagnostics "Restart service" action from red danger styling to a brass service-action treatment, keeping
+  red reserved for destructive actions.
+- Updated README and release documentation to describe 1.0.0 as the stable product release line rather than future
+  pre-release work.
+
 ## [0.9.1] - 2026-06-18
 
 ### Added
@@ -32,6 +58,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Redesigned the Remote Control view: a real cross-shaped D-pad, grouped and
   labeled button sections, Lucide icons replacing emoji glyphs, and an
   OLED-style live status screen.
+- Reworked the Remote Control layout into the primary cinematic playback and
+  control surface, with full-screen backdrop treatment, poster-led media
+  details, status/protocol/format chips, route details, and a more physical
+  remote body.
+- Kept Control Room as the room-ready landing experience in both idle and active
+  playback states, with playback reflected only through compact card/status
+  indicators instead of replacing the landing with a now-playing panel.
+- Reworked Control Room idle state into a full-screen room-ready landing view
+  with centered setup cards, a remote-control entry point, and secondary system
+  resource metadata instead of a redundant idle playback panel.
 - Changed the Remote Control view's "Current playback" panel to scale
   responsively up to the same `max-width` cap used by other configuration
   screens, instead of a fixed pixel width.

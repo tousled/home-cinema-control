@@ -56,7 +56,8 @@ import {
   Plus,
   Power,
   PowerOff,
-  RefreshCw, ScanSearch,
+  RefreshCw,
+  ScanSearch,
   Search,
   Server,
   Trash2,
@@ -157,9 +158,9 @@ function handleClick(event) {
   gap: 9px;
   min-height: 42px;
   padding: 9px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(176, 190, 190, 0.16);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+  background: linear-gradient(180deg, rgba(220, 228, 226, 0.055), rgba(220, 228, 226, 0.018)),
   var(--bg-panel-elevated);
   color: var(--text-main);
   font-family: var(--font);
@@ -172,8 +173,8 @@ function handleClick(event) {
 }
 
 .icon-action-button:hover:not(:disabled):not(.icon-action-button--disabled) {
-  border-color: rgba(86, 204, 242, 0.34);
-  background: linear-gradient(180deg, rgba(86, 204, 242, 0.10), rgba(47, 128, 237, 0.04)),
+  border-color: rgba(194, 161, 107, 0.34);
+  background: linear-gradient(180deg, rgba(194, 161, 107, 0.10), rgba(127, 166, 181, 0.04)),
   var(--bg-panel-elevated);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
   transform: translateY(-1px);
@@ -181,7 +182,7 @@ function handleClick(event) {
 
 .icon-action-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(86, 204, 242, 0.12);
+  box-shadow: 0 0 0 3px rgba(194, 161, 107, 0.12);
 }
 
 .icon-action-button:disabled,
@@ -200,7 +201,7 @@ function handleClick(event) {
   width: 25px;
   height: 25px;
   border-radius: 8px;
-  background: rgba(86, 204, 242, 0.10);
+  background: rgba(194, 161, 107, 0.10);
   color: var(--accent-secondary);
   flex-shrink: 0;
 }
@@ -274,21 +275,21 @@ function handleClick(event) {
   gap: 0;
   border: none;
   border-radius: 10px;
-  background: rgba(86, 204, 242, 0.08);
+  background: rgba(194, 161, 107, 0.08);
   box-shadow: none;
   color: var(--accent-secondary);
 }
 
 .icon-action-button--icon-only:hover:not(:disabled):not(.icon-action-button--disabled) {
   border: none;
-  background: rgba(86, 204, 242, 0.14);
+  background: rgba(194, 161, 107, 0.14);
   box-shadow: none;
   transform: none;
 }
 
 .icon-action-button--icon-only:focus-visible {
   border: none;
-  box-shadow: 0 0 0 3px rgba(86, 204, 242, 0.14);
+  box-shadow: 0 0 0 3px rgba(194, 161, 107, 0.14);
 }
 
 .icon-action-button--icon-only .icon-action-button__icon {
