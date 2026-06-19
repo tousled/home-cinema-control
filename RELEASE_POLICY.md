@@ -19,7 +19,11 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
 - `develop` is the integration branch and may be tagged with release candidates such as `1.0.0-rc.1`.
 - `main` is the stable release branch. Stable tags such as `1.0.0`, `1.0.1`, or `1.1.0` must point to commits contained
   in `main`.
-- Pull requests into `main` come only from `develop`, enforced by `.github/workflows/branch-policy.yml`.
+- Pull requests into `main` come only from `develop` or from `hotfix/*` branches, enforced by
+  `.github/workflows/branch-policy.yml`.
+- `hotfix/*` branches are cut from `main` (not `develop`), for fixes that can't wait for the next regular release.
+  After merging a hotfix into `main` and tagging the patch release (e.g. `1.0.1`), open a second PR backporting the
+  same hotfix branch into `develop` so the fix isn't lost or reintroduced as a regression in the next release.
 - The release workflow validates tag placement:
     - tags containing `-` are treated as pre-releases and must be contained in `develop`;
     - plain `MAJOR.MINOR.PATCH` tags are stable releases and must be contained in `main`.
