@@ -21,10 +21,15 @@ jobs:
           HEAD="${{ github.head_ref }}"
 
           if [ "$BASE" = "main" ]; then
-            if [ "$HEAD" != "develop" ]; then
-              echo "Pull requests to main are only allowed from develop."
-              exit 1
-            fi
+            case "$HEAD" in
+              develop|hotfix/*)
+                echo "Valid source branch for main."
+                ;;
+              *)
+                echo "Pull requests to main are only allowed from develop or hotfix/* branches."
+                exit 1
+                ;;
+            esac
           fi
 
           if [ "$BASE" = "develop" ]; then
