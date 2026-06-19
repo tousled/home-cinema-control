@@ -42,6 +42,34 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
 - Both are multi-arch (`linux/amd64`, `linux/arm64`).
 - `compose.yaml` pins the image via `${HCC_VERSION:-latest}` so a deployment can stay on a known-good tag instead of
   always tracking `latest`.
+- Release images include OCI metadata labels for title, description, source, documentation, license, version, and
+  revision.
+- Docker Hub's public overview is maintained from `DOCKERHUB.md` by the release workflow, including the short
+  description used on the repository listing.
+
+## Docker Hub presentation
+
+- `DOCKERHUB.md` is the source of truth for Docker Hub's **Overview** tab. Keep it concise, Docker-focused, and in
+  English so registry visitors can understand the project before opening the full GitHub documentation.
+- Images embedded in `DOCKERHUB.md` should use absolute `raw.githubusercontent.com` URLs because Docker Hub renders the
+  overview outside GitHub's relative asset context.
+- The release workflow updates Docker Hub with `peter-evans/dockerhub-description` after a successful multi-arch image
+  push. This requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
+- The synced short description must stay within Docker Hub's 100-character repository description limit.
+- Visual settings that Docker Hub does not expose through the workflow, such as repository logo/avatar and category
+  placement, remain manual Docker Hub settings.
+
+Manual Docker Hub branding checklist:
+
+- Use `assets/brand/hcc-mark.png` as the square avatar/logo candidate. It is already 512x512 PNG and works better than
+  the horizontal wordmark in small Docker Hub icon slots.
+- In a Community account, first try the account or namespace avatar settings in Docker Hub. Docker Hub has historically
+  relied on profile/namespace avatar behavior for non-publisher accounts, and the result may take a while to propagate.
+- If the repository page shows a camera/upload control over the repository icon, upload `assets/brand/hcc-mark.png`
+  there. Docker documents that repository-logo upload flow for Trusted Content programs.
+- If the repository page does not expose that camera/upload control, the per-repository logo is not available for the
+  current account tier. In that case, the practical options are the namespace avatar plus the logo embedded in
+  `DOCKERHUB.md`, or applying for Docker Verified Publisher / Docker-Sponsored Open Source if the project qualifies.
 
 ## Version source of truth
 
