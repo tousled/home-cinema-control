@@ -18,6 +18,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Added release workflow version injection through `SETUPTOOLS_SCM_PRETEND_VERSION=<tag>`, making the Git tag the source
   of truth for the runtime version shown by the app.
 - Added updated product screenshots for the redesigned setup, diagnostics, logs, and room-control experience.
+- Added a dedicated Docker Hub overview (`DOCKERHUB.md`) and release workflow sync so the public image page no longer
+  appears empty after publishing.
+- Added OCI image metadata labels to release images for title, description, source, documentation, license, version, and
+  revision.
 
 ### Changed
 
@@ -34,6 +38,8 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   red reserved for destructive actions.
 - Updated README and release documentation to describe 1.0.0 as the stable product release line rather than future
   pre-release work.
+- Updated Docker installation docs to show `docker run` as the fastest first-run path while keeping Docker Compose as
+  the recommended path for long-running installs, updates, and rollback.
 
 ## [0.9.1] - 2026-06-18
 

@@ -162,6 +162,28 @@ está en exploración antes que vender compatibilidad no validada.
 HCC se despliega como contenedor Docker con red host para poder hablar directamente con Emby, el reproductor, la TV, el
 receptor AV y las herramientas de descubrimiento de red.
 
+Arranque rápido:
+
+```bash
+docker volume create home-cinema-control-config
+
+docker run -d \
+  --name home-cinema-control \
+  --network host \
+  --cap-add NET_RAW \
+  --restart unless-stopped \
+  -e TZ=Europe/Madrid \
+  -e PYTHONUNBUFFERED=1 \
+  -e HCC_CONFIG_FILE=/config/config.json \
+  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
+  -v home-cinema-control-config:/config \
+  ghcr.io/tousled/home-cinema-control:latest
+```
+
+Abre `http://<tu-host>:8090` y sigue las pantallas de configuración.
+
+Para instalaciones permanentes, actualizaciones y rollback, Docker Compose es la opción recomendada:
+
 ```yaml
 services:
   home-cinema-control:
@@ -189,8 +211,6 @@ docker compose pull
 docker compose up -d
 ```
 
-Abre `http://<tu-host>:8090` y sigue las pantallas de configuración.
-
 La guía completa está en [INSTALL.md](INSTALL.md).
 
 ## Referencia AVPasion para NAS y reproductor
@@ -201,8 +221,8 @@ Xnoppo:
 
 https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867
 
-Úsalo para permisos de NAS, recursos compartidos y contexto del reproductor. Para HCC usa el `compose.yaml`, las
-variables `HCC_CONFIG_FILE` / `HCC_SECRETS_FILE_PATH` y la configuración web de este repositorio.
+Úsalo para permisos de NAS, recursos compartidos y contexto del reproductor. Para HCC usa los comandos Docker de este
+repositorio, las variables `HCC_CONFIG_FILE` / `HCC_SECRETS_FILE_PATH` y la configuración web.
 
 ## Arquitectura
 
