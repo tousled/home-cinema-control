@@ -1,14 +1,18 @@
 import unittest
 from unittest.mock import patch
 
-from home_cinema_control.devices.oppo.models import OppoCommandResponse
+from home_cinema_control.devices.oppo.mounted_share import OppoMountedShare
+from home_cinema_control.devices.oppo.network_mount_service import (
+    OppoMountResult,
+    OppoNetworkFolderProtocol,
+)
 from home_cinema_control.web.path_config import (
-    _login_and_mount,
     build_test_media_path,
     check_path_configuration,
     get_mount_path,
     normalize_config_path,
     preview_path_mapping,
+    test_mount_path as call_test_mount_path,
 )
 
 
@@ -108,118 +112,96 @@ class WebPathConfigTest(unittest.TestCase):
         test_mount_path.assert_not_called()
 
 
-class FakeOppoClient:
-    def __init__(
-        self,
-        *,
-        nfs_response='{"success":true,"nfsMntPath":"/mnt/nfs1"}',
-        samba_response='{"success":true,"cifsMntPath":"/mnt/cifs1"}',
-    ):
-        self.calls = []
-        self.nfs_response = nfs_response
-        self.samba_response = samba_response
-
-    def login_nfs_server(self, server):
-        self.calls.append(("login_nfs_server", server))
-        return OppoCommandResponse.from_text('{"success":true}')
-
-    def login_samba_without_id(self, server):
-        self.calls.append(("login_samba_without_id", server))
-        return OppoCommandResponse.from_text('{"success":true}')
-
-    def mount_nfs_folder(self, *, server, folder, timeout):
-        self.calls.append(("mount_nfs_folder", server, folder, timeout))
-        return OppoCommandResponse.from_text(self.nfs_response)
-
-    def mount_samba_folder(self, *, server, folder, timeout):
-        self.calls.append(("mount_samba_folder", server, folder, timeout))
-        return OppoCommandResponse.from_text(self.samba_response)
-
-    def mount_samba_folder_with_id(self, *, server, folder, username, password, timeout):
-        self.calls.append(
-            ("mount_samba_folder_with_id", server, folder, username, password, timeout)
-        )
-        return OppoCommandResponse.from_text(self.samba_response)
-
-
-class LoginAndMountTest(unittest.TestCase):
-    """_login_and_mount tests the configured protocol exactly once and never falls back to
+class TestMountPathTest(unittest.TestCase):
+    """test_mount_path mounts the configured protocol exactly once and never falls back to
     the other one. A "Probar ruta" pass must reflect the protocol the user actually selected
     (use_smb) the same way real playback does — silently retrying the other protocol on
     failure would mask real problems and, on NAS layouts where NFS and SMB don't share an
     addressing scheme (see HCC-TASK-019), would attempt a structurally invalid path anyway.
 
-    mount_smb_share/mount_nfs_share build their own OPPO client internally, so only the
-    login call still goes through the injected FakeOppoClient — the mount call is verified via
-    the patched wrappers."""
+    The activate/login/mount/retry sequence itself is tested in detail against
+    OppoNetworkMountService directly (test_oppo_network_mount_service.py) — these tests
+    only check that test_mount_path resolves the right protocol and maps the result."""
 
     def _config(self):
         return {"oppo": {"always_on": True, "nfs_mount_timeout_seconds": 30}, "smb": {}}
 
-    @patch("home_cinema_control.web.path_config.mount_smb_share")
-    @patch("home_cinema_control.web.path_config.mount_nfs_share")
-    def test_nfs_selected_mounts_via_nfs_only(self, mount_nfs, mount_smb):
-        mount_nfs.return_value = OppoCommandResponse.from_text(
-            '{"success":true,"nfsMntPath":"/mnt/nfs1"}'
+    @patch("home_cinema_control.web.path_config.OppoNetworkMountService")
+    def test_nfs_selected_mounts_via_nfs_only(self, mount_service_cls):
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=True,
+            mounted_share=OppoMountedShare(
+                server="NAS", folder="Movies", mount_path="/mnt/nfs1", is_nfs=True
+            ),
+            failure_stage=None,
+            detail="",
         )
-        client = FakeOppoClient()
-        config = self._config()
-        response = _login_and_mount(
-            client=client, config=config, server="NAS", folder="Movies",
-            use_nfs=True, oppo=config["oppo"],
-        )
-        self.assertTrue(response.is_successful)
-        self.assertEqual([("login_nfs_server", "NAS")], client.calls)
-        mount_nfs.assert_called_once_with("NAS", "Movies", config)
-        mount_smb.assert_not_called()
 
-    @patch("home_cinema_control.web.path_config.mount_smb_share")
-    @patch("home_cinema_control.web.path_config.mount_nfs_share")
-    def test_nfs_selected_failure_does_not_try_smb(self, mount_nfs, mount_smb):
-        mount_nfs.return_value = OppoCommandResponse.from_text(
-            '{"success":false,"retInfo":"failed"}'
-        )
-        client = FakeOppoClient()
-        config = self._config()
-        response = _login_and_mount(
-            client=client, config=config, server="NAS", folder="Movies",
-            use_nfs=True, oppo=config["oppo"],
-        )
-        self.assertFalse(response.is_successful)
-        mount_smb.assert_not_called()
+        result = call_test_mount_path(self._config(), "NAS", "Movies", protocol="nfs")
 
-    @patch("home_cinema_control.web.path_config.mount_smb_share")
-    @patch("home_cinema_control.web.path_config.mount_nfs_share")
-    def test_smb_selected_mounts_via_smb_only(self, mount_nfs, mount_smb):
-        mount_smb.return_value = OppoCommandResponse.from_text(
-            '{"success":true,"cifsMntPath":"/mnt/cifs1"}'
-        )
-        client = FakeOppoClient()
-        config = self._config()
-        response = _login_and_mount(
-            client=client, config=config, server="NAS", folder="Movies",
-            use_nfs=False, oppo=config["oppo"],
-        )
-        self.assertTrue(response.is_successful)
-        self.assertEqual([("login_samba_without_id", "NAS")], client.calls)
-        mount_smb.assert_called_once_with("NAS", "Movies", config)
-        mount_nfs.assert_not_called()
+        self.assertEqual("OK", result)
+        network_folder = mount_service.mount.call_args.args[0]
+        self.assertEqual(OppoNetworkFolderProtocol.NFS, network_folder.protocol)
 
-    @patch("home_cinema_control.web.path_config.mount_smb_share")
-    @patch("home_cinema_control.web.path_config.mount_nfs_share")
-    def test_smb_selected_failure_does_not_fall_back_to_nfs(self, mount_nfs, mount_smb):
-        mount_smb.return_value = OppoCommandResponse.from_text(
-            '{"success":false,"retInfo":"id_error"}'
+    def test_nfs_selected_failure_does_not_try_smb(self):
+        with patch("home_cinema_control.web.path_config.OppoNetworkMountService") as mount_service_cls:
+            mount_service = mount_service_cls.return_value
+            mount_service.mount.return_value = OppoMountResult(
+                successful=False, mounted_share=None, failure_stage="mount", detail="failed"
+            )
+
+            result = call_test_mount_path(self._config(), "NAS", "Movies", protocol="nfs")
+
+        self.assertEqual("OPPO_MOUNT_FAILED: failed", result)
+        network_folder = mount_service.mount.call_args.args[0]
+        self.assertEqual(OppoNetworkFolderProtocol.NFS, network_folder.protocol)
+
+    @patch("home_cinema_control.web.path_config.OppoNetworkMountService")
+    def test_smb_selected_mounts_via_smb_only(self, mount_service_cls):
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=True,
+            mounted_share=OppoMountedShare(
+                server="NAS", folder="Movies", mount_path="/mnt/cifs1", is_nfs=False
+            ),
+            failure_stage=None,
+            detail="",
         )
-        client = FakeOppoClient()
-        config = self._config()
-        response = _login_and_mount(
-            client=client, config=config, server="NAS", folder="Movies",
-            use_nfs=False, oppo=config["oppo"],
+
+        result = call_test_mount_path(self._config(), "NAS", "Movies", protocol="cifs")
+
+        self.assertEqual("OK", result)
+        network_folder = mount_service.mount.call_args.args[0]
+        self.assertEqual(OppoNetworkFolderProtocol.CIFS, network_folder.protocol)
+
+    @patch("home_cinema_control.web.path_config.OppoNetworkMountService")
+    def test_smb_selected_failure_does_not_fall_back_to_nfs(self, mount_service_cls):
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=False, mounted_share=None, failure_stage="mount", detail="id_error"
         )
-        self.assertFalse(response.is_successful)
-        self.assertEqual([("login_samba_without_id", "NAS")], client.calls)
-        mount_nfs.assert_not_called()
+
+        result = call_test_mount_path(self._config(), "NAS", "Movies", protocol="cifs")
+
+        self.assertEqual("OPPO_MOUNT_FAILED: id_error", result)
+        self.assertEqual(1, mount_service.mount.call_count)
+        network_folder = mount_service.mount.call_args.args[0]
+        self.assertEqual(OppoNetworkFolderProtocol.CIFS, network_folder.protocol)
+
+    @patch("home_cinema_control.web.path_config.OppoNetworkMountService")
+    def test_control_api_unavailable_is_reported_without_mounting(self, mount_service_cls):
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=False,
+            mounted_share=None,
+            failure_stage="control_api",
+            detail="OPPO control API is not reachable",
+        )
+
+        result = call_test_mount_path(self._config(), "NAS", "Movies", protocol="nfs")
+
+        self.assertEqual("OPPO_UNAVAILABLE: OPPO control API is not reachable", result)
 
 
 class PreviewPathMappingTest(unittest.TestCase):
