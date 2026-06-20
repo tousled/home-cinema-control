@@ -23,7 +23,9 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
   `.github/workflows/branch-policy.yml`.
 - `hotfix/*` branches are cut from `main` (not `develop`), for fixes that can't wait for the next regular release.
   After merging a hotfix into `main` and tagging the patch release (e.g. `1.0.1`), open a second PR backporting the
-  same hotfix branch into `develop` so the fix isn't lost or reintroduced as a regression in the next release.
+  same hotfix branch into `develop` so the fix isn't lost or reintroduced as a regression in the next release. If the
+  hotfix branch was already deleted, open the backport PR from `main` into `develop` instead — both are valid sources
+  for `develop` per `.github/workflows/branch-policy.yml`.
 - The release workflow validates tag placement:
     - tags containing `-` are treated as pre-releases and must be contained in `develop`;
     - plain `MAJOR.MINOR.PATCH` tags are stable releases and must be contained in `main`.

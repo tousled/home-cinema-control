@@ -1,9 +1,13 @@
 import unittest
+from unittest.mock import patch
+
+from home_cinema_control.config.manager import sanitize_config_for_web
 
 from home_cinema_control.media_servers.emby.web_config import (
     build_control_device_config,
     build_library_config,
     build_selectable_folder_servers,
+    configure_emby_token,
     is_library_active,
 )
 
@@ -246,6 +250,32 @@ class IsLibraryActiveTest(unittest.TestCase):
     def test_returns_false_for_unknown_library_name(self):
         libraries = [{"Name": "Movies", "Active": True}]
         self.assertFalse(is_library_active(libraries, "Trailers"))
+
+
+class ConfigureEmbyTokenTest(unittest.TestCase):
+    @patch("home_cinema_control.media_servers.emby.web_config._authenticate_with_temporary_password")
+    def test_returns_effective_config_with_token_for_secret_persistence(self, mock_authenticate):
+        mock_authenticate.return_value = {
+            "AccessToken": "emby-token",
+            "User": {"Id": "emby-user", "Name": "Pedro"},
+        }
+
+        result = configure_emby_token(
+            {"media_server": {"type": "emby", "server_url": "http://emby.local/"}},
+            {"user_name": "pedro", "password": "secret"},
+        )
+
+        self.assertEqual("emby-token", result["media_server"]["access_token"])
+        self.assertEqual("emby-user", result["media_server"]["user_id"])
+        self.assertTrue(result["media_server"]["access_token_configured"])
+        self.assertEqual("Pedro", result["media_server"]["display_name"])
+        self.assertEqual("http://emby.local", result["media_server"]["server_url"])
+
+        public_config = sanitize_config_for_web(result)
+
+        self.assertTrue(public_config["media_server"]["access_token_configured"])
+        self.assertNotIn("access_token", public_config["media_server"])
+        self.assertNotIn("user_id", public_config["media_server"])
 
 
 if __name__ == "__main__":

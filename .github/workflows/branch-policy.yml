@@ -34,11 +34,11 @@ jobs:
 
           if [ "$BASE" = "develop" ]; then
             case "$HEAD" in
-              feature/*|bugfix/*|fix/*|refactor/*|hotfix/*|docs/*|chore/*)
+              main|feature/*|bugfix/*|fix/*|refactor/*|hotfix/*|docs/*|chore/*)
                 echo "Valid source branch for develop."
                 ;;
               *)
-                echo "Pull requests to develop must come from feature/*, bugfix/*, fix/*, refactor/*, hotfix/*, docs/* or chore/* branches."
+                echo "Pull requests to develop must come from main, feature/*, bugfix/*, fix/*, refactor/*, hotfix/*, docs/* or chore/* branches."
                 exit 1
                 ;;
             esac

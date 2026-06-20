@@ -6,7 +6,6 @@ from home_cinema_control.media_servers.emby.constants import DEVICE_ID
 from home_cinema_control.config.manager import (
     get_config_path,
     merge_existing_secrets,
-    sanitize_config_for_web,
 )
 from home_cinema_control.media_servers.emby.client import EmbyClient
 from home_cinema_control.network.http import get_http_session
@@ -222,8 +221,7 @@ def configure_emby_token(config: dict, credentials: dict) -> dict:
 
     _remove_legacy_emby_keys(config)
 
-    return sanitize_config_for_web(config)
-
+    return config
 
 def _authenticated_client(config: dict) -> EmbyClient:
     effective_config = _public_config_with_existing_secrets(config)
