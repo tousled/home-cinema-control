@@ -3,9 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from home_cinema_control.config.manager import (
-    sanitize_config_for_web,
-)
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
 from home_cinema_control.media_servers.common.models import (
     LibraryPath,
@@ -72,7 +69,7 @@ def configure_jellyfin_token(
 
     config["media_server"] = media_server
 
-    return sanitize_config_for_web(config)
+    return config
 
 
 def check_jellyfin_connection(config: dict):

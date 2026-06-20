@@ -1,9 +1,13 @@
 import unittest
+from unittest.mock import patch
 
+from home_cinema_control.config.manager import sanitize_config_for_web
+from home_cinema_control.media_servers.common.models import MediaServerLoginCredentials
 from home_cinema_control.media_servers.jellyfin.web_config import (
     build_control_device_config,
     build_library_config,
     build_virtual_folder_servers,
+    configure_jellyfin_token,
 )
 
 
@@ -63,6 +67,32 @@ class JellyfinWebConfigTest(unittest.TestCase):
         self.assertTrue(mappings[0]["verified"])
         self.assertEqual("Movies(2)", mappings[1]["name"])
         self.assertEqual("/media/uhd", mappings[1]["source_path"])
+
+
+class ConfigureJellyfinTokenTest(unittest.TestCase):
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticate_with_temporary_password")
+    def test_returns_effective_config_with_token_for_secret_persistence(self, mock_authenticate):
+        mock_authenticate.return_value = {
+            "AccessToken": "jellyfin-token",
+            "User": {"Id": "jellyfin-user", "Name": "Pedro"},
+        }
+
+        result = configure_jellyfin_token(
+            {"media_server": {"type": "jellyfin", "server_url": "http://jellyfin.local/"}},
+            MediaServerLoginCredentials(user_name="pedro", password="secret"),
+        )
+
+        self.assertEqual("jellyfin-token", result["media_server"]["access_token"])
+        self.assertEqual("jellyfin-user", result["media_server"]["user_id"])
+        self.assertTrue(result["media_server"]["access_token_configured"])
+        self.assertEqual("Pedro", result["media_server"]["display_name"])
+        self.assertEqual("http://jellyfin.local", result["media_server"]["server_url"])
+
+        public_config = sanitize_config_for_web(result)
+
+        self.assertTrue(public_config["media_server"]["access_token_configured"])
+        self.assertNotIn("access_token", public_config["media_server"])
+        self.assertNotIn("user_id", public_config["media_server"])
 
 
 if __name__ == "__main__":

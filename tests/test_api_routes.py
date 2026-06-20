@@ -28,6 +28,60 @@ def _make_client(*, config=None, sanitized=None):
     return TestClient(create_api_app(api_runtime)), runtime, config_service
 
 
+class MediaServerCheckRouteTest(unittest.TestCase):
+    def _mock_setup_service(self, mock_setup_service, *, status_code=204):
+        setup_service = MagicMock()
+        setup_service.check_connection.return_value = MagicMock(status_code=status_code)
+        mock_setup_service.return_value = setup_service
+        return setup_service
+
+    @patch("home_cinema_control.web.api_app._media_server_setup_service")
+    def test_saves_config_and_starts_listener_without_restart_when_runtime_is_not_connected(self, mock_setup_service):
+        self._mock_setup_service(mock_setup_service)
+        client, runtime, config_service = _make_client(config={
+            "media_server": {
+                "type": "emby",
+                "server_url": "http://emby.local",
+                "access_token": "secret-token",
+                "user_id": "emby-user",
+            },
+            "playback": {"hcc_controlled_device": "living-room-tv"},
+        })
+        runtime.get_state.return_value = {"Playstate": "Not_Connected"}
+
+        resp = client.post("/api/media-server/check", json={
+            "media_server": {"type": "emby", "server_url": "http://emby.local"},
+            "playback": {"hcc_controlled_device": "living-room-tv"},
+        })
+
+        self.assertEqual(200, resp.status_code)
+        config_service.save_config.assert_called_once()
+        runtime.start_playback_listener_if_configured.assert_called_once()
+        runtime.restart_process.assert_not_called()
+
+    @patch("home_cinema_control.web.api_app._media_server_setup_service")
+    def test_does_not_restart_or_start_listener_when_runtime_is_already_connected(self, mock_setup_service):
+        self._mock_setup_service(mock_setup_service)
+        client, runtime, config_service = _make_client(config={
+            "media_server": {
+                "type": "emby",
+                "server_url": "http://emby.local",
+                "access_token": "secret-token",
+                "user_id": "emby-user",
+            },
+        })
+        runtime.get_state.return_value = {"Playstate": "Playing"}
+
+        resp = client.post("/api/media-server/check", json={
+            "media_server": {"type": "emby", "server_url": "http://emby.local"},
+        })
+
+        self.assertEqual(200, resp.status_code)
+        config_service.save_config.assert_called_once()
+        runtime.start_playback_listener_if_configured.assert_not_called()
+        runtime.restart_process.assert_not_called()
+
+
 class ConfigReadinessRouteTest(unittest.TestCase):
     def test_returns_readiness_payload_shape(self):
         client, _, _ = _make_client(config={

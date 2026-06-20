@@ -292,33 +292,32 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             api_runtime.runtime.set_last_diagnostic(diagnose_path_inference_failed())
             raise HTTPException(status_code=422, detail=str(exc))
 
-    def _check_media_server_response(body: dict, background_tasks: BackgroundTasks):
+    def _check_media_server_response(body: dict):
         config = api_runtime.config_service.prepare_submitted_config(body)
         setup_service = _media_server_setup_service(
             media_server_provider_factory,
             config,
         )
         response = setup_service.check_connection(config)
+
         if 200 <= response.status_code < 300:
             verified_config = mark_section_verified(config, "media_server")
+            api_runtime.config_service.save_config(verified_config)
+
             state = api_runtime.runtime.get_state()
-            if state["Playstate"] == "Not_Connected":
-                def _save_and_restart():
-                    api_runtime.config_service.save_config(verified_config)
-                    api_runtime.runtime.restart_process()
-                background_tasks.add_task(_save_and_restart)
-            else:
-                api_runtime.config_service.save_config(verified_config)
+            if state.get("Playstate") == "Not_Connected":
+                try:
+                    api_runtime.runtime.start_playback_listener_if_configured()
+                except Exception:
+                    logging.exception("Could not start playback listener after media server check")
+
             return api_runtime.config_service.sanitize(verified_config)
+
         raise HTTPException(status_code=400, detail="Media server connection failed")
 
     @router.post("/media-server/check")
-    def media_server_check(body: dict, background_tasks: BackgroundTasks):
-        return _check_media_server_response(body, background_tasks)
-
-    @router.post("/emby/check")
-    def emby_check(body: dict, background_tasks: BackgroundTasks):
-        return _check_media_server_response(body, background_tasks)
+    def media_server_check(body: dict):
+        return _check_media_server_response(body)
 
     # --- oppo ---
 

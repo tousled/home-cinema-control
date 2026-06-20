@@ -3,9 +3,6 @@ import logging
 from typing import Any
 
 from home_cinema_control.media_servers.emby.constants import DEVICE_ID
-from home_cinema_control.config.manager import (
-    sanitize_config_for_web,
-)
 from home_cinema_control.media_servers.emby.client import EmbyClient
 from home_cinema_control.network.http import get_http_session
 from home_cinema_control.media_servers.common.models import (
@@ -213,8 +210,7 @@ def configure_emby_token(
 
     _remove_legacy_emby_keys(config)
 
-    return sanitize_config_for_web(config)
-
+    return config
 
 def _authenticated_client(config: dict) -> EmbyClient:
     effective_config = public_config_with_existing_secrets(config)

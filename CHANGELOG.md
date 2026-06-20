@@ -7,7 +7,24 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 > This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
 > architecture is progressively removed.
 
-## [Unreleased]
+## [1.0.2] - 2026-06-20
+
+### Fixed
+
+* Fixed Emby authorization persistence so generated access tokens are kept in the private secrets file instead of being
+  lost before later backend checks.
+* Fixed the Emby connection test flow so it no longer restarts the backend while the configuration screen is still
+  loading monitored devices and library paths.
+* Fixed a UI regression where detected Emby libraries could briefly show `Failed to fetch` after a successful connection
+  test.
+* Kept the public API response sanitized so Emby access tokens and user ids are never exposed back to the frontend.
+
+### Tests
+
+* Added regression coverage to ensure Emby token configuration returns the effective internal config needed for secret
+  persistence.
+* Added API route coverage to ensure the Emby connection check saves verified config without triggering a full backend
+  restart.
 
 ## [1.0.0] - 2026-06-19
 
