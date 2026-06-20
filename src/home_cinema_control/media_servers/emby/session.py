@@ -1,6 +1,6 @@
 import logging
 
-from home_cinema_control.media_servers.emby.track_mapping import (
+from home_cinema_control.media_servers.common.track_mapping import (
     source_audio_to_player_index,
     source_subtitle_to_player_index,
 )

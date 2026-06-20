@@ -52,7 +52,7 @@ def _config(
         path_mappings=None,
 ):
     if libraries is None:
-        libraries = [{"Id": "lib-1", "Name": "Movies", "Active": True}]
+        libraries = [{"id": "lib-1", "name": "Movies", "active": True}]
     if path_mappings is None:
         path_mappings = [
             {
@@ -156,8 +156,8 @@ class EmbySessionMonitorTest(unittest.TestCase):
 
     def test_inactive_library_is_skipped(self):
         libraries = [
-            {"Id": "lib-1", "Name": "Movies", "Active": False},
-            {"Id": "lib-2", "Name": "TV", "Active": True},
+            {"id": "lib-1", "name": "Movies", "active": False},
+            {"id": "lib-2", "name": "TV", "active": True},
         ]
         self.emby_session.is_item_path_in_library.side_effect = (
             lambda view_id, path: view_id == "lib-2"

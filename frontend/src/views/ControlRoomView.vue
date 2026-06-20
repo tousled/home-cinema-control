@@ -99,6 +99,7 @@ import {useRouter} from 'vue-router'
 import {api} from '../api/index.js'
 import idleSceneBg from '../assets/backgrounds/bg-control-room-idle.png'
 import {usePoll} from '../composables/usePoll.js'
+import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
 
 const {t} = useI18n()
 const router = useRouter()
@@ -106,6 +107,7 @@ const router = useRouter()
 const loading = ref(true)
 const state = ref({})
 const config = ref({})
+const {brand} = useMediaServerBrand(() => config.value.media_server?.type)
 
 const hasActiveSession = computed(() => Boolean(state.value.ActiveSession?.title))
 
@@ -134,7 +136,7 @@ const serverCardClass = computed(() => {
 })
 const serverCardValue = computed(() => {
   if (!config.value.media_server?.server_url) return t('x-control-room-not-configured')
-  return config.value.media_server?.display_name || 'Emby'
+  return config.value.media_server?.display_name || brand.value.label
 })
 const serverTagClass = computed(() => {
   if (!config.value.media_server?.server_url) return 'tag-dim'

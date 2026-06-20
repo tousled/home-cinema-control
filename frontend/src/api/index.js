@@ -12,8 +12,8 @@ function detailToMessage(detail) {
 function shouldNotifyConfigChanged(method, path) {
     if (method === 'PATCH' && path.startsWith('/config/')) return true
     if (method !== 'POST') return false
-    return path === '/emby/token'
-        || path === '/emby/check'
+    return path === '/media-server/token'
+        || path === '/media-server/check'
         || path === '/config/smb/clear'
         || path === '/oppo/check'
         || path === '/tv/test-connection'
@@ -76,10 +76,10 @@ export const api = {
     applyMigration: () => request('POST', '/migration/apply'),
     skipMigration: () => request('POST', '/migration/skip'),
 
-    // emby
-    configureEmbyToken: (config, credentials) =>
-        request('POST', '/emby/token', {config, credentials}),
-    checkEmby: (config) => request('POST', '/emby/check', config),
+    // media server (provider-neutral: Emby or Jellyfin)
+    configureMediaServerToken: (config, credentials) =>
+        request('POST', '/media-server/token', {config, credentials}),
+    checkMediaServer: (config) => request('POST', '/media-server/check', config),
 
     // oppo
     checkOppo: (config) => request('POST', '/oppo/check', config),

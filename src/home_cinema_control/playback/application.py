@@ -3,8 +3,7 @@ from __future__ import annotations
 import logging
 import time
 
-from home_cinema_control.media_servers.emby import MediaServerPlaybackContext
-from home_cinema_control.media_servers.emby.track_resolver import EmbyTrackResolver
+from home_cinema_control.media_servers.common.playback import MediaServerPlaybackServices
 from home_cinema_control.playback.active_context import ActivePlaybackRuntimeContext
 from home_cinema_control.playback.dispatch import bridge_playback_is_active
 from home_cinema_control.playback.factory import create_playback_orchestrator_wiring
@@ -59,12 +58,14 @@ class PlaybackApplicationService:
         playback_session,
         playback_state: BridgePlaybackState,
         reload_config,
+            media_server_playback_services: MediaServerPlaybackServices | None = None,
         stop_active_playback=None,
         sleep=time.sleep,
     ) -> None:
         self._playback_session = playback_session
         self._state = playback_state
         self._reload_config = reload_config
+        self._media_server_playback_services = media_server_playback_services
         self._stop_active_playback = stop_active_playback or (
             lambda: stop_active_player_playback_before_replacement(
                 self._state, self._playback_session.config
@@ -150,7 +151,10 @@ class PlaybackApplicationService:
         logger.info("playback origin: %s", origin.value)
 
         session_id = intent.source_client_session_id
-        media_server_playback_context = MediaServerPlaybackContext.from_intent(intent)
+        media_server_services = self._media_server_services()
+        media_server_playback_context = media_server_services.playback_context_from_intent(
+            intent
+        )
 
         movie = ""
         messages = playback_start_messages(playback_session.lang)
@@ -191,7 +195,10 @@ class PlaybackApplicationService:
             media_server_client=playback_session.client,
             bridge_session_id=playback_session.user_info["SessionInfo"]["Id"],
             playback_context=media_server_playback_context,
-            track_resolver=EmbyTrackResolver(playback_session),
+            playback_event_publisher_factory=(
+                media_server_services.create_playback_event_publisher
+            ),
+            track_resolver=media_server_services.create_track_resolver(playback_session),
             playback_state=self._state,
             step_timer=startup_timer,
         )
@@ -339,8 +346,11 @@ class PlaybackApplicationService:
         startup_timer.log_summary()
         configure_oppo_observed_event_reporting(
             playback_state=self._state,
-            playback_session=playback_session,
             playback_wiring=playback_wiring,
+            track_mapper=self._media_server_services().create_observed_track_mapper(
+                playback_session,
+                playback_state=self._state,
+            ),
         )
 
     def _remember_playback_return_tv_app_id(self, playback_orchestration_result) -> None:
@@ -363,6 +373,11 @@ class PlaybackApplicationService:
             return
 
         self._playback_return_tv_app_id = None
+
+    def _media_server_services(self) -> MediaServerPlaybackServices:
+        if self._media_server_playback_services is None:
+            raise RuntimeError("Media-server playback services are not configured.")
+        return self._media_server_playback_services
 
 
 def _is_lg_hdmi_app_id(app_id: str) -> bool:

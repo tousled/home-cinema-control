@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
-from home_cinema_control.playback.intent import PlaybackIntent
+from home_cinema_control.media_servers.common.models import (
+    MediaServerNowPlaying,
+    MediaServerSession,
+)
 
 
 def playback_request_media_item_id(data: dict[str, Any] | None) -> str | None:
@@ -39,87 +41,38 @@ def is_same_media_item_request(
 def find_monitored_session(
     sessions: list[dict[str, Any]],
     monitored_device_id: str,
-) -> dict[str, Any] | None:
+) -> MediaServerSession | None:
+    """Inbound mapper: Emby Sessions payload -> HCC ``MediaServerSession``."""
     for session in sessions:
         if session.get("DeviceId") == monitored_device_id:
-            return session
+            return _session_from_payload(session)
 
     return None
 
 
-def build_playback_intent_from_session(
-    session: dict[str, Any],
-    *,
-    monitored_device_id: str,
-    item_user_data: dict[str, Any] | None = None,
-) -> PlaybackIntent | None:
+def _session_from_payload(session: dict[str, Any]) -> MediaServerSession:
     now_playing = session.get("NowPlayingItem")
-    if not now_playing:
-        return None
-
     play_state = session.get("PlayState") or {}
-    start_position_ticks = play_state.get("PositionTicks")
-    if start_position_ticks is None:
-        start_position_ticks = (item_user_data or {}).get("PlaybackPositionTicks", 0)
 
-    return PlaybackIntent(
-        media_item_id=str(now_playing["Id"]),
-        media_source_id=play_state.get("MediaSourceId", ""),
-        source_user_id=session.get("UserId", ""),
-        source_client_session_id=session.get("Id"),
-        source_device_id=monitored_device_id,
-        source_device_name=session.get("DeviceName", ""),
-        start_position_seconds=_ticks_to_seconds(start_position_ticks),
-        selected_audio_track_id=int(play_state.get("AudioStreamIndex", 1)),
-        selected_subtitle_track_id=int(play_state.get("SubtitleStreamIndex", -1)),
+    mapped_now_playing = None
+    if now_playing:
+        mapped_now_playing = MediaServerNowPlaying(
+            item_id=str(now_playing.get("Id", "")),
+            name=now_playing.get("Name", "") or "",
+            path=now_playing.get("Path", "") or "",
+            item_type=now_playing.get("Type"),
+            container=now_playing.get("Container"),
+            video_type=now_playing.get("VideoType"),
+        )
+
+    return MediaServerSession(
+        device_id=session.get("DeviceId", "") or "",
+        device_name=session.get("DeviceName", "") or "",
+        user_id=session.get("UserId", "") or "",
+        client_session_id=session.get("Id"),
+        now_playing=mapped_now_playing,
+        position_ticks=play_state.get("PositionTicks"),
+        media_source_id=play_state.get("MediaSourceId", "") or "",
+        audio_stream_index=int(play_state.get("AudioStreamIndex", 1)),
+        subtitle_stream_index=int(play_state.get("SubtitleStreamIndex", -1)),
     )
-
-
-def describe_session_playback_source(
-    session: dict[str, Any],
-    item_info: dict[str, Any] | None = None,
-    item_user_data: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    now_playing = session.get("NowPlayingItem") or {}
-    play_state = session.get("PlayState") or {}
-    media_source = _selected_media_source(item_info, play_state.get("MediaSourceId"))
-    user_data = item_user_data or (item_info or {}).get("UserData") or {}
-
-    return {
-        "item_id": now_playing.get("Id"),
-        "item_name": now_playing.get("Name"),
-        "item_type": now_playing.get("Type"),
-        "item_container": now_playing.get("Container"),
-        "item_video_type": now_playing.get("VideoType"),
-        "media_source_id": play_state.get("MediaSourceId"),
-        "media_source_container": (media_source or {}).get("Container"),
-        "media_source_video_type": (media_source or {}).get("VideoType"),
-        "session_position_ticks_present": "PositionTicks" in play_state,
-        "session_position_ticks": play_state.get("PositionTicks"),
-        "saved_position_ticks": user_data.get("PlaybackPositionTicks"),
-        "played": user_data.get("Played"),
-        "play_count": user_data.get("PlayCount"),
-        "playback_percentage": user_data.get("PlayedPercentage"),
-        "audio_stream_index": play_state.get("AudioStreamIndex"),
-        "subtitle_stream_index": play_state.get("SubtitleStreamIndex"),
-    }
-
-
-def _ticks_to_seconds(value: Any) -> int:
-    return int(value or 0) // EMBY_TICKS_PER_SECOND
-
-
-def _selected_media_source(
-    item_info: dict[str, Any] | None,
-    media_source_id: str | None,
-) -> dict[str, Any] | None:
-    media_sources = (item_info or {}).get("MediaSources") or []
-    if media_source_id:
-        for media_source in media_sources:
-            if media_source.get("Id") == media_source_id:
-                return media_source
-
-    if media_sources:
-        return media_sources[0]
-
-    return None

@@ -1,4 +1,3 @@
-from .adapters.lg import EMBY_APP_ID
 from .factory import create_tv_controller
 from .models import TvInputTarget
 
@@ -31,5 +30,7 @@ def switch_tv_to_player_input(config):
     return _result_to_status(create_tv_controller(config).switch_to_input(target))
 
 
-def restore_tv_emby_app(config):
-    return _result_to_status(create_tv_controller(config).launch_app(EMBY_APP_ID))
+def restore_tv_media_server_app(config):
+    provider_type = (config.get("media_server") or {}).get("type", "")
+    controller = create_tv_controller(config)
+    return _result_to_status(controller.launch_app(controller.media_server_app_id(provider_type)))

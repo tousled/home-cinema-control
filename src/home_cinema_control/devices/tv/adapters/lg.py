@@ -14,6 +14,12 @@ from home_cinema_control.network.arp import find_mac_by_ip
 from home_cinema_control.playback.startup.models import DeviceCommandResult
 
 EMBY_APP_ID = "com.emby.app"
+JELLYFIN_APP_ID = "org.jellyfin.webos"
+
+_MEDIA_SERVER_APP_IDS = {
+    "emby": EMBY_APP_ID,
+    "jellyfin": JELLYFIN_APP_ID,
+}
 
 LG_CONNECT_TIMEOUT_SECONDS = 20.0
 LG_FAST_CONNECT_TIMEOUT_SECONDS = 2.0
@@ -74,6 +80,9 @@ class LgTvController(BaseTvController):
             "launching LG TV app",
             lambda: self._launch_app(app_id),
         )
+
+    def media_server_app_id(self, provider_type: str) -> str | None:
+        return _MEDIA_SERVER_APP_IDS.get(provider_type)
 
     def get_current_app_id(self) -> str | None:
         try:

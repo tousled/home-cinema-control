@@ -35,3 +35,6 @@ class ScriptsTvController(BaseTvController):
     def get_current_app_id(self) -> str | None:
         logging.info("TV current app is not available for script-based TV control")
         return None
+
+    def media_server_app_id(self, provider_type: str) -> str | None:
+        return None

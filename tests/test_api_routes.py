@@ -107,6 +107,36 @@ class ConfigSectionRouteTest(unittest.TestCase):
         self.assertEqual("stored-secret", saved["smb"]["password"])
         self.assertTrue(saved["oppo"]["pre_mount_smb"])
 
+    def test_patch_media_server_section_without_provider_change_keeps_auth(self):
+        client, _, config_service = _make_client(config={
+            "media_server": {"type": "emby", "server_url": "http://old", "display_name": "Pedro"},
+        })
+
+        resp = client.patch("/api/config/media-server", json={
+            "media_server": {"type": "emby", "server_url": "http://new"},
+        })
+
+        self.assertEqual(200, resp.status_code)
+        config_service.clear_media_server_auth.assert_not_called()
+        saved = config_service.save_config.call_args.args[0]
+        self.assertEqual("http://new", saved["media_server"]["server_url"])
+
+    def test_patch_media_server_section_with_provider_change_clears_auth(self):
+        client, _, config_service = _make_client(config={
+            "media_server": {"type": "emby", "server_url": "http://old", "display_name": "Pedro"},
+            "playback": {"hcc_controlled_device": "emby-device"},
+        })
+
+        resp = client.patch("/api/config/media-server", json={
+            "media_server": {"type": "jellyfin", "server_url": "http://jellyfin.local"},
+        })
+
+        self.assertEqual(200, resp.status_code)
+        config_service.clear_media_server_auth.assert_called_once()
+        saved = config_service.save_config.call_args.args[0]
+        self.assertEqual("jellyfin", saved["media_server"]["type"])
+        self.assertEqual("http://jellyfin.local", saved["media_server"]["server_url"])
+
     def test_patch_unknown_config_section_returns_404(self):
         client, _, _ = _make_client()
 
@@ -190,7 +220,7 @@ class PathsPreviewRouteTest(unittest.TestCase):
 
 
 class LibraryPathsRouteTest(unittest.TestCase):
-    @patch("home_cinema_control.web.api_app.fetch_library_paths")
+    @patch("home_cinema_control.media_servers.emby.web_config.fetch_library_paths")
     def test_returns_library_paths_on_success(self, mock_fetch):
         mock_fetch.return_value = ["/volume1/Video/Movies", "/volume1/Video/Series"]
         client, _, _ = _make_client()
@@ -199,8 +229,12 @@ class LibraryPathsRouteTest(unittest.TestCase):
 
         self.assertEqual(200, resp.status_code)
         self.assertEqual(["/volume1/Video/Movies", "/volume1/Video/Series"], resp.json())
+        # The setup-service boundary receives the raw config dict (with secrets and
+        # arbitrary keys), not a pruned Pydantic model. Guards the candidate-1 regression.
+        mock_fetch.assert_called_once()
+        self.assertIsInstance(mock_fetch.call_args.args[0], dict)
 
-    @patch("home_cinema_control.web.api_app.fetch_library_paths")
+    @patch("home_cinema_control.media_servers.emby.web_config.fetch_library_paths")
     def test_returns_502_when_emby_unreachable(self, mock_fetch):
         mock_fetch.side_effect = Exception("Connection refused")
         client, runtime, _ = _make_client()

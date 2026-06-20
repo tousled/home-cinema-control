@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.intent import PlaybackIntent
 
 if TYPE_CHECKING:
@@ -80,7 +80,7 @@ class ActivePlaybackSession:
             "ControllingUserId": self.source_user_id,
             "SessionID": self.source_client_session_id,
             "StartPositionTicks": (
-                self.start_position_seconds * EMBY_TICKS_PER_SECOND
+                    self.start_position_seconds * TICKS_PER_SECOND
             ),
             "Device_Id": self.source_device_id,
             "DeviceName": self.source_device_name,

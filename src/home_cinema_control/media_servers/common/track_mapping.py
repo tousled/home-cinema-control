@@ -93,4 +93,3 @@ def _player_index_to_source_track(
             return int(stream["Index"])
 
     return None
-

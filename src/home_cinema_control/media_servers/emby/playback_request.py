@@ -12,7 +12,10 @@ def build_playback_intent_from_play_command(
     data: dict[str, Any],
     *,
     load_item_info: Callable[[str, str], dict[str, Any]],
-) -> PlaybackIntent:
+) -> PlaybackIntent | None:
+    if data.get("PlayCommand") != "PlayNow":
+        return None
+
     item_ids = data["ItemIds"]
     start_index = int(data.get("StartIndex", 0))
     if isinstance(item_ids, list):

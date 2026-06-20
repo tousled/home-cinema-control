@@ -1,0 +1,80 @@
+import unittest
+
+from home_cinema_control.media_servers.jellyfin.observed_track_mapper import (
+    JellyfinObservedTrackMapper,
+)
+from home_cinema_control.playback.intent import PlaybackIntent
+from home_cinema_control.playback.state import BridgePlaybackState
+
+
+class JellyfinObservedTrackMapperTest(unittest.TestCase):
+    def test_maps_observed_oppo_audio_index_to_jellyfin_stream_index(self):
+        mapper = JellyfinObservedTrackMapper(
+            FakeJellyfinSession(),
+            playback_state=_playback_state(),
+        )
+
+        self.assertEqual(2, mapper.player_audio_to_source_track_id(2))
+
+    def test_maps_observed_oppo_subtitle_index_to_jellyfin_stream_index(self):
+        mapper = JellyfinObservedTrackMapper(
+            FakeJellyfinSession(),
+            playback_state=_playback_state(),
+        )
+
+        self.assertEqual(5, mapper.player_subtitle_to_source_track_id(3))
+
+    def test_maps_observed_oppo_subtitle_off_to_jellyfin_disabled_subtitle(self):
+        mapper = JellyfinObservedTrackMapper(
+            FakeJellyfinSession(),
+            playback_state=_playback_state(),
+        )
+
+        self.assertEqual(-1, mapper.player_subtitle_to_source_track_id(0))
+
+    def test_returns_none_when_no_active_session_exists(self):
+        mapper = JellyfinObservedTrackMapper(
+            FakeJellyfinSession(),
+            playback_state=BridgePlaybackState(),
+        )
+
+        self.assertIsNone(mapper.player_audio_to_source_track_id(1))
+
+
+class FakeJellyfinSession:
+    def get_item_info(self, user_id, item_id):
+        if user_id != "user-1" or item_id != "3092":
+            raise AssertionError((user_id, item_id))
+
+        return {
+            "MediaStreams": [
+                {"Type": "Video", "Index": 0},
+                {"Type": "Audio", "Index": 1},
+                {"Type": "Audio", "Index": 2},
+                {"Type": "Subtitle", "Index": 3},
+                {"Type": "Subtitle", "Index": 4},
+                {"Type": "Subtitle", "Index": 5},
+            ]
+        }
+
+
+def _playback_state() -> BridgePlaybackState:
+    state = BridgePlaybackState()
+    state.start_loading(
+        PlaybackIntent(
+            media_item_id="3092",
+            media_source_id="media-source-1",
+            source_user_id="user-1",
+            source_client_session_id="session-1",
+            source_device_id="device-1",
+            source_device_name="Living Room TV",
+            start_position_seconds=0,
+            selected_audio_track_id=2,
+            selected_subtitle_track_id=5,
+        )
+    )
+    return state
+
+
+if __name__ == "__main__":
+    unittest.main()

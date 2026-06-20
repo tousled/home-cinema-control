@@ -23,13 +23,13 @@ class EmbyClient:
 
     @classmethod
     def from_config(cls, config):
-        media_server = config.get("media_server") or {}
+        media_server = _media_server_config(config)
 
         return cls(
-            server_url=media_server.get("server_url", ""),
-            access_token=media_server.get("access_token", ""),
-            user_id=media_server.get("user_id", ""),
-            display_name=media_server.get("display_name", ""),
+            server_url=_config_value(media_server, "server_url"),
+            access_token=_config_value(media_server, "access_token"),
+            user_id=_config_value(media_server, "user_id"),
+            display_name=_config_value(media_server, "display_name"),
         )
 
     def authenticate(self):
@@ -206,3 +206,15 @@ class EmbyClient:
             path = "/" + path
 
         return self.server_url + path
+
+
+def _media_server_config(config):
+    if hasattr(config, "media_server"):
+        return config.media_server
+    return config.get("media_server") or {}
+
+
+def _config_value(config, key: str, default=""):
+    if hasattr(config, key):
+        return getattr(config, key)
+    return config.get(key, default)

@@ -29,6 +29,17 @@
             </div>
             <div class="panel-body">
               <div class="form-label label-with-help">
+                <label for="ms-provider">{{ $t('x-media-server-provider') }}</label>
+                <HelpTooltip :text="$t('x-media-server-tooltip-provider')"/>
+              </div>
+              <FormSelect
+                  id="ms-provider"
+                  v-model="config.media_server.type"
+                  :options="providerOptions"
+                  class="mb-3"
+              />
+
+              <div class="form-label label-with-help">
                 <label for="ms-url">{{ $t('x-media-server-url') }}</label>
                 <HelpTooltip :text="$t('x-media-server-tooltip-url')"/>
               </div>
@@ -93,7 +104,11 @@
 
                 <div class="flex gap-2">
                   <button :disabled="!canGetToken || tokenLoading" class="btn-ghost" @click="getToken">
-                    {{ tokenLoading ? $t('x-media-server-getting-token') : $t('x-media-server-get-token') }}
+                    {{
+                      tokenLoading
+                          ? $t('x-media-server-getting-token')
+                          : $t('x-media-server-get-token', {server: brand.label})
+                    }}
                   </button>
                   <button v-if="changingPassword" class="btn-ghost" @click="cancelChangePassword">
                     {{ $t('x-common-cancel') }}
@@ -120,7 +135,7 @@
               <template v-else>
                 <FormSelect
                     v-model="config.playback.hcc_controlled_device"
-                    :options="devices.map(d => ({ value: d.Id, label: d.Name }))"
+                    :options="devices.map(d => ({ value: d.id, label: d.name }))"
                     class="mb-3"
                 />
                 <HelpTooltip :text="$t('x-media-server-tooltip-reload-devices')">
@@ -137,8 +152,12 @@
           </div>
 
           <div class="flex gap-3 flex-wrap">
-            <button :disabled="checkLoading" class="btn-ghost" @click="checkEmby">
-              {{ checkLoading ? $t('x-common-testing') : $t('x-media-server-test-connection') }}
+            <button :disabled="checkLoading" class="btn-ghost" @click="checkMediaServer">
+              {{
+                checkLoading
+                    ? $t('x-common-testing')
+                    : $t('x-media-server-test-connection', {server: brand.label})
+              }}
             </button>
             <button class="btn-ghost" @click="saveConfig">{{ $t('x-common-save') }}</button>
           </div>
@@ -173,7 +192,7 @@
                 <div>
                   <p class="library-warning-title">{{ $t('x-media-server-no-library-paths-title') }}</p>
                   <p class="library-warning-copy">
-                    {{ $t('x-media-server-no-library-paths-copy', {type: mediaServerTypeLabel}) }}
+                    {{ $t('x-media-server-no-library-paths-copy', {type: brand.label}) }}
                   </p>
                 </div>
               </div>
@@ -209,7 +228,7 @@
 </template>
 
 <script setup>
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {AlertTriangle, CheckCircle, FolderCheck, KeyRound, MonitorPlay, Plug} from '@lucide/vue'
 import {api} from '../api/index.js'
@@ -220,10 +239,16 @@ import HelpTooltip from '../components/HelpTooltip.vue'
 import IconActionButton from '../components/IconActionButton.vue'
 import FormSelect from '../components/FormSelect.vue'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
+import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
 
 const {t} = useI18n()
 const toast = useToast()
 const {saveSection} = useConfigSectionSave()
+
+const providerOptions = [
+  {value: 'emby', label: 'Emby'},
+  {value: 'jellyfin', label: 'Jellyfin'},
+]
 
 const loading = ref(true)
 const loadingDevices = ref(false)
@@ -245,14 +270,16 @@ const canGetToken = computed(() =>
     !!(config.value.media_server?.server_url && login.value.user_name && login.value.password),
 )
 
-const mediaServerTypeLabel = computed(() => {
-  const type = config.value.media_server?.type || 'emby'
-  return type.charAt(0).toUpperCase() + type.slice(1)
-})
+const {brand} = useMediaServerBrand(() => config.value.media_server?.type)
 
 const connectionTested = ref(false)
 
+// Suppresses the server_url watcher while we restore a cached provider snapshot,
+// so restoring the saved URL does not wipe the restored "tested" state.
+let restoringConnection = false
+
 watch(() => config.value.media_server?.server_url, () => {
+  if (restoringConnection) return
   connectionTested.value = false
 })
 
@@ -311,7 +338,7 @@ async function loadLibraryPaths() {
 async function getToken() {
   tokenLoading.value = true
   try {
-    const updated = await api.configureEmbyToken(await configWithServerSetup(), {
+    const updated = await api.configureMediaServerToken(await configWithServerSetup(), {
       user_name: login.value.user_name,
       password: login.value.password,
     })
@@ -319,8 +346,9 @@ async function getToken() {
     login.value.password = ''
     changingPassword.value = false
     connectionTested.value = true
-    toast.success(t('x-media-server-token-ok'))
+    toast.success(t('x-media-server-token-ok', {server: brand.value.label}))
     await Promise.all([loadDevices(), loadLibraryPaths()])
+    captureConfiguredSnapshot()
   } catch (e) {
     toast.error(e.message)
   } finally {
@@ -328,14 +356,15 @@ async function getToken() {
   }
 }
 
-async function checkEmby() {
+async function checkMediaServer() {
   checkLoading.value = true
   try {
-    const updated = await api.checkEmby(await configWithServerSetup())
+    const updated = await api.checkMediaServer(await configWithServerSetup())
     config.value = updated
     connectionTested.value = true
-    toast.success(t('x-media-server-connection-ok'))
+    toast.success(t('x-media-server-connection-ok', {server: brand.value.label}))
     await Promise.all([loadDevices(), loadLibraryPaths()])
+    captureConfiguredSnapshot()
   } catch (e) {
     toast.error(e.message)
   } finally {
@@ -346,6 +375,7 @@ async function checkEmby() {
 async function saveConfig() {
   try {
     config.value = await saveSection('media-server', serverSetupSection())
+    captureConfiguredSnapshot()
     toast.success(t('x-common-saved'))
   } catch (e) {
     toast.error(e.message)
@@ -376,6 +406,67 @@ async function configWithServerSetup() {
   }
 }
 
+// In-memory snapshot of the provider currently configured on the backend (only
+// one provider is persisted at a time). Captured whenever we hold authoritative
+// state so onProviderChanged can restore the configured provider's auth,
+// monitored device, and detected libraries without re-querying the media server
+// on every selector change.
+let configuredSnapshot = null
+
+function captureConfiguredSnapshot() {
+  configuredSnapshot = {
+    providerType: config.value.media_server?.type || null,
+    mediaServer: JSON.parse(JSON.stringify(config.value.media_server || {})),
+    hccDevice: config.value.playback?.hcc_controlled_device || '',
+    devices: devices.value.slice(),
+    libraryPaths: libraryPaths.value.slice(),
+    libraryPathsError: libraryPathsError.value,
+    connectionTested: connectionTested.value,
+    loginUserName: login.value.user_name,
+  }
+}
+
+function restoreConfiguredSnapshot() {
+  const snap = configuredSnapshot
+  restoringConnection = true
+  config.value.media_server = JSON.parse(JSON.stringify(snap.mediaServer))
+  if (!config.value.playback) config.value.playback = {}
+  config.value.playback.hcc_controlled_device = snap.hccDevice
+  devices.value = snap.devices.slice()
+  libraryPaths.value = snap.libraryPaths.slice()
+  libraryPathsError.value = snap.libraryPathsError
+  login.value.user_name = snap.loginUserName
+  login.value.password = ''
+  changingPassword.value = false
+  connectionTested.value = snap.connectionTested
+  nextTick(() => {
+    restoringConnection = false
+  })
+}
+
+// Switching provider invalidates the previous provider's auth/device state. The
+// backend keeps only the configured provider's secrets/device, so:
+// - returning to the still-configured provider restores its authorized state,
+//   monitored device, and detected libraries from the in-memory snapshot;
+// - switching to any other (not configured) provider clears the screen for
+//   immediate UI feedback until the user authorizes it.
+function onProviderChanged(newType) {
+  if (configuredSnapshot && newType && newType === configuredSnapshot.providerType) {
+    restoreConfiguredSnapshot()
+    return
+  }
+  config.value.media_server.access_token_configured = false
+  config.value.media_server.display_name = ''
+  if (config.value.playback) config.value.playback.hcc_controlled_device = ''
+  login.value.user_name = ''
+  login.value.password = ''
+  changingPassword.value = false
+  connectionTested.value = false
+  devices.value = []
+  libraryPaths.value = []
+  libraryPathsError.value = ''
+}
+
 onMounted(async () => {
   loading.value = true
   try {
@@ -388,6 +479,11 @@ onMounted(async () => {
       await Promise.all([loadDevices(), loadLibraryPaths()])
     }
     connectionTested.value = !!data.media_server?.access_token_configured
+    captureConfiguredSnapshot()
+
+    // Registered after the initial load so it only reacts to user-driven
+    // provider changes, not the type value arriving from the loaded config.
+    watch(() => config.value.media_server?.type, onProviderChanged)
   } finally {
     loading.value = false
   }

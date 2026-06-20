@@ -43,7 +43,8 @@
         <div class="paths-shell">
           <div v-if="gateActive" class="gate-panel">
             <p class="gate-title">{{ $t('x-setup-gate-title') }}</p>
-            <p v-if="serverIncomplete" class="gate-reason">{{ $t('x-setup-gate-discovery') }}</p>
+            <p v-if="serverIncomplete" class="gate-reason">
+              {{ $t('x-setup-gate-discovery', {server: mediaServerTypeLabel}) }}</p>
             <p v-if="playerIncomplete" class="gate-reason">{{ $t('x-setup-gate-testing') }}</p>
             <div class="flex gap-2 mt-3 flex-wrap">
               <button v-if="serverIncomplete" class="btn-ghost" @click="router.push('/media-server')">
@@ -367,7 +368,7 @@
                   </p>
 
                   <div class="resolution-actions">
-                    <HelpTooltip :text="$t('x-paths-tooltip-test-path')">
+                    <HelpTooltip :text="$t('x-paths-tooltip-test-path', {server: mediaServerTypeLabel})">
                       <IconActionButton
                           :disabled="gateActive || !canTest"
                           :label="$t('x-paths-test-path')"
@@ -422,11 +423,11 @@
                     <div v-if="libraries.length" class="library-filter-list">
                       <label
                           v-for="lib in libraries"
-                          :key="lib.Id || lib.Name"
+                          :key="lib.id || lib.name"
                           class="library-filter-row"
                       >
-                        <input v-model="lib.Active" :disabled="useAllLibraries || gateActive" type="checkbox"/>
-                        <span class="body-text">{{ lib.Name }}</span>
+                        <input v-model="lib.active" :disabled="useAllLibraries || gateActive" type="checkbox"/>
+                        <span class="body-text">{{ lib.name }}</span>
                       </label>
                     </div>
                     <p v-else class="caption">{{ $t('x-media-server-no-libraries') }}</p>
@@ -506,6 +507,7 @@ import {useSetupReadiness} from '../composables/useSetupReadiness.js'
 import {useMediaPathWorkflow} from '../composables/useMediaPathWorkflow.js'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useDiagnosticText} from '../composables/useDiagnosticText.js'
+import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -588,10 +590,8 @@ const {
   clearSmbCredentials: api.clearSmbCredentials,
 })
 
-const mediaServerTypeLabel = computed(() => {
-  const type = fullConfig.value.media_server?.type || 'emby'
-  return type.charAt(0).toUpperCase() + type.slice(1)
-})
+const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_server?.type)
+const mediaServerTypeLabel = computed(() => mediaServerBrand.value.label)
 
 const networkModeLabel = computed(() => smbEnabled.value ? 'SMB/CIFS' : 'NFS')
 const activeDetectedLibraryCount = computed(() => detectedRows.value.filter((row) => row.intercepted).length)
@@ -639,17 +639,17 @@ function defaultProtocol() {
 function isLibraryIntercepted(libraryPath) {
   if (useAllLibraries.value) return true
   const libraryName = String(libraryPath?.library_name || '').trim()
-  const library = libraries.value.find((candidate) => candidate.Name === libraryName)
-  return !!library?.Active
+  const library = libraries.value.find((candidate) => candidate.name === libraryName)
+  return !!library?.active
 }
 
 function libraryFilterSnapshot() {
   return JSON.stringify({
     useAllLibraries: useAllLibraries.value,
     libraries: libraries.value.map((library) => ({
-      Id: String(library.Id || ''),
-      Name: String(library.Name || ''),
-      Active: !!library.Active,
+      id: String(library.id || ''),
+      name: String(library.name || ''),
+      active: !!library.active,
     })),
   })
 }
@@ -662,9 +662,9 @@ function rememberSavedLibraryFilter() {
   savedLibraryFilter.value = {
     useAllLibraries: useAllLibraries.value,
     libraries: libraries.value.map((library) => ({
-      Id: String(library.Id || ''),
-      Name: String(library.Name || ''),
-      Active: !!library.Active,
+      id: String(library.id || ''),
+      name: String(library.name || ''),
+      active: !!library.active,
     })),
   }
 }

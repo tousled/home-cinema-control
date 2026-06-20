@@ -1,9 +1,9 @@
 import unittest
 
-from home_cinema_control.media_servers.emby.playback import (
+from home_cinema_control.media_servers.common.playback_event_publisher import (
     MediaServerPlaybackContext,
-    MediaServerPlaybackEventPublisher,
 )
+from home_cinema_control.media_servers.emby.playback import EmbyPlaybackEventPublisher
 
 
 class FakeResponse:
@@ -45,72 +45,10 @@ class RecordingEmbyClient:
         return FakeResponse()
 
 
-class MediaServerPlaybackContextTest(unittest.TestCase):
-    def test_builds_context_from_playback_event(self):
-        context = MediaServerPlaybackContext.from_event(
-            {
-                "ItemIds": ["movie-1"],
-                "MediaSourceId": "source-1",
-                "AudioStreamIndex": 4,
-                "SubtitleStreamIndex": 7,
-                "ControllingUserId": "tv-user",
-                "SessionID": "tv-session",
-                "PlaySessionId": "play-session",
-                "StartPositionTicks": 420_000_000,
-            },
-            load_user_item=_unused_load_user_item,
-        )
-
-        self.assertEqual("movie-1", context.media_library_item_id)
-        self.assertEqual("source-1", context.media_source_file_id)
-        self.assertEqual(4, context.selected_audio_track_id)
-        self.assertEqual(7, context.selected_subtitle_track_id)
-        self.assertEqual("tv-user", context.media_server_user_id)
-        self.assertEqual("tv-session", context.source_client_session_id)
-        self.assertEqual(
-            "play-session", context.media_server_playback_id
-        )
-        self.assertEqual(420_000_000, context.start_position_ticks)
-
-    def test_loads_user_data_position_when_event_has_no_start_position(self):
-        context = MediaServerPlaybackContext.from_event(
-            {
-                "ItemIds": ["movie-1"],
-                "ControllingUserId": "tv-user",
-            },
-            load_user_item=lambda user_id, item_id: {
-                "UserData": {"PlaybackPositionTicks": 120_000_000}
-            },
-        )
-
-        self.assertEqual(120_000_000, context.start_position_ticks)
-
-    def test_generates_playback_id_when_event_has_no_play_session_id(self):
-        context = MediaServerPlaybackContext.from_event(
-            {"ItemIds": ["movie-1"], "StartPositionTicks": 0},
-            load_user_item=_unused_load_user_item,
-        )
-
-        self.assertNotEqual("", context.media_server_playback_id)
-        self.assertEqual(36, len(context.media_server_playback_id))
-
-    def test_uses_play_session_id_from_event_when_present(self):
-        context = MediaServerPlaybackContext.from_event(
-            {
-                "ItemIds": ["movie-1"],
-                "StartPositionTicks": 0,
-                "PlaySessionId": "server-provided-session",
-            },
-            load_user_item=_unused_load_user_item,
-        )
-
-        self.assertEqual("server-provided-session", context.media_server_playback_id)
-
-
-class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
+class EmbyPlaybackEventPublisherTest(unittest.TestCase):
     def test_started_uses_resume_position_and_play_session_id(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(start_position_ticks=420_000_000),
@@ -127,7 +65,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_progress_uses_time_update_and_reports_every_configured_interval(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -145,7 +83,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_progress_reports_immediately_when_position_moves_backwards(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -160,7 +98,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_stopped_reports_final_position_without_event_name(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -176,7 +114,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_stopped_marks_item_unplayed_and_restores_resume_when_stop_was_not_natural_end(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -207,7 +145,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_stopped_does_not_mark_item_unplayed_without_resume_position(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -219,7 +157,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_stopped_does_not_fail_when_mark_unplayed_fails(self):
         client = RecordingEmbyClient(mark_unplayed_error=TimeoutError("emby timeout"))
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -236,7 +174,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_stopped_does_not_fail_when_restore_resume_position_fails(self):
         client = RecordingEmbyClient(restore_position_error=TimeoutError("emby timeout"))
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -253,7 +191,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_progress_adapts_domain_seconds_to_emby_ticks(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -267,7 +205,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_stopped_adapts_domain_seconds_to_emby_ticks(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -282,7 +220,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
     def test_stopped_is_idempotent(self):
         client = RecordingEmbyClient()
-        publisher = MediaServerPlaybackEventPublisher(
+        publisher = EmbyPlaybackEventPublisher(
             client,
             bridge_session_id="bridge-session",
             context=_context(),
@@ -307,10 +245,6 @@ def _context(start_position_ticks=0):
         media_server_playback_id="play-session",
         start_position_ticks=start_position_ticks,
     )
-
-
-def _unused_load_user_item(user_id, item_id):
-    raise AssertionError("load_user_item should not be called")
 
 
 if __name__ == "__main__":

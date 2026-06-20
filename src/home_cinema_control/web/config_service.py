@@ -1,4 +1,9 @@
-from home_cinema_control.config.manager import clear_smb_credentials, merge_existing_secrets, sanitize_config_for_web
+from home_cinema_control.config.manager import (
+    clear_media_server_auth,
+    clear_smb_credentials,
+    merge_existing_secrets,
+    sanitize_config_for_web,
+)
 
 
 class WebConfigService:
@@ -20,3 +25,6 @@ class WebConfigService:
 
     def clear_smb_credentials(self):
         clear_smb_credentials(self._config_file)
+
+    def clear_media_server_auth(self):
+        clear_media_server_auth(self._config_file)

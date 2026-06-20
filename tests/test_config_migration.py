@@ -256,6 +256,18 @@ class RenamePlaybackKeysTest(unittest.TestCase):
         _rename_playback_keys(config)
         self.assertNotIn("resume_on", config["playback"])
 
+    def test_renames_library_value_object_keys_to_snake_case(self):
+        config = {
+            "playback": {
+                "libraries": [{"Id": "lib-1", "Name": "Movies", "Active": True}],
+            }
+        }
+        _rename_playback_keys(config)
+        self.assertEqual(
+            [{"id": "lib-1", "name": "Movies", "active": True}],
+            config["playback"]["libraries"],
+        )
+
 
 class RenameAvKeysTest(unittest.TestCase):
     def test_renames_intermediate_av_keys(self):

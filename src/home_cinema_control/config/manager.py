@@ -255,6 +255,37 @@ def clear_smb_credentials(config_path: Path | str) -> None:
     _write_json(config_path, public_config)
 
 
+def clear_media_server_auth(config_path: Path | str) -> None:
+    """Explicitly wipe stored media-server auth and monitored-device state.
+
+    Called when the user switches the selected provider (Emby/Jellyfin):
+    access_token/user_id live in secrets.json; display_name and
+    access_token_configured live in config.json. A blank submission alone
+    would not clear them — merge_existing_secrets fills blanks back in from
+    secrets.json on the next save, by design, so this needs an explicit wipe
+    the same way clear_smb_credentials does.
+
+    Verified path mappings are untouched: Emby and Jellyfin may point at the
+    same NAS paths, so they are preserved across a provider switch.
+    """
+    config_path = Path(config_path)
+    secrets_path = ensure_secrets_exists(config_path)
+
+    secrets = load_secrets(config_path)
+    _set_nested(secrets, ("media_server", "access_token"), "")
+    _set_nested(secrets, ("media_server", "user_id"), "")
+    _write_json(secrets_path, secrets)
+    _chmod_private(secrets_path)
+
+    public_config = _read_json(config_path)
+    media_server = public_config.setdefault("media_server", {})
+    media_server["display_name"] = ""
+    media_server["access_token_configured"] = False
+    playback = public_config.setdefault("playback", {})
+    playback["hcc_controlled_device"] = ""
+    _write_json(config_path, public_config)
+
+
 def migrate_secrets_from_config(config_path: Path | str) -> None:
     """
     No-op kept temporarily only to avoid breaking any old caller.

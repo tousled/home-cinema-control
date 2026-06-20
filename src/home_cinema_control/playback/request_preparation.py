@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.media_location import resolve_player_media_file_location
 from home_cinema_control.devices.tv.models import TvInputTarget
@@ -126,6 +126,6 @@ def _oppo_playback_start_request(
 
 def _item_duration_seconds(item_info: dict[str, Any]) -> int:
     try:
-        return max(0, int(item_info.get("RunTimeTicks", 0)) // EMBY_TICKS_PER_SECOND)
+        return max(0, int(item_info.get("RunTimeTicks", 0)) // TICKS_PER_SECOND)
     except (TypeError, ValueError):
         return 0

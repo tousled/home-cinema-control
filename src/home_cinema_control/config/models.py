@@ -1,5 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from home_cinema_control.media_servers.common.models import (
+    MediaServerLibrary,
+    MediaServerProviderType,
+)
+
 
 class PathMappingConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -32,7 +37,7 @@ class PlaybackConfig(BaseModel):
     hcc_controlled_device: str = ""
     use_all_libraries: bool = False
     path_mappings: list[PathMappingConfig] = Field(default_factory=list)
-    libraries: list[dict] = Field(default_factory=list)
+    libraries: list[MediaServerLibrary] = Field(default_factory=list)
 
 
 class AvConfig(BaseModel):
@@ -99,7 +104,7 @@ class SmbConfig(BaseModel):
 class MediaServerConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    type: str = "emby"
+    type: MediaServerProviderType = "emby"
     server_url: str = ""
     display_name: str = ""
     access_token: str = ""

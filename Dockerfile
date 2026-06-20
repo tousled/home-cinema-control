@@ -1,8 +1,8 @@
 # Global ARG — available in all FROM lines
-ARG PYTHON_VERSION=3.14.5
+ARG PYTHON_VERSION=3.14.6
 
 # Stage 1: build Vue frontend
-FROM node:26-slim AS frontend-builder
+FROM node:26.3.1-trixie-slim AS frontend-builder
 WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci
@@ -10,7 +10,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: build the Python venv (compiler toolchain stays in this stage only)
-FROM python:${PYTHON_VERSION}-slim AS python-builder
+FROM python:${PYTHON_VERSION}-slim-trixie AS python-builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
@@ -30,7 +30,7 @@ ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
 RUN pip install --no-cache-dir --no-deps .
 
 # Stage 3: runtime — no compiler toolchain, smaller attack surface
-FROM python:${PYTHON_VERSION}-slim
+FROM python:${PYTHON_VERSION}-slim-trixie
 
 RUN apt-get update \
     && apt-get upgrade -y \

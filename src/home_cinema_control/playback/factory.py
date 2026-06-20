@@ -7,11 +7,7 @@ from home_cinema_control.devices.oppo.observation_mode import (
     OppoObservationMode,
     resolve_oppo_observation_mode,
 )
-from home_cinema_control.media_servers.emby import (
-    MediaServerPlaybackContext,
-    MediaServerPlaybackEventPublisher,
-)
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.during import (
     DuringPlaybackOrchestrator,
     PollingPlaybackObservationStrategy,
@@ -35,7 +31,7 @@ from home_cinema_control.playback.startup.factory import (
 @dataclass(frozen=True)
 class PlaybackOrchestratorWiring:
     startup_wiring: PlaybackStartupWiring
-    playback_event_publisher: MediaServerPlaybackEventPublisher
+    playback_event_publisher: Any
     during_playback_orchestrator: DuringPlaybackOrchestrator
     playback_orchestrator: PlaybackOrchestrator
 
@@ -64,8 +60,8 @@ class PlaybackSessionStateSyncProgressReporter:
         if previous_is_paused is True and not is_paused:
             self._progress_reporter.report_event(
                 "Unpause",
-                position_ticks=position_seconds * EMBY_TICKS_PER_SECOND,
-                runtime_ticks=duration_seconds * EMBY_TICKS_PER_SECOND,
+                position_ticks=position_seconds * TICKS_PER_SECOND,
+                runtime_ticks=duration_seconds * TICKS_PER_SECOND,
                 is_paused=False,
                 is_muted=is_muted,
             )
@@ -84,13 +80,14 @@ def create_playback_orchestrator_wiring(
     config: dict[str, Any],
     media_server_client,
     bridge_session_id: str,
-    playback_context: MediaServerPlaybackContext,
+        playback_context,
+        playback_event_publisher_factory,
     track_resolver: PlaybackTrackResolver,
     playback_state: BridgePlaybackState | None = None,
     step_timer: StartupStepTimer | None = None,
 ) -> PlaybackOrchestratorWiring:
     startup_wiring = create_playback_startup_wiring(config)
-    playback_event_publisher = MediaServerPlaybackEventPublisher(
+    playback_event_publisher = playback_event_publisher_factory(
         media_server_client,
         bridge_session_id=bridge_session_id,
         context=playback_context,

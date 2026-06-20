@@ -1,10 +1,13 @@
 import unittest
 
+from home_cinema_control.media_servers.common.models import (
+    MediaServerLibrary,
+    is_library_active,
+)
 from home_cinema_control.media_servers.emby.web_config import (
     build_control_device_config,
     build_library_config,
     build_selectable_folder_servers,
-    is_library_active,
 )
 
 
@@ -17,8 +20,8 @@ class BuildControlDeviceConfigTest(unittest.TestCase):
         result = build_control_device_config(devices)
 
         self.assertEqual(1, len(result))
-        self.assertEqual("abc", result[0]["Id"])
-        self.assertEqual("My TV / Emby for LG", result[0]["Name"])
+        self.assertEqual("abc", result[0].id)
+        self.assertEqual("My TV / Emby for LG", result[0].name)
 
     def test_excludes_bridge_device_id(self):
         devices = [
@@ -29,7 +32,7 @@ class BuildControlDeviceConfigTest(unittest.TestCase):
         result = build_control_device_config(devices)
 
         self.assertEqual(1, len(result))
-        self.assertEqual("real-device", result[0]["Id"])
+        self.assertEqual("real-device", result[0].id)
 
     def test_does_not_filter_old_xnoppo_client_name(self):
         devices = [
@@ -39,7 +42,7 @@ class BuildControlDeviceConfigTest(unittest.TestCase):
         result = build_control_device_config(devices)
 
         self.assertEqual(1, len(result))
-        self.assertEqual("Xnoppo", result[0]["Id"])
+        self.assertEqual("Xnoppo", result[0].id)
 
     def test_excludes_bridge_app_name(self):
         devices = [
@@ -76,9 +79,9 @@ class BuildControlDeviceConfigTest(unittest.TestCase):
 
         result = build_control_device_config(devices)
 
-        self.assertEqual("Smart TV", result[0]["Name"])
+        self.assertEqual("Smart TV", result[0].name)
 
-    def test_preserves_original_device_fields(self):
+    def test_captures_app_name_and_drops_arbitrary_provider_fields(self):
         devices = [
             {
                 "ReportedDeviceId": "d1",
@@ -91,8 +94,12 @@ class BuildControlDeviceConfigTest(unittest.TestCase):
 
         result = build_control_device_config(devices)
 
-        self.assertEqual("192.168.1.10", result[0]["IpAddress"])
-        self.assertEqual("pedro", result[0]["LastUserName"])
+        self.assertEqual("Emby for LG", result[0].app_name)
+        # The value object is the HCC contract, not a passthrough of the
+        # provider payload: arbitrary API fields are not carried through.
+        self.assertEqual(
+            {"id", "name", "app_name"}, set(result[0].model_dump().keys())
+        )
 
     def test_empty_input_returns_empty_list(self):
         self.assertEqual([], build_control_device_config([]))
@@ -105,24 +112,24 @@ class BuildLibraryConfigTest(unittest.TestCase):
         result = build_library_config(views, existing_libraries=[])
 
         self.assertEqual(2, len(result))
-        self.assertEqual("1", result[0]["Id"])
-        self.assertEqual("Movies", result[0]["Name"])
-        self.assertFalse(result[0]["Active"])
+        self.assertEqual("1", result[0].id)
+        self.assertEqual("Movies", result[0].name)
+        self.assertFalse(result[0].active)
 
     def test_preserves_active_flag_from_existing(self):
         views = [{"Id": "1", "Name": "Movies"}]
-        existing = [{"Id": "1", "Name": "Movies", "Active": True}]
+        existing = [{"id": "1", "name": "Movies", "active": True}]
 
         result = build_library_config(views, existing_libraries=existing)
 
-        self.assertTrue(result[0]["Active"])
+        self.assertTrue(result[0].active)
 
     def test_new_library_not_in_existing_defaults_to_inactive(self):
         views = [{"Id": "99", "Name": "New Library"}]
 
         result = build_library_config(views, existing_libraries=[])
 
-        self.assertFalse(result[0]["Active"])
+        self.assertFalse(result[0].active)
 
     def test_skips_view_without_id(self):
         views = [{"Id": "", "Name": "No ID"}, {"Id": "2", "Name": "Valid"}]
@@ -130,10 +137,12 @@ class BuildLibraryConfigTest(unittest.TestCase):
         result = build_library_config(views, existing_libraries=[])
 
         self.assertEqual(1, len(result))
-        self.assertEqual("2", result[0]["Id"])
+        self.assertEqual("2", result[0].id)
 
     def test_empty_views_returns_empty_list(self):
-        result = build_library_config([], existing_libraries=[{"Id": "1", "Name": "Old"}])
+        result = build_library_config(
+            [], existing_libraries=[{"id": "1", "name": "Old"}]
+        )
 
         self.assertEqual([], result)
 
@@ -150,7 +159,7 @@ class BuildSelectableFolderServersTest(unittest.TestCase):
 
         result = build_selectable_folder_servers(
             folders,
-            libraries=[{"Name": "Movies", "Active": True}],
+            libraries=[{"name": "Movies", "active": True}],
             existing_servers=[],
             enable_all_libraries=False,
         )
@@ -164,7 +173,7 @@ class BuildSelectableFolderServersTest(unittest.TestCase):
 
         result = build_selectable_folder_servers(
             folders,
-            libraries=[{"Name": "Trailers", "Active": False}],
+            libraries=[{"name": "Trailers", "active": False}],
             existing_servers=[],
             enable_all_libraries=False,
         )
@@ -176,7 +185,7 @@ class BuildSelectableFolderServersTest(unittest.TestCase):
 
         result = build_selectable_folder_servers(
             folders,
-            libraries=[{"Name": "Trailers", "Active": False}],
+            libraries=[{"name": "Trailers", "active": False}],
             existing_servers=[],
             enable_all_libraries=True,
         )
@@ -189,7 +198,7 @@ class BuildSelectableFolderServersTest(unittest.TestCase):
 
         result = build_selectable_folder_servers(
             folders,
-            libraries=[{"Name": "Movies", "Active": True}],
+            libraries=[{"name": "Movies", "active": True}],
             existing_servers=existing,
             enable_all_libraries=False,
         )
@@ -210,7 +219,7 @@ class BuildSelectableFolderServersTest(unittest.TestCase):
 
         result = build_selectable_folder_servers(
             folders,
-            libraries=[{"Name": "Movies", "Active": True}],
+            libraries=[{"name": "Movies", "active": True}],
             existing_servers=[],
             enable_all_libraries=False,
         )
@@ -223,7 +232,7 @@ class BuildSelectableFolderServersTest(unittest.TestCase):
 
         result = build_selectable_folder_servers(
             folders,
-            libraries=[{"Name": "Movies", "Active": True}],
+            libraries=[{"name": "Movies", "active": True}],
             existing_servers=[],
             enable_all_libraries=False,
         )
@@ -233,18 +242,18 @@ class BuildSelectableFolderServersTest(unittest.TestCase):
 
 class IsLibraryActiveTest(unittest.TestCase):
     def test_returns_true_for_active_library(self):
-        libraries = [{"Name": "Movies", "Active": True}]
+        libraries = [MediaServerLibrary(name="Movies", active=True)]
         self.assertTrue(is_library_active(libraries, "Movies"))
 
     def test_returns_false_for_inactive_library(self):
-        libraries = [{"Name": "Movies", "Active": False}]
+        libraries = [MediaServerLibrary(name="Movies", active=False)]
         self.assertFalse(is_library_active(libraries, "Movies"))
 
     def test_returns_false_when_library_not_found(self):
         self.assertFalse(is_library_active([], "Movies"))
 
     def test_returns_false_for_unknown_library_name(self):
-        libraries = [{"Name": "Movies", "Active": True}]
+        libraries = [MediaServerLibrary(name="Movies", active=True)]
         self.assertFalse(is_library_active(libraries, "Trailers"))
 
 

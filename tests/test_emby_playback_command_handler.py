@@ -4,12 +4,24 @@ from home_cinema_control.devices.oppo.playback_state import (
     OppoPlaybackCategory,
     OppoPlaybackStatus,
 )
+from home_cinema_control.media_servers.common.playback_command_handler import (
+    command_from_general_command_message,
+    command_from_playstate_message,
+)
 from home_cinema_control.media_servers.emby.playback_command_handler import (
     EmbyPlaybackCommandHandler,
 )
 from home_cinema_control.playback.intent import PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.startup.models import OppoPlaybackState
+
+
+def _playstate(handler, data):
+    handler.handle_command(command_from_playstate_message(data))
+
+
+def _general(handler, data):
+    handler.handle_command(command_from_general_command_message(data))
 
 
 class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
@@ -32,6 +44,21 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         self.assertEqual("1234", dispatched_intent.media_item_id)
         self.assertEqual(PlaybackOrigin.REMOTE_CONTROL_COMMAND, dispatched_origin)
 
+    def test_non_play_now_command_is_ignored(self):
+        dispatcher = RecordingDispatcher()
+        handler = EmbyPlaybackCommandHandler(
+            emby_session=RecordingEmbySession(),
+            playback_state=BridgePlaybackState(),
+            config_provider=lambda: {},
+            playback_intent_dispatcher_factory=lambda: dispatcher,
+            active_publisher_provider=lambda: None,
+            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
+        )
+
+        handler.handle_play({"PlayCommand": "PlayLast", "ItemIds": ["1234"]})
+
+        self.assertEqual([], dispatcher.dispatched_intents)
+
     def test_playstate_command_uses_latest_config(self):
         controls = []
         config = {"name": "old"}
@@ -47,7 +74,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         )
 
         config = {"name": "new"}
-        handler.handle_playback_state({"Command": "Stop"})
+        _playstate(handler, {"Command": "Stop"})
 
         self.assertEqual([("remote_key", "new", "STP")], controls)
 
@@ -71,7 +98,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_playback_state({"Command": "Pause"})
+        _playstate(handler, {"Command": "Pause"})
 
         self.assertNotIn(("remote_key", "config", "PAU"), controls)
         self.assertEqual("Paused", state.playstate)
@@ -98,7 +125,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_playback_state({"Command": "Unpause"})
+        _playstate(handler, {"Command": "Unpause"})
 
         self.assertNotIn(("remote_key", "config", "PLA"), controls)
         self.assertEqual("Playing", state.playstate)
@@ -125,7 +152,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_playback_state({"Command": "PlayPause"})
+        _playstate(handler, {"Command": "PlayPause"})
 
         self.assertIn(("remote_key", "config", "PAU"), controls)
         self.assertEqual("Paused", state.playstate)
@@ -151,7 +178,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_playback_state({"Command": "PlayPause"})
+        _playstate(handler, {"Command": "PlayPause"})
 
         self.assertEqual([], state_reads)
         self.assertIn(("remote_key", "config", "PAU"), controls)
@@ -174,7 +201,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_general_command(
+        _general(handler,
             {"Name": "SetAudioStreamIndex", "Arguments": {"Index": "2"}}
         )
 
@@ -202,7 +229,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_general_command(
+        _general(handler,
             {"Name": "SetAudioStreamIndex", "Arguments": {"Index": "2"}}
         )
 
@@ -225,7 +252,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: None,
         )
 
-        handler.handle_general_command(
+        _general(handler,
             {"Name": "SetAudioStreamIndex", "Arguments": {"Index": "2"}}
         )
 
@@ -247,7 +274,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_general_command(
+        _general(handler,
             {"Name": "SetSubtitleStreamIndex", "Arguments": {"Index": "3"}}
         )
 
@@ -274,7 +301,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: publisher,
         )
 
-        handler.handle_general_command(
+        _general(handler,
             {"Name": "SetSubtitleStreamIndex", "Arguments": {"Index": "3"}}
         )
 
@@ -295,7 +322,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             ),
         )
 
-        handler.handle_playback_state(
+        _playstate(handler,
             {
                 "Command": "Seek",
                 "SeekPositionTicks": 120_000_000,
@@ -317,7 +344,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             ),
         )
 
-        handler.handle_playback_state(
+        _playstate(handler,
             {
                 "Command": "SeekRelative",
                 "SeekPositionTicks": 30_000_000,
@@ -339,7 +366,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             ),
         )
 
-        handler.handle_playback_state(
+        _playstate(handler,
             {
                 "Command": "SeekRelative",
                 "SeekPositionTicks": -30_000_0000,
@@ -361,7 +388,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             ),
         )
 
-        handler.handle_playback_state({"Command": "FastForward"})
+        _playstate(handler, {"Command": "FastForward"})
 
         self.assertEqual([("seek", "config", 1_100_000_000)], controls)
 
@@ -378,7 +405,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             ),
         )
 
-        handler.handle_playback_state({"Command": "Rewind"})
+        _playstate(handler, {"Command": "Rewind"})
 
         self.assertEqual([("seek", "config", 900_000_000)], controls)
 

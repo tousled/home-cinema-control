@@ -311,6 +311,7 @@ import IconActionButton from '../components/IconActionButton.vue'
 import FormSelect from '../components/FormSelect.vue'
 import {useNetworkScan} from '../composables/useNetworkScan.js'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
+import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -321,13 +322,7 @@ const fullConfig = ref({})
 const arpAvailable = ref(true)
 const {scanning, devices, scan} = useNetworkScan()
 
-const mediaServerBrand = computed(() => {
-  const type = (fullConfig.value?.media_server?.type || 'emby').toLowerCase()
-  if (type === 'jellyfin') return {brand: 'jellyfin', label: 'Jellyfin'}
-  if (type === 'plex') return {brand: 'plex', label: 'Plex'}
-  if (type === 'emby') return {brand: 'emby', label: 'Emby'}
-  return {brand: '', label: t('x-media-server-generic')}
-})
+const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_server?.type)
 
 /* TV state */
 const tv = ref({})

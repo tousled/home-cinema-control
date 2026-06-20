@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 
 from home_cinema_control import __version__
+from home_cinema_control.config.models import HccConfig
 from home_cinema_control.devices.av.setup_control import (
     list_av_hdmi_inputs,
     power_off_av_receiver,
@@ -22,21 +23,15 @@ from home_cinema_control.devices.oppo.setup_control import (
 )
 from home_cinema_control.devices.tv.setup_control import (
     detect_tv_sources,
-    restore_tv_emby_app,
+    restore_tv_media_server_app,
     switch_tv_to_player_input,
     test_tv_connection,
 )
-from home_cinema_control.media_servers.emby.web_config import (
-    check_emby_connection,
-    configure_emby_token,
-    fetch_library_paths,
-    load_devices,
-    load_libraries,
-    load_selectable_folders,
-)
+from home_cinema_control.media_servers.common.models import MediaServerLoginCredentials
+from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import (
     diagnose_device_action_failed,
-    diagnose_emby_library_paths_unavailable,
+    diagnose_media_server_library_paths_unavailable,
     diagnose_path_inference_failed,
     diagnose_path_test_failed,
 )
@@ -57,8 +52,14 @@ from home_cinema_control.web.static_assets import read_binary_asset
 from home_cinema_control.web.version_routes import check_version_response, rollback_version_response, update_version_response
 
 
+def _media_server_setup_service(media_server_provider_factory, config: dict):
+    validated_config = HccConfig(**config)
+    return media_server_provider_factory.create(validated_config).setup_service()
+
+
 def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None)
+    media_server_provider_factory = MediaServerProviderFactory()
 
     app.add_middleware(
         CORSMiddleware,
@@ -82,22 +83,56 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         sanitized = api_runtime.config_service.sanitize(config)
         return compute_config_readiness(sanitized)
 
+    def _config_with_media_server_libraries():
+        config = api_runtime.config_service.load_config()
+        config = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        ).load_libraries(config)
+        return api_runtime.config_service.sanitize(config)
+
     @router.get("/config/libraries")
     def get_config_with_libraries():
+        return _config_with_media_server_libraries()
+
+    @router.get("/media-server/libraries")
+    def get_media_server_libraries():
+        return _config_with_media_server_libraries()
+
+    def _config_with_media_server_devices():
         config = api_runtime.config_service.load_config()
-        load_libraries(config)
+        config = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        ).load_devices(config)
         return api_runtime.config_service.sanitize(config)
 
     @router.get("/config/devices")
     def get_config_with_devices():
-        config = api_runtime.config_service.load_config()
-        load_devices(config)
-        return api_runtime.config_service.sanitize(config)
+        return _config_with_media_server_devices()
+
+    @router.get("/media-server/devices")
+    def get_media_server_devices():
+        return _config_with_media_server_devices()
 
     @router.patch("/config/{section}")
     def save_config_section(section: str, body: dict):
         try:
             config = api_runtime.config_service.load_config()
+
+            if section == "media-server":
+                previous_type = (config.get("media_server") or {}).get("type")
+                submitted_media_server = body.get("media_server") or body
+                new_type = submitted_media_server.get("type", previous_type)
+                if previous_type and new_type != previous_type:
+                    # Switching provider: wipe the old provider's token/user id
+                    # (secrets.json) and display_name/monitored device (config.json)
+                    # before merging, so prepare_submitted_config has nothing
+                    # stale left to fill back in. Verified path mappings are
+                    # untouched.
+                    api_runtime.config_service.clear_media_server_auth()
+                    config = api_runtime.config_service.load_config()
+
             updated = apply_config_section(config, section, body)
             updated = api_runtime.config_service.prepare_submitted_config(updated)
             api_runtime.config_service.save_config(updated)
@@ -197,30 +232,49 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             logging.exception("Migration skip failed")
             raise HTTPException(status_code=500, detail="Could not create fresh config")
 
-    # --- emby ---
+    # --- media server ---
 
-    @router.post("/emby/token")
-    def emby_configure_token(body: dict):
+    def _configure_media_server_token_response(body: dict):
         config = body.get("config") or {}
-        credentials = body.get("credentials") or {}
+        credentials = MediaServerLoginCredentials.model_validate(
+            body.get("credentials") or {}
+        )
         try:
-            config = configure_emby_token(config, credentials)
+            setup_service = _media_server_setup_service(
+                media_server_provider_factory,
+                config,
+            )
+            config = setup_service.configure_token(config, credentials)
             api_runtime.config_service.save_config(config)
             return api_runtime.config_service.sanitize(config)
         except Exception:
-            logging.exception("Emby token configuration failed")
+            logging.exception("Media server token configuration failed")
             raise HTTPException(status_code=400, detail="Token configuration failed")
+
+    @router.post("/media-server/token")
+    def media_server_configure_token(body: dict):
+        return _configure_media_server_token_response(body)
+
+    @router.post("/emby/token")
+    def emby_configure_token(body: dict):
+        return _configure_media_server_token_response(body)
 
     @router.get("/media-server/library-paths")
     def get_library_paths():
         config = api_runtime.config_service.load_config()
         try:
-            return fetch_library_paths(config)
+            return _media_server_setup_service(
+                media_server_provider_factory,
+                config,
+            ).fetch_library_paths(config)
         except Exception as exc:
             api_runtime.runtime.set_last_diagnostic(
-                diagnose_emby_library_paths_unavailable(str(exc))
+                diagnose_media_server_library_paths_unavailable(str(exc))
             )
-            raise HTTPException(status_code=502, detail="Emby library paths unavailable")
+            raise HTTPException(
+                status_code=502,
+                detail="Media server library paths unavailable",
+            )
 
     @router.post("/path-mapping-suggestions")
     def post_path_mapping_suggestions(body: dict):
@@ -238,10 +292,13 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             api_runtime.runtime.set_last_diagnostic(diagnose_path_inference_failed())
             raise HTTPException(status_code=422, detail=str(exc))
 
-    @router.post("/emby/check")
-    def emby_check(body: dict, background_tasks: BackgroundTasks):
+    def _check_media_server_response(body: dict, background_tasks: BackgroundTasks):
         config = api_runtime.config_service.prepare_submitted_config(body)
-        response = check_emby_connection(config)
+        setup_service = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        )
+        response = setup_service.check_connection(config)
         if 200 <= response.status_code < 300:
             verified_config = mark_section_verified(config, "media_server")
             state = api_runtime.runtime.get_state()
@@ -253,7 +310,15 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             else:
                 api_runtime.config_service.save_config(verified_config)
             return api_runtime.config_service.sanitize(verified_config)
-        raise HTTPException(status_code=400, detail="Emby connection failed")
+        raise HTTPException(status_code=400, detail="Media server connection failed")
+
+    @router.post("/media-server/check")
+    def media_server_check(body: dict, background_tasks: BackgroundTasks):
+        return _check_media_server_response(body, background_tasks)
+
+    @router.post("/emby/check")
+    def emby_check(body: dict, background_tasks: BackgroundTasks):
+        return _check_media_server_response(body, background_tasks)
 
     # --- oppo ---
 
@@ -309,7 +374,10 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     @router.get("/paths/refresh")
     def paths_refresh():
         config = api_runtime.config_service.load_config()
-        load_selectable_folders(config)
+        config = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        ).load_selectable_folders(config)
         return api_runtime.config_service.sanitize(config)
 
     @router.post("/paths/preview")
@@ -408,7 +476,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
 
     @router.post("/tv/restore-input")
     def tv_restore_input(body: dict):
-        result = restore_tv_emby_app(body)
+        result = restore_tv_media_server_app(body)
         if result == "OK":
             _, persisted = persist_verification_if_submitted_matches_saved(
                 config_service=api_runtime.config_service,

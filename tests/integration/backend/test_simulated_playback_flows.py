@@ -74,7 +74,7 @@ def test_verified_but_not_intercepted_library_does_not_dispatch():
     session = FakeEmbySession(library_membership={"lib-movies": True})
     dispatcher = RecordingDispatcher()
     config = _monitor_config(
-        libraries=[{"Id": "lib-movies", "Name": "Movies", "Active": False}],
+        libraries=[{"id": "lib-movies", "name": "Movies", "active": False}],
         path_mappings=[
             {
                 "source_path": "/volume1/Video/Movies",
@@ -101,7 +101,7 @@ def test_intercepted_library_without_verified_mapping_does_not_dispatch():
     session = FakeEmbySession(library_membership={"lib-movies": True})
     dispatcher = RecordingDispatcher()
     config = _monitor_config(
-        libraries=[{"Id": "lib-movies", "Name": "Movies", "Active": True}],
+        libraries=[{"id": "lib-movies", "name": "Movies", "active": True}],
         path_mappings=[
             {
                 "source_path": "/volume1/Video/Movies",
@@ -128,7 +128,7 @@ def test_intercepted_library_with_verified_mapping_dispatches():
     session = FakeEmbySession(library_membership={"lib-movies": True})
     dispatcher = RecordingDispatcher()
     config = _monitor_config(
-        libraries=[{"Id": "lib-movies", "Name": "Movies", "Active": True}],
+        libraries=[{"id": "lib-movies", "name": "Movies", "active": True}],
         path_mappings=[
             {
                 "source_path": "/volume1/Video/Movies",
