@@ -7,6 +7,38 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 > This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
 > architecture is progressively removed.
 
+## [1.0.4] - 2026-06-21
+
+### Fixed
+
+* Fixed full Blu-ray / ISO playbacks not being marked as watched in the media server and the disc not stopping when
+  the feature ended. End-of-content detection relied on the media server's runtime, which is missing or zero for many
+  ISO/Blu-ray items; it now uses the OPPO's own reported title length (`getplayingtime` `total_time`/`cur_time`),
+  which is reliable and stable across chapter changes. Playback finishes when the OPPO position reaches the title end
+  (within 10s), and is marked watched when at least 90% of the title was played — independent of the media server.
+* Fixed the OPPO auto-advancing to the next file in the folder after a feature ended: the previous title is now
+  detected as finished (its reported total changes once it was at/near its end) and playback is stopped, instead of
+  the bridge tracking the next file as if it were the same playback. The guard no longer depends on the media
+  server's runtime, so it also covers ISO items that previously had no protection.
+* Fixed several genuine errors being logged at WARNING level, so they now surface as ERROR in the logs screen: Emby
+  device-command failures (play/pause, audio/subtitle track changes), failures loading a monitored item or building
+  its playback intent, and a silently-swallowed failure when restarting the Emby WebSocket.
+
+### Added
+
+* Added a log-level selector (Off / Info / Debug) to the web Logs screen, so the verbosity of both the in-app logs
+  and the container console can be set without editing `config.json`. The change is applied live (no restart needed).
+
+### Changed
+
+* End-of-content detection no longer mixes the media server's duration into the decision; the OPPO is the single
+  source of truth, with a minimum-duration floor so disc menus and copyright reels are never treated as the feature.
+
+### Tests
+
+* Added unit coverage for the OPPO-total end-of-content, next-title and "played" thresholds, for the web log-level
+  control applying live, and for log configuration; updated the polling and SVM3 observation tests to the new model.
+
 ## [1.0.3] - 2026-06-21
 
 ### Fixed

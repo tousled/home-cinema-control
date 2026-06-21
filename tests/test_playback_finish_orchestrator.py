@@ -390,6 +390,7 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 ),
                 previous_tv_app_id="com.emby.app",
                 media_ended=True,
+                played=True,
             )
         )
 

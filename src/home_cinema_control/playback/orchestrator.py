@@ -10,6 +10,7 @@ from home_cinema_control.playback.during import (
     PlaybackMonitoringResult,
     PlaybackMonitoringStopReason,
 )
+from home_cinema_control.playback.during.natural_end import was_content_played
 from home_cinema_control.playback.error_handling import (
     PlaybackErrorHandler,
     PlaybackErrorRecoveryRequest,
@@ -162,6 +163,13 @@ class PlaybackOrchestrator:
                     media_ended=(
                         monitoring_result.stop_reason
                         == PlaybackMonitoringStopReason.NATURAL_END
+                    ),
+                    played=was_content_played(
+                        current_seconds=monitoring_result.position_seconds,
+                        total_seconds=monitoring_result.duration_seconds,
+                        minimum_total_seconds=(
+                            monitoring_request.natural_end_minimum_total_seconds
+                        ),
                     ),
                     tv_enabled=(
                         restore_outputs_on_finish
