@@ -29,6 +29,7 @@ class PlaybackMonitoringRequest:
     report_progress: bool = True
     is_paused: bool = False
     is_muted: bool = False
+    last_active_state: OppoPlaybackState | None = None
 
 
 @dataclass(frozen=True)

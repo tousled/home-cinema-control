@@ -7,6 +7,33 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 > This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
 > architecture is progressively removed.
 
+## [1.0.3] - 2026-06-21
+
+### Fixed
+
+* Fixed the OPPO folder browser ("Browse OPPO") failing with a connection error on a cold player, by activating the
+  OPPO's control API before talking to it — the real playback and "Probar ruta" flows already did this, the browser
+  did not.
+* Fixed NFS network-share mounts never retrying after a transient timeout; SMB mounts already retried once, NFS did
+  not.
+* Fixed pausing OPPO playback and leaving it long enough for the OPPO's own screen saver to activate causing the
+  bridge to treat the session as finished — restoring the TV input and AV receiver as if the movie had ended, even
+  though the user had only paused.
+* Fixed the Emby source client (the TV/app a movie was started from) leaving its "now playing" screen frozen in a
+  paused state for a couple of minutes after OPPO playback actually stopped.
+
+### Changed
+
+* Consolidated the three places that talk to the OPPO's network-mount API (real playback, "Probar ruta", "Browse
+  OPPO") into a single shared sequence, so future fixes to OPPO mount handling only need to happen once.
+
+### Tests
+
+* Added regression coverage for OPPO network-mount activation, login, and retry behavior across all three call sites.
+* Added regression coverage for playback monitoring correctly carrying a "still paused" hint across the SVM3/polling
+  observation handoff, and for skipping TV/AV restore when the player is still showing its screen saver.
+* Added regression coverage for clearing the stale source-client playback screen after a stop.
+
 ## [1.0.2] - 2026-06-20
 
 ### Fixed

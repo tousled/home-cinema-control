@@ -3,44 +3,12 @@ from unittest.mock import patch
 
 from home_cinema_control.devices.oppo.models import OppoCommandResponse
 from home_cinema_control.devices.oppo.mounted_share import OppoMountedShare
+from home_cinema_control.devices.oppo.network_mount_service import OppoMountResult
 from home_cinema_control.devices.oppo.setup_control import (
-    _control_api_attempts,
+    browse_network_folder,
     list_mounted_folder_files,
     list_nfs_share_folders,
-    mount_smb_share,
 )
-
-
-class OppoSetupControlTest(unittest.TestCase):
-    def test_control_api_attempts_default_to_three_when_not_configured(self):
-        self.assertEqual(3, _control_api_attempts({"oppo": {"connection_timeout_seconds": 10}}))
-
-    def test_control_api_attempts_can_be_configured(self):
-        self.assertEqual(5, _control_api_attempts({"oppo": {"api_retry_attempts": 5}}))
-
-    def test_control_api_attempts_never_go_below_one(self):
-        self.assertEqual(1, _control_api_attempts({"oppo": {"api_retry_attempts": 0}}))
-
-
-class FakeSambaMountClient:
-    def __init__(self, responses):
-        self.calls = []
-        self._responses = list(responses)
-
-    def mount_samba_folder(self, *, server, folder, timeout):
-        self.calls.append(("mount_samba_folder", server, folder, timeout))
-        return OppoCommandResponse.from_text(self._next_response())
-
-    def mount_samba_folder_with_id(self, *, server, folder, username, password, timeout):
-        self.calls.append(
-            ("mount_samba_folder_with_id", server, folder, username, password, timeout)
-        )
-        return OppoCommandResponse.from_text(self._next_response())
-
-    def _next_response(self):
-        if len(self._responses) > 1:
-            return self._responses.pop(0)
-        return self._responses[0]
 
 
 class FakeHttpResponse:
@@ -92,79 +60,110 @@ class OppoFolderBrowsingTest(unittest.TestCase):
         self.assertIn("/getfilelist?", session.urls[0])
 
 
-class MountSmbShareIdErrorRetryTest(unittest.TestCase):
-    @patch("home_cinema_control.devices.oppo.setup_control.time.sleep")
-    @patch("home_cinema_control.devices.oppo.setup_control.create_oppo_control_client")
-    def test_retries_once_on_id_error_with_credentials(self, get_client, sleep):
-        client = FakeSambaMountClient(
-            [
-                '{"success":false,"retInfo":"id_error"}',
-                '{"success":true,"cifsMntPath":"/mnt/cifs1"}',
-            ]
-        )
-        get_client.return_value = client
-        config = {
-            "oppo": {"pre_mount_smb": False, "nfs_mount_timeout_seconds": 30},
-            "smb": {"username": "guest", "password": ""},
-        }
+class BrowseNetworkFolderControlApiActivationTest(unittest.TestCase):
+    @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
+    @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api")
+    def test_raises_without_calling_oppo_when_control_api_is_unavailable(
+        self, check_control_api, get_device_list
+    ):
+        check_control_api.return_value = 1
 
-        result = mount_smb_share("NAS-SERVER", "Video", config)
+        with self.assertRaises(RuntimeError):
+            browse_network_folder("/", {"oppo": {"ip": "192.168.1.20"}})
 
-        self.assertTrue(result.is_successful)
-        sleep.assert_called_once_with(2)
-        self.assertEqual(
-            [
-                ("mount_samba_folder_with_id", "NAS-SERVER", "Video", "guest", "", 30),
-                ("mount_samba_folder_with_id", "NAS-SERVER", "Video", "guest", "", 30),
-            ],
-            client.calls,
+        get_device_list.assert_not_called()
+
+    @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
+    @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api")
+    def test_lists_devices_once_control_api_is_available(
+        self, check_control_api, get_device_list
+    ):
+        check_control_api.return_value = 0
+        get_device_list.return_value = OppoCommandResponse.from_text(
+            '{"devicelist":[{"name":"NAS"}]}'
         )
 
-    @patch("home_cinema_control.devices.oppo.setup_control.time.sleep")
-    @patch("home_cinema_control.devices.oppo.setup_control.create_oppo_control_client")
-    def test_retries_once_on_id_error_for_anonymous_mount(self, get_client, sleep):
-        client = FakeSambaMountClient(
-            [
-                '{"success":false,"retInfo":"id_error"}',
-                '{"success":true,"cifsMntPath":"/mnt/cifs1"}',
-            ]
+        result = browse_network_folder("/", {"oppo": {"ip": "192.168.1.20"}})
+
+        self.assertEqual([{"Id": 1, "Foldername": "NAS"}], result)
+        get_device_list.assert_called_once()
+
+
+class BrowseNetworkFolderMountTest(unittest.TestCase):
+    """The deepest browse level (navigating into a folder) delegates the full
+    activate/login/mount/retry sequence to OppoNetworkMountService — covered
+    in detail in test_oppo_network_mount_service.py. These tests only check
+    that browse_network_folder wires into it correctly."""
+
+    @patch("home_cinema_control.devices.oppo.setup_control.list_mounted_folder_files")
+    @patch("home_cinema_control.devices.oppo.setup_control.OppoNetworkMountService")
+    @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
+    @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api", return_value=0)
+    def test_lists_mounted_folder_files_on_successful_mount(
+        self, _check_control_api, get_device_list, mount_service_cls, list_files
+    ):
+        get_device_list.return_value = OppoCommandResponse.from_text(
+            '{"devicelist":[{"name":"NAS"}]}'
         )
-        get_client.return_value = client
-        config = {
-            "oppo": {"pre_mount_smb": False, "nfs_mount_timeout_seconds": 30},
-            "smb": {"username": "", "password": ""},
-        }
+        mounted_share = OppoMountedShare(
+            server="NAS", folder="Movies", mount_path="/mnt/nfs1", is_nfs=True
+        )
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=True, mounted_share=mounted_share, failure_stage=None, detail=""
+        )
+        list_files.return_value = ["Movie.mkv"]
 
-        result = mount_smb_share("NAS-SERVER", "Video", config)
-
-        self.assertTrue(result.is_successful)
-        sleep.assert_called_once_with(2)
-        self.assertEqual(
-            [
-                ("mount_samba_folder", "NAS-SERVER", "Video", 30),
-                ("mount_samba_folder", "NAS-SERVER", "Video", 30),
-            ],
-            client.calls,
+        result = browse_network_folder(
+            "/NAS/Movies", {"oppo": {"ip": "192.168.1.20", "use_smb": False}}
         )
 
-    @patch("home_cinema_control.devices.oppo.setup_control.time.sleep")
-    @patch("home_cinema_control.devices.oppo.setup_control.create_oppo_control_client")
-    def test_does_not_retry_for_non_id_error_failures(self, get_client, sleep):
-        client = FakeSambaMountClient(['{"success":false,"retInfo":"server_not_existed"}'])
-        get_client.return_value = client
-        config = {
-            "oppo": {"pre_mount_smb": False, "nfs_mount_timeout_seconds": 30},
-            "smb": {"username": "guest", "password": ""},
-        }
+        self.assertEqual(["Movie.mkv"], result)
+        mount_service.mount.assert_called_once()
+        called_folder = mount_service.mount.call_args.args[0]
+        self.assertEqual("NAS", called_folder.server_name)
+        self.assertEqual("Movies", called_folder.folder_path)
 
-        result = mount_smb_share("NAS-SERVER", "Video", config)
-
-        self.assertFalse(result.is_successful)
-        sleep.assert_not_called()
-        self.assertEqual(
-            [("mount_samba_folder_with_id", "NAS-SERVER", "Video", "guest", "", 30)],
-            client.calls,
+    @patch("home_cinema_control.devices.oppo.setup_control.OppoNetworkMountService")
+    @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
+    @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api", return_value=0)
+    def test_raises_login_failed_when_login_stage_fails(
+        self, _check_control_api, get_device_list, mount_service_cls
+    ):
+        get_device_list.return_value = OppoCommandResponse.from_text(
+            '{"devicelist":[{"name":"NAS"}]}'
         )
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=False, mounted_share=None, failure_stage="login", detail="unknown error"
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "Login failed"):
+            browse_network_folder(
+                "/NAS/Movies", {"oppo": {"ip": "192.168.1.20", "use_smb": False}}
+            )
+
+    @patch("home_cinema_control.devices.oppo.setup_control.OppoNetworkMountService")
+    @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
+    @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api", return_value=0)
+    def test_raises_mount_failed_when_mount_stage_fails(
+        self, _check_control_api, get_device_list, mount_service_cls
+    ):
+        get_device_list.return_value = OppoCommandResponse.from_text(
+            '{"devicelist":[{"name":"NAS"}]}'
+        )
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=False,
+            mounted_share=None,
+            failure_stage="mount",
+            detail="Timeout in Mount Request",
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "Mount failed"):
+            browse_network_folder(
+                "/NAS/Movies", {"oppo": {"ip": "192.168.1.20", "use_smb": False}}
+            )
 
 
 if __name__ == "__main__":

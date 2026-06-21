@@ -4,7 +4,10 @@ import logging
 import time
 from typing import Protocol
 
-from home_cinema_control.devices.oppo.playback_state import OppoPlaybackCategory
+from home_cinema_control.devices.oppo.playback_state import (
+    OppoPlaybackCategory,
+    OppoPlaybackStatus,
+)
 from home_cinema_control.playback.finish.models import (
     PlaybackFinishRequest,
     PlaybackFinishResult,
@@ -223,6 +226,15 @@ class FinishPlaybackOrchestrator:
             logger.info("Skipping TV app restore after playback finish: TV control is disabled.")
             return DeviceCommandResult.skipped("TV app restore is disabled.")
 
+        if _player_is_in_screen_saver(request):
+            logger.info(
+                "Skipping TV app restore after playback finish: OPPO is in screen "
+                "saver, the player is likely still paused rather than finished."
+            )
+            return DeviceCommandResult.skipped(
+                "OPPO is in screen saver; treating as still paused."
+            )
+
         if self._television is None:
             logger.info("Skipping TV app restore after playback finish: no TV adapter configured.")
             return DeviceCommandResult.skipped("TV adapter not configured.")
@@ -247,6 +259,15 @@ class FinishPlaybackOrchestrator:
             logger.info("Skipping AV audio restore after playback finish: AV control is disabled.")
             return DeviceCommandResult.skipped("AV TV audio restore is disabled.")
 
+        if _player_is_in_screen_saver(request):
+            logger.info(
+                "Skipping AV audio restore after playback finish: OPPO is in "
+                "screen saver, the player is likely still paused rather than finished."
+            )
+            return DeviceCommandResult.skipped(
+                "OPPO is in screen saver; treating as still paused."
+            )
+
         if self._av_receiver is None:
             return DeviceCommandResult.skipped("No AV receiver adapter configured.")
 
@@ -258,3 +279,11 @@ class FinishPlaybackOrchestrator:
             return DeviceCommandResult.failed(
                 f"AV TV audio restore failed: {type(exc).__name__}: {exc}"
             )
+
+
+def _player_is_in_screen_saver(request: PlaybackFinishRequest) -> bool:
+    # Defense in depth: a SCREEN_SAVER final state means the OPPO went idle
+    # while monitoring gave up, not that the user actually stopped. Restoring
+    # the room here would interrupt a session that is, in practice, still
+    # paused. See the screen-saver carve-out in polling_observation_strategy.py.
+    return request.final_player_state.status == OppoPlaybackStatus.SCREEN_SAVER

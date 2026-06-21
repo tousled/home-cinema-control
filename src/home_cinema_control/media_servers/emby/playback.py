@@ -209,7 +209,40 @@ class MediaServerPlaybackEventPublisher:
             self._mark_item_unplayed_preserving_resume_position(position_ticks)
         self._stopped_reported = True
         self._log_response("stopped", payload, response)
+        self._stop_stale_source_client_session()
         return response
+
+    def _stop_stale_source_client_session(self) -> None:
+        """Best-effort cleanup of the original TV/app session's player screen.
+
+        The source client's own session was stopped once, at handoff, to keep
+        it from playing in parallel with the OPPO (see
+        stop_source_client_before_handoff in playback/application.py). It is
+        never told anything again after that, so its UI is left showing a
+        frozen "paused" player screen until the media server's own session
+        list eventually expires it client-side. Re-sending Stop now, while the
+        OPPO-driven playback is genuinely finishing, clears that stale screen
+        sooner. Never allowed to fail playback finish — log and move on.
+        """
+        session_id = self.context.source_client_session_id
+        if not session_id:
+            return
+
+        try:
+            response = self._client.stop_session_playback(session_id, {"Command": "Stop"})
+            logging.info(
+                "Cleared stale source client playback screen | "
+                "source_client_session_id=%s | status=%s",
+                session_id,
+                getattr(response, "status_code", None),
+            )
+        except Exception:
+            logging.warning(
+                "Could not clear stale source client playback screen | "
+                "source_client_session_id=%s",
+                session_id,
+                exc_info=True,
+            )
 
     def _mark_item_unplayed_preserving_resume_position(self, position_ticks: int) -> None:
         """Keep manual stops unwatched without destroying the resume point.
