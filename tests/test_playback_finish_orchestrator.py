@@ -242,6 +242,40 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
         self.assertEqual(DeviceCommandStatus.FAILED, result.player_idle_result.status)
         self.assertEqual("svm restore failed", result.player_idle_result.detail)
 
+    def test_skips_tv_and_av_restore_when_final_state_is_screen_saver(self):
+        # Defense in depth: a SCREEN_SAVER final state means monitoring gave
+        # up while the OPPO was idle-from-the-screen-saver's-perspective, not
+        # that the user actually stopped (see the polling carve-out in
+        # polling_observation_strategy.py). Restoring the room here would
+        # interrupt a session that is, in practice, still paused.
+        stop_reporter = RecordingStopReporter()
+        television = RecordingTelevision()
+        av_receiver = RecordingAvReceiver()
+        orchestrator = FinishPlaybackOrchestrator(
+            stopped_reporter=stop_reporter,
+            television=television,
+            av_receiver=av_receiver,
+            oppo_playback=RecordingOppoPlayback([]),
+            sleep=lambda seconds: None,
+        )
+
+        result = orchestrator.finish(
+            PlaybackFinishRequest(
+                position_seconds=53,
+                duration_seconds=120,
+                final_player_state=_state(
+                    OppoPlaybackStatus.SCREEN_SAVER,
+                    OppoPlaybackCategory.IDLE,
+                ),
+                previous_tv_app_id="com.emby.app",
+            )
+        )
+
+        self.assertEqual(DeviceCommandStatus.SKIPPED, result.tv_app_result.status)
+        self.assertEqual(DeviceCommandStatus.SKIPPED, result.av_audio_result.status)
+        self.assertEqual([], television.returned_app_ids)
+        self.assertEqual(0, av_receiver.restore_calls)
+
     def test_skips_disabled_outputs(self):
         stop_reporter = RecordingStopReporter()
         television = RecordingTelevision()

@@ -232,6 +232,60 @@ class PollingPlaybackObservationStrategyTest(unittest.TestCase):
         self.assertEqual(100, progress.calls[1]["position_seconds"])
         self.assertTrue(progress.calls[1]["is_paused"])
 
+    def test_seeds_last_active_state_from_request_on_a_cold_start_in_screen_saver(self):
+        # This is the case after an SVM3 watchdog timeout: this is a fresh
+        # monitor_until_stopped() call, and the OPPO is already sitting in
+        # SCREEN_SAVER by the time it starts (that's exactly why SVM3 went
+        # quiet). Without the request hint, last_active_state would be None
+        # and the carve-out below could never engage.
+        oppo = RecordingOppoPlayback(
+            states=[
+                _state(OppoPlaybackStatus.SCREEN_SAVER, OppoPlaybackCategory.IDLE),
+                _state(OppoPlaybackStatus.SCREEN_SAVER, OppoPlaybackCategory.IDLE),
+                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
+                _state(OppoPlaybackStatus.MEDIA_CENTER, OppoPlaybackCategory.IDLE),
+            ],
+            positions=[],
+        )
+        orchestrator = PollingPlaybackObservationStrategy(
+            oppo_playback=oppo,
+            sleep=lambda seconds: None,
+        )
+
+        result = orchestrator.monitor_until_stopped(
+            PlaybackMonitoringRequest(
+                initial_position_seconds=42,
+                last_active_state=_state(
+                    OppoPlaybackStatus.PAUSE, OppoPlaybackCategory.ACTIVE
+                ),
+            )
+        )
+
+        self.assertEqual(OppoPlaybackStatus.MEDIA_CENTER, result.final_state.status)
+        self.assertEqual(42, result.position_seconds)
+
+    def test_cold_start_without_a_paused_hint_reports_idle_immediately(self):
+        oppo = RecordingOppoPlayback(
+            states=[
+                _state(OppoPlaybackStatus.SCREEN_SAVER, OppoPlaybackCategory.IDLE),
+            ],
+            positions=[],
+        )
+        orchestrator = PollingPlaybackObservationStrategy(
+            oppo_playback=oppo,
+            sleep=lambda seconds: None,
+        )
+
+        result = orchestrator.monitor_until_stopped(
+            PlaybackMonitoringRequest(initial_position_seconds=42)
+        )
+
+        self.assertEqual(
+            PlaybackMonitoringStopReason.PLAYER_IDLE,
+            result.stop_reason,
+        )
+        self.assertEqual(OppoPlaybackStatus.SCREEN_SAVER, result.final_state.status)
+
     def test_stops_after_bounded_transition_grace(self):
         oppo = RecordingOppoPlayback(
             states=[

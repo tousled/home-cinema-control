@@ -102,8 +102,8 @@ class VerbosePlaybackObservationStrategy:
             seconds_since_progress=0.0,
         )
         final_player_state = _player_state(
-            OppoPlaybackStatus.PLAY,
-            OppoPlaybackCategory.ACTIVE,
+            OppoPlaybackStatus.UNKNOWN,
+            OppoPlaybackCategory.UNKNOWN,
             raw_response="@SVM3 PLAYBACK MONITORING STARTED",
         )
         stop_reason = PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED

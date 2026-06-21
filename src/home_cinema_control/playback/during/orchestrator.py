@@ -5,6 +5,7 @@ import logging
 from typing import Protocol
 
 from home_cinema_control.devices.oppo.constants import OPPO_TELNET_PORT
+from home_cinema_control.devices.oppo.playback_state import OppoPlaybackCategory
 from home_cinema_control.devices.oppo.svm_mode import OppoSVMModeClient
 from home_cinema_control.devices.oppo.svm3_runtime import OppoSVM3PlaybackRuntime
 from home_cinema_control.devices.oppo.verbose_events import OppoVerboseEventListener
@@ -187,10 +188,16 @@ def _request_from_result(
     request: PlaybackMonitoringRequest,
     result: PlaybackMonitoringResult,
 ) -> PlaybackMonitoringRequest:
+    last_active_state = (
+        result.final_state
+        if result.final_state.category == OppoPlaybackCategory.ACTIVE
+        else request.last_active_state
+    )
     return replace(
         request,
         initial_position_seconds=result.position_seconds,
         monitoring_timeout_seconds=None,
+        last_active_state=last_active_state,
     )
 
 

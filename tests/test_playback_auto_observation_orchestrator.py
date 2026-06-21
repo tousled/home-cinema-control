@@ -162,6 +162,87 @@ class DuringPlaybackOrchestratorTest(unittest.TestCase):
         self.assertEqual(["start", "stop"], runtime.calls)
         self.assertEqual([b"#SVM 0\r"], tcp.payloads)  # SVM0 restored despite exception
 
+    def test_carries_last_active_state_into_polling_retry_after_svm3_watchdog(self):
+        paused_state = OppoPlaybackState(
+            status=OppoPlaybackStatus.PAUSE,
+            category=OppoPlaybackCategory.ACTIVE,
+            raw_response="@QPL OK PAUSE",
+            ok=True,
+        )
+        polling = RecordingPollingOrchestrator(
+            _result(position_seconds=44, stop_reason=PlaybackMonitoringStopReason.PLAYER_IDLE)
+        )
+        svm3 = RecordingSVM3Orchestrator(
+            PlaybackMonitoringResult(
+                position_seconds=22,
+                duration_seconds=120,
+                final_state=paused_state,
+                stop_reason=PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED,
+            )
+        )
+        runtime = RecordingSVM3Runtime(start_result=DeviceCommandResult.success("ok"))
+        tcp = RecordingTcpClient(response="@OK 0")
+        orchestrator = DuringPlaybackOrchestrator(
+            config=_config(),
+            polling_orchestrator=polling,
+            oppo_svm3_observation_orchestrator=svm3,
+            svm3_runtime=runtime,
+            tcp_client=tcp,
+        )
+
+        orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
+
+        self.assertEqual(paused_state, polling.requests[0].last_active_state)
+
+    def test_does_not_overwrite_last_active_state_when_result_is_not_active(self):
+        paused_state = OppoPlaybackState(
+            status=OppoPlaybackStatus.PAUSE,
+            category=OppoPlaybackCategory.ACTIVE,
+            raw_response="@QPL OK PAUSE",
+            ok=True,
+        )
+        polling = RecordingPollingOrchestrator(
+            [
+                _result(
+                    position_seconds=33,
+                    stop_reason=PlaybackMonitoringStopReason.OBSERVATION_WINDOW_EXPIRED,
+                ),
+                _result(
+                    position_seconds=44, stop_reason=PlaybackMonitoringStopReason.PLAYER_IDLE
+                ),
+            ]
+        )
+        svm3 = RecordingSVM3Orchestrator(
+            [
+                PlaybackMonitoringResult(
+                    position_seconds=22,
+                    duration_seconds=120,
+                    final_state=paused_state,
+                    stop_reason=PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED,
+                ),
+                _result(
+                    position_seconds=55,
+                    stop_reason=PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED,
+                ),
+            ]
+        )
+        runtime = RecordingSVM3Runtime(start_result=DeviceCommandResult.success("ok"))
+        tcp = RecordingTcpClient(response="@OK 0")
+        orchestrator = DuringPlaybackOrchestrator(
+            config=_config(),
+            polling_orchestrator=polling,
+            oppo_svm3_observation_orchestrator=svm3,
+            svm3_runtime=runtime,
+            tcp_client=tcp,
+        )
+
+        orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
+
+        # _result()'s default final_state is STOP/IDLE, not ACTIVE — the paused
+        # hint from the first SVM3 attempt must survive both the polling
+        # window expiry and the second, signal-less SVM3 retry.
+        self.assertEqual(paused_state, polling.requests[1].last_active_state)
+
     def test_retry_polling_window_uses_backoff_and_cap(self):
         polling = RecordingPollingOrchestrator(
             [
