@@ -94,6 +94,12 @@ class OppoStableMediaControlPlaybackAdapter(OppoPlaybackPort):
                 "No mounted share recorded for this playback session."
             )
 
+        if not mount_path.startswith("/mnt/cifs"):
+            return DeviceCommandResult.skipped(
+                "Autoscript unmount only applies to CIFS/SMB mounts; leaving "
+                f"{mount_path} in place."
+            )
+
         try:
             # unmount_oppo_path catches its own connection/telnet errors and
             # reports them as a `False` return rather than raising; only an
@@ -103,7 +109,7 @@ class OppoStableMediaControlPlaybackAdapter(OppoPlaybackPort):
                 host=oppo["ip"],
                 port=int(self._config.get("OPPO_Port", OPPO_TELNET_PORT)),
                 mount_path=mount_path,
-                timeout=oppo["nfs_mount_timeout_seconds"],
+                timeout=oppo.get("autoscript_unmount_timeout_seconds", 3),
             )
         except Exception as exc:
             logger.exception("Unable to unmount OPPO share after playback finish.")
