@@ -118,7 +118,7 @@ class EmbyPlaybackCommandHandler:
 
         result = self._oppo_control.send_remote_key(remote_key)
         if not result.successful:
-            logging.warning(
+            logging.error(
                 "OPPO playstate command failed | command=%s | result=%s",
                 command,
                 result,
@@ -139,7 +139,7 @@ class EmbyPlaybackCommandHandler:
         )
         result = self._oppo_control.select_audio_track(audio_index)
         if not result.successful:
-            logging.warning("OPPO audio track change failed | result=%s", result)
+            logging.error("OPPO audio track change failed | result=%s", result)
             return
 
         self._state.update_active_tracks(audio_track_id=emby_audio_index)
@@ -163,7 +163,7 @@ class EmbyPlaybackCommandHandler:
         )
         result = self._oppo_control.select_subtitle_track(subtitle_index)
         if not result.successful:
-            logging.warning("OPPO subtitle track change failed | result=%s", result)
+            logging.error("OPPO subtitle track change failed | result=%s", result)
             return
 
         self._state.update_active_tracks(subtitle_track_id=emby_subtitle_index)
@@ -206,7 +206,7 @@ class EmbyPlaybackCommandHandler:
 
         result = self._oppo_control.send_remote_key(remote_key)
         if not result.successful:
-            logging.warning(
+            logging.error(
                 "OPPO play/pause command failed | command=%s | result=%s",
                 command,
                 result,

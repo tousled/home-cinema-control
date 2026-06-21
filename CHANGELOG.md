@@ -7,6 +7,31 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 > This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
 > architecture is progressively removed.
 
+## [1.0.4] - 2026-06-21
+
+### Fixed
+
+* Fixed full Blu-ray / ISO playbacks not being marked as watched in the media server and the disc not stopping when
+  the feature ended. End-of-content detection relied on the media server's runtime, which is missing or zero for many
+  ISO/Blu-ray items; it now uses the OPPO's own reported title length (`getplayingtime` `total_time`/`cur_time`),
+  which is reliable and stable across chapter changes. Playback finishes when the OPPO position reaches the title end
+  (within 10s), and is marked watched when at least 90% of the title was played — independent of the media server.
+
+### Added
+
+* Added independent log levels for the file (web logs screen) and the container console, both configurable from the
+  web Logs screen. `app.console_log_level` defaults to following `app.log_level` when unset.
+
+### Changed
+
+* End-of-content detection no longer mixes the media server's duration into the decision; the OPPO is the single
+  source of truth, with a minimum-duration floor so disc menus and copyright reels are never treated as the feature.
+
+### Tests
+
+* Added unit coverage for the OPPO-total end-of-content and "played" thresholds, and for independent
+  console/file log-level configuration; updated the polling and SVM3 observation tests to the new model.
+
 ## [1.0.3] - 2026-06-21
 
 ### Fixed

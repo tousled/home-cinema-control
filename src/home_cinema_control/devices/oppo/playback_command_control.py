@@ -87,6 +87,24 @@ class OppoPlaybackCommandControl:
         )
 
 
+def create_oppo_total_seconds_reader(
+        config: dict[str, Any],
+) -> Callable[[], int]:
+    """Build a callable returning the OPPO title total (``total_time``).
+
+    Uses the tolerant HTTP client so it is safe to call while the SVM3 verbose
+    stream is active (verbose preamble lines must be stripped from the HTTP
+    response). ``total_time`` is the full title length and is stable for the
+    whole title, so callers fetch it once and cache it.
+    """
+    playback = OppoMediaControlPlayback(config, client=_oppo_control_client(config))
+
+    def read_total_seconds() -> int:
+        return playback.get_playback_position().total_seconds
+
+    return read_total_seconds
+
+
 def _oppo_control_client(
     config: dict[str, Any],
     *,

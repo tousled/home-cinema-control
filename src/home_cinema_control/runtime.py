@@ -32,26 +32,41 @@ def build_runtime_paths(base_dir: str | Path, config_file: str | Path) -> Runtim
     )
 
 
-def configure_logging(config: dict, log_file: str | Path) -> None:
-    debug_level = config["app"]["log_level"]
+_LOG_LEVELS = {0: logging.CRITICAL, 1: logging.INFO, 2: logging.DEBUG}
 
-    if debug_level == 0:
-        logging.basicConfig(
-            format="%(asctime)s %(levelname)s: %(message)s",
-            datefmt="%d/%m/%Y %I:%M:%S %p",
-            level=logging.CRITICAL,
-            handlers=[logging.StreamHandler(sys.stdout)],
-            force=True,
-        )
+
+def _resolve_log_level(value: object) -> int:
+    return _LOG_LEVELS.get(value, logging.CRITICAL)
+
+
+def configure_logging(config: dict, log_file: str | Path) -> None:
+    app = config["app"]
+    file_level_setting = app.get("log_level", 0)
+    # The file feeds the web logs screen; the console is the container stdout.
+    # They are configured independently. ``console_log_level`` defaults to the
+    # file level so existing setups keep behaving the same.
+    console_level_setting = app.get("console_log_level")
+    if console_level_setting is None:
+        console_level_setting = file_level_setting
+
+    file_level = _resolve_log_level(file_level_setting)
+    console_level = _resolve_log_level(console_level_setting)
+    # Debug is verbose, so its file rotates sooner.
+    max_bytes = 5 * 1024 * 1024 if file_level == logging.DEBUG else 50 * 1024 * 1024
+
+    _configure_rotating_logging(
+        log_file,
+        file_level=file_level,
+        console_level=console_level,
+        max_bytes=max_bytes,
+    )
+
+    if file_level_setting == 0 and console_level_setting == 0:
         print(
             "Logging configured with app.log_level=0; normal application logs are disabled. "
-            "Set app.log_level to 1 for info logs or 2 for debug logs.",
+            "Set app.log_level (file) or app.console_log_level to 1 for info logs or 2 for debug logs.",
             flush=True,
         )
-    elif debug_level == 1:
-        _configure_rotating_logging(log_file, level=logging.INFO, max_bytes=50 * 1024 * 1024)
-    elif debug_level == 2:
-        _configure_rotating_logging(log_file, level=logging.DEBUG, max_bytes=5 * 1024 * 1024)
 
     logging.getLogger("websocket").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -80,7 +95,13 @@ class JsonLinesFormatter(logging.Formatter):
         )
 
 
-def _configure_rotating_logging(log_file: str | Path, *, level: int, max_bytes: int) -> None:
+def _configure_rotating_logging(
+        log_file: str | Path,
+        *,
+        file_level: int,
+        console_level: int,
+        max_bytes: int,
+) -> None:
     file_handler = logging.handlers.RotatingFileHandler(
         filename=log_file,
         mode="a",
@@ -90,6 +111,7 @@ def _configure_rotating_logging(log_file: str | Path, *, level: int, max_bytes: 
         delay=False,
     )
     file_handler.setFormatter(JsonLinesFormatter())
+    file_handler.setLevel(file_level)
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(
@@ -98,8 +120,14 @@ def _configure_rotating_logging(log_file: str | Path, *, level: int, max_bytes: 
             datefmt="%d/%m/%Y %I:%M:%S %p",
         )
     )
+    console_handler.setLevel(console_level)
 
-    logging.basicConfig(level=level, handlers=[file_handler, console_handler], force=True)
+    # The root logger must pass through whatever the most verbose handler wants;
+    # each handler then filters to its own level.
+    root_level = min(file_level, console_level)
+    logging.basicConfig(
+        level=root_level, handlers=[file_handler, console_handler], force=True
+    )
 
 
 class HomeCinemaControlRuntime:
@@ -248,7 +276,9 @@ class HomeCinemaControlRuntime:
                 self.emby_websocket.stop()
                 self.emby_websocket.run()
         except Exception:
-            pass
+            logging.exception(
+                "Failed to restart the Emby WebSocket during process restart"
+            )
         self._exit_process(0)
 
 

@@ -15,8 +15,8 @@ from home_cinema_control.playback.during.models import (
     PlaybackMonitoringStopReason,
 )
 from home_cinema_control.playback.during.natural_end import (
-    is_near_expected_end,
-    is_polling_natural_end_reset,
+    is_oppo_end_of_content,
+    is_oppo_next_title_started,
 )
 from home_cinema_control.playback.ports import OppoPlaybackPort
 from home_cinema_control.playback.startup.models import (
@@ -128,17 +128,17 @@ class PollingPlaybackObservationStrategy:
             last_active_state = _active_state_or_none(final_state) or last_active_state
 
             if final_state.category != OppoPlaybackCategory.ACTIVE:
-                if is_near_expected_end(
-                    position_seconds=last_position_seconds,
-                    expected_duration_seconds=request.expected_duration_seconds,
-                    tolerance_seconds=request.natural_end_reset_tolerance_seconds,
+                if is_oppo_end_of_content(
+                        current_seconds=last_position_seconds,
+                        total_seconds=last_duration_seconds,
+                        tolerance_seconds=request.natural_end_tolerance_seconds,
+                        minimum_total_seconds=request.natural_end_minimum_total_seconds,
                 ):
                     logger.info(
-                        "OPPO polling detected transition after expected media end | "
-                        "last_position=%s | expected_duration=%s | state=%s | "
-                        "category=%s",
+                        "OPPO polling detected transition at end of content | "
+                        "last_position=%s | total=%s | state=%s | category=%s",
                         last_position_seconds,
-                        request.expected_duration_seconds,
+                        last_duration_seconds,
                         final_state.status.value,
                         final_state.category.value,
                     )
@@ -235,20 +235,20 @@ class PollingPlaybackObservationStrategy:
                     break
                 continue
 
-            if is_polling_natural_end_reset(
-                last_position_seconds=last_position_seconds,
-                current_position_seconds=normalized_position.current_seconds,
-                current_duration_seconds=normalized_position.total_seconds,
-                expected_duration_seconds=request.expected_duration_seconds,
-                tolerance_seconds=request.natural_end_reset_tolerance_seconds,
+            if is_oppo_next_title_started(
+                    previous_position_seconds=last_position_seconds,
+                    previous_total_seconds=last_duration_seconds,
+                    current_total_seconds=normalized_position.total_seconds,
+                    tolerance_seconds=request.natural_end_tolerance_seconds,
+                    minimum_total_seconds=request.natural_end_minimum_total_seconds,
             ):
                 logger.info(
-                    "OPPO polling detected playback reset after expected media end | "
-                    "last_position=%s | expected_duration=%s | current=%s | total=%s",
+                    "OPPO polling detected next title after feature end | "
+                    "last_position=%s | last_total=%s | new_total=%s | state=%s",
                     last_position_seconds,
-                    request.expected_duration_seconds,
-                    normalized_position.current_seconds,
+                    last_duration_seconds,
                     normalized_position.total_seconds,
+                    final_state.status.value,
                 )
                 stop_reason = PlaybackMonitoringStopReason.NATURAL_END
                 break
@@ -256,10 +256,11 @@ class PollingPlaybackObservationStrategy:
             last_position_seconds = normalized_position.current_seconds
             last_duration_seconds = normalized_position.total_seconds
 
-            if _is_expected_end_of_media_position(
-                position,
-                expected_duration_seconds=request.expected_duration_seconds,
-                tolerance_seconds=request.natural_end_reset_tolerance_seconds,
+            if is_oppo_end_of_content(
+                    current_seconds=normalized_position.current_seconds,
+                    total_seconds=normalized_position.total_seconds,
+                    tolerance_seconds=request.natural_end_tolerance_seconds,
+                    minimum_total_seconds=request.natural_end_minimum_total_seconds,
             ):
                 end_of_media_polls += 1
                 if end_of_media_polls >= request.max_end_of_media_polls:
@@ -401,25 +402,6 @@ def _monitoring_window_expired(
 
 def _is_paused(playback_state: OppoPlaybackState) -> bool:
     return playback_state.status == OppoPlaybackStatus.PAUSE
-
-
-def _is_expected_end_of_media_position(
-    position: OppoPlaybackPosition,
-    *,
-    expected_duration_seconds: int,
-    tolerance_seconds: int,
-) -> bool:
-    if not is_near_expected_end(
-        position_seconds=position.current_seconds,
-        expected_duration_seconds=expected_duration_seconds,
-        tolerance_seconds=tolerance_seconds,
-    ):
-        return False
-
-    return (
-        position.total_seconds > 0
-        and position.current_seconds >= position.total_seconds
-    )
 
 
 def _normalize_playback_position(

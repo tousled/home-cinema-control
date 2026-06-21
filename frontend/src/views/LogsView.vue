@@ -26,6 +26,35 @@
           <span>{{ $t('x-nav-support-section') }}</span>
         </div>
         <div class="logs-console">
+          <div class="logs-levels">
+            <div class="form-label label-with-help mb-2">
+              <label>{{ $t('x-logs-levels-title') }}</label>
+            </div>
+            <p class="caption logs-levels-help">{{ $t('x-logs-levels-help') }}</p>
+            <div class="logs-levels-row">
+              <div class="logs-level-field">
+                <label for="logs-file-level">{{ $t('x-logs-file-level-label') }}</label>
+                <FormSelect
+                    id="logs-file-level"
+                    v-model="fileLogLevel"
+                    :disabled="savingLevels"
+                    :options="backendLevelOptions"
+                    @change="saveLevels"
+                />
+              </div>
+              <div class="logs-level-field">
+                <label for="logs-console-level">{{ $t('x-logs-console-level-label') }}</label>
+                <FormSelect
+                    id="logs-console-level"
+                    v-model="consoleLogLevel"
+                    :disabled="savingLevels"
+                    :options="backendLevelOptions"
+                    @change="saveLevels"
+                />
+              </div>
+            </div>
+          </div>
+
           <div class="logs-filter-row">
             <div class="form-label label-with-help mb-2">
               <label for="logs-severity-filter">{{ $t('x-logs-filter-label') }}</label>
@@ -57,11 +86,15 @@
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {api} from '../api/index.js'
+import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
+import {useToast} from '../composables/useToast.js'
 import heroBg from '../assets/backgrounds/bg-status.png'
 import IconActionButton from '../components/IconActionButton.vue'
 import FormSelect from '../components/FormSelect.vue'
 
 const {t} = useI18n()
+const {saveSection} = useConfigSectionSave()
+const toast = useToast()
 
 const SEVERITY_RANK = {DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3, CRITICAL: 4}
 
@@ -70,12 +103,52 @@ const rawText = ref('')
 const entries = ref([])
 const minSeverity = ref(0)
 
+const fullConfig = ref({})
+const fileLogLevel = ref(0)
+const consoleLogLevel = ref(0)
+const savingLevels = ref(false)
+
 const severityOptions = computed(() => [
   {value: 0, label: t('x-logs-filter-all')},
   {value: SEVERITY_RANK.INFO, label: t('x-logs-filter-info')},
   {value: SEVERITY_RANK.WARNING, label: t('x-logs-filter-warning')},
   {value: SEVERITY_RANK.ERROR, label: t('x-logs-filter-error')},
 ])
+
+const backendLevelOptions = computed(() => [
+  {value: 0, label: t('x-logs-backend-level-off')},
+  {value: 1, label: t('x-logs-backend-level-info')},
+  {value: 2, label: t('x-logs-backend-level-debug')},
+])
+
+async function loadLevels() {
+  try {
+    const cfg = await api.getConfig()
+    fullConfig.value = cfg
+    const app = cfg.app || {}
+    fileLogLevel.value = app.log_level ?? 0
+    // null/undefined console level means "follow the file level".
+    consoleLogLevel.value = app.console_log_level ?? fileLogLevel.value
+  } catch { /* non-fatal: keep defaults */
+  }
+}
+
+async function saveLevels() {
+  savingLevels.value = true
+  try {
+    fullConfig.value.app = {
+      ...(fullConfig.value.app || {}),
+      log_level: fileLogLevel.value,
+      console_log_level: consoleLogLevel.value,
+    }
+    fullConfig.value = await saveSection('app', fullConfig.value.app)
+    toast.success(t('x-logs-level-saved'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    savingLevels.value = false
+  }
+}
 
 const filteredEntries = computed(() =>
     entries.value.filter((entry) => (SEVERITY_RANK[entry.level] ?? 1) >= minSeverity.value)
@@ -132,7 +205,10 @@ async function loadLogs() {
   }
 }
 
-onMounted(loadLogs)
+onMounted(() => {
+  loadLevels()
+  loadLogs()
+})
 </script>
 
 <style scoped>
@@ -237,6 +313,35 @@ onMounted(loadLogs)
 
 .logs-filter-row {
   min-width: 0;
+}
+
+.logs-levels {
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.logs-levels-help {
+  margin: 0 0 12px;
+}
+
+.logs-levels-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.logs-level-field {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  flex: 1 1 240px;
+  max-width: 320px;
+}
+
+.logs-level-field label {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .log-output {
