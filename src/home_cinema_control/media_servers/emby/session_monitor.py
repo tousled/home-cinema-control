@@ -62,7 +62,7 @@ class EmbySessionMonitor:
                     now_playing.get("Container"),
                 )
         except Exception as e:
-            logging.warning("Ws:Could not load monitored item details: %s", e)
+            logging.exception("Ws:Could not load monitored item details: %s", e)
 
         try:
             if item_data["NowPlayingItem"]:
@@ -150,7 +150,7 @@ class EmbySessionMonitor:
             item_user_data=userdata,
         )
         if playback_intent is None:
-            logging.warning("Ws:Could not build playback intent from session")
+            logging.error("Ws:Could not build playback intent from session")
             return
 
         logging.info(

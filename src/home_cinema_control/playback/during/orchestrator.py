@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 import logging
 from typing import Protocol
 
 from home_cinema_control.devices.oppo.constants import OPPO_TELNET_PORT
+from home_cinema_control.devices.oppo.playback_command_control import (
+    create_oppo_total_seconds_reader,
+)
 from home_cinema_control.devices.oppo.playback_state import OppoPlaybackCategory
 from home_cinema_control.devices.oppo.svm_mode import OppoSVMModeClient
 from home_cinema_control.devices.oppo.svm3_runtime import OppoSVM3PlaybackRuntime
@@ -41,6 +45,7 @@ class DuringPlaybackOrchestrator:
         oppo_svm3_observation_orchestrator: VerbosePlaybackObservationStrategy
         | None = None,
         svm3_runtime: OppoSVM3PlaybackRuntime | None = None,
+            oppo_total_provider: Callable[[], int] | None = None,
         tcp_client: LoggingTcpClient | None = None,
     ) -> None:
         self._config = config
@@ -51,6 +56,9 @@ class DuringPlaybackOrchestrator:
             or VerbosePlaybackObservationStrategy(
                 event_source=self._svm3_runtime,
                 progress_reporter=progress_reporter,
+            oppo_total_provider=(
+                    oppo_total_provider or create_oppo_total_seconds_reader(config)
+            ),
             )
         )
         self._svm_mode_client = OppoSVMModeClient(

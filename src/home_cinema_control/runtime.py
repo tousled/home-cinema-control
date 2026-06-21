@@ -32,26 +32,29 @@ def build_runtime_paths(base_dir: str | Path, config_file: str | Path) -> Runtim
     )
 
 
-def configure_logging(config: dict, log_file: str | Path) -> None:
-    debug_level = config["app"]["log_level"]
+_LOG_LEVELS = {0: logging.CRITICAL, 1: logging.INFO, 2: logging.DEBUG}
 
-    if debug_level == 0:
-        logging.basicConfig(
-            format="%(asctime)s %(levelname)s: %(message)s",
-            datefmt="%d/%m/%Y %I:%M:%S %p",
-            level=logging.CRITICAL,
-            handlers=[logging.StreamHandler(sys.stdout)],
-            force=True,
-        )
+
+def _resolve_log_level(value: object) -> int:
+    return _LOG_LEVELS.get(value, logging.CRITICAL)
+
+
+def configure_logging(config: dict, log_file: str | Path) -> None:
+    # One log level drives both sinks: the rotating file (which feeds the web
+    # logs screen) and the container console. 0=off, 1=info, 2=debug.
+    level_setting = config["app"].get("log_level", 0)
+    level = _resolve_log_level(level_setting)
+    # Debug is verbose, so its file rotates sooner.
+    max_bytes = 5 * 1024 * 1024 if level == logging.DEBUG else 50 * 1024 * 1024
+
+    _configure_rotating_logging(log_file, level=level, max_bytes=max_bytes)
+
+    if level_setting == 0:
         print(
             "Logging configured with app.log_level=0; normal application logs are disabled. "
             "Set app.log_level to 1 for info logs or 2 for debug logs.",
             flush=True,
         )
-    elif debug_level == 1:
-        _configure_rotating_logging(log_file, level=logging.INFO, max_bytes=50 * 1024 * 1024)
-    elif debug_level == 2:
-        _configure_rotating_logging(log_file, level=logging.DEBUG, max_bytes=5 * 1024 * 1024)
 
     logging.getLogger("websocket").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -80,7 +83,12 @@ class JsonLinesFormatter(logging.Formatter):
         )
 
 
-def _configure_rotating_logging(log_file: str | Path, *, level: int, max_bytes: int) -> None:
+def _configure_rotating_logging(
+        log_file: str | Path,
+        *,
+        level: int,
+        max_bytes: int,
+) -> None:
     file_handler = logging.handlers.RotatingFileHandler(
         filename=log_file,
         mode="a",
@@ -248,7 +256,9 @@ class HomeCinemaControlRuntime:
                 self.emby_websocket.stop()
                 self.emby_websocket.run()
         except Exception:
-            pass
+            logging.exception(
+                "Failed to restart the Emby WebSocket during process restart"
+            )
         self._exit_process(0)
 
 

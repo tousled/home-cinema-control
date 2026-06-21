@@ -66,15 +66,16 @@ class FinishPlaybackOrchestrator:
             duration_seconds=request.duration_seconds,
             is_paused=request.is_paused,
             is_muted=request.is_muted,
-            played=request.media_ended,
+            played=request.played,
         )
 
         logger.info(
             "Media server playback stopped | position_seconds=%s | "
-            "duration_seconds=%s | played=%s",
+            "duration_seconds=%s | media_ended=%s | played=%s",
             request.position_seconds,
             request.duration_seconds,
             request.media_ended,
+            request.played,
         )
 
         tv_app_result = self._return_tv_to_app(request)
