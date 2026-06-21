@@ -229,7 +229,13 @@ class MediaServerPlaybackEventPublisher:
             return
 
         try:
-            self._client.stop_session_playback(session_id, {"Command": "Stop"})
+            response = self._client.stop_session_playback(session_id, {"Command": "Stop"})
+            logging.info(
+                "Cleared stale source client playback screen | "
+                "source_client_session_id=%s | status=%s",
+                session_id,
+                getattr(response, "status_code", None),
+            )
         except Exception:
             logging.warning(
                 "Could not clear stale source client playback screen | "
