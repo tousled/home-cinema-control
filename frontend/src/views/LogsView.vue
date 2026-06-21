@@ -28,31 +28,17 @@
         <div class="logs-console">
           <div class="logs-levels">
             <div class="form-label label-with-help mb-2">
-              <label>{{ $t('x-logs-levels-title') }}</label>
+              <label for="logs-level">{{ $t('x-logs-levels-title') }}</label>
             </div>
             <p class="caption logs-levels-help">{{ $t('x-logs-levels-help') }}</p>
-            <div class="logs-levels-row">
-              <div class="logs-level-field">
-                <label for="logs-file-level">{{ $t('x-logs-file-level-label') }}</label>
-                <FormSelect
-                    id="logs-file-level"
-                    v-model="fileLogLevel"
-                    :disabled="savingLevels"
-                    :options="backendLevelOptions"
-                    @change="saveLevels"
-                />
-              </div>
-              <div class="logs-level-field">
-                <label for="logs-console-level">{{ $t('x-logs-console-level-label') }}</label>
-                <FormSelect
-                    id="logs-console-level"
-                    v-model="consoleLogLevel"
-                    :disabled="savingLevels"
-                    :options="backendLevelOptions"
-                    @change="saveLevels"
-                />
-              </div>
-            </div>
+            <FormSelect
+                id="logs-level"
+                v-model="logLevel"
+                :disabled="savingLevels"
+                :options="backendLevelOptions"
+                style="max-width:280px"
+                @change="saveLevel"
+            />
           </div>
 
           <div class="logs-filter-row">
@@ -104,8 +90,7 @@ const entries = ref([])
 const minSeverity = ref(0)
 
 const fullConfig = ref({})
-const fileLogLevel = ref(0)
-const consoleLogLevel = ref(0)
+const logLevel = ref(0)
 const savingLevels = ref(false)
 
 const severityOptions = computed(() => [
@@ -121,28 +106,25 @@ const backendLevelOptions = computed(() => [
   {value: 2, label: t('x-logs-backend-level-debug')},
 ])
 
-async function loadLevels() {
+async function loadLevel() {
   try {
     const cfg = await api.getConfig()
     fullConfig.value = cfg
-    const app = cfg.app || {}
-    fileLogLevel.value = app.log_level ?? 0
-    // null/undefined console level means "follow the file level".
-    consoleLogLevel.value = app.console_log_level ?? fileLogLevel.value
+    logLevel.value = cfg.app?.log_level ?? 0
   } catch { /* non-fatal: keep defaults */
   }
 }
 
-async function saveLevels() {
+async function saveLevel() {
   savingLevels.value = true
   try {
     fullConfig.value.app = {
       ...(fullConfig.value.app || {}),
-      log_level: fileLogLevel.value,
-      console_log_level: consoleLogLevel.value,
+      log_level: logLevel.value,
     }
     fullConfig.value = await saveSection('app', fullConfig.value.app)
     toast.success(t('x-logs-level-saved'))
+    await loadLogs()
   } catch (e) {
     toast.error(e.message)
   } finally {
@@ -206,7 +188,7 @@ async function loadLogs() {
 }
 
 onMounted(() => {
-  loadLevels()
+  loadLevel()
   loadLogs()
 })
 </script>
@@ -323,25 +305,6 @@ onMounted(() => {
 
 .logs-levels-help {
   margin: 0 0 12px;
-}
-
-.logs-levels-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.logs-level-field {
-  display: grid;
-  gap: 6px;
-  min-width: 220px;
-  flex: 1 1 240px;
-  max-width: 320px;
-}
-
-.logs-level-field label {
-  font-size: 12px;
-  color: var(--text-muted);
 }
 
 .log-output {

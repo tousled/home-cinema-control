@@ -24,7 +24,6 @@ class AppConfig(BaseModel):
     release_repository: str = "tousled/home-cinema-control"
     version_check_timeout_seconds: int = 10
     log_level: int = 0
-    console_log_level: int | None = None
 
 
 class PlaybackConfig(BaseModel):

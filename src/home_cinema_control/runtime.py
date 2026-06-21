@@ -40,31 +40,19 @@ def _resolve_log_level(value: object) -> int:
 
 
 def configure_logging(config: dict, log_file: str | Path) -> None:
-    app = config["app"]
-    file_level_setting = app.get("log_level", 0)
-    # The file feeds the web logs screen; the console is the container stdout.
-    # They are configured independently. ``console_log_level`` defaults to the
-    # file level so existing setups keep behaving the same.
-    console_level_setting = app.get("console_log_level")
-    if console_level_setting is None:
-        console_level_setting = file_level_setting
-
-    file_level = _resolve_log_level(file_level_setting)
-    console_level = _resolve_log_level(console_level_setting)
+    # One log level drives both sinks: the rotating file (which feeds the web
+    # logs screen) and the container console. 0=off, 1=info, 2=debug.
+    level_setting = config["app"].get("log_level", 0)
+    level = _resolve_log_level(level_setting)
     # Debug is verbose, so its file rotates sooner.
-    max_bytes = 5 * 1024 * 1024 if file_level == logging.DEBUG else 50 * 1024 * 1024
+    max_bytes = 5 * 1024 * 1024 if level == logging.DEBUG else 50 * 1024 * 1024
 
-    _configure_rotating_logging(
-        log_file,
-        file_level=file_level,
-        console_level=console_level,
-        max_bytes=max_bytes,
-    )
+    _configure_rotating_logging(log_file, level=level, max_bytes=max_bytes)
 
-    if file_level_setting == 0 and console_level_setting == 0:
+    if level_setting == 0:
         print(
             "Logging configured with app.log_level=0; normal application logs are disabled. "
-            "Set app.log_level (file) or app.console_log_level to 1 for info logs or 2 for debug logs.",
+            "Set app.log_level to 1 for info logs or 2 for debug logs.",
             flush=True,
         )
 
@@ -98,8 +86,7 @@ class JsonLinesFormatter(logging.Formatter):
 def _configure_rotating_logging(
         log_file: str | Path,
         *,
-        file_level: int,
-        console_level: int,
+        level: int,
         max_bytes: int,
 ) -> None:
     file_handler = logging.handlers.RotatingFileHandler(
@@ -111,7 +98,6 @@ def _configure_rotating_logging(
         delay=False,
     )
     file_handler.setFormatter(JsonLinesFormatter())
-    file_handler.setLevel(file_level)
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(
@@ -120,14 +106,8 @@ def _configure_rotating_logging(
             datefmt="%d/%m/%Y %I:%M:%S %p",
         )
     )
-    console_handler.setLevel(console_level)
 
-    # The root logger must pass through whatever the most verbose handler wants;
-    # each handler then filters to its own level.
-    root_level = min(file_level, console_level)
-    logging.basicConfig(
-        level=root_level, handlers=[file_handler, console_handler], force=True
-    )
+    logging.basicConfig(level=level, handlers=[file_handler, console_handler], force=True)
 
 
 class HomeCinemaControlRuntime:

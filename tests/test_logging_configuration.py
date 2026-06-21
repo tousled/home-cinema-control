@@ -19,7 +19,7 @@ class ConfigureLoggingTest(unittest.TestCase):
             root.removeHandler(handler)
         self._tmp.cleanup()
 
-    def _handler_levels(self):
+    def _handlers(self):
         root = logging.getLogger()
         file_handler = next(
             h
@@ -29,34 +29,24 @@ class ConfigureLoggingTest(unittest.TestCase):
         console_handler = next(
             h for h in root.handlers if type(h) is logging.StreamHandler
         )
-        return file_handler.level, console_handler.level
+        return file_handler, console_handler
 
-    def test_console_inherits_file_level_by_default(self):
+    def test_one_level_drives_both_file_and_console(self):
         configure_logging({"app": {"log_level": 1}}, self.log_file)
 
-        file_level, console_level = self._handler_levels()
-        self.assertEqual(logging.INFO, file_level)
-        self.assertEqual(logging.INFO, console_level)
+        file_handler, console_handler = self._handlers()
+        # A single level is applied to both sinks via the root logger.
+        self.assertEqual(logging.INFO, logging.getLogger().level)
+        self.assertEqual(self.log_file, Path(file_handler.baseFilename))
+        self.assertIsInstance(console_handler, logging.StreamHandler)
 
-    def test_console_level_independent_of_file_level(self):
-        configure_logging(
-            {"app": {"log_level": 2, "console_log_level": 1}}, self.log_file
-        )
-
-        file_level, console_level = self._handler_levels()
-        self.assertEqual(logging.DEBUG, file_level)
-        self.assertEqual(logging.INFO, console_level)
-        # Root must be the most verbose of the two so each handler can filter.
+    def test_debug_level(self):
+        configure_logging({"app": {"log_level": 2}}, self.log_file)
         self.assertEqual(logging.DEBUG, logging.getLogger().level)
 
-    def test_quiet_console_with_verbose_file(self):
-        configure_logging(
-            {"app": {"log_level": 2, "console_log_level": 0}}, self.log_file
-        )
-
-        file_level, console_level = self._handler_levels()
-        self.assertEqual(logging.DEBUG, file_level)
-        self.assertEqual(logging.CRITICAL, console_level)
+    def test_off_level_is_critical(self):
+        configure_logging({"app": {"log_level": 0}}, self.log_file)
+        self.assertEqual(logging.CRITICAL, logging.getLogger().level)
 
 
 if __name__ == "__main__":
