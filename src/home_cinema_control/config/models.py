@@ -83,6 +83,7 @@ class OppoConfig(BaseModel):
     api_connect_timeout_seconds: float = 1.0
     api_retry_attempts: int = 3
     autoscript: bool = False
+    autoscript_unmount_timeout_seconds: float = 3.0
     always_on: bool = True
     bluray_disc_mode: bool = False
     pre_mount_smb: bool = False

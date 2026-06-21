@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol
 
 from home_cinema_control.devices.oppo.playback_state import (
@@ -60,14 +61,24 @@ class FinishPlaybackOrchestrator:
         final_player_state, player_idle_result = self._close_and_confirm_player_state(
             request
         )
-        player_idle_result = self._cleanup_player_after_finish(player_idle_result)
-        media_server_stop_result = self._stopped_reporter.stopped(
-            position_seconds=request.position_seconds,
-            duration_seconds=request.duration_seconds,
-            is_paused=request.is_paused,
-            is_muted=request.is_muted,
-            played=request.played,
-        )
+
+        # Player cleanup (OPPO autoscript unmount) and the Emby "stopped"
+        # report are independent — run them concurrently so a slow/unverified
+        # unmount attempt never delays the user-facing stop notification.
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            cleanup_future = executor.submit(
+                self._cleanup_player_after_finish, player_idle_result
+            )
+
+            media_server_stop_result = self._stopped_reporter.stopped(
+                position_seconds=request.position_seconds,
+                duration_seconds=request.duration_seconds,
+                is_paused=request.is_paused,
+                is_muted=request.is_muted,
+                played=request.played,
+            )
+
+            player_idle_result = cleanup_future.result()
 
         logger.info(
             "Media server playback stopped | position_seconds=%s | "

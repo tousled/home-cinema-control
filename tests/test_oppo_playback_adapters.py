@@ -61,12 +61,27 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
 
         self.assertEqual(DeviceCommandStatus.SUCCESS, result.status)
         mock_unmount.assert_called_once_with(
-            host="192.168.1.50", port=23, mount_path="/mnt/cifs1", timeout=30
+            host="192.168.1.50", port=23, mount_path="/mnt/cifs1", timeout=3
         )
+
+    def test_skips_cleanup_for_nfs_mount_even_when_autoscript_enabled(self):
+        # Autoscript-unmount was only ever designed/validated for CIFS/SMB
+        # (see the legacy Xnoppo project this was ported from); NFS mounts
+        # are left in place rather than attempting an unverified telnet path.
+        adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
+        adapter._last_mounted_path = "/mnt/nfs1"
+
+        with patch(
+                "home_cinema_control.devices.oppo.playback_adapters.unmount_oppo_path"
+        ) as mock_unmount:
+            result = adapter.cleanup_after_playback_finish()
+
+        self.assertEqual(DeviceCommandStatus.SKIPPED, result.status)
+        mock_unmount.assert_not_called()
 
     def test_reports_failure_when_unmount_returns_false(self):
         adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
-        adapter._last_mounted_path = "/mnt/nfs1"
+        adapter._last_mounted_path = "/mnt/cifs1"
 
         with patch(
             "home_cinema_control.devices.oppo.playback_adapters.unmount_oppo_path",
@@ -78,7 +93,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
 
     def test_reports_failure_when_unmount_raises(self):
         adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
-        adapter._last_mounted_path = "/mnt/nfs1"
+        adapter._last_mounted_path = "/mnt/cifs1"
 
         with patch(
             "home_cinema_control.devices.oppo.playback_adapters.unmount_oppo_path",
