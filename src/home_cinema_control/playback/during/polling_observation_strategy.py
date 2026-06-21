@@ -77,7 +77,7 @@ class PollingPlaybackObservationStrategy:
         paused_screensaver_logged = False
 
         final_state = self._oppo_playback.get_playback_state()
-        last_active_state = _active_state_or_none(final_state)
+        last_active_state = _active_state_or_none(final_state) or request.last_active_state
         stop_reason = PlaybackMonitoringStopReason.PLAYER_IDLE
 
         while _should_continue_monitoring(

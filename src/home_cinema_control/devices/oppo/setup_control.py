@@ -1,8 +1,6 @@
 import json
 import logging
 import socket
-import threading
-import time
 import urllib.parse
 
 from home_cinema_control.devices.oppo.constants import (
@@ -10,26 +8,18 @@ from home_cinema_control.devices.oppo.constants import (
     OPPO_REMOTE_LOGIN_MESSAGE,
     OPPO_REMOTE_LOGIN_PORT,
 )
-from home_cinema_control.config.manager import is_smb_active
 from home_cinema_control.network.http import get_http_session
-from home_cinema_control.devices.oppo.control_api_activation import OppoControlApiActivator
 from home_cinema_control.devices.oppo.control_api_client import OppoControlApiClient
 from home_cinema_control.devices.oppo.models import OppoCommandResponse
-from home_cinema_control.devices.oppo.network_playback_starter import (
-    OppoNetworkPlaybackStarter,
+from home_cinema_control.devices.oppo.network_mount_service import (
+    OPPO_DEVICE_LOCK,
+    OppoNetworkFolder,
+    OppoNetworkFolderProtocol,
+    OppoNetworkMountService,
+    check_oppo_control_api,
+    resolve_network_folder_protocol,
 )
-from home_cinema_control.devices.oppo.mounted_share import (
-    OppoMountedShare,
-    parse_mounted_share_response,
-)
-
-
-# The OPPO's embedded HTTP server (port 436) cannot handle two concurrent
-# login/mount sequences against the same server: one call hangs until the
-# client-side timeout while the other gets an immediate id_error. This lock
-# serializes all OPPO device communication so a second request (e.g. an
-# impatient re-click before the first one resolved) queues instead of racing.
-OPPO_DEVICE_LOCK = threading.Lock()
+from home_cinema_control.devices.oppo.mounted_share import OppoMountedShare
 
 
 def create_oppo_control_client(config) -> OppoControlApiClient:
@@ -47,91 +37,8 @@ def send_remote_login_notification(host: str) -> int:
     return 0
 
 
-def check_oppo_control_api(config) -> int:
-    activator = OppoControlApiActivator.from_config(config)
-    result = activator.ensure_control_api_available(
-        max_attempts=_control_api_attempts(config)
-    )
-
-    if result.available:
-        logging.debug(
-            "OPPO control API available | host=%s | port=%s | attempts=%s",
-            result.host,
-            result.port,
-            result.attempts,
-        )
-        return 0
-
-    logging.error(
-        "Timeout waiting for OPPO control API | host=%s | port=%s | attempts=%s | error=%s",
-        result.host,
-        result.port,
-        result.attempts,
-        result.error,
-    )
-    return 1
-
-
-def _control_api_attempts(config) -> int:
-    configured_attempts = int(config.get("oppo", {}).get("api_retry_attempts", 3))
-    return max(1, configured_attempts)
-
-
 def get_oppo_device_list(config) -> OppoCommandResponse:
     return create_oppo_control_client(config).get_device_list()
-
-
-def mount_smb_share(server: str, folder: str, config: dict, *, prime_smb: bool = True):
-    logging.debug("*** mount_smb_share ***")
-
-    oppo = config["oppo"]
-    if oppo["pre_mount_smb"] is True and prime_smb is True:
-        OppoNetworkPlaybackStarter(config).prime_samba_mount(server, folder)
-
-    client = create_oppo_control_client(config)
-    smb = config.get("smb", {})
-    username = str(smb.get("username", "")).strip()
-    password = str(smb.get("password", "")).strip()
-    timeout = oppo["nfs_mount_timeout_seconds"]
-
-    response_text = _mount_samba_folder_once(client, server, folder, username, password, timeout)
-
-    if response_text.error_message == "id_error":
-        logging.info(
-            "OPPO SMB mount returned id_error on first attempt; "
-            "retrying after brief wait (OPPO SMB state warm-up)."
-        )
-        time.sleep(2)
-        response_text = _mount_samba_folder_once(client, server, folder, username, password, timeout)
-
-    logging.debug("*** Mount Response: %s", response_text)
-    return response_text
-
-
-def _mount_samba_folder_once(client, server, folder, username, password, timeout):
-    if username or password:
-        return client.mount_samba_folder_with_id(
-            server=server,
-            folder=folder,
-            username=username,
-            password=password,
-            timeout=timeout,
-        )
-
-    return client.mount_samba_folder(server=server, folder=folder, timeout=timeout)
-
-
-def mount_nfs_share(server: str, folder: str, config: dict):
-    logging.debug("*** mount_nfs_share ***")
-
-    response_text = create_oppo_control_client(config).mount_nfs_folder(
-        server=server,
-        folder=folder,
-        timeout=config["oppo"]["nfs_mount_timeout_seconds"],
-    )
-
-    logging.debug("*** Mount Response: %s", response_text)
-    return response_text
 
 
 def build_oppo_mounted_folder_path(mounted_share: OppoMountedShare, folder: str) -> str:
@@ -228,6 +135,9 @@ def browse_network_folder(path, config, protocol=None):
     path = path.replace("\\", "/")
     path = path.replace("//", "/")
 
+    if check_oppo_control_api(config) != 0:
+        raise RuntimeError("OPPO_UNAVAILABLE: OPPO control API is not reachable")
+
     with OPPO_DEVICE_LOCK:
         oppo_command_response: OppoCommandResponse = get_oppo_device_list(config)
         devices = oppo_command_response.raw_text
@@ -248,11 +158,12 @@ def browse_network_folder(path, config, protocol=None):
 
         path_parts = path.strip("/").split("/", 1)
         server = path_parts[0]
-        nfs = _protocol_uses_nfs(config, protocol)
+        network_protocol = resolve_network_folder_protocol(config, protocol)
+        mount_service = OppoNetworkMountService(config)
 
         if len(path_parts) == 1 or not path_parts[1]:
-            if nfs:
-                response_login = OppoNetworkPlaybackStarter(config).login_nfs_server(server)
+            if network_protocol == OppoNetworkFolderProtocol.NFS:
+                response_login = mount_service.login_nfs_server(server)
 
                 if response_login.is_successful:
                     return list_nfs_share_folders(config)
@@ -261,7 +172,7 @@ def browse_network_folder(path, config, protocol=None):
                     "Login failed: " + response_login.payload.get("retInfo", "unknown error")
                 )
 
-            response_login = OppoNetworkPlaybackStarter(config).login_samba_server(server)
+            response_login = mount_service.login_samba_server(server)
 
             if response_login.is_successful:
                 return list_smb_share_folders(config)
@@ -273,48 +184,16 @@ def browse_network_folder(path, config, protocol=None):
         folder = path_parts[1]
         last_folder = "/"
 
-        if nfs:
-            response_login = OppoNetworkPlaybackStarter(config).login_nfs_server(server)
-
-            if not response_login.is_successful:
-                raise RuntimeError(
-                    "Login failed: " + response_login.payload.get("retInfo", "unknown error")
-                )
-
-            mount_response = mount_nfs_share(server, folder, config)
-
-        else:
-            response_login = OppoNetworkPlaybackStarter(config).login_samba_server(server)
-
-            if not response_login.is_successful:
-                raise RuntimeError(
-                    "Login failed: " + response_login.payload.get("retInfo", "unknown error")
-                )
-
-            mount_response = mount_smb_share(server, folder, config)
-
-        response_mount, mounted_share = parse_mounted_share_response(
-            mount_response,
-            server=server,
-            folder=folder,
-            is_nfs=nfs,
+        result = mount_service.mount(
+            OppoNetworkFolder(
+                server_name=server, folder_path=folder, protocol=network_protocol
+            )
         )
 
-        if mounted_share is None:
-            raise RuntimeError(
-                "Mount failed: " + response_mount.get("retInfo", "OPPO command did not report success")
-            )
+        if not result.successful:
+            if result.failure_stage == "login":
+                raise RuntimeError(f"Login failed: {result.detail}")
 
-        return list_mounted_folder_files(config, last_folder, mounted_share)
+            raise RuntimeError(f"Mount failed: {result.detail}")
 
-
-def _protocol_uses_nfs(config, protocol=None) -> bool:
-    normalized = str(protocol or "").strip().lower()
-
-    if normalized == "nfs":
-        return True
-
-    if normalized in {"cifs", "smb"}:
-        return False
-
-    return not is_smb_active(config)
+        return list_mounted_folder_files(config, last_folder, result.mounted_share)

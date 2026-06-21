@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
-from enum import StrEnum
 from typing import Any
 
 from home_cinema_control.playback.startup.models import (
@@ -15,15 +13,13 @@ from home_cinema_control.playback.startup.models import (
     OppoPlaybackState,
     PlayerMediaFileLocation,
 )
-from home_cinema_control.config.manager import is_smb_active
 from home_cinema_control.devices.oppo.control_api_client import OppoControlApiClient
 from home_cinema_control.devices.oppo.models import OppoCommandResponse
-from home_cinema_control.devices.oppo.mounted_share import (
-    OppoMountedShare,
-    parse_mounted_share_response,
-)
-from home_cinema_control.devices.oppo.network_playback_starter import (
-    OppoNetworkPlaybackStarter,
+from home_cinema_control.devices.oppo.network_mount_service import (
+    OppoNetworkFolder,
+    OppoNetworkFolderProtocol,
+    OppoNetworkMountService,
+    resolve_network_folder_protocol,
 )
 from home_cinema_control.devices.oppo.playback_state_waiter import (
     PlaybackStartupWaitResult,
@@ -39,22 +35,6 @@ DEFAULT_TRACK_SELECTION_APPLIED_TIMEOUT_SECONDS = 2.0
 DEFAULT_TRACK_SELECTION_APPLIED_POLL_INTERVAL_SECONDS = 0.25
 
 
-class OppoNetworkProtocol(StrEnum):
-    NFS = "nfs"
-    CIFS = "cifs"
-
-
-@dataclass(frozen=True)
-class OppoNetworkFolder:
-    media_server: str
-    folder: str
-    protocol: OppoNetworkProtocol
-
-    @property
-    def is_nfs(self) -> bool:
-        return self.protocol == OppoNetworkProtocol.NFS
-
-
 class OppoMediaControlPlayback:
     def __init__(
         self,
@@ -64,7 +44,7 @@ class OppoMediaControlPlayback:
         playback_state_waiter: Callable[..., PlaybackStartupWaitResult]
         | None = None,
         sleep: Callable[[float], None] | None = None,
-        network_playback_starter: OppoNetworkPlaybackStarter | None = None,
+            network_mount_service: OppoNetworkMountService | None = None,
     ) -> None:
         self._config = config
         self._client = client or OppoControlApiClient.from_config(config)
@@ -72,8 +52,8 @@ class OppoMediaControlPlayback:
             playback_state_waiter or wait_until_oppo_reports_active_playback
         )
         self._sleep = sleep or time.sleep
-        self._network_playback_starter = network_playback_starter or (
-            OppoNetworkPlaybackStarter(config, control_api_client=self._client)
+        self._network_mount_service = network_mount_service or (
+            OppoNetworkMountService(config, control_api_client=self._client)
         )
 
     def start_playback(
@@ -83,23 +63,19 @@ class OppoMediaControlPlayback:
         on_waiting: Callable[[int], None] | None = None,
     ) -> OppoPlaybackStartResult:
         try:
-            self._client.sign_in()
-
             location = request.media_location
             network_folder = OppoNetworkFolder(
-                media_server=location.content_server,
-                folder=location.content_directory,
+                server_name=location.content_server,
+                folder_path=location.content_directory,
                 protocol=self._resolve_network_protocol(request.network_protocol),
             )
 
-            mount_response, mount_payload, mounted_share = self._attempt_network_mount(
-                network_folder
-            )
+            mount_result = self._network_mount_service.mount(network_folder)
 
-            if mounted_share is None:
+            if not mount_result.successful:
                 mount_reconciliation = self._reconcile_optical_mount_failure(
                     request=request,
-                    mount_response=mount_payload,
+                    failure_detail=mount_result.detail,
                     on_waiting=on_waiting,
                 )
                 if mount_reconciliation is not None:
@@ -109,10 +85,11 @@ class OppoMediaControlPlayback:
                     media_mounted=False,
                     playback_command_accepted=False,
                     playback_started_on_device=False,
-                    detail=mount_response.error_message,
+                    detail=mount_result.detail,
                     mount_protocol=network_folder.protocol.value,
                 )
 
+            mounted_share = mount_result.mounted_share
             playback_response = self._start_mounted_share_playback(
                 request=request,
                 mounted_share=mounted_share,
@@ -530,102 +507,16 @@ class OppoMediaControlPlayback:
             )
         )
 
-    def _resolve_network_protocol(self, protocol: str | None = None) -> OppoNetworkProtocol:
-        normalized = str(protocol or "").strip().lower()
-
-        if normalized == OppoNetworkProtocol.NFS.value:
-            return OppoNetworkProtocol.NFS
-
-        if normalized in {OppoNetworkProtocol.CIFS.value, "smb"}:
-            return OppoNetworkProtocol.CIFS
-
-        return OppoNetworkProtocol.CIFS if is_smb_active(self._config) else OppoNetworkProtocol.NFS
-
-    def _attempt_network_mount(
-        self, network_folder: OppoNetworkFolder
-    ) -> tuple[OppoCommandResponse, dict[str, Any], OppoMountedShare | None]:
-        self._login_network_server(network_folder)
-
-        if not network_folder.is_nfs and self._config["oppo"].get("pre_mount_smb"):
-            logger.info(
-                "OPPO pre_mount_smb enabled; priming SMB session before real mount | "
-                "server=%s | folder=%s",
-                network_folder.media_server,
-                network_folder.folder,
-            )
-            self._network_playback_starter.prime_samba_mount(
-                network_folder.media_server, network_folder.folder
-            )
-
-        mount_response = self._mount_network_folder(network_folder)
-
-        if not network_folder.is_nfs and mount_response.error_message == "id_error":
-            logger.info(
-                "OPPO SMB mount returned id_error on first attempt; "
-                "retrying after brief wait (OPPO SMB state warm-up)."
-            )
-            self._sleep(2)
-            mount_response = self._mount_network_folder(network_folder)
-
-        logger.info(
-            "OPPO MediaControl mount response | server=%s | folder=%s | response=%s",
-            network_folder.media_server,
-            network_folder.folder,
-            mount_response.raw_text,
-        )
-
-        mount_payload, mounted_share = parse_mounted_share_response(
-            mount_response,
-            server=network_folder.media_server,
-            folder=network_folder.folder,
-            is_nfs=network_folder.is_nfs,
-        )
-
-        return mount_response, mount_payload, mounted_share
-
-    def _login_network_server(self, network_folder: OppoNetworkFolder) -> None:
-        if network_folder.is_nfs:
-            self._client.login_nfs_server(network_folder.media_server)
-            return
-
-        self._client.login_samba_without_id(network_folder.media_server)
-
-    def _mount_network_folder(
-        self, network_folder: OppoNetworkFolder
-    ) -> OppoCommandResponse:
-        timeout = self._config["oppo"]["nfs_mount_timeout_seconds"]
-
-        if network_folder.is_nfs:
-            return self._client.mount_nfs_folder(
-                server=network_folder.media_server,
-                folder=network_folder.folder,
-                timeout=timeout,
-            )
-
-        smb = self._config.get("smb", {})
-        username = str(smb.get("username", "")).strip()
-        password = str(smb.get("password", "")).strip()
-
-        if username or password:
-            return self._client.mount_samba_folder_with_id(
-                network_folder.media_server,
-                network_folder.folder,
-                username,
-                password,
-                timeout=timeout,
-            )
-
-        return self._client.mount_samba_folder(
-            server=network_folder.media_server,
-            folder=network_folder.folder,
-            timeout=timeout,
-        )
+    def _resolve_network_protocol(
+            self, protocol: str | None = None
+    ) -> OppoNetworkFolderProtocol:
+        return resolve_network_folder_protocol(self._config, protocol)
 
     def _reconcile_optical_mount_failure(
         self,
         *,
         request: OppoPlaybackStartRequest,
-        mount_response: dict[str, Any],
+            failure_detail: str,
         on_waiting: Callable[[int], None] | None,
     ) -> OppoPlaybackStartResult | None:
         if not _is_optical_image_location(request.media_location):
@@ -634,11 +525,11 @@ class OppoMediaControlPlayback:
         logger.warning(
             "OPPO mount request failed for optical media; checking whether "
             "the player completed startup asynchronously | server=%s | "
-            "folder=%s | filename=%s | response=%s",
+            "folder=%s | filename=%s | detail=%s",
             request.media_location.content_server,
             request.media_location.content_directory,
             request.media_location.playback_file_name,
-            mount_response,
+            failure_detail,
         )
 
         startup_result = self._playback_state_waiter(

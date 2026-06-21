@@ -253,6 +253,23 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
         )
         self.assertEqual(12, source.listen_kwargs["utc_idle_timeout_seconds"])
 
+    def test_reports_unknown_state_when_watchdog_expires_with_no_events_at_all(self):
+        # A retried SVM3 attempt that observes literally nothing before its
+        # own watchdog timeout must not claim PLAY/ACTIVE — that would mask a
+        # still-paused session as "confirmed playing" for whoever reads this
+        # result next (see DuringPlaybackOrchestrator._request_from_result).
+        source = RecordingEventSource([])
+        orchestrator = VerbosePlaybackObservationStrategy(event_source=source)
+
+        result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
+
+        self.assertEqual(
+            PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED,
+            result.stop_reason,
+        )
+        self.assertEqual(OppoPlaybackStatus.UNKNOWN, result.final_state.status)
+        self.assertEqual(OppoPlaybackCategory.UNKNOWN, result.final_state.category)
+
 
 class DeferredAudioSelectorTest(unittest.TestCase):
     def test_applies_deferred_audio_selector_on_first_play_event(self):

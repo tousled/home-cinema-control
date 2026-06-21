@@ -3,6 +3,11 @@ import unittest
 from home_cinema_control.devices.oppo.media_control_playback import (
     OppoMediaControlPlayback,
 )
+from home_cinema_control.devices.oppo.mounted_share import OppoMountedShare
+from home_cinema_control.devices.oppo.network_mount_service import (
+    OppoMountResult,
+    OppoNetworkFolderProtocol,
+)
 from home_cinema_control.devices.oppo.playback_state import (
     OppoPlaybackCategory,
     OppoPlaybackStatus,
@@ -19,18 +24,11 @@ class RecordingMediaControlClient:
     def __init__(
         self,
         *,
-        mount_nfs_response='{"success":true,"nfsMntPath":"/mnt/nfs1"}',
-        mount_samba_with_id_responses=None,
         audio_menu_responses=None,
         audio_selection_response='{"success":false,"msg":""}',
         subtitle_menu_responses=None,
     ):
         self.calls = []
-        self.mount_nfs_response = mount_nfs_response
-        self.mount_samba_with_id_responses = list(
-            mount_samba_with_id_responses
-            or ['{"success":true,"cifsMntPath":"/mnt/cifs1"}']
-        )
         self.audio_menu_responses = list(
             audio_menu_responses
             or ['{"audio_list":[{"index":1,"selected":true}]}']
@@ -40,34 +38,6 @@ class RecordingMediaControlClient:
             subtitle_menu_responses
             or ['{"subtitle_list":[{"index":1,"selected":true}]}']
         )
-
-    def sign_in(self):
-        self.calls.append("sign_in")
-        return OppoCommandResponse.from_text('{"success":true}')
-
-    def login_nfs_server(self, server):
-        self.calls.append(("login_nfs_server", server))
-        return OppoCommandResponse.from_text('{"success":true}')
-
-    def login_samba_without_id(self, server):
-        self.calls.append(("login_samba_without_id", server))
-        return OppoCommandResponse.from_text('{"success":true}')
-
-    def mount_nfs_folder(self, *, server, folder, timeout):
-        self.calls.append(("mount_nfs_folder", server, folder, timeout))
-        return OppoCommandResponse.from_text(self.mount_nfs_response)
-
-    def mount_samba_folder(self, *, server, folder, timeout):
-        self.calls.append(("mount_samba_folder", server, folder, timeout))
-        return OppoCommandResponse.from_text(
-            '{"success":true,"cifsMntPath":"/mnt/cifs1"}'
-        )
-
-    def mount_samba_folder_with_id(self, server, folder, username, password, *, timeout):
-        self.calls.append(("mount_samba_folder_with_id", server, folder, username, password, timeout))
-        if len(self.mount_samba_with_id_responses) > 1:
-            return OppoCommandResponse.from_text(self.mount_samba_with_id_responses.pop(0))
-        return OppoCommandResponse.from_text(self.mount_samba_with_id_responses[0])
 
     def play_normal_file(self, *, mounted_share, filename, index, timeout):
         self.calls.append(
@@ -134,17 +104,46 @@ class RecordingMediaControlClient:
         return OppoCommandResponse.from_text('{"success":true,"msg":""}')
 
 
-class RecordingNetworkPlaybackStarter:
-    def __init__(self):
-        self.calls = []
+class FakeNetworkMountService:
+    """Stands in for OppoNetworkMountService: playback only needs to know
+    what mount() returned, not how it got there (that's tested against the
+    service directly, in test_oppo_network_mount_service.py)."""
 
-    def prime_samba_mount(self, server, folder):
-        self.calls.append(("prime_samba_mount", server, folder))
+    def __init__(self, result: OppoMountResult):
+        self.calls = []
+        self._result = result
+
+    def mount(self, network_folder):
+        self.calls.append(network_folder)
+        return self._result
+
+
+def _mounted(*, mount_path, server, folder, is_nfs) -> OppoMountResult:
+    return OppoMountResult(
+        successful=True,
+        mounted_share=OppoMountedShare(
+            server=server, folder=folder, mount_path=mount_path, is_nfs=is_nfs
+        ),
+        failure_stage=None,
+        detail="",
+    )
+
+
+def _mount_failed(detail: str, *, failure_stage="mount") -> OppoMountResult:
+    return OppoMountResult(
+        successful=False,
+        mounted_share=None,
+        failure_stage=failure_stage,
+        detail=detail,
+    )
 
 
 class OppoMediaControlPlaybackTest(unittest.TestCase):
     def test_starts_nfs_playback_without_legacy_refresh_or_remote_key(self):
         client = RecordingMediaControlClient()
+        mount_service = FakeNetworkMountService(
+            _mounted(mount_path="/mnt/nfs1", server="NAS", folder="Movies", is_nfs=True)
+        )
         playback = OppoMediaControlPlayback(
             {
                 "oppo": {
@@ -155,6 +154,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             },
             client=client,
             playback_state_waiter=_started_playback,
+            network_mount_service=mount_service,
         )
 
         result = playback.start_playback(
@@ -171,20 +171,22 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         self.assertTrue(result.successful)
         self.assertEqual("/mnt/nfs1", result.mounted_path)
         self.assertEqual(
-            [
-                "sign_in",
-                ("login_nfs_server", "NAS"),
-                ("mount_nfs_folder", "NAS", "Movies", 30),
-                ("play_normal_file", "/mnt/nfs1", "NAS", "Movie.mkv", "0", 30),
-            ],
+            [("play_normal_file", "/mnt/nfs1", "NAS", "Movie.mkv", "0", 30)],
             client.calls,
         )
+        self.assertEqual(1, len(mount_service.calls))
+        self.assertEqual("NAS", mount_service.calls[0].server_name)
+        self.assertEqual("Movies", mount_service.calls[0].folder_path)
+        self.assertEqual(OppoNetworkFolderProtocol.NFS, mount_service.calls[0].protocol)
         self.assertNotIn("get_setup_menu", client.calls)
         self.assertNotIn(("send_remote_key", "EJT"), client.calls)
         self.assertNotIn(("send_remote_key", "QPW"), client.calls)
 
     def test_starts_samba_playback_when_smb_is_active(self):
         client = RecordingMediaControlClient()
+        mount_service = FakeNetworkMountService(
+            _mounted(mount_path="/mnt/cifs1", server="NAS", folder="Movies", is_nfs=False)
+        )
         playback = OppoMediaControlPlayback(
             {
                 "oppo": {
@@ -196,6 +198,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             },
             client=client,
             playback_state_waiter=_started_playback,
+            network_mount_service=mount_service,
         )
 
         result = playback.start_playback(
@@ -211,18 +214,13 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
 
         self.assertTrue(result.successful)
         self.assertEqual("/mnt/cifs1", result.mounted_path)
-        self.assertEqual(
-            [
-                "sign_in",
-                ("login_samba_without_id", "NAS"),
-                ("mount_samba_folder_with_id", "NAS", "Movies", "user", "pass", 30),
-                ("play_normal_file", "/mnt/cifs1", "NAS", "Movie.mkv", "0", 30),
-            ],
-            client.calls,
-        )
+        self.assertEqual(OppoNetworkFolderProtocol.CIFS, mount_service.calls[0].protocol)
 
     def test_mapping_protocol_can_use_samba_when_global_default_is_nfs(self):
         client = RecordingMediaControlClient()
+        mount_service = FakeNetworkMountService(
+            _mounted(mount_path="/mnt/cifs1", server="NAS", folder="Trailers", is_nfs=False)
+        )
         playback = OppoMediaControlPlayback(
             {
                 "oppo": {
@@ -234,6 +232,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             },
             client=client,
             playback_state_waiter=_started_playback,
+            network_mount_service=mount_service,
         )
 
         result = playback.start_playback(
@@ -249,131 +248,15 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         self.assertTrue(result.successful)
-        self.assertEqual("/mnt/cifs1", result.mounted_path)
-        self.assertEqual(
-            [
-                "sign_in",
-                ("login_samba_without_id", "NAS"),
-                ("mount_samba_folder_with_id", "NAS", "Trailers", "user", "pass", 30),
-                ("play_normal_file", "/mnt/cifs1", "NAS", "Trailer.mkv", "0", 30),
-            ],
-            client.calls,
-        )
+        self.assertEqual(OppoNetworkFolderProtocol.CIFS, mount_service.calls[0].protocol)
 
-    def test_primes_samba_mount_before_real_mount_when_pre_mount_smb_enabled(self):
+    def test_mount_failure_reports_selected_protocol_without_retrying(self):
+        # mount() is one call for one protocol; there is no fallback path to
+        # assert against any more (see HCC-TASK-019: NFS/SMB don't share an
+        # addressing scheme, so retrying under a different protocol would
+        # attempt a structurally invalid path anyway).
         client = RecordingMediaControlClient()
-        network_playback_starter = RecordingNetworkPlaybackStarter()
-        playback = OppoMediaControlPlayback(
-            {
-                "oppo": {
-                    "use_smb": True,
-                    "pre_mount_smb": True,
-                    "nfs_mount_timeout_seconds": 30,
-                    "playback_start_timeout_seconds": 30,
-                },
-                "smb": {"username": "user", "password": "pass"},
-            },
-            client=client,
-            playback_state_waiter=_started_playback,
-            network_playback_starter=network_playback_starter,
-        )
-
-        result = playback.start_playback(
-            OppoPlaybackStartRequest(
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.mkv",
-                    playback_file_format="mkv",
-                )
-            )
-        )
-
-        self.assertTrue(result.successful)
-        self.assertEqual(
-            [("prime_samba_mount", "NAS", "Movies")], network_playback_starter.calls
-        )
-        self.assertEqual(
-            [
-                "sign_in",
-                ("login_samba_without_id", "NAS"),
-                ("mount_samba_folder_with_id", "NAS", "Movies", "user", "pass", 30),
-                ("play_normal_file", "/mnt/cifs1", "NAS", "Movie.mkv", "0", 30),
-            ],
-            client.calls,
-        )
-
-    def test_does_not_prime_samba_mount_when_pre_mount_smb_disabled(self):
-        client = RecordingMediaControlClient()
-        network_playback_starter = RecordingNetworkPlaybackStarter()
-        playback = OppoMediaControlPlayback(
-            {
-                "oppo": {
-                    "use_smb": True,
-                    "pre_mount_smb": False,
-                    "nfs_mount_timeout_seconds": 30,
-                    "playback_start_timeout_seconds": 30,
-                },
-                "smb": {"username": "user", "password": "pass"},
-            },
-            client=client,
-            playback_state_waiter=_started_playback,
-            network_playback_starter=network_playback_starter,
-        )
-
-        playback.start_playback(
-            OppoPlaybackStartRequest(
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.mkv",
-                    playback_file_format="mkv",
-                )
-            )
-        )
-
-        self.assertEqual([], network_playback_starter.calls)
-
-    def test_does_not_prime_samba_mount_for_nfs_even_when_pre_mount_smb_enabled(self):
-        client = RecordingMediaControlClient()
-        network_playback_starter = RecordingNetworkPlaybackStarter()
-        playback = OppoMediaControlPlayback(
-            {
-                "oppo": {
-                    "use_smb": False,
-                    "pre_mount_smb": True,
-                    "nfs_mount_timeout_seconds": 30,
-                    "playback_start_timeout_seconds": 30,
-                }
-            },
-            client=client,
-            playback_state_waiter=_started_playback,
-            network_playback_starter=network_playback_starter,
-        )
-
-        playback.start_playback(
-            OppoPlaybackStartRequest(
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.mkv",
-                    playback_file_format="mkv",
-                )
-            )
-        )
-
-        self.assertEqual([], network_playback_starter.calls)
-
-    def test_does_not_fall_back_to_nfs_when_smb_selected_and_mount_fails(self):
-        # NFS and SMB don't share an addressing scheme on every NAS (some
-        # require a `volume1/`-style root prefix for NFS that SMB share
-        # names omit), so silently retrying the user's selected protocol
-        # under a different one reuses a folder string that may not be
-        # valid there. Real playback mounts the protocol the mapping
-        # selected and fails cleanly if that fails — see HCC-TASK-019.
-        client = RecordingMediaControlClient(
-            mount_samba_with_id_responses=['{"success":false,"retInfo":"failed"}'],
-        )
+        mount_service = FakeNetworkMountService(_mount_failed("failed"))
         playback = OppoMediaControlPlayback(
             {
                 "oppo": {
@@ -385,6 +268,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             },
             client=client,
             playback_state_waiter=_started_playback,
+            network_mount_service=mount_service,
         )
 
         result = playback.start_playback(
@@ -401,102 +285,12 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         self.assertFalse(result.successful)
         self.assertFalse(result.media_mounted)
         self.assertEqual("cifs", result.mount_protocol)
-        self.assertEqual(
-            [
-                "sign_in",
-                ("login_samba_without_id", "NAS"),
-                ("mount_samba_folder_with_id", "NAS", "Movies", "user", "pass", 30),
-            ],
-            client.calls,
-        )
-
-    def test_does_not_fall_back_to_smb_when_nfs_selected_and_mount_fails(self):
-        client = RecordingMediaControlClient(
-            mount_nfs_response='{"success":false,"retInfo":"failed"}',
-        )
-        playback = OppoMediaControlPlayback(
-            {
-                "oppo": {
-                    "use_smb": False,
-                    "nfs_mount_timeout_seconds": 30,
-                    "playback_start_timeout_seconds": 30,
-                }
-            },
-            client=client,
-            playback_state_waiter=_started_playback,
-        )
-
-        result = playback.start_playback(
-            OppoPlaybackStartRequest(
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.mkv",
-                    playback_file_format="mkv",
-                )
-            )
-        )
-
-        self.assertFalse(result.successful)
-        self.assertFalse(result.media_mounted)
-        self.assertEqual(
-            [
-                "sign_in",
-                ("login_nfs_server", "NAS"),
-                ("mount_nfs_folder", "NAS", "Movies", 30),
-            ],
-            client.calls,
-        )
-
-    def test_retries_samba_mount_once_on_id_error(self):
-        client = RecordingMediaControlClient(
-            mount_samba_with_id_responses=[
-                '{"success":false,"retInfo":"id_error"}',
-                '{"success":true,"cifsMntPath":"/mnt/cifs1"}',
-            ]
-        )
-        playback = OppoMediaControlPlayback(
-            {
-                "oppo": {
-                    "use_smb": True,
-                    "nfs_mount_timeout_seconds": 30,
-                    "playback_start_timeout_seconds": 30,
-                },
-                "smb": {"username": "guest", "password": ""},
-            },
-            client=client,
-            playback_state_waiter=_started_playback,
-            sleep=lambda _: None,
-        )
-
-        result = playback.start_playback(
-            OppoPlaybackStartRequest(
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.mkv",
-                    playback_file_format="mkv",
-                )
-            )
-        )
-
-        self.assertTrue(result.successful)
-        self.assertEqual("/mnt/cifs1", result.mounted_path)
-        self.assertEqual(
-            [
-                "sign_in",
-                ("login_samba_without_id", "NAS"),
-                ("mount_samba_folder_with_id", "NAS", "Movies", "guest", "", 30),
-                ("mount_samba_folder_with_id", "NAS", "Movies", "guest", "", 30),
-                ("play_normal_file", "/mnt/cifs1", "NAS", "Movie.mkv", "0", 30),
-            ],
-            client.calls,
-        )
+        self.assertEqual("failed", result.detail)
+        self.assertEqual([], client.calls)
 
     def test_treats_optical_mount_failure_as_success_when_oppo_reports_active(self):
-        client = RecordingMediaControlClient(
-            mount_nfs_response='{"success":false,"retInfo":"failed"}',
-        )
+        client = RecordingMediaControlClient()
+        mount_service = FakeNetworkMountService(_mount_failed("failed"))
         playback = OppoMediaControlPlayback(
             {
                 "oppo": {
@@ -507,6 +301,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             },
             client=client,
             playback_state_waiter=_started_playback,
+            network_mount_service=mount_service,
         )
 
         result = playback.start_playback(
@@ -526,19 +321,11 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             "Mount request failed, but OPPO reported active playback.",
             result.detail,
         )
-        self.assertEqual(
-            [
-                "sign_in",
-                ("login_nfs_server", "NAS"),
-                ("mount_nfs_folder", "NAS", "Movies", 30),
-            ],
-            client.calls,
-        )
+        self.assertEqual([], client.calls)
 
-    def test_treats_optical_mount_timeout_as_success_when_oppo_reports_active(self):
-        client = RecordingMediaControlClient(
-            mount_nfs_response='{"success":false,"retInfo":"Timeout in Mount Request"}',
-        )
+    def test_keeps_non_optical_mount_failure_as_failure(self):
+        client = RecordingMediaControlClient()
+        mount_service = FakeNetworkMountService(_mount_failed("Timeout in Mount Request"))
         playback = OppoMediaControlPlayback(
             {
                 "oppo": {
@@ -549,35 +336,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             },
             client=client,
             playback_state_waiter=_started_playback,
-        )
-
-        result = playback.start_playback(
-            OppoPlaybackStartRequest(
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.iso",
-                    playback_file_format="blurayiso",
-                )
-            )
-        )
-
-        self.assertTrue(result.successful)
-
-    def test_keeps_non_optical_mount_timeout_as_failure(self):
-        client = RecordingMediaControlClient(
-            mount_nfs_response='{"success":false,"retInfo":"Timeout in Mount Request"}',
-        )
-        playback = OppoMediaControlPlayback(
-            {
-                "oppo": {
-                    "use_smb": False,
-                    "nfs_mount_timeout_seconds": 30,
-                    "playback_start_timeout_seconds": 30,
-                }
-            },
-            client=client,
-            playback_state_waiter=_started_playback,
+            network_mount_service=mount_service,
         )
 
         result = playback.start_playback(
