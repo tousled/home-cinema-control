@@ -81,7 +81,7 @@ class MediaServerSessionMonitor:
                     session.now_playing.container,
                 )
             except Exception as e:
-                logging.warning(
+                logging.exception(
                     "%s ws: could not load monitored item details: %s",
                     self._provider_name,
                     e,
@@ -179,7 +179,7 @@ class MediaServerSessionMonitor:
             saved_position_ticks=item_playback_info.saved_position_ticks,
         )
         if playback_intent is None:
-            logging.warning(
+            logging.error(
                 "%s ws: could not build playback intent from session",
                 self._provider_name,
             )
