@@ -3,10 +3,83 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.playback.content_kind import MediaContentKind
+from home_cinema_control.playback.notification_sender import (
+    send_stop_with_delivery_reliability,
+)
 
 PLAYBACK_PROGRESS_INTERVAL_SECONDS = 10
+
+
+_EMBY_TYPE_TO_CONTENT_KIND = {
+    "Movie": MediaContentKind.MOVIE,
+    "Episode": MediaContentKind.EPISODE,
+    "MusicVideo": MediaContentKind.CONCERT,
+    "LiveTvProgram": MediaContentKind.LIVE_TV,
+    "Recording": MediaContentKind.LIVE_TV,
+    "TvChannel": MediaContentKind.LIVE_TV,
+    "LiveTvChannel": MediaContentKind.LIVE_TV,
+}
+
+
+def _content_kind_from_emby_type(emby_type: str | None) -> MediaContentKind:
+    return _EMBY_TYPE_TO_CONTENT_KIND.get(emby_type, MediaContentKind.OTHER)
+
+
+@dataclass(frozen=True)
+class MediaServerPlaybackSource:
+    """The resolved file + metadata for what's actually being played.
+
+    The counterpart to `MediaServerPlaybackContext`: context is the request,
+    source is what got resolved. Mapped once at this adapter edge from the raw
+    Emby `Item`/`MediaSource` wire dicts — policy code reads these typed
+    fields and never Emby's own field names.
+    """
+
+    path: str
+    container: str
+    duration_seconds: int
+    production_year: int | None
+    title: str
+    content_kind: MediaContentKind
+
+    @classmethod
+    def from_emby_item(
+            cls,
+            item_data: dict[str, Any],
+            media_source_id: str,
+    ) -> MediaServerPlaybackSource:
+        media_source = _find_media_source(item_data, media_source_id)
+
+        return cls(
+            path=media_source.get("Path", ""),
+            container=media_source.get("Container", ""),
+            duration_seconds=_duration_seconds(media_source),
+            production_year=item_data.get("ProductionYear"),
+            title=item_data.get("Name", ""),
+            content_kind=_content_kind_from_emby_type(item_data.get("Type")),
+        )
+
+
+def _find_media_source(
+        item_data: dict[str, Any],
+        media_source_id: str,
+) -> dict[str, Any]:
+    for media_source in item_data.get("MediaSources", []):
+        if media_source.get("Id") == media_source_id:
+            return media_source
+
+    return item_data
+
+
+def _duration_seconds(media_source: dict[str, Any]) -> int:
+    try:
+        return max(0, int(media_source.get("RunTimeTicks", 0)) // EMBY_TICKS_PER_SECOND)
+    except (TypeError, ValueError):
+        return 0
 
 
 @dataclass(frozen=True)
@@ -215,34 +288,20 @@ class MediaServerPlaybackEventPublisher:
     def _stop_stale_source_client_session(self) -> None:
         """Best-effort cleanup of the original TV/app session's player screen.
 
-        The source client's own session was stopped once, at handoff, to keep
-        it from playing in parallel with the OPPO (see
-        stop_source_client_before_handoff in playback/application.py). It is
-        never told anything again after that, so its UI is left showing a
-        frozen "paused" player screen until the media server's own session
-        list eventually expires it client-side. Re-sending Stop now, while the
-        OPPO-driven playback is genuinely finishing, clears that stale screen
-        sooner. Never allowed to fail playback finish — log and move on.
+        Runs for every `PlaybackOrigin`, not just `OBSERVED_TV_CLIENT` — for a
+        `REMOTE_CONTROL_COMMAND` cast, this is the *only* Stop the source
+        client (e.g. the phone) ever receives, so it needs the same delivery
+        redundancy as the handoff-time Stop
+        (`stop_source_client_before_handoff` in `playback/application.py`),
+        not just a single send. See `send_stop_with_delivery_reliability` for
+        why a single send isn't enough on its own.
         """
-        session_id = self.context.source_client_session_id
-        if not session_id:
-            return
-
-        try:
-            response = self._client.stop_session_playback(session_id, {"Command": "Stop"})
-            logging.info(
-                "Cleared stale source client playback screen | "
-                "source_client_session_id=%s | status=%s",
-                session_id,
-                getattr(response, "status_code", None),
-            )
-        except Exception:
-            logging.warning(
-                "Could not clear stale source client playback screen | "
-                "source_client_session_id=%s",
-                session_id,
-                exc_info=True,
-            )
+        send_stop_with_delivery_reliability(
+            lambda session_id: self._client.stop_session_playback(
+                session_id, {"Command": "Stop"}
+            ),
+            self.context.source_client_session_id,
+        )
 
     def _mark_item_unplayed_preserving_resume_position(self, position_ticks: int) -> None:
         """Keep manual stops unwatched without destroying the resume point.

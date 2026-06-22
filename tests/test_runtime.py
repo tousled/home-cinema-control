@@ -95,7 +95,7 @@ class RuntimeTest(unittest.TestCase):
             "http://emby.local",
             runtime.emby_websocket.config["media_server"]["server_url"],
         )
-        self.assertIn("msg-playback-starting", runtime.emby_websocket.language)
+        self.assertIn("msg-startup-received", runtime.emby_websocket.language)
 
     def test_save_config_updates_active_websocket_config(self):
         with self._runtime(configured=True) as runtime:

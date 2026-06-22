@@ -1,7 +1,10 @@
 import unittest
 
 from home_cinema_control.devices.tv.models import TvInputTarget
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.media_servers.emby.playback import (
+    MediaServerPlaybackSource,
+)
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.request_preparation import (
     PLAYBACK_START_POLL_INTERVAL_SECONDS,
@@ -37,11 +40,14 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
                 },
             },
             intent=_intent(),
-            item_info={
-                "Path": "/emby/Movies/Movie.mkv",
-                "Container": "mkv",
-                "RunTimeTicks": 456 * EMBY_TICKS_PER_SECOND,
-            },
+            item_info=MediaServerPlaybackSource(
+                path="/emby/Movies/Movie.mkv",
+                container="mkv",
+                duration_seconds=456,
+                production_year=None,
+                title="",
+                content_kind=MediaContentKind.MOVIE,
+            ),
             previous_tv_app_id_override="com.emby.app",
         )
 
@@ -89,11 +95,14 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
                 },
             },
             intent=_intent(),
-            item_info={
-                "Path": "/nas/Movies/Movie.mkv",
-                "Container": "mkv",
-                "RunTimeTicks": "not-a-number",
-            },
+            item_info=MediaServerPlaybackSource(
+                path="/nas/Movies/Movie.mkv",
+                container="mkv",
+                duration_seconds=0,
+                production_year=None,
+                title="",
+                content_kind=MediaContentKind.OTHER,
+            ),
             previous_tv_app_id_override=None,
         )
 

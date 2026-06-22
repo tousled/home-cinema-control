@@ -294,8 +294,33 @@ class MountSmbPrimingTest(unittest.TestCase):
             [call for call in client.calls if "samba" in str(call).lower()], []
         )
 
+    def test_does_not_log_in_twice_when_priming_the_same_server(self, _check_control_api):
+        # Regression test: priming used to re-log-in to the same server it had
+        # just logged into via _login(), doubling the OPPO HTTP round-trips for
+        # every SMB mount. The OPPO's embedded HTTP server (port 436) cannot
+        # reliably absorb that many back-to-back calls (see OPPO_DEVICE_LOCK's
+        # docstring).
+        client = FakeControlApiClient()
+        service = OppoNetworkMountService(
+            _config(pre_mount_smb=True), control_api_client=client
+        )
+
+        with patch(
+                "home_cinema_control.devices.oppo.network_mount_service.get_http_session",
+                return_value=FakeHttpSession([FakeHttpResponse(["Other"])]),
+        ):
+            result = service.mount(_smb_folder())
+
+        self.assertTrue(result.successful)
+        login_calls = [call for call in client.calls if call == ("login_samba_without_id", "NAS")]
+        self.assertEqual(1, len(login_calls))
+
 
 class PrimeSambaMountTest(unittest.TestCase):
+    """_prime_samba_mount assumes the caller already logged into `server` —
+    these tests call it directly without a prior login, matching that
+    contract (see mount(), which calls _login() right before priming)."""
+
     def test_mounts_a_different_folder_on_the_same_server_when_one_exists(self):
         client = FakeControlApiClient()
         service = OppoNetworkMountService(_config(), control_api_client=client)
@@ -307,10 +332,7 @@ class PrimeSambaMountTest(unittest.TestCase):
             service._prime_samba_mount("NAS", "Video")
 
         self.assertEqual(
-            [
-                ("login_samba_without_id", "NAS"),
-                ("mount_samba_folder", "NAS", "Music", 30),
-            ],
+            [("mount_samba_folder", "NAS", "Music", 30)],
             client.calls,
         )
 
@@ -338,7 +360,6 @@ class PrimeSambaMountTest(unittest.TestCase):
 
         self.assertEqual(
             [
-                ("login_samba_without_id", "NAS"),
                 "get_device_list",
                 ("login_samba_without_id", "OTHERNAS"),
                 ("mount_samba_folder", "OTHERNAS", "Movies", 30),
@@ -372,7 +393,6 @@ class PrimeSambaMountTest(unittest.TestCase):
         self.assertNotIn(("login_samba_without_id", "NFS-BOX"), client.calls)
         self.assertEqual(
             [
-                ("login_samba_without_id", "NAS"),
                 "get_device_list",
                 ("login_samba_without_id", "OTHERNAS"),
                 ("mount_samba_folder", "OTHERNAS", "Movies", 30),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -55,10 +56,18 @@ class EmbyPlaybackCommandHandler:
             data.get("SubtitleStreamIndex"),
             data.get("DeviceName"),
         )
+        logging.debug("Emby websocket play command raw data: %s", data)
         intent = build_playback_intent_from_play_command(
             data,
             load_item_info=self._emby_session.get_item_info,
         )
+        if not intent.source_client_session_id:
+            intent = dataclasses.replace(
+                intent,
+                source_client_session_id=self._emby_session.find_controlling_session_id(
+                    intent.source_user_id
+                ),
+            )
         self._playback_intent_dispatcher_factory().dispatch(
             intent,
             origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND,

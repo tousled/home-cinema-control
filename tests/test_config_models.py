@@ -122,6 +122,7 @@ class TestOppoConfig(unittest.TestCase):
         self.assertEqual(10.0, oppo.connection_timeout_seconds)
         self.assertEqual(30.0, oppo.playback_start_timeout_seconds)
         self.assertEqual(30.0, oppo.nfs_mount_timeout_seconds)
+        self.assertEqual(3.0, oppo.autoscript_unmount_timeout_seconds)
         self.assertEqual(1.0, oppo.api_connect_timeout_seconds)
         self.assertEqual(3, oppo.api_retry_attempts)
         self.assertFalse(oppo.bluray_disc_mode)
