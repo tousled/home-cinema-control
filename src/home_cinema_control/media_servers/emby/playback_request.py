@@ -35,11 +35,17 @@ def build_playback_intent_from_play_command(
         )
     start_position_ticks = int(start_position_ticks)
 
+    # Emby's "Play" websocket message never carries the id of the session that
+    # issued the remote command — only `Id`, which is the *target* (this
+    # bridge's own) session, echoed back, so it is deliberately not used as a
+    # fallback here. Resolving the real controlling session (when SessionID is
+    # absent) is the caller's job — see
+    # EmbyPlaybackCommandHandler.handle_play / EmbySession.find_controlling_session_id.
     return PlaybackIntent(
         media_item_id=item_id,
         media_source_id=data.get("MediaSourceId", ""),
         source_user_id=controlling_user_id,
-        source_client_session_id=data.get("SessionID") or data.get("Id"),
+        source_client_session_id=data.get("SessionID"),
         source_device_id=data.get("Device_Id", ""),
         source_device_name=data.get("DeviceName", ""),
         start_position_seconds=start_position_ticks // EMBY_TICKS_PER_SECOND,

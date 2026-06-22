@@ -203,6 +203,75 @@ class TestMountPathTest(unittest.TestCase):
 
         self.assertEqual("OPPO_UNAVAILABLE: OPPO control API is not reachable", result)
 
+    @patch("home_cinema_control.web.path_config.unmount_oppo_path")
+    @patch("home_cinema_control.web.path_config.OppoNetworkMountService")
+    def test_unmount_after_test_uses_autoscript_timeout_not_mount_timeout(
+            self, mount_service_cls, unmount_oppo_path
+    ):
+        # Regression test: this call site used to pass nfs_mount_timeout_seconds
+        # (30s, meant for mounting) instead of autoscript_unmount_timeout_seconds
+        # (3s, meant for the unmount telnet session) — a real-device 30s stall on
+        # every "Probar ruta" pass with Autoscript enabled, even though the
+        # equivalent real-playback-finish call site already used the right key.
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=True,
+            mounted_share=OppoMountedShare(
+                server="NAS", folder="Movies", mount_path="/mnt/cifs1", is_nfs=False
+            ),
+            failure_stage=None,
+            detail="",
+        )
+        config = {
+            "oppo": {
+                "always_on": True,
+                "ip": "192.168.1.50",
+                "nfs_mount_timeout_seconds": 30,
+                "autoscript": True,
+                "autoscript_unmount_timeout_seconds": 3,
+            },
+            "smb": {},
+        }
+
+        call_test_mount_path(config, "NAS", "Movies", protocol="cifs")
+
+        unmount_oppo_path.assert_called_once()
+        self.assertEqual(3, unmount_oppo_path.call_args.kwargs["timeout"])
+
+    @patch("home_cinema_control.web.path_config.unmount_oppo_path")
+    @patch("home_cinema_control.web.path_config.OppoNetworkMountService")
+    def test_unmount_after_test_skips_nfs_mounts(
+            self, mount_service_cls, unmount_oppo_path
+    ):
+        # Regression test: real playback (playback_adapters.py) already skips
+        # the Autoscript unmount for NFS mounts (it only ever applies to
+        # CIFS/SMB) — this call site ("Probar ruta") never got the same gate,
+        # so testing an NFS mapping with Autoscript enabled would needlessly
+        # attempt a telnet unmount that was never meant to run against NFS.
+        mount_service = mount_service_cls.return_value
+        mount_service.mount.return_value = OppoMountResult(
+            successful=True,
+            mounted_share=OppoMountedShare(
+                server="NAS", folder="Movies", mount_path="/mnt/nfs1", is_nfs=True
+            ),
+            failure_stage=None,
+            detail="",
+        )
+        config = {
+            "oppo": {
+                "always_on": True,
+                "ip": "192.168.1.50",
+                "nfs_mount_timeout_seconds": 30,
+                "autoscript": True,
+                "autoscript_unmount_timeout_seconds": 3,
+            },
+            "smb": {},
+        }
+
+        call_test_mount_path(config, "NAS", "Movies", protocol="nfs")
+
+        unmount_oppo_path.assert_not_called()
+
 
 class PreviewPathMappingTest(unittest.TestCase):
     def test_preview_returns_server_and_folder(self):

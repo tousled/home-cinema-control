@@ -424,6 +424,20 @@ If configured, the Status screen can call a redeploy webhook. Otherwise it shows
 - Try SMB pre-mount if your NAS/player combination needs session preparation.
 - Do not expect fallback to NFS: fix SMB or explicitly change that mapping to NFS.
 
+### SMB times out on long folder names or names with special characters
+
+Some OPPO/Chinoppo players time out mounting an SMB folder whose name is very long or includes
+parentheses, brackets, or a `+` sign (common in release-style names for movies and TV episodes, e.g.
+`The Veil red de mentiras (2024) S01 [PACK][DSNP WEB-DL 1080p AVC ES DD+ 5.1][HDO]`). The same content,
+in the same NAS folder, mounts and plays fine over NFS, and over SMB too once the folder/file name is
+shortened or simplified. If one specific library keeps timing out over SMB while your other SMB
+libraries work fine, suspect the name length/characters first, before checking the network or the NAS:
+
+- Switch that specific mapping to NFS if your NAS exposes it (the fastest way to keep watching that
+  content).
+- Or rename the folder/file to something shorter without parentheses/brackets if you want to keep
+  using SMB.
+
 ### The AVR changes input by itself
 
 - Review CEC/ARC.

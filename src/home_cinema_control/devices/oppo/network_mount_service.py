@@ -310,21 +310,25 @@ class OppoNetworkMountService:
         return files
 
     def _prime_samba_mount(self, server: str, folder: str) -> None:
-        response = self.login_samba_server(server)
+        """Mount a throwaway folder on `server` to warm up its SMB session.
 
-        if response.is_successful:
-            for share_folder in self._refresh_samba_share_folder_list():
-                folder_name = share_folder["Foldername"]
+        Assumes the caller already logged into `server` (mount() does this via
+        _login() immediately before calling here) — does not log in again. The
+        OPPO's embedded HTTP server tolerates a normal mount sequence but not
+        an extra redundant login on top of it; see OPPO_DEVICE_LOCK's docstring.
+        """
+        for share_folder in self._refresh_samba_share_folder_list():
+            folder_name = share_folder["Foldername"]
 
-                if folder_name != ".." and folder_name.upper() != folder.upper():
-                    self.control_api_client.mount_samba_folder(
-                        server=server,
-                        folder=folder_name,
-                        timeout=self.config["oppo"]["nfs_mount_timeout_seconds"],
-                    )
+            if folder_name != ".." and folder_name.upper() != folder.upper():
+                self.control_api_client.mount_samba_folder(
+                    server=server,
+                    folder=folder_name,
+                    timeout=self.config["oppo"]["nfs_mount_timeout_seconds"],
+                )
 
-                    logging.info("primed samba mount: %s/%s", server, folder_name)
-                    return
+                logging.info("primed samba mount: %s/%s", server, folder_name)
+                return
 
         device_list = self.control_api_client.get_device_list().payload
 

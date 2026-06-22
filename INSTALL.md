@@ -499,6 +499,19 @@ muestra el comando para ejecutarlo manualmente.
 - Prueba el pre-montaje SMB si tu combinación NAS/reproductor necesita preparar la sesión.
 - No esperes fallback a NFS: corrige SMB o cambia explícitamente esa ruta a NFS.
 
+### SMB da timeout con carpetas de nombre largo o con caracteres especiales
+
+Algunos reproductores OPPO/Chinoppo dan timeout al montar por SMB una carpeta cuyo nombre es muy largo o
+incluye paréntesis, corchetes o el símbolo `+` (típico en nombres de release de series y películas, por
+ejemplo `The Veil red de mentiras (2024) S01 [PACK][DSNP WEB-DL 1080p AVC ES DD+ 5.1][HDO]`). El mismo
+contenido, en la misma carpeta NAS, monta y reproduce sin problema por NFS, y por SMB si se acorta o
+simplifica el nombre de la carpeta/fichero. Si una biblioteca concreta te da timeouts SMB recurrentes y el
+resto de bibliotecas SMB funcionan bien, sospecha primero de la longitud/caracteres del nombre antes de
+revisar red o NAS:
+
+- Cambia esa ruta concreta a NFS si el NAS lo expone (la forma más rápida de seguir viendo ese contenido).
+- O renombra la carpeta/fichero a algo más corto y sin paréntesis/corchetes si quieres seguir usando SMB.
+
 ### El AVR cambia solo de entrada
 
 - Revisa CEC/ARC.

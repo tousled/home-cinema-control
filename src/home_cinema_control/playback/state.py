@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.media_servers.emby.playback import MediaServerPlaybackSource
 from home_cinema_control.playback.intent import PlaybackIntent
 
 if TYPE_CHECKING:
@@ -50,14 +51,16 @@ class ActivePlaybackSession:
             selected_subtitle_track_id=intent.selected_subtitle_track_id,
         )
 
-    def apply_media_location(self, *, media_location: Any, item_info: dict[str, Any]) -> None:
+    def apply_media_location(
+            self, *, media_location: Any, item_info: MediaServerPlaybackSource
+    ) -> None:
         self.content_server = media_location.content_server
         self.content_directory = media_location.content_directory
         self.playback_file_name = media_location.playback_file_name
         self.playback_file_format = media_location.playback_file_format
         self.network_protocol = media_location.network_protocol or ""
-        self.production_year = item_info.get("ProductionYear")
-        self.title = item_info["Name"]
+        self.production_year = item_info.production_year
+        self.title = item_info.title
 
     def update_tracks(
         self,
@@ -129,7 +132,7 @@ class BridgePlaybackState:
         self,
         *,
         media_location: Any,
-        item_info: dict[str, Any],
+            item_info: MediaServerPlaybackSource,
     ) -> None:
         if self.active_session is not None:
             self.active_session.apply_media_location(
