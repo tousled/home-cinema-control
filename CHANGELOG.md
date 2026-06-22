@@ -38,10 +38,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 * Fixed the source Emby client's native playback never being stopped at handoff when TV and AV output switching are
   both disabled, leaving the original client and the OPPO playing the same item in parallel — stopping the source
   client no longer depends on TV switching being configured.
-* Fixed the source Emby client's "now playing" screen sometimes freezing in a stale state right at handoff (the
-  same symptom already fixed at playback *finish* in 1.0.3) — a second `Stop` is now sent immediately after the
-  first, mirroring that existing fix. See `.agents/tasks/26-p2-emby-source-client-keeps-stale-paused-playback-screen.md`
-  for the open architectural question behind needing this twice.
+* Fixed the source Emby client's "now playing" screen sometimes freezing in a stale state right at handoff. Emby's
+  remote playback commands are fire-and-forget with no acknowledgment or retry, so a single `Stop` is not reliably
+  enough to clear it — both the handoff-time send and the playback-finish send now go through one shared
+  `send_stop_with_delivery_reliability` helper that always sends twice, for every playback origin (the
+  finish-time send used to only send once, which is what let the same freeze reappear for remote-control/cast
+  playback after the notification session-id fix above made that Stop actually reach the real client for the
+  first time).
 
 ### Added
 

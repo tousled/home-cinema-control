@@ -12,7 +12,6 @@ def build_playback_intent_from_play_command(
     data: dict[str, Any],
     *,
     load_item_info: Callable[[str, str], dict[str, Any]],
-        resolve_controlling_session_id: Callable[[str], str | None] | None = None,
 ) -> PlaybackIntent:
     item_ids = data["ItemIds"]
     start_index = int(data.get("StartIndex", 0))
@@ -38,19 +37,15 @@ def build_playback_intent_from_play_command(
 
     # Emby's "Play" websocket message never carries the id of the session that
     # issued the remote command — only `Id`, which is the *target* (this
-    # bridge's own) session, echoed back. Sending notifications there reaches
-    # nothing with a screen. Resolve the real controlling client by looking up
-    # ControllingUserId's other active sessions instead (see
-    # EmbySession.find_controlling_session_id).
-    session_id = data.get("SessionID")
-    if not session_id and resolve_controlling_session_id is not None:
-        session_id = resolve_controlling_session_id(controlling_user_id)
-
+    # bridge's own) session, echoed back, so it is deliberately not used as a
+    # fallback here. Resolving the real controlling session (when SessionID is
+    # absent) is the caller's job — see
+    # EmbyPlaybackCommandHandler.handle_play / EmbySession.find_controlling_session_id.
     return PlaybackIntent(
         media_item_id=item_id,
         media_source_id=data.get("MediaSourceId", ""),
         source_user_id=controlling_user_id,
-        source_client_session_id=session_id,
+        source_client_session_id=data.get("SessionID"),
         source_device_id=data.get("Device_Id", ""),
         source_device_name=data.get("DeviceName", ""),
         start_position_seconds=start_position_ticks // EMBY_TICKS_PER_SECOND,

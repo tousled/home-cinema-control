@@ -2,9 +2,9 @@ import unittest
 
 from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.media_servers.emby.playback import (
-    MediaContentKind,
     MediaServerPlaybackSource,
 )
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.request_preparation import (
     PLAYBACK_START_POLL_INTERVAL_SECONDS,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 
-from home_cinema_control.media_servers.emby.playback import MediaContentKind
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.intent import PlaybackOrigin
 from home_cinema_control.playback.notification_sender import send_playback_message
 

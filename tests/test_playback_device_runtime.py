@@ -8,9 +8,9 @@ from home_cinema_control.playback.device_runtime import (
     stop_active_player_playback_before_replacement,
 )
 from home_cinema_control.media_servers.emby.playback import (
-    MediaContentKind,
     MediaServerPlaybackSource,
 )
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.media_location import PlayerMediaFileLocation
 from home_cinema_control.playback.state import BridgePlaybackState

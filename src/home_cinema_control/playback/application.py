@@ -3,12 +3,10 @@ from __future__ import annotations
 import logging
 import time
 
-from home_cinema_control.media_servers.emby import (
-    MediaContentKind,
-    MediaServerPlaybackContext,
-)
+from home_cinema_control.media_servers.emby import MediaServerPlaybackContext
 from home_cinema_control.media_servers.emby.track_resolver import EmbyTrackResolver
 from home_cinema_control.playback.active_context import ActivePlaybackRuntimeContext
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.dispatch import bridge_playback_is_active
 from home_cinema_control.playback.factory import create_playback_orchestrator_wiring
 from home_cinema_control.playback.device_runtime import (
@@ -27,6 +25,7 @@ from home_cinema_control.playback.diagnostics import (
 from home_cinema_control.playback.media_location import PlayerMediaFileLocationError
 from home_cinema_control.playback.notification_sender import (
     playback_start_messages,
+    send_stop_with_delivery_reliability,
     send_playback_message,
 )
 from home_cinema_control.playback.observed_event_adapter import (
@@ -193,12 +192,11 @@ class PlaybackApplicationService:
 
         if _should_stop_source_client_before_handoff(origin):
             with startup_timer.measure_step("stop_source_client_before_handoff"):
-                response_data = playback_session.stop_session_playback(session_id)
+                response_data = send_stop_with_delivery_reliability(
+                    playback_session.stop_session_playback, session_id
+                )
 
             logger.debug("stop source client response: %s", response_data)
-            _resend_stop_to_clear_stale_source_client_screen(
-                playback_session, session_id
-            )
 
         playback_wiring = create_playback_orchestrator_wiring(
             config=playback_session.config,
@@ -380,28 +378,6 @@ def _should_stop_source_client_before_handoff(origin: PlaybackOrigin) -> bool:
     # configured, so the source client's own native playback must be stopped
     # either way — otherwise both end up playing the same item in parallel.
     return origin == PlaybackOrigin.OBSERVED_TV_CLIENT
-
-
-def _resend_stop_to_clear_stale_source_client_screen(playback_session, session_id) -> None:
-    """A single Stop sometimes leaves the source client's own "now playing"
-    screen frozen as if still playing (same symptom already fixed at the
-    *end* of OPPO playback — see MediaServerPlaybackEventPublisher's
-    `_stop_stale_source_client_session` and CHANGELOG 1.0.3 — now showing up
-    at handoff too now that the stop fires unconditionally). A second Stop
-    right after clears it. Never allowed to fail playback startup.
-    """
-    if not session_id:
-        return
-
-    try:
-        playback_session.stop_session_playback(session_id)
-    except Exception:
-        logger.warning(
-            "Could not clear stale source client playback screen at handoff | "
-            "session_id=%s",
-            session_id,
-            exc_info=True,
-        )
 
 
 def _reset_bridge_playback_state(state: BridgePlaybackState, movie: str) -> None:

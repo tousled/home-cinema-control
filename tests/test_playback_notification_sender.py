@@ -4,6 +4,7 @@ from home_cinema_control.playback.intent import PlaybackOrigin
 from home_cinema_control.playback.notification_sender import (
     playback_start_messages,
     send_playback_message,
+    send_stop_with_delivery_reliability,
 )
 
 
@@ -60,6 +61,63 @@ class PlaybackNotificationSenderTest(unittest.TestCase):
         )
 
         self.assertEqual([], playback_session.notifications)
+
+
+class SendStopWithDeliveryReliabilityTest(unittest.TestCase):
+    """Shared by both call sites that need the source client's screen to
+    actually clear: handoff start (`playback/application.py`) and playback
+    finish (`MediaServerPlaybackEventPublisher`). Sends twice in one call —
+    callers must not assume a single internal send is enough, that gap is
+    exactly what let the stale-screen freeze come back for the
+    `REMOTE_CONTROL_COMMAND` origin. See
+    `.agents/tasks/26-p2-emby-source-client-keeps-stale-paused-playback-screen.md`."""
+
+    def test_sends_stop_to_the_given_session_twice(self):
+        calls = []
+
+        send_stop_with_delivery_reliability(calls.append, "session-1")
+
+        self.assertEqual(["session-1", "session-1"], calls)
+
+    def test_does_nothing_without_a_session_id(self):
+        calls = []
+
+        send_stop_with_delivery_reliability(calls.append, None)
+
+        self.assertEqual([], calls)
+
+    def test_returns_the_first_sends_response(self):
+        responses = iter(["first-response", "second-response"])
+
+        result = send_stop_with_delivery_reliability(
+            lambda session_id: next(responses), "session-1"
+        )
+
+        self.assertEqual("first-response", result)
+
+    def test_still_sends_a_second_time_when_the_first_send_fails(self):
+        calls = []
+
+        def _stop(session_id):
+            calls.append(session_id)
+            if len(calls) == 1:
+                raise RuntimeError("network blip")
+
+        send_stop_with_delivery_reliability(_stop, "session-1")
+
+        self.assertEqual(["session-1", "session-1"], calls)
+
+    def test_swallows_a_failure_from_the_second_send(self):
+        calls = []
+
+        def _stop(session_id):
+            calls.append(session_id)
+            if len(calls) == 2:
+                raise RuntimeError("network blip")
+
+        send_stop_with_delivery_reliability(_stop, "session-1")
+
+        self.assertEqual(["session-1", "session-1"], calls)
 
 
 class RecordingPlaybackSession:

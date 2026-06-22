@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from home_cinema_control.playback.intent import PlaybackOrigin
@@ -68,3 +69,54 @@ def send_playback_message(
             session_id,
             message,
         )
+
+
+def send_stop_with_delivery_reliability(
+        stop_session_playback: Callable[[str], object],
+        session_id: str | None,
+) -> object | None:
+    """Send a remote Stop to the source client twice, best-effort.
+
+    Emby's remote playback commands are fire-and-forget over the client's
+    websocket connection — confirmed against upstream Jellyfin source (which
+    shares the same session/command protocol design): no acknowledgment, no
+    retry, and the server's own session state is only updated when the client
+    separately reports back. See
+    `.agents/tasks/26-p2-emby-source-client-keeps-stale-paused-playback-screen.md`.
+    A dropped Stop leaves the source client's own "now playing" screen frozen
+    until Emby's session list eventually expires it client-side. Sending it
+    twice, immediately, is the minimal mitigation available for a protocol
+    with no delivery guarantee — not a workaround for a bug HCC could
+    otherwise fix. This is the one place that owns that redundancy: every
+    caller that needs the source client's screen to actually clear (handoff,
+    and playback finish, for every `PlaybackOrigin`) calls this once and gets
+    both sends — a caller doing its own single send and expecting this
+    function to merely add a second one is the gap that let the screen freeze
+    return for the `REMOTE_CONTROL_COMMAND` origin (see CHANGELOG).
+
+    Returns the first send's response (or `None` if there was no session id,
+    or the first send raised).
+    """
+    if not session_id:
+        return None
+
+    response = None
+    try:
+        response = stop_session_playback(session_id)
+    except Exception:
+        logger.warning(
+            "Could not send Stop for delivery reliability | session_id=%s",
+            session_id,
+            exc_info=True,
+        )
+
+    try:
+        stop_session_playback(session_id)
+    except Exception:
+        logger.warning(
+            "Could not resend Stop for delivery reliability | session_id=%s",
+            session_id,
+            exc_info=True,
+        )
+
+    return response

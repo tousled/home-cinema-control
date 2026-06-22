@@ -3,27 +3,15 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
 from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.playback.content_kind import MediaContentKind
+from home_cinema_control.playback.notification_sender import (
+    send_stop_with_delivery_reliability,
+)
 
 PLAYBACK_PROGRESS_INTERVAL_SECONDS = 10
-
-
-class MediaContentKind(Enum):
-    """HCC's own classification of what's playing.
-
-    Independent of any media server's vocabulary — mapped once from Emby's
-    `Type` (or Jellyfin's equivalent `BaseItemKind`) at the adapter edge, so
-    policy code never compares against a media-server-specific string.
-    """
-
-    MOVIE = "movie"
-    EPISODE = "episode"
-    CONCERT = "concert"
-    LIVE_TV = "live_tv"
-    OTHER = "other"
 
 
 _EMBY_TYPE_TO_CONTENT_KIND = {
@@ -300,34 +288,20 @@ class MediaServerPlaybackEventPublisher:
     def _stop_stale_source_client_session(self) -> None:
         """Best-effort cleanup of the original TV/app session's player screen.
 
-        The source client's own session was stopped once, at handoff, to keep
-        it from playing in parallel with the OPPO (see
-        stop_source_client_before_handoff in playback/application.py). It is
-        never told anything again after that, so its UI is left showing a
-        frozen "paused" player screen until the media server's own session
-        list eventually expires it client-side. Re-sending Stop now, while the
-        OPPO-driven playback is genuinely finishing, clears that stale screen
-        sooner. Never allowed to fail playback finish — log and move on.
+        Runs for every `PlaybackOrigin`, not just `OBSERVED_TV_CLIENT` — for a
+        `REMOTE_CONTROL_COMMAND` cast, this is the *only* Stop the source
+        client (e.g. the phone) ever receives, so it needs the same delivery
+        redundancy as the handoff-time Stop
+        (`stop_source_client_before_handoff` in `playback/application.py`),
+        not just a single send. See `send_stop_with_delivery_reliability` for
+        why a single send isn't enough on its own.
         """
-        session_id = self.context.source_client_session_id
-        if not session_id:
-            return
-
-        try:
-            response = self._client.stop_session_playback(session_id, {"Command": "Stop"})
-            logging.info(
-                "Cleared stale source client playback screen | "
-                "source_client_session_id=%s | status=%s",
-                session_id,
-                getattr(response, "status_code", None),
-            )
-        except Exception:
-            logging.warning(
-                "Could not clear stale source client playback screen | "
-                "source_client_session_id=%s",
-                session_id,
-                exc_info=True,
-            )
+        send_stop_with_delivery_reliability(
+            lambda session_id: self._client.stop_session_playback(
+                session_id, {"Command": "Stop"}
+            ),
+            self.context.source_client_session_id,
+        )
 
     def _mark_item_unplayed_preserving_resume_position(self, position_ticks: int) -> None:
         """Keep manual stops unwatched without destroying the resume point.

@@ -1,7 +1,7 @@
 import time
 import unittest
 
-from home_cinema_control.media_servers.emby.playback import MediaContentKind
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.intent import PlaybackOrigin
 from home_cinema_control.playback.startup.messaging import PlaybackStartupMessagingService
 

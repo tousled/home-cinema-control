@@ -6,10 +6,10 @@ from home_cinema_control.devices.oppo.playback_state import (
 )
 from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.media_servers.emby.playback import (
-    MediaContentKind,
     MediaServerPlaybackSource,
 )
 from home_cinema_control.media_servers.emby.session_monitor import EmbySessionMonitor
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.diagnostics import diagnose_startup_result
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.request_preparation import prepare_playback_requests

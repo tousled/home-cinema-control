@@ -288,7 +288,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
         publisher.stopped(position_seconds=66, duration_seconds=100, played=False)
 
         self.assertEqual(
-            ["stopped", "mark_unplayed", "set_position", "stop_session"],
+            ["stopped", "mark_unplayed", "set_position", "stop_session", "stop_session"],
             [call[0] for call in client.calls],
         )
         self.assertEqual(
@@ -318,7 +318,10 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
         publisher.stopped(position_seconds=0, duration_seconds=100, played=False)
 
-        self.assertEqual(["stopped", "stop_session"], [call[0] for call in client.calls])
+        self.assertEqual(
+            ["stopped", "stop_session", "stop_session"],
+            [call[0] for call in client.calls],
+        )
 
     def test_stopped_does_not_fail_when_mark_unplayed_fails(self):
         client = RecordingEmbyClient(mark_unplayed_error=TimeoutError("emby timeout"))
@@ -335,7 +338,10 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
         )
 
         self.assertIsInstance(response, FakeResponse)
-        self.assertEqual(["stopped", "stop_session"], [call[0] for call in client.calls])
+        self.assertEqual(
+            ["stopped", "stop_session", "stop_session"],
+            [call[0] for call in client.calls],
+        )
 
     def test_stopped_does_not_fail_when_restore_resume_position_fails(self):
         client = RecordingEmbyClient(restore_position_error=TimeoutError("emby timeout"))
@@ -353,7 +359,7 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
         self.assertIsInstance(response, FakeResponse)
         self.assertEqual(
-            ["stopped", "mark_unplayed", "stop_session"],
+            ["stopped", "mark_unplayed", "stop_session", "stop_session"],
             [call[0] for call in client.calls],
         )
 
@@ -399,7 +405,10 @@ class MediaServerPlaybackEventPublisherTest(unittest.TestCase):
 
         self.assertIsInstance(first_response, FakeResponse)
         self.assertIsNone(second_response)
-        self.assertEqual(["stopped", "stop_session"], [call[0] for call in client.calls])
+        self.assertEqual(
+            ["stopped", "stop_session", "stop_session"],
+            [call[0] for call in client.calls],
+        )
 
     def test_stopped_clears_stale_source_client_session(self):
         client = RecordingEmbyClient()
