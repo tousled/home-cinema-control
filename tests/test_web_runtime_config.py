@@ -74,6 +74,7 @@ class WebRuntimeConfigTest(unittest.TestCase):
         self.assertEqual(10, oppo["connection_timeout_seconds"])
         self.assertEqual(30, oppo["playback_start_timeout_seconds"])
         self.assertEqual(30, oppo["nfs_mount_timeout_seconds"])
+        self.assertEqual(3.0, oppo["autoscript_unmount_timeout_seconds"])
         self.assertEqual(1.0, oppo["api_connect_timeout_seconds"])
         self.assertEqual(3, oppo["api_retry_attempts"])
         self.assertFalse(oppo["autoscript"])

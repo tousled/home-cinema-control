@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 import logging
 from typing import Protocol
 
 from home_cinema_control.devices.oppo.constants import OPPO_TELNET_PORT
+from home_cinema_control.devices.oppo.playback_command_control import (
+    create_oppo_total_seconds_reader,
+)
+from home_cinema_control.devices.oppo.playback_state import OppoPlaybackCategory
 from home_cinema_control.devices.oppo.svm_mode import OppoSVMModeClient
 from home_cinema_control.devices.oppo.svm3_runtime import OppoSVM3PlaybackRuntime
 from home_cinema_control.devices.oppo.verbose_events import OppoVerboseEventListener
@@ -40,6 +45,7 @@ class DuringPlaybackOrchestrator:
         oppo_svm3_observation_orchestrator: VerbosePlaybackObservationStrategy
         | None = None,
         svm3_runtime: OppoSVM3PlaybackRuntime | None = None,
+            oppo_total_provider: Callable[[], int] | None = None,
         tcp_client: LoggingTcpClient | None = None,
     ) -> None:
         self._config = config
@@ -50,6 +56,9 @@ class DuringPlaybackOrchestrator:
             or VerbosePlaybackObservationStrategy(
                 event_source=self._svm3_runtime,
                 progress_reporter=progress_reporter,
+            oppo_total_provider=(
+                    oppo_total_provider or create_oppo_total_seconds_reader(config)
+            ),
             )
         )
         self._svm_mode_client = OppoSVMModeClient(
@@ -187,10 +196,16 @@ def _request_from_result(
     request: PlaybackMonitoringRequest,
     result: PlaybackMonitoringResult,
 ) -> PlaybackMonitoringRequest:
+    last_active_state = (
+        result.final_state
+        if result.final_state.category == OppoPlaybackCategory.ACTIVE
+        else request.last_active_state
+    )
     return replace(
         request,
         initial_position_seconds=result.position_seconds,
         monitoring_timeout_seconds=None,
+        last_active_state=last_active_state,
     )
 
 

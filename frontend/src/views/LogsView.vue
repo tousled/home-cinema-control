@@ -26,6 +26,21 @@
           <span>{{ $t('x-nav-support-section') }}</span>
         </div>
         <div class="logs-console">
+          <div class="logs-levels">
+            <div class="form-label label-with-help mb-2">
+              <label for="logs-level">{{ $t('x-logs-levels-title') }}</label>
+            </div>
+            <p class="caption logs-levels-help">{{ $t('x-logs-levels-help') }}</p>
+            <FormSelect
+                id="logs-level"
+                v-model="logLevel"
+                :disabled="savingLevels"
+                :options="backendLevelOptions"
+                style="max-width:280px"
+                @change="saveLevel"
+            />
+          </div>
+
           <div class="logs-filter-row">
             <div class="form-label label-with-help mb-2">
               <label for="logs-severity-filter">{{ $t('x-logs-filter-label') }}</label>
@@ -57,11 +72,15 @@
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {api} from '../api/index.js'
+import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
+import {useToast} from '../composables/useToast.js'
 import heroBg from '../assets/backgrounds/bg-status.png'
 import IconActionButton from '../components/IconActionButton.vue'
 import FormSelect from '../components/FormSelect.vue'
 
 const {t} = useI18n()
+const {saveSection} = useConfigSectionSave()
+const toast = useToast()
 
 const SEVERITY_RANK = {DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3, CRITICAL: 4}
 
@@ -70,12 +89,48 @@ const rawText = ref('')
 const entries = ref([])
 const minSeverity = ref(0)
 
+const fullConfig = ref({})
+const logLevel = ref(0)
+const savingLevels = ref(false)
+
 const severityOptions = computed(() => [
   {value: 0, label: t('x-logs-filter-all')},
   {value: SEVERITY_RANK.INFO, label: t('x-logs-filter-info')},
   {value: SEVERITY_RANK.WARNING, label: t('x-logs-filter-warning')},
   {value: SEVERITY_RANK.ERROR, label: t('x-logs-filter-error')},
 ])
+
+const backendLevelOptions = computed(() => [
+  {value: 0, label: t('x-logs-backend-level-off')},
+  {value: 1, label: t('x-logs-backend-level-info')},
+  {value: 2, label: t('x-logs-backend-level-debug')},
+])
+
+async function loadLevel() {
+  try {
+    const cfg = await api.getConfig()
+    fullConfig.value = cfg
+    logLevel.value = cfg.app?.log_level ?? 0
+  } catch { /* non-fatal: keep defaults */
+  }
+}
+
+async function saveLevel() {
+  savingLevels.value = true
+  try {
+    fullConfig.value.app = {
+      ...(fullConfig.value.app || {}),
+      log_level: logLevel.value,
+    }
+    fullConfig.value = await saveSection('app', fullConfig.value.app)
+    toast.success(t('x-logs-level-saved'))
+    await loadLogs()
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    savingLevels.value = false
+  }
+}
 
 const filteredEntries = computed(() =>
     entries.value.filter((entry) => (SEVERITY_RANK[entry.level] ?? 1) >= minSeverity.value)
@@ -132,7 +187,10 @@ async function loadLogs() {
   }
 }
 
-onMounted(loadLogs)
+onMounted(() => {
+  loadLevel()
+  loadLogs()
+})
 </script>
 
 <style scoped>
@@ -237,6 +295,16 @@ onMounted(loadLogs)
 
 .logs-filter-row {
   min-width: 0;
+}
+
+.logs-levels {
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.logs-levels-help {
+  margin: 0 0 12px;
 }
 
 .log-output {

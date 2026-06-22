@@ -1,6 +1,10 @@
 import logging
 
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
+from home_cinema_control.media_servers.common.playback_source import (
+    MediaServerPlaybackSource,
+    media_server_playback_source_from_item,
+)
 from home_cinema_control.media_servers.common.track_mapping import (
     source_audio_to_player_index,
     source_subtitle_to_player_index,
@@ -51,14 +55,9 @@ class JellyfinSession:
     def get_item_info(self, user_id, item_id):
         return self.client.get_item_info(user_id, item_id)
 
-    def get_media_source_info(self, user_id, item_id, mediasource_id):
+    def get_media_source_info(self, user_id, item_id, mediasource_id) -> MediaServerPlaybackSource:
         item_data = self.client.get_item_info(user_id, item_id)
-
-        for mediasource in item_data.get("MediaSources", []):
-            if mediasource.get("Id") == mediasource_id:
-                return mediasource
-
-        return item_data
+        return media_server_playback_source_from_item(item_data, mediasource_id)
 
     def is_item_path_in_library(self, view_id, item_path):
         for folder in self.client.get_virtual_folders():

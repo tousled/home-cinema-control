@@ -24,11 +24,13 @@ class PlaybackMonitoringRequest:
     max_end_of_media_polls: int = 3
     progress_interval_seconds: float = 10.0
     event_watchdog_seconds: float = 30.0
-    natural_end_reset_tolerance_seconds: int = 30
+    natural_end_tolerance_seconds: int = 10
+    natural_end_minimum_total_seconds: int = 300
     monitoring_timeout_seconds: float | None = None
     report_progress: bool = True
     is_paused: bool = False
     is_muted: bool = False
+    last_active_state: OppoPlaybackState | None = None
 
 
 @dataclass(frozen=True)
@@ -37,13 +39,6 @@ class PlaybackMonitoringResult:
     duration_seconds: int
     final_state: OppoPlaybackState
     stop_reason: PlaybackMonitoringStopReason = PlaybackMonitoringStopReason.PLAYER_IDLE
-
-    @property
-    def played(self) -> bool:
-        if self.duration_seconds <= 0:
-            return False
-
-        return (self.position_seconds / self.duration_seconds) > 0.95
 
 
 class DuringPlaybackOrchestratorProtocol(Protocol):

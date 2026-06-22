@@ -239,6 +239,80 @@ class PlaybackOrchestratorTest(unittest.TestCase):
         self.assertFalse(finish.requests[0].tv_enabled)
         self.assertFalse(finish.requests[0].av_enabled)
 
+    def test_tracks_applying_hook_fires_before_startup_completed(self):
+        startup_result = _startup_result(successful=True)
+        calls = []
+        orchestrator = PlaybackOrchestrator(
+            startup_orchestrator=RecordingStartupOrchestrator(startup_result),
+            startup_completion_service=RecordingStartupCompletionService(),
+            during_playback_orchestrator=RecordingDuringPlaybackOrchestrator(
+                _monitoring_result()
+            ),
+            finish_playback_orchestrator=RecordingFinishPlaybackOrchestrator(
+                _finish_result()
+            ),
+            error_handler=RecordingErrorHandler(),
+        )
+
+        orchestrator.play_until_stopped(
+            PlaybackOrchestrationRequest(
+                startup_request=_startup_request(),
+                startup_completion_request=_startup_completion_request(),
+                on_tracks_applying=lambda: calls.append("tracks_applying"),
+                on_startup_completed=lambda r: calls.append("startup_completed"),
+            )
+        )
+
+        self.assertEqual(["tracks_applying", "startup_completed"], calls)
+
+    def test_tracks_applying_hook_is_optional(self):
+        startup_result = _startup_result(successful=True)
+        orchestrator = PlaybackOrchestrator(
+            startup_orchestrator=RecordingStartupOrchestrator(startup_result),
+            startup_completion_service=RecordingStartupCompletionService(),
+            during_playback_orchestrator=RecordingDuringPlaybackOrchestrator(
+                _monitoring_result()
+            ),
+            finish_playback_orchestrator=RecordingFinishPlaybackOrchestrator(
+                _finish_result()
+            ),
+            error_handler=RecordingErrorHandler(),
+        )
+
+        result = orchestrator.play_until_stopped(
+            PlaybackOrchestrationRequest(
+                startup_request=_startup_request(),
+                startup_completion_request=_startup_completion_request(),
+            )
+        )
+
+        self.assertTrue(result.successful)
+
+    def test_tracks_applying_hook_does_not_fire_when_startup_fails(self):
+        startup_result = _startup_result(successful=False)
+        calls = []
+        orchestrator = PlaybackOrchestrator(
+            startup_orchestrator=RecordingStartupOrchestrator(startup_result),
+            startup_completion_service=RecordingStartupCompletionService(),
+            during_playback_orchestrator=RecordingDuringPlaybackOrchestrator(
+                _monitoring_result()
+            ),
+            finish_playback_orchestrator=RecordingFinishPlaybackOrchestrator(
+                _finish_result()
+            ),
+            error_handler=RecordingErrorHandler(),
+        )
+
+        orchestrator.play_until_stopped(
+            PlaybackOrchestrationRequest(
+                startup_request=_startup_request(),
+                startup_completion_request=_startup_completion_request(),
+                on_tracks_applying=lambda: calls.append("tracks_applying"),
+            )
+        )
+
+        self.assertEqual([], calls)
+
     def test_startup_failure_recovers_and_does_not_monitor_playback(self):
         startup_result = _startup_result(successful=False)
         startup = RecordingStartupOrchestrator(startup_result)

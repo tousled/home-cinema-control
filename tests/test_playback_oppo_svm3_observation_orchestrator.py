@@ -70,34 +70,25 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
         self.assertEqual(PlaybackMonitoringStopReason.PLAYER_IDLE, result.stop_reason)
         self.assertEqual(OppoPlaybackStatus.STOP, result.final_state.status)
 
-    def test_stops_original_item_when_oppo_resets_position_before_autoplaying_next_file(self):
+    def test_finishes_when_live_position_reaches_oppo_total(self):
         source = RecordingEventSource(
             [
+                "@UTC 000 010 C 02:00:00",
                 "@UTC 000 024 C 02:09:16",
-                "@U3D 2D",
-                "@UVO _OTHER_ 1080P60",
-                "@UAR 16AW",
                 "@UTC 000 000 C 00:00:00",
-                "@UPL STOP",
-                "@UAT DD 01/02 UNK 0.0",
-                "@UST 00/01 OFF",
-                "@U3D 2D",
-                "@UPL PLAY",
-                "@UTC 000 001 C 00:00:00",
-                "@UTC 000 001 C 00:00:01",
             ]
         )
         reporter = RecordingObservedReporter()
         orchestrator = VerbosePlaybackObservationStrategy(
             event_source=source,
             observed_event_reporter=reporter,
+            oppo_total_provider=lambda: 7760,
         )
 
-        result = orchestrator.monitor_until_stopped(
-            PlaybackMonitoringRequest(expected_duration_seconds=7760)
-        )
+        result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
 
         self.assertEqual(7756, result.position_seconds)
+        self.assertEqual(7760, result.duration_seconds)
         self.assertEqual(
             PlaybackMonitoringStopReason.NATURAL_END,
             result.stop_reason,
@@ -140,11 +131,12 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
                 "@UTC 000 000 C 00:00:00",
             ]
         )
-        orchestrator = VerbosePlaybackObservationStrategy(event_source=source)
-
-        result = orchestrator.monitor_until_stopped(
-            PlaybackMonitoringRequest(expected_duration_seconds=7748)
+        orchestrator = VerbosePlaybackObservationStrategy(
+            event_source=source,
+            oppo_total_provider=lambda: 7748,
         )
+
+        result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
 
         self.assertEqual(7748, result.position_seconds)
         self.assertEqual(7748, result.duration_seconds)
@@ -252,6 +244,23 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
             result.stop_reason,
         )
         self.assertEqual(12, source.listen_kwargs["utc_idle_timeout_seconds"])
+
+    def test_reports_unknown_state_when_watchdog_expires_with_no_events_at_all(self):
+        # A retried SVM3 attempt that observes literally nothing before its
+        # own watchdog timeout must not claim PLAY/ACTIVE — that would mask a
+        # still-paused session as "confirmed playing" for whoever reads this
+        # result next (see DuringPlaybackOrchestrator._request_from_result).
+        source = RecordingEventSource([])
+        orchestrator = VerbosePlaybackObservationStrategy(event_source=source)
+
+        result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
+
+        self.assertEqual(
+            PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED,
+            result.stop_reason,
+        )
+        self.assertEqual(OppoPlaybackStatus.UNKNOWN, result.final_state.status)
+        self.assertEqual(OppoPlaybackCategory.UNKNOWN, result.final_state.category)
 
 
 class DeferredAudioSelectorTest(unittest.TestCase):

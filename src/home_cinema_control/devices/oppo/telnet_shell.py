@@ -98,6 +98,16 @@ def unmount_oppo_path(*, host: str, port: int = 23, mount_path: str, timeout: in
         with _tcp.connect(host=host, port=port, timeout=timeout) as session:
             output = _read_until(session, b"login:", timeout)
 
+            if b"login:" not in output:
+                logging.warning(
+                    "No telnet login prompt from OPPO at %s:%s; autoscript "
+                    "shell is not available, skipping unmount of %s",
+                    host,
+                    port,
+                    mount_path,
+                )
+                return False
+
             session.sendall(b"root\n")
             time.sleep(0.2)
 

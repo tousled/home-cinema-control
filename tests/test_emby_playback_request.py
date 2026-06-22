@@ -1,6 +1,7 @@
 import unittest
 
 from home_cinema_control.media_servers.emby.playback_request import (
+    build_playback_intent_from_play_command,
     parse_playback_request_payload,
 )
 
@@ -79,6 +80,35 @@ class EmbyPlaybackRequestTest(unittest.TestCase):
         )
 
         self.assertEqual("remote-session", params["Session_id"])
+
+
+class BuildPlaybackIntentFromPlayCommandTest(unittest.TestCase):
+    def test_uses_session_id_when_emby_provides_it(self):
+        intent = build_playback_intent_from_play_command(
+            {
+                "PlayCommand": "PlayNow",
+                "ItemIds": ["item-1"],
+                "StartPositionTicks": 0,
+                "SessionID": "real-controller-session",
+                "Id": "bridge-own-session",
+            },
+            load_item_info=lambda user_id, item_id: {},
+        )
+
+        self.assertEqual("real-controller-session", intent.source_client_session_id)
+
+    def test_does_not_fall_back_to_the_bridge_own_session_id(self):
+        intent = build_playback_intent_from_play_command(
+            {
+                "PlayCommand": "PlayNow",
+                "ItemIds": ["item-1"],
+                "StartPositionTicks": 0,
+                "Id": "bridge-own-session",
+            },
+            load_item_info=lambda user_id, item_id: {},
+        )
+
+        self.assertIsNone(intent.source_client_session_id)
 
 
 if __name__ == "__main__":

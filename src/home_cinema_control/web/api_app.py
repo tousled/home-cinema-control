@@ -37,6 +37,7 @@ from home_cinema_control.playback.diagnostics import (
 )
 from home_cinema_control.playback.path_mapping_inference import infer_player_paths
 from home_cinema_control.network.devices import discover_local_devices
+from home_cinema_control.runtime import configure_logging
 from home_cinema_control.config.manager import clear_smb_credentials
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.config_sections import apply_config_section
@@ -136,6 +137,16 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             updated = apply_config_section(config, section, body)
             updated = api_runtime.config_service.prepare_submitted_config(updated)
             api_runtime.config_service.save_config(updated)
+            if section == "app":
+                # Logging is configured once at startup; re-apply it here so a
+                # log-level change from the web takes effect live, not only after
+                # a restart.
+                try:
+                    configure_logging(updated, api_runtime.log_file)
+                except Exception:
+                    logging.exception(
+                        "Failed to re-apply logging configuration after config change"
+                    )
             return api_runtime.config_service.sanitize(updated)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))

@@ -57,6 +57,12 @@ class MediaServerPlaybackCommandHandler:
         if intent is None:
             return
 
+        self._dispatch_play_intent(intent)
+
+    def _dispatch_play_intent(self, intent: PlaybackIntent) -> None:
+        # Split out from handle_play so a provider whose wire format needs
+        # extra intent resolution (e.g. Emby's controlling-session-id lookup)
+        # can override handle_play and still reuse this logging/dispatch tail.
         logging.info(
             "%s play command -> handoff | item_id=%s | media_source_id=%s | "
             "device=%s | start_seconds=%s | audio=%s | subtitle=%s",

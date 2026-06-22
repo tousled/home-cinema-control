@@ -10,6 +10,7 @@ from home_cinema_control.playback.during import (
     PlaybackMonitoringResult,
     PlaybackMonitoringStopReason,
 )
+from home_cinema_control.playback.during.natural_end import was_content_played
 from home_cinema_control.playback.error_handling import (
     PlaybackErrorHandler,
     PlaybackErrorRecoveryRequest,
@@ -44,6 +45,7 @@ class PlaybackOrchestrationRequest:
     restore_outputs_on_finish: bool | Callable[[], bool] = True
     finish_idle_confirmation_polls: int | Callable[[], int] = 5
     on_startup_waiting: Callable[[int], None] | None = None
+    on_tracks_applying: Callable[[], None] | None = None
     on_startup_completed: Callable[[OppoPlaybackStartResult], None] | None = None
 
 
@@ -104,6 +106,9 @@ class PlaybackOrchestrator:
             )
 
         try:
+            if request.on_tracks_applying is not None:
+                request.on_tracks_applying()
+
             startup_completion_result = self._startup_completion_service.complete(
                 request.startup_completion_request
             )
@@ -162,6 +167,13 @@ class PlaybackOrchestrator:
                     media_ended=(
                         monitoring_result.stop_reason
                         == PlaybackMonitoringStopReason.NATURAL_END
+                    ),
+                    played=was_content_played(
+                        current_seconds=monitoring_result.position_seconds,
+                        total_seconds=monitoring_result.duration_seconds,
+                        minimum_total_seconds=(
+                            monitoring_request.natural_end_minimum_total_seconds
+                        ),
                     ),
                     tv_enabled=(
                         restore_outputs_on_finish

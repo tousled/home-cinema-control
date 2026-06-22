@@ -7,6 +7,126 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 > This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
 > architecture is progressively removed.
 
+## [1.0.5] - 2026-06-22
+
+### Fixed
+
+* Fixed Autoscript attempting to unmount NFS-mounted shares after playback finish; the Autoscript telnet-shell
+  unmount only ever applies to CIFS/SMB mounts, so NFS playback now skips this cleanup step entirely instead of
+  attempting (and logging) an unmount that was never meant to run there.
+* Fixed the Autoscript unmount hanging or proceeding incorrectly when the OPPO's telnet shell never sends its
+  usual login prompt — this is now detected explicitly and the unmount is skipped cleanly instead.
+* Fixed the Autoscript unmount reusing the SMB/NFS mount timeout (30s) instead of its own dedicated timeout, so a
+  non-responsive telnet shell no longer adds a long stall after every playback finish.
+* Fixed a regression in the new notification flow that could crash playback startup outright with a `TypeError`
+  right after the OPPO had already started playing — the orchestrator then treated a working playback as failed,
+  stopping the OPPO and marking the item unwatched in the media server even though it had played successfully.
+* Fixed `OppoNetworkMountService` sending a second, redundant SMB login on top of the one already performed
+  immediately before priming the SMB session, doubling back-to-back HTTP calls to the OPPO's embedded control
+  server — a likely contributor to SMB mount timeouts under load.
+* Fixed "Probar ruta" (path testing in Media Paths) using the SMB/NFS mount timeout instead of the dedicated
+  Autoscript unmount timeout when cleaning up after a test mount, causing an unnecessary ~30s stall on every test
+  pass when Autoscript is enabled.
+* Fixed "Probar ruta" attempting an Autoscript unmount after testing an NFS path mapping; Autoscript only ever
+  applies to CIFS/SMB mounts, and the real-playback-finish cleanup already skipped NFS — this call site now does
+  too.
+* Fixed playback-startup notifications being sent to HCC's own Emby session instead of the client that actually
+  requested playback (web, mobile, or any client casting to HCC) — Emby's `Play` command never includes the
+  originating session id, only the target's, so HCC now resolves the real controlling session by looking up the
+  requesting user's other active sessions instead. Notifications now render on the device that pressed play, not
+  only on the TV.
+* Fixed the source Emby client's native playback never being stopped at handoff when TV and AV output switching are
+  both disabled, leaving the original client and the OPPO playing the same item in parallel — stopping the source
+  client no longer depends on TV switching being configured.
+* Fixed the source Emby client's "now playing" screen sometimes freezing in a stale state right at handoff. Emby's
+  remote playback commands are fire-and-forget with no acknowledgment or retry, so a single `Stop` is not reliably
+  enough to clear it — both the handoff-time send and the playback-finish send now go through one shared
+  `send_stop_with_delivery_reliability` helper that always sends twice, for every playback origin (the
+  finish-time send used to only send once, which is what let the same freeze reappear for remote-control/cast
+  playback after the notification session-id fix above made that Stop actually reach the real client for the
+  first time).
+
+### Added
+
+* Added a dedicated `autoscript_unmount_timeout_seconds` config option (default 3s) instead of reusing the mount
+  timeout for the Autoscript unmount step.
+* Added a new playback-startup notification experience sent to the Emby client that started playback: instead of
+  generic/legacy-style messages, HCC now narrates real milestones as they happen — powering on, locating the file,
+  fine-tuning audio/subtitles, a single "still with you" message if startup is taking longer than usual, and a
+  closing message tailored to what is actually playing (movie, episode, concert, live TV, or a generic fallback).
+  Delivery remains best-effort and never blocks or fails playback.
+
+### Changed
+
+* Hardened `PlaybackStartupMessagingService` so no internal failure inside the notification flow (a missing
+  language key, an unexpected content type, etc.) can ever propagate and abort an otherwise-working playback
+  session — failures are logged and that one touchpoint is skipped instead.
+
+### Notes
+
+* Documented a known SMB limitation in `INSTALL.md`/`INSTALL.en.md`: some OPPO/Chinoppo players time out mounting
+  SMB folders with very long names or names containing parentheses, brackets, or `+` (common in release-style
+  folder names). The same content mounts fine over NFS, or over SMB once the folder/file name is shortened.
+
+## [1.0.4] - 2026-06-21
+
+### Fixed
+
+* Fixed full Blu-ray / ISO playbacks not being marked as watched in the media server and the disc not stopping when
+  the feature ended. End-of-content detection relied on the media server's runtime, which is missing or zero for many
+  ISO/Blu-ray items; it now uses the OPPO's own reported title length (`getplayingtime` `total_time`/`cur_time`),
+  which is reliable and stable across chapter changes. Playback finishes when the OPPO position reaches the title end
+  (within 10s), and is marked watched when at least 90% of the title was played — independent of the media server.
+* Fixed the OPPO auto-advancing to the next file in the folder after a feature ended: the previous title is now
+  detected as finished (its reported total changes once it was at/near its end) and playback is stopped, instead of
+  the bridge tracking the next file as if it were the same playback. The guard no longer depends on the media
+  server's runtime, so it also covers ISO items that previously had no protection.
+* Fixed several genuine errors being logged at WARNING level, so they now surface as ERROR in the logs screen: Emby
+  device-command failures (play/pause, audio/subtitle track changes), failures loading a monitored item or building
+  its playback intent, and a silently-swallowed failure when restarting the Emby WebSocket.
+
+### Added
+
+* Added a log-level selector (Off / Info / Debug) to the web Logs screen, so the verbosity of both the in-app logs
+  and the container console can be set without editing `config.json`. The change is applied live (no restart needed).
+
+### Changed
+
+* End-of-content detection no longer mixes the media server's duration into the decision; the OPPO is the single
+  source of truth, with a minimum-duration floor so disc menus and copyright reels are never treated as the feature.
+
+### Tests
+
+* Added unit coverage for the OPPO-total end-of-content, next-title and "played" thresholds, for the web log-level
+  control applying live, and for log configuration; updated the polling and SVM3 observation tests to the new model.
+
+## [1.0.3] - 2026-06-21
+
+### Fixed
+
+* Fixed the OPPO folder browser ("Browse OPPO") failing with a connection error on a cold player, by activating the
+  OPPO's control API before talking to it — the real playback and "Probar ruta" flows already did this, the browser
+  did not.
+* Fixed NFS network-share mounts never retrying after a transient timeout; SMB mounts already retried once, NFS did
+  not.
+* Fixed pausing OPPO playback and leaving it long enough for the OPPO's own screen saver to activate causing the
+  bridge to treat the session as finished — restoring the TV input and AV receiver as if the movie had ended, even
+  though the user had only paused.
+* Fixed the Emby source client (the TV/app a movie was started from) leaving its "now playing" screen frozen in a
+  paused state for a couple of minutes after OPPO playback actually stopped.
+
+### Changed
+
+* Consolidated the three places that talk to the OPPO's network-mount API (real playback, "Probar ruta", "Browse
+  OPPO") into a single shared sequence, so future fixes to OPPO mount handling only need to happen once.
+
+### Tests
+
+* Added regression coverage for OPPO network-mount activation, login, and retry behavior across all three call sites.
+* Added regression coverage for playback monitoring correctly carrying a "still paused" hint across the SVM3/polling
+  observation handoff, and for skipping TV/AV restore when the player is still showing its screen saver.
+* Added regression coverage for clearing the stale source-client playback screen after a stop.
+
 ## [1.0.2] - 2026-06-20
 
 ### Fixed

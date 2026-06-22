@@ -1,4 +1,5 @@
 config.json
+secrets.json
 config.secrets.json
 .local-config
 compose.local.yaml

@@ -121,7 +121,7 @@ class RuntimeTest(unittest.TestCase):
             "http://emby.local",
             runtime.playback_listener.config["media_server"]["server_url"],
         )
-        self.assertIn("msg-playback-starting", runtime.playback_listener.language)
+        self.assertIn("msg-startup-received", runtime.playback_listener.language)
 
     def test_runtime_uses_provider_factory_to_create_playback_listener(self):
         with self._runtime(configured=True) as runtime:

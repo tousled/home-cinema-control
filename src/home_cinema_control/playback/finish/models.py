@@ -20,6 +20,7 @@ class PlaybackFinishRequest:
     is_paused: bool = False
     is_muted: bool = False
     media_ended: bool = False
+    played: bool = False
     max_idle_confirmation_polls: int = 5
     idle_confirmation_poll_interval_seconds: float = 1.0
 

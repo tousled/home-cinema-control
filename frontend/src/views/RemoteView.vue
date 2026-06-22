@@ -11,10 +11,6 @@
             <span>{{ hasNowPlaying ? $t('x-remote-now-playing-title') : $t('x-nav-operation-section') }}</span>
           </div>
 
-          <h1 class="remote-showcase-title">
-            {{ hasNowPlaying ? (state.ActiveSession?.title || '—') : $t('x-remote-title') }}
-          </h1>
-
           <p v-if="!hasNowPlaying" class="remote-showcase-subtitle">
             {{ $t('x-remote-subtitle') }}
           </p>

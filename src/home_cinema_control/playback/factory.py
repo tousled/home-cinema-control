@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from home_cinema_control.devices.oppo.playback_command_control import (
+    create_oppo_total_seconds_reader,
+)
 from home_cinema_control.devices.oppo.observation_mode import (
     OppoObservationMode,
     resolve_oppo_observation_mode,
@@ -152,4 +155,5 @@ def create_during_playback_orchestrator(
         config=config,
         polling_orchestrator=polling_orchestrator,
         progress_reporter=progress_reporter,
+        oppo_total_provider=create_oppo_total_seconds_reader(config),
     )

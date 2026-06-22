@@ -193,6 +193,29 @@ class EmbyClientTest(unittest.TestCase):
         )
         self.assertEqual("token", headers["X-Emby-Token"])
 
+    def test_send_session_message_url_encodes_reserved_characters(self):
+        http = RecordingHttpSession()
+        client = EmbyClient(
+            "http://emby.local:8096/",
+            access_token="token",
+            user_id="user1",
+            display_name="Pedro",
+            http_session=http,
+        )
+        client.authenticate()
+
+        client.send_session_message("session-1", "Tom & Jerry #1 = fun", 3500)
+
+        method, url, data, json_payload, headers = http.calls[0]
+        self.assertEqual("post", method)
+        self.assertEqual(
+            "http://emby.local:8096/emby/Sessions/session-1/Message"
+            "?Text=Tom%20%26%20Jerry%20%231%20%3D%20fun"
+            "&Header=Notification&TimeoutMs=3500",
+            url,
+        )
+        self.assertEqual("token", headers["X-Emby-Token"])
+
     def test_accepts_absolute_url_for_legacy_callers(self):
         http = RecordingHttpSession()
         client = EmbyClient(

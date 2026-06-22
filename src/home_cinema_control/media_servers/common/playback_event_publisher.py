@@ -5,6 +5,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Protocol
 
+from home_cinema_control.playback.notification_sender import (
+    send_stop_with_delivery_reliability,
+)
 from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 
 PLAYBACK_PROGRESS_INTERVAL_SECONDS = 10
@@ -215,7 +218,26 @@ class MediaServerPlaybackEventPublisher:
             self._mark_item_unplayed_preserving_resume_position(position_ticks)
         self._stopped_reported = True
         self._log_response("stopped", payload, response)
+        self._stop_stale_source_client_session()
         return response
+
+    def _stop_stale_source_client_session(self) -> None:
+        """Best-effort cleanup of the original TV/app session's player screen.
+
+        Runs for every `PlaybackOrigin`, not just `OBSERVED_TV_CLIENT` — for a
+        `REMOTE_CONTROL_COMMAND` cast, this is the *only* Stop the source
+        client (e.g. the phone) ever receives, so it needs the same delivery
+        redundancy as the handoff-time Stop
+        (`stop_source_client_before_handoff` in `playback/application.py`),
+        not just a single send. See `send_stop_with_delivery_reliability` for
+        why a single send isn't enough on its own.
+        """
+        send_stop_with_delivery_reliability(
+            lambda session_id: self._client.stop_session_playback(
+                session_id, {"Command": "Stop"}
+            ),
+            self.context.source_client_session_id,
+        )
 
     def _mark_item_unplayed_preserving_resume_position(self, position_ticks: int) -> None:
         """Keep manual stops unwatched without destroying the resume point.

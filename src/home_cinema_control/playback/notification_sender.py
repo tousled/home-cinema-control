@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from home_cinema_control.playback.intent import PlaybackOrigin
@@ -10,11 +11,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class PlaybackStartMessages:
-    """User-visible messages sent back to the source media-server client."""
+    """User-visible failure/timeout messages sent back to the source client.
 
-    init_oppo: str
-    wait_for_mount: str
-    wait_for_play: str
+    Success-path startup narration (the six touchpoints) lives in
+    `playback/startup/messaging.py` — this is only the error/timeout vocabulary,
+    deliberately kept separate so real failures are never dressed in the
+    success-path's cinematic tone.
+    """
+
     timeout_play: str
     error_mount: str
     error_play: str
@@ -23,9 +27,6 @@ class PlaybackStartMessages:
 
 def playback_start_messages(lang: dict) -> PlaybackStartMessages:
     return PlaybackStartMessages(
-        init_oppo=lang["msg-playback-starting"],
-        wait_for_mount=lang["msg-playback-waiting-mount"],
-        wait_for_play=lang["msg-playback-waiting-play"],
         timeout_play=lang["msg-playback-timeout"],
         error_mount=lang["msg-playback-error-mount"],
         error_play=lang["msg-playback-error-play"],
@@ -40,60 +41,82 @@ def send_playback_message(
     message: str,
     timeout_ms: int | None = None,
 ) -> None:
-    """Send a user-visible playback message to the source client when present."""
-    if session_id:
+    """Send a user-visible playback message to the source client when present.
+
+    Best-effort: any failure to deliver the message (e.g. a network error
+    talking to the media server) is logged and swallowed here, never
+    propagated, so notification delivery can never fail playback startup.
+    """
+    if not session_id:
+        logger.info(
+            "Skipping playback message; no active source session is available | "
+            "origin=%s | text=%s",
+            origin.value,
+            message,
+        )
+        return
+
+    try:
         if timeout_ms is None:
             playback_session.notify_session(session_id, message)
         else:
             playback_session.notify_session(session_id, message, timeout_ms)
-        return
-
-    logger.info(
-        "Skipping playback message; no active source session is available | "
-        "origin=%s | text=%s",
-        origin.value,
-        message,
-    )
-
-
-class PlaybackStartupWaitNotifier:
-    """Rate-limits source-client startup waiting messages to whole seconds."""
-
-    def __init__(
-        self,
-        *,
-        playback_session,
-        origin: PlaybackOrigin,
-        session_id: str | None,
-        wait_for_play_message: str,
-        poll_interval_seconds: float,
-        notification_interval_seconds: int = 1,
-    ) -> None:
-        self._playback_session = playback_session
-        self._origin = origin
-        self._session_id = session_id
-        self._wait_for_play_message = wait_for_play_message
-        self._poll_interval_seconds = poll_interval_seconds
-        self._notification_interval_seconds = notification_interval_seconds
-        self._last_notified_second = -1
-
-    def notify_waiting(self, attempt: int) -> None:
-        elapsed_seconds = int(attempt * self._poll_interval_seconds)
-
-        if elapsed_seconds <= 0:
-            return
-
-        if elapsed_seconds % self._notification_interval_seconds != 0:
-            return
-
-        if elapsed_seconds == self._last_notified_second:
-            return
-
-        self._last_notified_second = elapsed_seconds
-        send_playback_message(
-            self._playback_session,
-            self._origin,
-            self._session_id,
-            self._wait_for_play_message + str(elapsed_seconds) + "s",
-            timeout_ms=999,
+    except Exception:
+        logger.exception(
+            "Failed to send playback message to source session | "
+            "origin=%s | session_id=%s | text=%s",
+            origin.value,
+            session_id,
+            message,
         )
+
+
+def send_stop_with_delivery_reliability(
+        stop_session_playback: Callable[[str], object],
+        session_id: str | None,
+) -> object | None:
+    """Send a remote Stop to the source client twice, best-effort.
+
+    Emby's remote playback commands are fire-and-forget over the client's
+    websocket connection — confirmed against upstream Jellyfin source (which
+    shares the same session/command protocol design): no acknowledgment, no
+    retry, and the server's own session state is only updated when the client
+    separately reports back. See
+    `.agents/tasks/26-p2-emby-source-client-keeps-stale-paused-playback-screen.md`.
+    A dropped Stop leaves the source client's own "now playing" screen frozen
+    until Emby's session list eventually expires it client-side. Sending it
+    twice, immediately, is the minimal mitigation available for a protocol
+    with no delivery guarantee — not a workaround for a bug HCC could
+    otherwise fix. This is the one place that owns that redundancy: every
+    caller that needs the source client's screen to actually clear (handoff,
+    and playback finish, for every `PlaybackOrigin`) calls this once and gets
+    both sends — a caller doing its own single send and expecting this
+    function to merely add a second one is the gap that let the screen freeze
+    return for the `REMOTE_CONTROL_COMMAND` origin (see CHANGELOG).
+
+    Returns the first send's response (or `None` if there was no session id,
+    or the first send raised).
+    """
+    if not session_id:
+        return None
+
+    response = None
+    try:
+        response = stop_session_playback(session_id)
+    except Exception:
+        logger.warning(
+            "Could not send Stop for delivery reliability | session_id=%s",
+            session_id,
+            exc_info=True,
+        )
+
+    try:
+        stop_session_playback(session_id)
+    except Exception:
+        logger.warning(
+            "Could not resend Stop for delivery reliability | session_id=%s",
+            session_id,
+            exc_info=True,
+        )
+
+    return response

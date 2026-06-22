@@ -5,6 +5,10 @@ from home_cinema_control.media_servers.common.track_mapping import (
     source_subtitle_to_player_index,
 )
 
+from home_cinema_control.media_servers.common.playback_source import (
+    MediaServerPlaybackSource,
+    media_server_playback_source_from_item,
+)
 from home_cinema_control.media_servers.emby.client import EmbyClient
 from home_cinema_control.media_servers.emby.constants import DEVICE_ID
 from home_cinema_control.playback.state import BridgePlaybackState
@@ -80,14 +84,34 @@ class EmbySession:
     def get_item_info(self, user_id, item_id):
         return self.client.get_item_info(user_id, item_id)
 
-    def get_media_source_info(self, user_id, item_id, mediasource_id):
+    def find_controlling_session_id(self, controlling_user_id):
+        """Find the real client session that issued a remote Play command.
+
+        Emby's "Play" websocket message never identifies the controller's own
+        session — it only echoes back the target (this bridge's) session id.
+        The most reliable signal available is: among this user's other active
+        sessions (excluding our own device), the one that was active most
+        recently is the one that just sent the command.
+        """
+        if not controlling_user_id:
+            return None
+
+        sessions = self.client.get_sessions_by_user(controlling_user_id)
+        if not isinstance(sessions, list):
+            return None
+
+        candidates = [
+            session for session in sessions if session.get("DeviceId") != DEVICE_ID
+        ]
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda session: session.get("LastActivityDate") or "")
+        return candidates[-1].get("Id")
+
+    def get_media_source_info(self, user_id, item_id, mediasource_id) -> MediaServerPlaybackSource:
         item_data = self.client.get_item_info(user_id, item_id)
-
-        for mediasource in item_data["MediaSources"]:
-            if mediasource["Id"] == mediasource_id:
-                return mediasource
-
-        return item_data
+        return media_server_playback_source_from_item(item_data, mediasource_id)
 
     def is_item_path_in_library(self, view_id, item_path):
         media_folders = self.client.get_selectable_media_folders()

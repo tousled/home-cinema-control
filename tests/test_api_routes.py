@@ -345,5 +345,27 @@ class OppoAdvancedDefaultsRouteTest(unittest.TestCase):
         )
 
 
+class SaveConfigSectionLoggingTest(unittest.TestCase):
+    @patch("home_cinema_control.web.api_app.configure_logging")
+    def test_reapplies_logging_live_when_app_section_saved(self, mock_configure):
+        client, _runtime, _config_service = _make_client(config={"app": {"log_level": 0}})
+
+        resp = client.patch("/api/config/app", json={"log_level": 2})
+
+        self.assertEqual(200, resp.status_code)
+        mock_configure.assert_called_once()
+        saved_config = mock_configure.call_args.args[0]
+        self.assertEqual(2, saved_config["app"]["log_level"])
+
+    @patch("home_cinema_control.web.api_app.configure_logging")
+    def test_does_not_reapply_logging_for_other_sections(self, mock_configure):
+        client, _runtime, _config_service = _make_client(config={"oppo": {"ip": ""}})
+
+        resp = client.patch("/api/config/oppo", json={"ip": "192.168.50.35"})
+
+        self.assertEqual(200, resp.status_code)
+        mock_configure.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

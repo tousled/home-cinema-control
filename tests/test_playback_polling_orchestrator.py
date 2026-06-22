@@ -232,6 +232,60 @@ class PollingPlaybackObservationStrategyTest(unittest.TestCase):
         self.assertEqual(100, progress.calls[1]["position_seconds"])
         self.assertTrue(progress.calls[1]["is_paused"])
 
+    def test_seeds_last_active_state_from_request_on_a_cold_start_in_screen_saver(self):
+        # This is the case after an SVM3 watchdog timeout: this is a fresh
+        # monitor_until_stopped() call, and the OPPO is already sitting in
+        # SCREEN_SAVER by the time it starts (that's exactly why SVM3 went
+        # quiet). Without the request hint, last_active_state would be None
+        # and the carve-out below could never engage.
+        oppo = RecordingOppoPlayback(
+            states=[
+                _state(OppoPlaybackStatus.SCREEN_SAVER, OppoPlaybackCategory.IDLE),
+                _state(OppoPlaybackStatus.SCREEN_SAVER, OppoPlaybackCategory.IDLE),
+                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
+                _state(OppoPlaybackStatus.MEDIA_CENTER, OppoPlaybackCategory.IDLE),
+            ],
+            positions=[],
+        )
+        orchestrator = PollingPlaybackObservationStrategy(
+            oppo_playback=oppo,
+            sleep=lambda seconds: None,
+        )
+
+        result = orchestrator.monitor_until_stopped(
+            PlaybackMonitoringRequest(
+                initial_position_seconds=42,
+                last_active_state=_state(
+                    OppoPlaybackStatus.PAUSE, OppoPlaybackCategory.ACTIVE
+                ),
+            )
+        )
+
+        self.assertEqual(OppoPlaybackStatus.MEDIA_CENTER, result.final_state.status)
+        self.assertEqual(42, result.position_seconds)
+
+    def test_cold_start_without_a_paused_hint_reports_idle_immediately(self):
+        oppo = RecordingOppoPlayback(
+            states=[
+                _state(OppoPlaybackStatus.SCREEN_SAVER, OppoPlaybackCategory.IDLE),
+            ],
+            positions=[],
+        )
+        orchestrator = PollingPlaybackObservationStrategy(
+            oppo_playback=oppo,
+            sleep=lambda seconds: None,
+        )
+
+        result = orchestrator.monitor_until_stopped(
+            PlaybackMonitoringRequest(initial_position_seconds=42)
+        )
+
+        self.assertEqual(
+            PlaybackMonitoringStopReason.PLAYER_IDLE,
+            result.stop_reason,
+        )
+        self.assertEqual(OppoPlaybackStatus.SCREEN_SAVER, result.final_state.status)
+
     def test_stops_after_bounded_transition_grace(self):
         oppo = RecordingOppoPlayback(
             states=[
@@ -310,7 +364,6 @@ class PollingPlaybackObservationStrategyTest(unittest.TestCase):
             positions=[
                 OppoPlaybackPosition(current_seconds=3528, total_seconds=3529),
                 OppoPlaybackPosition(current_seconds=3533, total_seconds=3529),
-                OppoPlaybackPosition(current_seconds=3533, total_seconds=3529),
             ],
         )
         progress = RecordingProgressPublisher()
@@ -322,7 +375,6 @@ class PollingPlaybackObservationStrategyTest(unittest.TestCase):
 
         result = orchestrator.monitor_until_stopped(
             PlaybackMonitoringRequest(
-                expected_duration_seconds=3529,
                 progress_interval_seconds=1,
                 max_end_of_media_polls=2,
             )
@@ -335,8 +387,42 @@ class PollingPlaybackObservationStrategyTest(unittest.TestCase):
             PlaybackMonitoringStopReason.NATURAL_END,
             result.stop_reason,
         )
-        self.assertEqual(3, oppo.position_calls)
-        self.assertEqual(3529, progress.calls[-1]["position_seconds"])
+        self.assertEqual(2, oppo.position_calls)
+        self.assertEqual(3528, progress.calls[-1]["position_seconds"])
+
+    def test_stops_when_polling_detects_next_file_after_feature_end(self):
+        # Regression guard: when the OPPO auto-advances to the next file in the
+        # folder after a feature ends, the reported total changes. The previous
+        # feature-length title must be treated as finished and stopped, instead
+        # of monitoring the next file as if it were the same playback. Works with
+        # no media-server duration (the OPPO total is the only source).
+        oppo = RecordingOppoPlayback(
+            states=[
+                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
+                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
+                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
+            ],
+            positions=[
+                OppoPlaybackPosition(current_seconds=7754, total_seconds=7756),
+                OppoPlaybackPosition(current_seconds=6, total_seconds=5813),
+            ],
+        )
+        progress = RecordingProgressPublisher()
+        orchestrator = PollingPlaybackObservationStrategy(
+            oppo_playback=oppo,
+            progress_reporter=progress,
+            sleep=lambda seconds: None,
+        )
+
+        result = orchestrator.monitor_until_stopped(
+            PlaybackMonitoringRequest(progress_interval_seconds=1)
+        )
+
+        self.assertEqual(7754, result.position_seconds)
+        self.assertEqual(7756, result.duration_seconds)
+        self.assertEqual(PlaybackMonitoringStopReason.NATURAL_END, result.stop_reason)
+        self.assertEqual(2, oppo.position_calls)
+        self.assertEqual([7754], [call["position_seconds"] for call in progress.calls])
 
     def test_does_not_stop_at_menu_end_without_expected_duration(self):
         oppo = RecordingOppoPlayback(
@@ -369,38 +455,6 @@ class PollingPlaybackObservationStrategyTest(unittest.TestCase):
         self.assertEqual(PlaybackMonitoringStopReason.PLAYER_IDLE, result.stop_reason)
         self.assertEqual(OppoPlaybackStatus.HOME_MENU, result.final_state.status)
         self.assertEqual(3, oppo.position_calls)
-
-    def test_stops_when_polling_detects_next_file_after_expected_media_end(self):
-        oppo = RecordingOppoPlayback(
-            states=[
-                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
-                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
-                _state(OppoPlaybackStatus.PLAY, OppoPlaybackCategory.ACTIVE),
-            ],
-            positions=[
-                OppoPlaybackPosition(current_seconds=7754, total_seconds=7756),
-                OppoPlaybackPosition(current_seconds=6, total_seconds=5813),
-            ],
-        )
-        progress = RecordingProgressPublisher()
-        orchestrator = PollingPlaybackObservationStrategy(
-            oppo_playback=oppo,
-            progress_reporter=progress,
-            sleep=lambda seconds: None,
-        )
-
-        result = orchestrator.monitor_until_stopped(
-            PlaybackMonitoringRequest(
-                expected_duration_seconds=7756,
-                progress_interval_seconds=1,
-            )
-        )
-
-        self.assertEqual(7754, result.position_seconds)
-        self.assertEqual(7756, result.duration_seconds)
-        self.assertEqual(PlaybackMonitoringStopReason.NATURAL_END, result.stop_reason)
-        self.assertEqual(2, oppo.position_calls)
-        self.assertEqual([7754], [call["position_seconds"] for call in progress.calls])
 
     def test_stops_at_transition_when_expected_media_end_was_reached(self):
         oppo = RecordingOppoPlayback(

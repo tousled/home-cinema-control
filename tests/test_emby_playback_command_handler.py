@@ -59,6 +59,55 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
 
         self.assertEqual([], dispatcher.dispatched_intents)
 
+    def test_resolves_controlling_session_when_emby_omits_session_id(self):
+        # Emby's "Play" message never carries the controller's own session id
+        # (see playback_request.py) — the handler is responsible for resolving
+        # it via the user's other active sessions.
+        dispatcher = RecordingDispatcher()
+        handler = EmbyPlaybackCommandHandler(
+            emby_session=RecordingEmbySession(
+                controlling_session_id="resolved-session"
+            ),
+            playback_state=BridgePlaybackState(),
+            config_provider=lambda: {},
+            playback_intent_dispatcher_factory=lambda: dispatcher,
+            active_publisher_provider=lambda: None,
+            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
+        )
+        payload = {
+            "PlayCommand": "PlayNow",
+            "ItemIds": ["1234"],
+            "ControllingUserId": "user-1",
+        }
+
+        handler.handle_play(payload)
+
+        dispatched_intent, _ = dispatcher.dispatched_intents[0]
+        self.assertEqual("resolved-session", dispatched_intent.source_client_session_id)
+
+    def test_does_not_resolve_controlling_session_when_emby_provides_one(self):
+        emby_session = RecordingEmbySession(controlling_session_id="should-not-be-used")
+        dispatcher = RecordingDispatcher()
+        handler = EmbyPlaybackCommandHandler(
+            emby_session=emby_session,
+            playback_state=BridgePlaybackState(),
+            config_provider=lambda: {},
+            playback_intent_dispatcher_factory=lambda: dispatcher,
+            active_publisher_provider=lambda: None,
+            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
+        )
+        payload = {
+            "PlayCommand": "PlayNow",
+            "ItemIds": ["1234"],
+            "SessionID": "real-session",
+        }
+
+        handler.handle_play(payload)
+
+        dispatched_intent, _ = dispatcher.dispatched_intents[0]
+        self.assertEqual("real-session", dispatched_intent.source_client_session_id)
+        self.assertEqual([], emby_session.resolve_calls)
+
     def test_playstate_command_uses_latest_config(self):
         controls = []
         config = {"name": "old"}
@@ -467,6 +516,14 @@ def _intent():
 
 
 class RecordingEmbySession:
+    def __init__(self, controlling_session_id=None):
+        self._controlling_session_id = controlling_session_id
+        self.resolve_calls = []
+
+    def find_controlling_session_id(self, controlling_user_id):
+        self.resolve_calls.append(controlling_user_id)
+        return self._controlling_session_id
+
     def get_item_info(self, user_id, item_id):
         return {
             "MediaStreams": [

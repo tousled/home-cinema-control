@@ -69,6 +69,7 @@ def apply_runtime_defaults(config, *, version):
     oppo.setdefault("api_connect_timeout_seconds", 1.0)
     oppo.setdefault("api_retry_attempts", 3)
     oppo.setdefault("autoscript", False)
+    oppo.setdefault("autoscript_unmount_timeout_seconds", 3.0)
     oppo.setdefault("always_on", True)
     oppo.setdefault("bluray_disc_mode", False)
     oppo.setdefault("pre_mount_smb", False)

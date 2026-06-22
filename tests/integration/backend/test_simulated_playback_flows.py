@@ -5,8 +5,11 @@ from home_cinema_control.devices.oppo.playback_state import (
     OppoPlaybackStatus,
 )
 from home_cinema_control.devices.tv.models import TvInputTarget
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.media_servers.common.playback_source import (
+    MediaServerPlaybackSource,
+)
 from home_cinema_control.media_servers.emby.session_monitor import EmbySessionMonitor
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.playback.diagnostics import diagnose_startup_result
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.request_preparation import prepare_playback_requests
@@ -169,11 +172,14 @@ class ScenarioTestHarness:
         prepared = prepare_playback_requests(
             config=self.config,
             intent=_intent(),
-            item_info={
-                "Path": path,
-                "Container": "mkv",
-                "RunTimeTicks": 7200 * EMBY_TICKS_PER_SECOND,
-            },
+            item_info=MediaServerPlaybackSource(
+                path=path,
+                container="mkv",
+                duration_seconds=7200,
+                production_year=None,
+                title="",
+                content_kind=MediaContentKind.OTHER,
+            ),
             previous_tv_app_id_override="com.emby.app",
         )
         result = self.orchestrator.start_playback(
