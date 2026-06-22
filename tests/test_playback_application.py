@@ -8,6 +8,7 @@ from home_cinema_control.media_servers.emby.playback import (
 )
 from home_cinema_control.playback.application import (
     PlaybackApplicationService,
+    _resend_stop_to_clear_stale_source_client_screen,
     _should_stop_source_client_before_handoff,
 )
 from home_cinema_control.playback.startup.models import (
@@ -365,6 +366,40 @@ class ShouldStopSourceClientBeforeHandoffTest(unittest.TestCase):
             _should_stop_source_client_before_handoff(
                 PlaybackOrigin.REMOTE_CONTROL_COMMAND
             )
+        )
+
+
+class ResendStopToClearStaleSourceClientScreenTest(unittest.TestCase):
+    def test_sends_a_second_stop_to_the_source_session(self):
+        calls = []
+        playback_session = SimpleNamespace(
+            stop_session_playback=lambda session_id: calls.append(session_id)
+        )
+
+        _resend_stop_to_clear_stale_source_client_screen(
+            playback_session, "session-1"
+        )
+
+        self.assertEqual(["session-1"], calls)
+
+    def test_does_nothing_without_a_session_id(self):
+        calls = []
+        playback_session = SimpleNamespace(
+            stop_session_playback=lambda session_id: calls.append(session_id)
+        )
+
+        _resend_stop_to_clear_stale_source_client_screen(playback_session, None)
+
+        self.assertEqual([], calls)
+
+    def test_swallows_a_failure_from_the_second_stop(self):
+        def _raise(session_id):
+            raise RuntimeError("network blip")
+
+        playback_session = SimpleNamespace(stop_session_playback=_raise)
+
+        _resend_stop_to_clear_stale_source_client_screen(
+            playback_session, "session-1"
         )
 
 

@@ -7,18 +7,17 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 > This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
 > architecture is progressively removed.
 
-## [Unreleased]
-
-### Added
-
-* Added a new playback-startup notification experience sent to the Emby client that started playback: instead of
-  generic/legacy-style messages, HCC now narrates real milestones as they happen — powering on, locating the file,
-  fine-tuning audio/subtitles, a single "still with you" message if startup is taking longer than usual, and a
-  closing message tailored to what is actually playing (movie, episode, concert, live TV, or a generic fallback).
-  Delivery remains best-effort and never blocks or fails playback.
+## [1.0.5] - 2026-06-22
 
 ### Fixed
 
+* Fixed Autoscript attempting to unmount NFS-mounted shares after playback finish; the Autoscript telnet-shell
+  unmount only ever applies to CIFS/SMB mounts, so NFS playback now skips this cleanup step entirely instead of
+  attempting (and logging) an unmount that was never meant to run there.
+* Fixed the Autoscript unmount hanging or proceeding incorrectly when the OPPO's telnet shell never sends its
+  usual login prompt — this is now detected explicitly and the unmount is skipped cleanly instead.
+* Fixed the Autoscript unmount reusing the SMB/NFS mount timeout (30s) instead of its own dedicated timeout, so a
+  non-responsive telnet shell no longer adds a long stall after every playback finish.
 * Fixed a regression in the new notification flow that could crash playback startup outright with a `TypeError`
   right after the OPPO had already started playing — the orchestrator then treated a working playback as failed,
   stopping the OPPO and marking the item unwatched in the media server even though it had played successfully.
@@ -31,6 +30,28 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 * Fixed "Probar ruta" attempting an Autoscript unmount after testing an NFS path mapping; Autoscript only ever
   applies to CIFS/SMB mounts, and the real-playback-finish cleanup already skipped NFS — this call site now does
   too.
+* Fixed playback-startup notifications being sent to HCC's own Emby session instead of the client that actually
+  requested playback (web, mobile, or any client casting to HCC) — Emby's `Play` command never includes the
+  originating session id, only the target's, so HCC now resolves the real controlling session by looking up the
+  requesting user's other active sessions instead. Notifications now render on the device that pressed play, not
+  only on the TV.
+* Fixed the source Emby client's native playback never being stopped at handoff when TV and AV output switching are
+  both disabled, leaving the original client and the OPPO playing the same item in parallel — stopping the source
+  client no longer depends on TV switching being configured.
+* Fixed the source Emby client's "now playing" screen sometimes freezing in a stale state right at handoff (the
+  same symptom already fixed at playback *finish* in 1.0.3) — a second `Stop` is now sent immediately after the
+  first, mirroring that existing fix. See `.agents/tasks/26-p2-emby-source-client-keeps-stale-paused-playback-screen.md`
+  for the open architectural question behind needing this twice.
+
+### Added
+
+* Added a dedicated `autoscript_unmount_timeout_seconds` config option (default 3s) instead of reusing the mount
+  timeout for the Autoscript unmount step.
+* Added a new playback-startup notification experience sent to the Emby client that started playback: instead of
+  generic/legacy-style messages, HCC now narrates real milestones as they happen — powering on, locating the file,
+  fine-tuning audio/subtitles, a single "still with you" message if startup is taking longer than usual, and a
+  closing message tailored to what is actually playing (movie, episode, concert, live TV, or a generic fallback).
+  Delivery remains best-effort and never blocks or fails playback.
 
 ### Changed
 
@@ -43,23 +64,6 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 * Documented a known SMB limitation in `INSTALL.md`/`INSTALL.en.md`: some OPPO/Chinoppo players time out mounting
   SMB folders with very long names or names containing parentheses, brackets, or `+` (common in release-style
   folder names). The same content mounts fine over NFS, or over SMB once the folder/file name is shortened.
-
-## [1.0.5] - 2026-06-22
-
-### Fixed
-
-* Fixed Autoscript attempting to unmount NFS-mounted shares after playback finish; the Autoscript telnet-shell
-  unmount only ever applies to CIFS/SMB mounts, so NFS playback now skips this cleanup step entirely instead of
-  attempting (and logging) an unmount that was never meant to run there.
-* Fixed the Autoscript unmount hanging or proceeding incorrectly when the OPPO's telnet shell never sends its
-  usual login prompt — this is now detected explicitly and the unmount is skipped cleanly instead.
-* Fixed the Autoscript unmount reusing the SMB/NFS mount timeout (30s) instead of its own dedicated timeout, so a
-  non-responsive telnet shell no longer adds a long stall after every playback finish.
-
-### Added
-
-* Added a dedicated `autoscript_unmount_timeout_seconds` config option (default 3s) instead of reusing the mount
-  timeout for the Autoscript unmount step.
 
 ## [1.0.4] - 2026-06-21
 
