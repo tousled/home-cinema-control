@@ -8,6 +8,7 @@ from home_cinema_control.media_servers.emby.playback import (
 )
 from home_cinema_control.playback.application import (
     PlaybackApplicationService,
+    _should_stop_source_client_before_handoff,
 )
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
@@ -345,6 +346,26 @@ class FakePlaybackSessionForStartFromIntent:
 class FakePlaybackSession:
     def __init__(self):
         self.config = {"app": {"log_level": 0}}
+
+
+class ShouldStopSourceClientBeforeHandoffTest(unittest.TestCase):
+    """The OPPO takes over regardless of TV/AV config, so the source client's
+    native playback must be stopped for every TV-observed handoff — otherwise
+    both end up playing the same item in parallel."""
+
+    def test_stops_for_observed_tv_client_origin(self):
+        self.assertTrue(
+            _should_stop_source_client_before_handoff(
+                PlaybackOrigin.OBSERVED_TV_CLIENT
+            )
+        )
+
+    def test_does_not_stop_for_remote_control_command_origin(self):
+        self.assertFalse(
+            _should_stop_source_client_before_handoff(
+                PlaybackOrigin.REMOTE_CONTROL_COMMAND
+            )
+        )
 
 
 def _intent(*, media_item_id: str) -> PlaybackIntent:

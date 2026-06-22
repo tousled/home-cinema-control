@@ -191,7 +191,7 @@ class PlaybackApplicationService:
             _reset_bridge_playback_state(self._state, movie)
             return
 
-        if _should_stop_source_client_before_handoff(playback_session.config, origin):
+        if _should_stop_source_client_before_handoff(origin):
             with startup_timer.measure_step("stop_source_client_before_handoff"):
                 response_data = playback_session.stop_session_playback(session_id)
 
@@ -372,14 +372,11 @@ def _is_lg_hdmi_app_id(app_id: str) -> bool:
     return app_id.startswith("com.webos.app.hdmi")
 
 
-def _should_stop_source_client_before_handoff(
-    config: dict,
-    origin: PlaybackOrigin,
-) -> bool:
-    return (
-        (config.get("tv") or {}).get("enabled") is True
-        and origin == PlaybackOrigin.OBSERVED_TV_CLIENT
-    )
+def _should_stop_source_client_before_handoff(origin: PlaybackOrigin) -> bool:
+    # The OPPO takes over playback regardless of whether TV/AV switching is
+    # configured, so the source client's own native playback must be stopped
+    # either way — otherwise both end up playing the same item in parallel.
+    return origin == PlaybackOrigin.OBSERVED_TV_CLIENT
 
 
 def _reset_bridge_playback_state(state: BridgePlaybackState, movie: str) -> None:
