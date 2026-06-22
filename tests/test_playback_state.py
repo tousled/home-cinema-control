@@ -1,6 +1,10 @@
 import unittest
 from types import SimpleNamespace
 
+from home_cinema_control.media_servers.emby.playback import (
+    MediaContentKind,
+    MediaServerPlaybackSource,
+)
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.state import ActivePlaybackSession, BridgePlaybackState
 
@@ -30,7 +34,14 @@ class BridgePlaybackStateTest(unittest.TestCase):
 
         state.set_active_media_location(
             media_location=media_location,
-            item_info={"Name": "Movie Name", "ProductionYear": 2021},
+            item_info=MediaServerPlaybackSource(
+                path="/nas/Movies/Film/movie.mkv",
+                container="mkv",
+                duration_seconds=0,
+                production_year=2021,
+                title="Movie Name",
+                content_kind=MediaContentKind.MOVIE,
+            ),
         )
 
         self.assertEqual("nas", state.active_session.content_server)

@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from home_cinema_control.media_servers.emby.constants import DEVICE_ID
 from home_cinema_control.network.http import get_http_session
 
@@ -106,7 +108,7 @@ class EmbyClient:
     def send_session_message(self, session_id, message, timeout):
         return self.post(
             f"/emby/Sessions/{session_id}/Message"
-            f"?Text={message}&Header=Notification&TimeoutMs={timeout}",
+            f"?Text={quote(message, safe='')}&Header=Notification&TimeoutMs={timeout}",
             data={},
         )
 

@@ -1,6 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
+from home_cinema_control.media_servers.emby.playback import MediaContentKind
 from home_cinema_control.playback.application import (
     PlaybackApplicationService,
 )
@@ -10,6 +11,7 @@ from home_cinema_control.playback.startup.models import (
 )
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
+from home_cinema_control.playback.timing import PlaybackStartupTimer
 
 
 class PlaybackApplicationServiceTest(unittest.TestCase):
@@ -150,6 +152,58 @@ class PlaybackApplicationServiceTest(unittest.TestCase):
         )
 
         self.assertIsNone(service._playback_return_tv_app_id)
+
+
+class OnStartupCompletedTest(unittest.TestCase):
+    """`_on_startup_completed` delegates the actual touchpoint-6 send to the
+    messaging service (see test_playback_startup_messaging.py for content/copy
+    coverage) — this only verifies the delegation itself."""
+
+    def _service(self):
+        return PlaybackApplicationService(
+            playback_session=SimpleNamespace(config={"tv": {"enabled": True}}),
+            playback_state=BridgePlaybackState(),
+            reload_config=lambda: None,
+        )
+
+    def test_delegates_to_messaging_action_with_the_resolved_content_kind(self):
+        service = self._service()
+        actions = []
+        messaging = SimpleNamespace(action=lambda content_kind: actions.append(content_kind))
+
+        service._on_startup_completed(
+            None,
+            intent=_intent(media_item_id="1"),
+            movie="/movies/aquaman.mkv",
+            messaging=messaging,
+            content_kind=MediaContentKind.CONCERT,
+            playback_wiring=SimpleNamespace(
+                playback_event_publisher=None,
+                during_playback_orchestrator=SimpleNamespace(),
+            ),
+            startup_timer=PlaybackStartupTimer(),
+        )
+
+        self.assertEqual([MediaContentKind.CONCERT], actions)
+
+    def test_sets_playstate_to_playing(self):
+        service = self._service()
+        messaging = SimpleNamespace(action=lambda content_kind: None)
+
+        service._on_startup_completed(
+            None,
+            intent=_intent(media_item_id="1"),
+            movie="/movies/aquaman.mkv",
+            messaging=messaging,
+            content_kind=MediaContentKind.MOVIE,
+            playback_wiring=SimpleNamespace(
+                playback_event_publisher=None,
+                during_playback_orchestrator=SimpleNamespace(),
+            ),
+            startup_timer=PlaybackStartupTimer(),
+        )
+
+        self.assertEqual("Playing", service._state.playstate)
 
 
 class FakePlaybackSession:

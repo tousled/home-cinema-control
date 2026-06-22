@@ -3,7 +3,10 @@ from __future__ import annotations
 import logging
 import time
 
-from home_cinema_control.media_servers.emby import MediaServerPlaybackContext
+from home_cinema_control.media_servers.emby import (
+    MediaContentKind,
+    MediaServerPlaybackContext,
+)
 from home_cinema_control.media_servers.emby.track_resolver import EmbyTrackResolver
 from home_cinema_control.playback.active_context import ActivePlaybackRuntimeContext
 from home_cinema_control.playback.dispatch import bridge_playback_is_active
@@ -23,7 +26,6 @@ from home_cinema_control.playback.diagnostics import (
 )
 from home_cinema_control.playback.media_location import PlayerMediaFileLocationError
 from home_cinema_control.playback.notification_sender import (
-    PlaybackStartupWaitNotifier,
     playback_start_messages,
     send_playback_message,
 )
@@ -34,6 +36,7 @@ from home_cinema_control.playback.orchestrator import PlaybackOrchestrationReque
 from home_cinema_control.playback.request_preparation import prepare_playback_requests
 from home_cinema_control.playback.result_reporting import report_orchestration_result
 from home_cinema_control.playback.startup import PlaybackStartupRequest
+from home_cinema_control.playback.startup.messaging import PlaybackStartupMessagingService
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.thread_lifecycle import PlaybackThreadLifecycle
 from home_cinema_control.playback.timing import PlaybackStartupTimer
@@ -144,16 +147,25 @@ class PlaybackApplicationService:
         playback_session = self._playback_session
         startup_timer = PlaybackStartupTimer()
         self._state.start_loading(intent)
+
+        session_id = intent.source_client_session_id
+        messages = playback_start_messages(playback_session.lang)
+        messaging = PlaybackStartupMessagingService(
+            playback_session=playback_session,
+            origin=origin,
+            session_id=session_id,
+            lang=playback_session.lang,
+        )
+        messaging.received()
+
         prepare_oppo_observation_mode(playback_session.config)
         log_oppo_qpl_state(playback_session.config, "playback_application_start")
 
         logger.info("playback origin: %s", origin.value)
 
-        session_id = intent.source_client_session_id
         media_server_playback_context = MediaServerPlaybackContext.from_intent(intent)
 
         movie = ""
-        messages = playback_start_messages(playback_session.lang)
 
         with startup_timer.measure_step("process_media_server_payload"):
             item_info = playback_session.get_media_source_info(
@@ -178,8 +190,6 @@ class PlaybackApplicationService:
             _reset_bridge_playback_state(self._state, movie)
             return
 
-        send_playback_message(playback_session, origin, session_id, messages.init_oppo)
-
         if _should_stop_source_client_before_handoff(playback_session.config, origin):
             with startup_timer.measure_step("stop_source_client_before_handoff"):
                 response_data = playback_session.stop_session_playback(session_id)
@@ -197,6 +207,8 @@ class PlaybackApplicationService:
         )
         self._active_context.activate(playback_wiring)
 
+        messaging.locating()
+
         try:
             with startup_timer.measure_step("resolve_media_path"):
                 prepared_requests = prepare_playback_requests(
@@ -207,9 +219,6 @@ class PlaybackApplicationService:
                 )
                 media_location = prepared_requests.media_location
                 movie = prepared_requests.movie_path
-                playback_start_poll_interval = (
-                    prepared_requests.playback_start_poll_interval_seconds
-                )
         except PlayerMediaFileLocationError as exc:
             logger.warning("Media path resolution failed: %s", exc)
             self._record_diagnostic(diagnose_path_error(exc))
@@ -223,22 +232,6 @@ class PlaybackApplicationService:
         self._state.set_active_media_location(
             media_location=media_location,
             item_info=item_info,
-        )
-
-        send_playback_message(
-            playback_session,
-            origin,
-            session_id,
-            messages.wait_for_mount,
-            timeout_ms=1999,
-        )
-
-        wait_notifier = PlaybackStartupWaitNotifier(
-            playback_session=playback_session,
-            origin=origin,
-            session_id=session_id,
-            wait_for_play_message=messages.wait_for_play,
-            poll_interval_seconds=playback_start_poll_interval,
         )
 
         playback_orchestration_result = (
@@ -265,13 +258,15 @@ class PlaybackApplicationService:
                         if self._thread_lifecycle.replacement_requested
                         else NORMAL_FINISH_IDLE_CONFIRMATION_POLLS
                     ),
-                    on_startup_waiting=wait_notifier.notify_waiting,
+                    on_startup_waiting=messaging.notify_waiting,
+                    on_tracks_applying=messaging.tracks_applying,
                     on_startup_completed=lambda r: self._on_startup_completed(
                         r,
                         intent=intent,
                         origin=origin,
-                        session_id=session_id,
                         movie=movie,
+                        messaging=messaging,
+                        content_kind=item_info.content_kind,
                         playback_wiring=playback_wiring,
                         startup_timer=startup_timer,
                     ),
@@ -316,9 +311,9 @@ class PlaybackApplicationService:
         _result,
         *,
         intent: PlaybackIntent,
-        origin: PlaybackOrigin,
-        session_id,
         movie: str,
+            messaging: PlaybackStartupMessagingService,
+            content_kind: MediaContentKind,
         playback_wiring,
         startup_timer: PlaybackStartupTimer,
     ) -> None:
@@ -327,13 +322,11 @@ class PlaybackApplicationService:
         logger.debug("start_position_seconds: %s", intent.start_position_seconds)
 
         playback_session = self._playback_session
-        if not (playback_session.config.get("tv") or {}).get("enabled"):
-            if origin == PlaybackOrigin.OBSERVED_TV_CLIENT:
-                playback_session.notify_session(
-                    session_id,
-                    playback_session.lang["msg-playback-started"] + movie,
-                )
-            logger.info("Reprodución iniciada: %s", movie)
+        # Sent for every origin and regardless of TV-switching config: this is
+        # the one notification that reaches whichever client started playback
+        # (e.g. the Emby phone app), independent of whether HCC also drives a TV.
+        messaging.action(content_kind)
+        logger.info("Reprodución iniciada: %s", movie)
 
         log_oppo_qpl_state(playback_session.config, "after_oppo_playback_start")
         startup_timer.log_summary()

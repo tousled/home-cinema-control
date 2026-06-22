@@ -3,10 +3,95 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
 
 PLAYBACK_PROGRESS_INTERVAL_SECONDS = 10
+
+
+class MediaContentKind(Enum):
+    """HCC's own classification of what's playing.
+
+    Independent of any media server's vocabulary — mapped once from Emby's
+    `Type` (or Jellyfin's equivalent `BaseItemKind`) at the adapter edge, so
+    policy code never compares against a media-server-specific string.
+    """
+
+    MOVIE = "movie"
+    EPISODE = "episode"
+    CONCERT = "concert"
+    LIVE_TV = "live_tv"
+    OTHER = "other"
+
+
+_EMBY_TYPE_TO_CONTENT_KIND = {
+    "Movie": MediaContentKind.MOVIE,
+    "Episode": MediaContentKind.EPISODE,
+    "MusicVideo": MediaContentKind.CONCERT,
+    "LiveTvProgram": MediaContentKind.LIVE_TV,
+    "Recording": MediaContentKind.LIVE_TV,
+    "TvChannel": MediaContentKind.LIVE_TV,
+    "LiveTvChannel": MediaContentKind.LIVE_TV,
+}
+
+
+def _content_kind_from_emby_type(emby_type: str | None) -> MediaContentKind:
+    return _EMBY_TYPE_TO_CONTENT_KIND.get(emby_type, MediaContentKind.OTHER)
+
+
+@dataclass(frozen=True)
+class MediaServerPlaybackSource:
+    """The resolved file + metadata for what's actually being played.
+
+    The counterpart to `MediaServerPlaybackContext`: context is the request,
+    source is what got resolved. Mapped once at this adapter edge from the raw
+    Emby `Item`/`MediaSource` wire dicts — policy code reads these typed
+    fields and never Emby's own field names.
+    """
+
+    path: str
+    container: str
+    duration_seconds: int
+    production_year: int | None
+    title: str
+    content_kind: MediaContentKind
+
+    @classmethod
+    def from_emby_item(
+            cls,
+            item_data: dict[str, Any],
+            media_source_id: str,
+    ) -> MediaServerPlaybackSource:
+        media_source = _find_media_source(item_data, media_source_id)
+
+        return cls(
+            path=media_source.get("Path", ""),
+            container=media_source.get("Container", ""),
+            duration_seconds=_duration_seconds(media_source),
+            production_year=item_data.get("ProductionYear"),
+            title=item_data.get("Name", ""),
+            content_kind=_content_kind_from_emby_type(item_data.get("Type")),
+        )
+
+
+def _find_media_source(
+        item_data: dict[str, Any],
+        media_source_id: str,
+) -> dict[str, Any]:
+    for media_source in item_data.get("MediaSources", []):
+        if media_source.get("Id") == media_source_id:
+            return media_source
+
+    return item_data
+
+
+def _duration_seconds(media_source: dict[str, Any]) -> int:
+    try:
+        return max(0, int(media_source.get("RunTimeTicks", 0)) // EMBY_TICKS_PER_SECOND)
+    except (TypeError, ValueError):
+        return 0
 
 
 @dataclass(frozen=True)

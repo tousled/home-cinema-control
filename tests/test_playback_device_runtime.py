@@ -7,6 +7,10 @@ from home_cinema_control.playback.device_runtime import (
     prepare_oppo_observation_mode,
     stop_active_player_playback_before_replacement,
 )
+from home_cinema_control.media_servers.emby.playback import (
+    MediaContentKind,
+    MediaServerPlaybackSource,
+)
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.media_location import PlayerMediaFileLocation
 from home_cinema_control.playback.state import BridgePlaybackState
@@ -102,7 +106,14 @@ class PlaybackDeviceRuntimeTest(unittest.TestCase):
                 playback_file_name="Movie.mkv",
                 playback_file_format="mkv",
             ),
-            item_info={"Name": "Movie"},
+            item_info=MediaServerPlaybackSource(
+                path="/nas/Movies/Movie.mkv",
+                container="mkv",
+                duration_seconds=0,
+                production_year=None,
+                title="Movie",
+                content_kind=MediaContentKind.MOVIE,
+            ),
         )
 
         stop_active_player_playback_before_replacement(

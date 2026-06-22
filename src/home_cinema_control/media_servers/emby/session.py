@@ -7,6 +7,7 @@ from home_cinema_control.media_servers.emby.track_mapping import (
 
 from home_cinema_control.media_servers.emby.client import EmbyClient
 from home_cinema_control.media_servers.emby.constants import DEVICE_ID
+from home_cinema_control.media_servers.emby.playback import MediaServerPlaybackSource
 from home_cinema_control.playback.state import BridgePlaybackState
 
 
@@ -80,14 +81,9 @@ class EmbySession:
     def get_item_info(self, user_id, item_id):
         return self.client.get_item_info(user_id, item_id)
 
-    def get_media_source_info(self, user_id, item_id, mediasource_id):
+    def get_media_source_info(self, user_id, item_id, mediasource_id) -> MediaServerPlaybackSource:
         item_data = self.client.get_item_info(user_id, item_id)
-
-        for mediasource in item_data["MediaSources"]:
-            if mediasource["Id"] == mediasource_id:
-                return mediasource
-
-        return item_data
+        return MediaServerPlaybackSource.from_emby_item(item_data, mediasource_id)
 
     def is_item_path_in_library(self, view_id, item_path):
         media_folders = self.client.get_selectable_media_folders()

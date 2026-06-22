@@ -1,8 +1,10 @@
 import unittest
 
 from home_cinema_control.media_servers.emby.playback import (
+    MediaContentKind,
     MediaServerPlaybackContext,
     MediaServerPlaybackEventPublisher,
+    MediaServerPlaybackSource,
 )
 
 
@@ -56,6 +58,94 @@ class RecordingEmbyClient:
             raise self.stop_session_error
         self.calls.append(("stop_session", {"session_id": session_id, "payload": payload}))
         return FakeResponse()
+
+
+class MediaServerPlaybackSourceTest(unittest.TestCase):
+    def test_maps_matched_media_source_with_parent_item_metadata(self):
+        source = MediaServerPlaybackSource.from_emby_item(
+            {
+                "Type": "Movie",
+                "Name": "Aquaman",
+                "ProductionYear": 2018,
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "Path": "/movies/aquaman.mkv",
+                        "Container": "mkv",
+                        "RunTimeTicks": 72_000_000_000,
+                    },
+                ],
+            },
+            "source-1",
+        )
+
+        self.assertEqual("/movies/aquaman.mkv", source.path)
+        self.assertEqual("mkv", source.container)
+        self.assertEqual(7200, source.duration_seconds)
+        self.assertEqual(2018, source.production_year)
+        self.assertEqual("Aquaman", source.title)
+        self.assertEqual(MediaContentKind.MOVIE, source.content_kind)
+
+    def test_falls_back_to_full_item_when_media_source_not_found(self):
+        source = MediaServerPlaybackSource.from_emby_item(
+            {
+                "Type": "Episode",
+                "Name": "Pilot",
+                "Path": "/tv/show/episode1.mkv",
+                "Container": "mkv",
+                "MediaSources": [],
+            },
+            "missing-source",
+        )
+
+        self.assertEqual("/tv/show/episode1.mkv", source.path)
+        self.assertEqual(MediaContentKind.EPISODE, source.content_kind)
+
+    def test_defaults_duration_to_zero_when_runtime_ticks_is_invalid(self):
+        source = MediaServerPlaybackSource.from_emby_item(
+            {
+                "Type": "Movie",
+                "Name": "Movie",
+                "MediaSources": [
+                    {"Id": "source-1", "Path": "p", "Container": "mkv", "RunTimeTicks": "not-a-number"},
+                ],
+            },
+            "source-1",
+        )
+
+        self.assertEqual(0, source.duration_seconds)
+
+    def test_maps_music_video_to_concert(self):
+        source = MediaServerPlaybackSource.from_emby_item(
+            {"Type": "MusicVideo", "Name": "Live at the Arena", "MediaSources": []},
+            "source-1",
+        )
+
+        self.assertEqual(MediaContentKind.CONCERT, source.content_kind)
+
+    def test_maps_live_tv_program_to_live_tv(self):
+        source = MediaServerPlaybackSource.from_emby_item(
+            {"Type": "LiveTvProgram", "Name": "Evening News", "MediaSources": []},
+            "source-1",
+        )
+
+        self.assertEqual(MediaContentKind.LIVE_TV, source.content_kind)
+
+    def test_maps_unrecognized_type_to_other(self):
+        source = MediaServerPlaybackSource.from_emby_item(
+            {"Type": "AudioBook", "Name": "Some Book", "MediaSources": []},
+            "source-1",
+        )
+
+        self.assertEqual(MediaContentKind.OTHER, source.content_kind)
+
+    def test_maps_missing_type_to_other(self):
+        source = MediaServerPlaybackSource.from_emby_item(
+            {"Name": "Unknown", "MediaSources": []},
+            "source-1",
+        )
+
+        self.assertEqual(MediaContentKind.OTHER, source.content_kind)
 
 
 class MediaServerPlaybackContextTest(unittest.TestCase):
