@@ -440,6 +440,9 @@ def _intent():
 
 
 class RecordingEmbySession:
+    def find_controlling_session_id(self, controlling_user_id):
+        return None
+
     def get_item_info(self, user_id, item_id):
         return {
             "MediaStreams": [

@@ -156,7 +156,8 @@ class PlaybackApplicationService:
             session_id=session_id,
             lang=playback_session.lang,
         )
-        messaging.received()
+        with startup_timer.measure_step("notify_received"):
+            messaging.received()
 
         prepare_oppo_observation_mode(playback_session.config)
         log_oppo_qpl_state(playback_session.config, "playback_application_start")
@@ -207,7 +208,8 @@ class PlaybackApplicationService:
         )
         self._active_context.activate(playback_wiring)
 
-        messaging.locating()
+        with startup_timer.measure_step("notify_locating"):
+            messaging.locating()
 
         try:
             with startup_timer.measure_step("resolve_media_path"):
@@ -263,7 +265,6 @@ class PlaybackApplicationService:
                     on_startup_completed=lambda r: self._on_startup_completed(
                         r,
                         intent=intent,
-                        origin=origin,
                         movie=movie,
                         messaging=messaging,
                         content_kind=item_info.content_kind,
@@ -317,15 +318,19 @@ class PlaybackApplicationService:
         playback_wiring,
         startup_timer: PlaybackStartupTimer,
     ) -> None:
+        # Critical playback-state wiring happens first and unconditionally.
+        # The closing notification (messaging.action) is the very last thing
+        # this method does, deliberately: PlaybackStartupMessagingService
+        # already guarantees it cannot raise (see its docstring / HCC-TASK-027),
+        # but ordering it last means even an unimagined future failure mode
+        # there still can't prevent the playback-critical wiring above it from
+        # completing. A notification bug must never be able to look like a
+        # playback failure to the orchestrator.
         self._state.playstate = "Playing"
         self._state.last_diagnostic = None
         logger.debug("start_position_seconds: %s", intent.start_position_seconds)
 
         playback_session = self._playback_session
-        # Sent for every origin and regardless of TV-switching config: this is
-        # the one notification that reaches whichever client started playback
-        # (e.g. the Emby phone app), independent of whether HCC also drives a TV.
-        messaging.action(content_kind)
         logger.info("Reprodución iniciada: %s", movie)
 
         log_oppo_qpl_state(playback_session.config, "after_oppo_playback_start")
@@ -335,6 +340,11 @@ class PlaybackApplicationService:
             playback_session=playback_session,
             playback_wiring=playback_wiring,
         )
+
+        # Sent for every origin and regardless of TV-switching config: this is
+        # the one notification that reaches whichever client started playback
+        # (e.g. the Emby phone app), independent of whether HCC also drives a TV.
+        messaging.action(content_kind)
 
     def _remember_playback_return_tv_app_id(self, playback_orchestration_result) -> None:
         startup_result = playback_orchestration_result.startup_result

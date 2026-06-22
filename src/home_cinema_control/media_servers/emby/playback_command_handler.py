@@ -55,9 +55,11 @@ class EmbyPlaybackCommandHandler:
             data.get("SubtitleStreamIndex"),
             data.get("DeviceName"),
         )
+        logging.debug("Emby websocket play command raw data: %s", data)
         intent = build_playback_intent_from_play_command(
             data,
             load_item_info=self._emby_session.get_item_info,
+            resolve_controlling_session_id=self._emby_session.find_controlling_session_id,
         )
         self._playback_intent_dispatcher_factory().dispatch(
             intent,

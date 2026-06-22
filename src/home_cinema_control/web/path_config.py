@@ -136,9 +136,18 @@ def _unmount_after_test_if_needed(*, config: dict, result: OppoMountResult) -> N
     if not result.mounted_share:
         return
 
+    mount_path = result.mounted_share.mount_path
+    if not mount_path.startswith("/mnt/cifs"):
+        logging.info(
+            "Autoscript unmount only applies to CIFS/SMB mounts; leaving %s in "
+            "place after path test.",
+            mount_path,
+        )
+        return
+
     unmount_oppo_path(
         host=oppo["ip"],
         port=int(config.get("OPPO_Port", OPPO_TELNET_PORT)),
-        mount_path=result.mounted_share.mount_path,
-        timeout=oppo["nfs_mount_timeout_seconds"],
+        mount_path=mount_path,
+        timeout=oppo.get("autoscript_unmount_timeout_seconds", 3),
     )

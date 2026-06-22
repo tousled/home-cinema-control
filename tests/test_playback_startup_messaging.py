@@ -138,6 +138,86 @@ class PlaybackStartupMessagingServiceTest(unittest.TestCase):
         )
 
 
+class PlaybackStartupMessagingServiceNeverRaisesTest(unittest.TestCase):
+    """HCC-TASK-027: a notification bug must never be able to look like a
+    playback failure to the orchestrator. These tests force an internal
+    failure (not a network failure — that path was already covered) in each
+    public method and assert nothing escapes."""
+
+    def test_received_does_not_raise_when_lang_key_is_missing(self):
+        session = RecordingPlaybackSession()
+        service = PlaybackStartupMessagingService(
+            playback_session=session,
+            origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND,
+            session_id="session-1",
+            lang={},  # missing every key
+        )
+
+        service.received()  # must not raise
+
+        self.assertEqual([], session.notifications)
+
+    def test_locating_does_not_raise_when_lang_key_is_missing(self):
+        session = RecordingPlaybackSession()
+        service = PlaybackStartupMessagingService(
+            playback_session=session,
+            origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND,
+            session_id="session-1",
+            lang={},
+        )
+
+        service.locating()
+
+        self.assertEqual([], session.notifications)
+
+    def test_tracks_applying_does_not_raise_when_lang_key_is_missing(self):
+        session = RecordingPlaybackSession()
+        service = PlaybackStartupMessagingService(
+            playback_session=session,
+            origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND,
+            session_id="session-1",
+            lang={},
+        )
+
+        service.tracks_applying()
+
+        self.assertEqual([], session.notifications)
+
+    def test_notify_waiting_does_not_raise_when_lang_key_is_missing(self):
+        session = RecordingPlaybackSession()
+        service = PlaybackStartupMessagingService(
+            playback_session=session,
+            origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND,
+            session_id="session-1",
+            lang={},
+        )
+
+        service.notify_waiting(1)
+
+        self.assertEqual([], session.notifications)
+
+    def test_action_does_not_raise_when_lang_key_is_missing(self):
+        session = RecordingPlaybackSession()
+        service = PlaybackStartupMessagingService(
+            playback_session=session,
+            origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND,
+            session_id="session-1",
+            lang={},  # missing even the generic fallback key
+        )
+
+        service.action(MediaContentKind.MOVIE)  # must not raise
+
+        self.assertEqual([], session.notifications)
+
+    def test_action_does_not_raise_on_an_unexpected_content_kind_value(self):
+        session = RecordingPlaybackSession()
+        service = _service(session)
+
+        service.action("not-a-real-content-kind")  # must not raise
+
+        self.assertEqual([("session-1", "generic", None)], session.notifications)
+
+
 class RecordingPlaybackSession:
     def __init__(self):
         self.notifications = []
