@@ -15,12 +15,12 @@ def find_monitored_session(
     """Inbound mapper: Jellyfin Sessions payload -> HCC ``MediaServerSession``."""
     for session in sessions:
         if session.get("DeviceId") == monitored_device_id:
-            return _session_from_payload(session)
+            return session_from_payload(session)
 
     return None
 
 
-def _session_from_payload(session: dict[str, Any]) -> MediaServerSession:
+def session_from_payload(session: dict[str, Any]) -> MediaServerSession:
     now_playing = session.get("NowPlayingItem")
     play_state = session.get("PlayState") or {}
 
@@ -40,6 +40,7 @@ def _session_from_payload(session: dict[str, Any]) -> MediaServerSession:
         device_name=session.get("DeviceName", "") or "",
         user_id=session.get("UserId", "") or "",
         client_session_id=session.get("Id"),
+        last_activity_at=session.get("LastActivityDate", "") or "",
         now_playing=mapped_now_playing,
         position_ticks=play_state.get("PositionTicks"),
         media_source_id=play_state.get("MediaSourceId", "") or "",

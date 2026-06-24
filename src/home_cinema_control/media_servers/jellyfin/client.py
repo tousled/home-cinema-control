@@ -101,14 +101,32 @@ class JellyfinClient:
         return self.post(f"/Sessions/{session_id}/Playing/Stop", data=payload)
 
     def send_session_message(self, session_id, message, timeout):
+        # Unlike Emby's equivalent (Text/Header/TimeoutMs as query params,
+        # empty body), Jellyfin's /Sessions/{Id}/Message binds these from a
+        # JSON request body — confirmed against a real Jellyfin server,
+        # which 400s with "The Text field is required" when Text is only on
+        # the query string. quote() is no longer needed: a JSON body doesn't
+        # have query-string escaping concerns.
         return self.post(
-            f"/Sessions/{session_id}/Message"
-            f"?Text={message}&Header=Notification&TimeoutMs={timeout}",
-            data={},
+            f"/Sessions/{session_id}/Message",
+            json={"Text": message, "Header": "Notification", "TimeoutMs": timeout},
         )
 
     def get_sessions_by_device(self, device_id):
         return self.get_json(f"/Sessions?deviceId={device_id}")
+
+    def get_sessions(self):
+        """All active sessions, unfiltered.
+
+        Emby's equivalent client method filters server-side via
+        `?ControllableByUserId=`. Jellyfin's `/Sessions` query parameters are
+        not confirmed to use the same PascalCase names — `deviceId` above is
+        already known to differ in casing from Emby's `DeviceId`. Rather than
+        guess an unverified Jellyfin-side filter parameter, callers filter the
+        full list client-side (by `UserId`/`DeviceId`, both confirmed present
+        on real Jellyfin session payloads — see JellyfinSession._find_own_session).
+        """
+        return self.get_json("/Sessions")
 
     def get_item_info(self, user_id, item_id):
         return self.get_json(f"/Users/{user_id}/Items/{item_id}")

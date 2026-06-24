@@ -1,6 +1,9 @@
 import logging
 
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
+from home_cinema_control.media_servers.common.models import (
+    find_controlling_session_id as resolve_controlling_session_id,
+)
 from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
     media_server_playback_source_from_item,
@@ -10,6 +13,7 @@ from home_cinema_control.media_servers.common.track_mapping import (
     source_subtitle_to_player_index,
 )
 from home_cinema_control.media_servers.jellyfin.client import JellyfinClient
+from home_cinema_control.media_servers.jellyfin.session_events import session_from_payload
 from home_cinema_control.playback.state import BridgePlaybackState
 
 
@@ -31,6 +35,32 @@ class JellyfinSession:
         response = self.client.send_session_message(session_id, text, timeout)
         logging.debug("notify_session response: %s", response.text)
         return response
+
+    def find_controlling_session_id(self, controlling_user_id):
+        """Find the real client session that issued a remote Play command.
+
+        Jellyfin's "Play" websocket message shares Emby's protocol design and
+        the same gap: it never identifies the controller's own session — only
+        echoes back the target (this bridge's) session id. Maps the raw
+        Sessions payload to MediaServerSession at this edge (Jellyfin has no
+        confirmed server-side user filter for /Sessions, unlike Emby's
+        ControllableByUserId — see get_sessions's docstring), then delegates
+        the actual resolution policy to the shared, provider-neutral
+        implementation (see common/models.py's find_controlling_session_id).
+        """
+        if not controlling_user_id:
+            return None
+
+        sessions = self.client.get_sessions()
+        if not isinstance(sessions, list):
+            return None
+
+        mapped_sessions = [session_from_payload(session) for session in sessions]
+        return resolve_controlling_session_id(
+            mapped_sessions,
+            controlling_user_id=controlling_user_id,
+            own_device_id=DEVICE_ID,
+        )
 
     def set_capabilities(self):
         response = self.client.set_capabilities(

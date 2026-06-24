@@ -168,6 +168,38 @@ class JellyfinClientTest(unittest.TestCase):
         )
         self.assertEqual({"PlaybackPositionTicks": 10}, http.calls[1][3])
 
+    def test_send_session_message_sends_text_in_json_body(self):
+        # Regression test for two real bugs found against a real Jellyfin
+        # server, in sequence:
+        # 1. Text/Header/TimeoutMs as query-string params (Emby's shape) —
+        #    unencoded Spanish prose with spaces/accents corrupted the query
+        #    string, then even after URL-encoding, Jellyfin's server 400s
+        #    with "The Text field is required": unlike Emby,
+        #    /Sessions/{Id}/Message binds these fields from a JSON body, not
+        #    the query string.
+        # 2. data={} (an empty dict, falsy) made `requests` send no body and
+        #    no Content-Type at all, which Jellyfin's server separately
+        #    rejected with 415 Unsupported Media Type before bug 1 was found.
+        http = RecordingHttpSession()
+        client = _authenticated_client(http)
+
+        client.send_session_message("session-1", "Está tardando más de lo habitual", 3500)
+
+        method, url, data, json_payload, headers = http.calls[0]
+        self.assertEqual("post", method)
+        self.assertEqual(
+            "http://jellyfin.local:8096/Sessions/session-1/Message", url
+        )
+        self.assertIsNone(data)
+        self.assertEqual(
+            {
+                "Text": "Está tardando más de lo habitual",
+                "Header": "Notification",
+                "TimeoutMs": 3500,
+            },
+            json_payload,
+        )
+
 
 def _authenticated_client(http):
     client = JellyfinClient(

@@ -95,16 +95,19 @@ class FindControllingSessionIdTest(unittest.TestCase):
                     {
                         "Id": "bridge-session",
                         "DeviceId": "home-cinema-control",
+                        "UserId": "user-1",
                         "LastActivityDate": "2026-06-22T13:50:00Z",
                     },
                     {
                         "Id": "tv-session",
                         "DeviceId": "tv-device",
+                        "UserId": "user-1",
                         "LastActivityDate": "2026-06-22T13:41:04Z",
                     },
                     {
                         "Id": "phone-session",
                         "DeviceId": "phone-device",
+                        "UserId": "user-1",
                         "LastActivityDate": "2026-06-22T13:45:56Z",
                     },
                 ]

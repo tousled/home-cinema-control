@@ -138,11 +138,42 @@ class MediaServerSession(BaseModel):
     device_name: str = ""
     user_id: str = ""
     client_session_id: str | None = None
+    last_activity_at: str = ""
     now_playing: MediaServerNowPlaying | None = None
     position_ticks: int | None = None
     media_source_id: str = ""
     audio_stream_index: int = 1
     subtitle_stream_index: int = -1
+
+
+def find_controlling_session_id(
+        sessions: list[MediaServerSession],
+        *,
+        controlling_user_id: str,
+        own_device_id: str,
+) -> str | None:
+    """Among this user's other active sessions (excluding our own device),
+    return the id of the one that was active most recently.
+
+    Shared policy, not wire-format handling: both Emby's and Jellyfin's "Play"
+    websocket message have the same gap (never identify the controller's own
+    session, only the bridge's target session), and once each provider maps
+    its own Sessions payload into MediaServerSession at the edge, resolving
+    the real controller is the same domain-level operation either way. See
+    ADR-0001.
+    """
+    if not controlling_user_id:
+        return None
+
+    candidates = [
+        session for session in sessions
+        if session.device_id != own_device_id and session.user_id == controlling_user_id
+    ]
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda session: session.last_activity_at)
+    return candidates[-1].client_session_id
 
 
 class MediaServerItemPlaybackInfo(BaseModel):
