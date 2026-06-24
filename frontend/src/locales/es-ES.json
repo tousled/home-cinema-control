@@ -91,6 +91,8 @@
   "x-media-server-no-library-paths-copy": "{type} no ha devuelto rutas de biblioteca. Configura al menos una biblioteca con carpetas reales en el servidor multimedia antes de mapear rutas.",
   "x-media-server-library-paths-error": "No se pudieron leer las bibliotecas",
   "x-media-server-connection-ok": "Conectado a {server}.",
+  "x-media-server-switch-ok": "Cambiado a {server} — Ya está listo.",
+  "x-media-server-switch-needs-login": "Cambiado a {server}. Inicia sesión para activarlo.",
   "x-media-server-switch-confirm": "Hay una reproducción en curso en {server}. Si cambias de servidor, esa reproducción dejará de estar controlada desde la app de origen, aunque Home Cinema Control la terminará con normalidad. ¿Quieres continuar?",
   "x-media-server-session-expired-title": "La sesión ha caducado",
   "x-media-server-session-expired-copy": "El token guardado para {server} ya no es válido. Vuelve a iniciar sesión para reconectar.",

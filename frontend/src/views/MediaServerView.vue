@@ -465,6 +465,10 @@ async function saveConfig() {
 // - media_server_session_expired: the switch went through, but the target's
 //   stored token was rejected — show the login form with that reason.
 // - otherwise: a normal, ready config — render it and refresh devices/libraries.
+// Returns true once a response was actually applied (including after a
+// confirmed switch), false if the user cancelled at the confirmation step —
+// callers use this to decide whether a switch actually happened before
+// showing their own follow-up toast.
 async function applyMediaServerResponse(response, {previousType} = {}) {
   if (response.switch_requires_confirmation) {
     const providerLabel = mediaServerBrandLabel(response.active_session_provider)
@@ -478,14 +482,13 @@ async function applyMediaServerResponse(response, {previousType} = {}) {
         await nextTick()
         revertingSelection = false
       }
-      return
+      return false
     }
     const retried = await api.saveConfigSection('media-server', {
       media_server: {type: selectedType.value},
       confirm_provider_switch: true,
     })
-    await applyMediaServerResponse(retried, {previousType})
-    return
+    return applyMediaServerResponse(retried, {previousType})
   }
 
   applyingResponse = true
@@ -506,6 +509,7 @@ async function applyMediaServerResponse(response, {previousType} = {}) {
     libraryPathsError.value = ''
   }
   applyingResponse = false
+  return true
 }
 
 // Set while a revert assignment below is in flight, so the selectedType
@@ -527,7 +531,18 @@ async function onSelectorChanged(newType, previousType) {
     const response = await api.saveConfigSection('media-server', {
       media_server: {type: newType},
     })
-    await applyMediaServerResponse(response, {previousType})
+    const applied = await applyMediaServerResponse(response, {previousType})
+    if (applied && !sessionExpiredNotice.value) {
+      const switchedLabel = mediaServerBrandLabel(newType)
+      toast.success(
+          t(
+              activeProvider.value.access_token_configured
+                  ? 'x-media-server-switch-ok'
+                  : 'x-media-server-switch-needs-login',
+              {server: switchedLabel},
+          ),
+      )
+    }
   } catch (e) {
     reportConnectionError(e, newType)
     toast.error(e.message)

@@ -91,6 +91,8 @@
   "x-media-server-no-library-paths-copy": "{type} did not return library paths. Configure at least one library with real folders in the media server before mapping paths.",
   "x-media-server-library-paths-error": "Could not read libraries",
   "x-media-server-connection-ok": "Connected to {server}.",
+  "x-media-server-switch-ok": "Switched to {server} — Ready to go.",
+  "x-media-server-switch-needs-login": "Switched to {server}. Log in to activate it.",
   "x-media-server-switch-confirm": "Playback is currently active on {server}. Switching means it stops being controlled from that app, though Home Cinema Control will still finish it out normally. Continue?",
   "x-media-server-session-expired-title": "Session expired",
   "x-media-server-session-expired-copy": "The stored token for {server} is no longer valid. Sign in again to reconnect.",
