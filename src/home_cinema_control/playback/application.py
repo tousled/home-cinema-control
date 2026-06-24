@@ -118,6 +118,15 @@ class PlaybackApplicationService:
     def replace_from_intent(self, intent: PlaybackIntent, *, origin: PlaybackOrigin) -> bool:
         return self._thread_lifecycle.replace(intent, origin=origin)
 
+    def stop_active_playback_and_wait(self) -> bool:
+        """Stop any in-progress playback and block until its finish/cleanup
+        flow has fully completed. For callers outside normal playback
+        replacement that need a clean slate before something disruptive —
+        e.g. the runtime swapping the media-server listener on a provider
+        switch. Returns True if anything was actually stopped.
+        """
+        return self._thread_lifecycle.stop_active_and_wait()
+
     def _is_duplicate_intent(self, intent: PlaybackIntent) -> bool:
         if not bridge_playback_is_active(self._state.playstate):
             return False

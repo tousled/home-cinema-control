@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from home_cinema_control.config.models import HccConfig, MediaServerConfig
+from home_cinema_control.config.manager import active_media_server_type
+from home_cinema_control.config.models import HccConfig
 from home_cinema_control.media_servers.common.listener import (
     MediaServerPlaybackListener,
 )
@@ -45,15 +46,15 @@ class MediaServerProvider(Protocol):
 class MediaServerProviderFactory:
     def create(
         self,
-        config: dict | HccConfig | MediaServerConfig,
+            config: dict | HccConfig,
     ) -> MediaServerProvider:
         return create_media_server_provider(config)
 
 
 def create_media_server_provider(
-    config: dict | HccConfig | MediaServerConfig,
+        config: dict | HccConfig,
 ) -> MediaServerProvider:
-    provider_type = _media_server_config(config).type
+    provider_type = active_media_server_type(config)
     if provider_type == "emby":
         from home_cinema_control.media_servers.emby.provider import EmbyProvider
 
@@ -64,11 +65,3 @@ def create_media_server_provider(
         return JellyfinProvider()
 
     raise ValueError(f"Unsupported media server provider: {provider_type}")
-
-
-def _media_server_config(config: dict | HccConfig | MediaServerConfig) -> MediaServerConfig:
-    if isinstance(config, MediaServerConfig):
-        return config
-    if isinstance(config, HccConfig):
-        return config.media_server
-    return HccConfig(**config).media_server

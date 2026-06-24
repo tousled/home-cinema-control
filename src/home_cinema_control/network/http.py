@@ -11,6 +11,10 @@ import requests
 logger = logging.getLogger(__name__)
 
 _REDACTED = "***"
+# requests has no default timeout — without this, a call to an unreachable
+# or non-responding host (e.g. a stopped Emby/Jellyfin server) blocks forever
+# instead of surfacing as an error. (connect timeout, read timeout) in seconds.
+_DEFAULT_TIMEOUT = (5, 8)
 _SENSITIVE_KEYS = {
     "authorization",
     "password",
@@ -41,6 +45,7 @@ class LoggingHttpSession:
     def request(self, method: str, url: str, **kwargs: Any):
         method = method.upper()
         suppress_exception_log = bool(kwargs.pop("suppress_exception_log", False))
+        kwargs.setdefault("timeout", _DEFAULT_TIMEOUT)
         safe_kwargs = _safe_request_kwargs(kwargs)
         safe_url = _redact_url(url)
 

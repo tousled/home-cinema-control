@@ -3,6 +3,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from home_cinema_control.config.manager import (
+    active_media_server_config,
+    set_active_media_server,
+    upsert_media_server_provider,
+)
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
 from home_cinema_control.media_servers.common.models import (
     LibraryPath,
@@ -29,9 +34,7 @@ def configure_jellyfin_token(
 ) -> dict:
     config = public_config_with_existing_secrets(config)
 
-    media_server = dict(config.get("media_server") or {})
-
-    server_url = str(media_server.get("server_url", "")).strip().rstrip("/")
+    server_url = active_media_server_config(config).server_url.strip().rstrip("/")
     user_name = credentials.user_name.strip()
     password = credentials.password
 
@@ -60,16 +63,15 @@ def configure_jellyfin_token(
             "Jellyfin authentication response did not include AccessToken/User.Id"
         )
 
-    media_server["type"] = "jellyfin"
-    media_server["server_url"] = server_url
-    media_server["display_name"] = display_name
-    media_server["access_token"] = access_token
-    media_server["user_id"] = user_id
-    media_server["access_token_configured"] = True
-
-    config["media_server"] = media_server
-
-    return config
+    updated = upsert_media_server_provider(
+        config,
+        "jellyfin",
+        server_url=server_url,
+        display_name=display_name,
+        access_token=access_token,
+        user_id=user_id,
+    )
+    return set_active_media_server(updated, "jellyfin").model_dump()
 
 
 def check_jellyfin_connection(config: dict):

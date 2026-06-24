@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from home_cinema_control.config.manager import active_media_server_config
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
 from home_cinema_control.network.http import get_http_session
 
@@ -25,7 +26,7 @@ class JellyfinClient:
 
     @classmethod
     def from_config(cls, config):
-        media_server = _media_server_config(config)
+        media_server = active_media_server_config(config)
 
         return cls(
             server_url=_config_value(media_server, "server_url"),
@@ -165,12 +166,6 @@ class JellyfinClient:
             path = "/" + path
 
         return self.server_url + path
-
-
-def _media_server_config(config):
-    if hasattr(config, "media_server"):
-        return config.media_server
-    return config.get("media_server") or {}
 
 
 def _config_value(config, key: str, default=""):

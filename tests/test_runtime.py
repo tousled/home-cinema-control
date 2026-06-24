@@ -30,6 +30,16 @@ class FakeMediaServerSession:
         self.config = None
 
 
+class FakePlaybackApplicationService:
+    def __init__(self):
+        self.stop_calls = 0
+        self.had_active = True
+
+    def stop_active_playback_and_wait(self):
+        self.stop_calls += 1
+        return self.had_active
+
+
 class FakePlaybackListener:
     def __init__(self):
         self.config = None
@@ -37,6 +47,7 @@ class FakePlaybackListener:
         self.language = None
         self.media_server_session = FakeMediaServerSession()
         self.playback_state = FakePlaybackState()
+        self.playback_application_service = None
         self.started = False
         self.played_data = None
         self.stopped = False
@@ -119,7 +130,7 @@ class RuntimeTest(unittest.TestCase):
         self.assertTrue(runtime.playback_listener.started)
         self.assertEqual(
             "http://emby.local",
-            runtime.playback_listener.config["media_server"]["server_url"],
+            runtime.playback_listener.config["media_servers"]["providers"]["emby"]["server_url"],
         )
         self.assertIn("msg-startup-received", runtime.playback_listener.language)
 
@@ -142,18 +153,18 @@ class RuntimeTest(unittest.TestCase):
             runtime.playback_listener_thread.join(timeout=1)
 
             config = runtime.load_config()
-            config["media_server"]["server_url"] = "http://updated.local"
+            config["media_servers"]["providers"]["emby"]["server_url"] = "http://updated.local"
             runtime.save_config(config)
 
         self.assertEqual(
             "http://updated.local",
-            runtime.playback_listener.config["media_server"]["server_url"],
+            runtime.playback_listener.config["media_servers"]["providers"]["emby"]["server_url"],
         )
         self.assertEqual(
             "http://updated.local",
-            runtime.playback_listener.media_server_session.config["media_server"][
-                "server_url"
-            ],
+            runtime.playback_listener.media_server_session.config["media_servers"][
+                "providers"
+            ]["emby"]["server_url"],
         )
         self.assertEqual([config], runtime.playback_listener.updated_configs)
 
@@ -165,6 +176,65 @@ class RuntimeTest(unittest.TestCase):
             runtime.start_movie({"ItemIds": ["1"]})
 
         self.assertEqual({"ItemIds": ["1"]}, runtime.playback_listener.played_data)
+
+    def test_has_active_playback_false_without_listener(self):
+        with self._runtime(configured=False) as runtime:
+            self.assertFalse(runtime.has_active_playback())
+
+    def test_has_active_playback_true_when_playstate_is_active(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            runtime.playback_listener.playback_state.playstate = "Playing"
+
+            self.assertTrue(runtime.has_active_playback())
+
+    def test_stop_playback_listener_waits_for_active_playback_then_stops(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            app_service = FakePlaybackApplicationService()
+            runtime.playback_listener.playback_application_service = app_service
+            listener = runtime.playback_listener
+
+            runtime.stop_playback_listener()
+
+        self.assertEqual(1, app_service.stop_calls)
+        self.assertTrue(listener.stopped)
+        self.assertIsNone(runtime.playback_listener)
+        self.assertIsNone(runtime.playback_listener_thread)
+
+    def test_stop_playback_listener_is_noop_without_listener(self):
+        with self._runtime(configured=False) as runtime:
+            runtime.stop_playback_listener()  # must not raise
+
+        self.assertIsNone(runtime.playback_listener)
+
+    def test_restart_playback_listener_stops_old_and_starts_new(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            old_listener = runtime.playback_listener
+
+            restarted = runtime.restart_playback_listener()
+            runtime.playback_listener_thread.join(timeout=1)
+
+        self.assertTrue(restarted)
+        self.assertTrue(old_listener.stopped)
+        self.assertTrue(runtime.playback_listener.started)
+
+    def test_restart_process_stops_listener_then_exits(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            listener = runtime.playback_listener
+            exit_calls = []
+            runtime._exit_process = lambda code: exit_calls.append(code)
+
+            runtime.restart_process()
+
+        self.assertTrue(listener.stopped)
+        self.assertEqual([0], exit_calls)
 
     def test_get_state_reports_active_session_as_typed_status(self):
         with self._runtime(configured=True) as runtime:
@@ -308,11 +378,14 @@ class RuntimeFixture:
         config_file = base_dir / "config.json"
         secrets_file = base_dir / "secrets.json"
         config = {
-            "media_server": {
-                "type": "emby",
-                "server_url": "http://emby.local" if self.configured else "",
-                "display_name": "Emby",
-                "access_token_configured": self.configured,
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "server_url": "http://emby.local" if self.configured else "",
+                        "display_name": "Emby",
+                    }
+                },
             },
             "tv": {"enabled": False},
             "av": {"enabled": False},
@@ -324,9 +397,13 @@ class RuntimeFixture:
         secrets_file.write_text(
             json.dumps(
                 {
-                    "media_server": {
-                        "access_token": "token" if self.configured else "",
-                        "user_id": "user-id" if self.configured else "",
+                    "media_servers": {
+                        "providers": {
+                            "emby": {
+                                "access_token": "token" if self.configured else "",
+                                "user_id": "user-id" if self.configured else "",
+                            }
+                        }
                     }
                 }
             ),

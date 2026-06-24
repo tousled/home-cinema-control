@@ -33,7 +33,7 @@
         <div :class="serverCardClass" class="comp-card" @click="router.push('/media-server')">
           <div class="card-name">{{ $t('x-nav-media-server') }}</div>
           <div class="card-value">{{ serverCardValue }}</div>
-          <div class="card-sub">{{ config.media_server?.server_url || '—' }}</div>
+          <div class="card-sub">{{ mediaServerProvider.server_url || '—' }}</div>
           <div class="mt-auto pt-2">
             <span :class="serverTagClass" class="tag">{{ serverTagLabel }}</span>
           </div>
@@ -100,6 +100,7 @@ import {api} from '../api/index.js'
 import idleSceneBg from '../assets/backgrounds/bg-control-room-idle.png'
 import {usePoll} from '../composables/usePoll.js'
 import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
+import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
 
 const {t} = useI18n()
 const router = useRouter()
@@ -107,7 +108,8 @@ const router = useRouter()
 const loading = ref(true)
 const state = ref({})
 const config = ref({})
-const {brand} = useMediaServerBrand(() => config.value.media_server?.type)
+const {type: mediaServerType, provider: mediaServerProvider} = useActiveMediaServer(() => config.value)
+const {brand} = useMediaServerBrand(mediaServerType)
 
 const hasActiveSession = computed(() => Boolean(state.value.ActiveSession?.title))
 
@@ -129,23 +131,23 @@ const systemStatusLabel = computed(() => {
 
 /* ── server card ── */
 const serverCardClass = computed(() => {
-  if (!config.value.media_server?.server_url) return 'card-dim'
+  if (!mediaServerProvider.value.server_url) return 'card-dim'
   if (state.value.Playstate === 'Playing') return 'card-playing'
-  if (config.value.media_server?.access_token_configured) return 'card-ok'
+  if (mediaServerProvider.value.access_token_configured) return 'card-ok'
   return 'card-warn'
 })
 const serverCardValue = computed(() => {
-  if (!config.value.media_server?.server_url) return t('x-control-room-not-configured')
-  return config.value.media_server?.display_name || brand.value.label
+  if (!mediaServerProvider.value.server_url) return t('x-control-room-not-configured')
+  return mediaServerProvider.value.display_name || brand.value.label
 })
 const serverTagClass = computed(() => {
-  if (!config.value.media_server?.server_url) return 'tag-dim'
-  if (config.value.media_server?.access_token_configured) return 'tag-ok'
+  if (!mediaServerProvider.value.server_url) return 'tag-dim'
+  if (mediaServerProvider.value.access_token_configured) return 'tag-ok'
   return 'tag-warn'
 })
 const serverTagLabel = computed(() => {
-  if (!config.value.media_server?.server_url) return t('x-control-room-tag-unconfigured')
-  if (config.value.media_server?.access_token_configured) return t('x-control-room-tag-auth')
+  if (!mediaServerProvider.value.server_url) return t('x-control-room-tag-unconfigured')
+  if (mediaServerProvider.value.access_token_configured) return t('x-control-room-tag-auth')
   return t('x-control-room-tag-no-token')
 })
 

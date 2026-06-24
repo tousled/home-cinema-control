@@ -5,7 +5,6 @@ import unittest
 from pathlib import Path
 
 from home_cinema_control.config.manager import (
-    clear_media_server_auth,
     clear_smb_credentials,
     load_effective_config,
     merge_existing_secrets,
@@ -122,44 +121,6 @@ class SmbSecretsTest(unittest.TestCase):
         self.assertEqual("", config_data["smb"]["username"])
         self.assertEqual("", secrets_data["smb"]["password"])
         self.assertNotIn("username", secrets_data.get("smb", {}))
-
-    def test_clear_media_server_auth_wipes_secrets_and_monitored_device(self):
-        save_effective_config(
-            self._config_path,
-            {
-                "media_server": {
-                    "type": "emby",
-                    "server_url": "http://emby.local",
-                    "display_name": "Pedro",
-                    "access_token": "emby-token",
-                    "user_id": "emby-user",
-                },
-                "playback": {
-                    "hcc_controlled_device": "emby-device",
-                    "path_mappings": [{"source_path": "/movies", "verified": True}],
-                },
-            },
-        )
-
-        clear_media_server_auth(self._config_path)
-
-        config_data = json.loads(self._config_path.read_text())
-        secrets_data = json.loads(self._secrets_path.read_text())
-
-        self.assertEqual("", config_data["media_server"]["display_name"])
-        self.assertFalse(config_data["media_server"]["access_token_configured"])
-        self.assertEqual("", config_data["playback"]["hcc_controlled_device"])
-        self.assertEqual("", secrets_data["media_server"]["access_token"])
-        self.assertEqual("", secrets_data["media_server"]["user_id"])
-        # Verified path mappings survive a provider switch: Emby and Jellyfin
-        # may point at the same NAS paths.
-        self.assertEqual(
-            [{"source_path": "/movies", "verified": True}],
-            config_data["playback"]["path_mappings"],
-        )
-        # server_url and type are untouched by the auth clear.
-        self.assertEqual("http://emby.local", config_data["media_server"]["server_url"])
-        self.assertEqual("emby", config_data["media_server"]["type"])
 
     def test_load_effective_config_reads_username_from_config_and_password_from_secrets(self):
         self._config_path.write_text(

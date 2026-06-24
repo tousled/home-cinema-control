@@ -110,9 +110,12 @@
                       />
                     </HelpTooltip>
                     <HelpTooltip
-                        :text="$t('x-tv-action-restore-media-server-tooltip', {server: mediaServerBrand.label})">
+                        :text="mediaServerConfigured
+                          ? $t('x-tv-action-restore-media-server-tooltip', {server: mediaServerBrand.label})
+                          : $t('x-tv-action-restore-media-server-not-configured-tooltip')">
                       <IconActionButton
                           :brand="mediaServerBrand.brand"
+                          :disabled="!mediaServerConfigured"
                           :label="$t('x-tv-action-restore-media-server', {server: mediaServerBrand.label})"
                           icon="server"
                           @click="tvRestoreInput"
@@ -312,6 +315,7 @@ import FormSelect from '../components/FormSelect.vue'
 import {useNetworkScan} from '../composables/useNetworkScan.js'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
+import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -322,7 +326,9 @@ const fullConfig = ref({})
 const arpAvailable = ref(true)
 const {scanning, devices, scan} = useNetworkScan()
 
-const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_server?.type)
+const {type: mediaServerType, provider: mediaServerProvider} = useActiveMediaServer(() => fullConfig.value)
+const {brand: mediaServerBrand} = useMediaServerBrand(mediaServerType)
+const mediaServerConfigured = computed(() => Boolean(mediaServerProvider.value.server_url))
 
 /* TV state */
 const tv = ref({})

@@ -377,6 +377,49 @@ class ShouldStopSourceClientBeforeHandoffTest(unittest.TestCase):
         )
 
 
+class StopActivePlaybackAndWaitTest(unittest.TestCase):
+    """Exposed for callers outside normal playback replacement (e.g. the
+    runtime swapping the media-server listener on a provider switch) that
+    need a clean slate before doing something disruptive.
+    """
+
+    def test_returns_false_when_nothing_active(self):
+        service = PlaybackApplicationService(
+            playback_session=FakePlaybackSession(),
+            playback_state=BridgePlaybackState(),
+            reload_config=lambda: None,
+            stop_active_playback=lambda: None,
+        )
+
+        self.assertFalse(service.stop_active_playback_and_wait())
+
+    def test_stops_and_waits_for_active_playback(self):
+        calls = []
+        service = PlaybackApplicationService(
+            playback_session=FakePlaybackSession(),
+            playback_state=BridgePlaybackState(),
+            reload_config=lambda: None,
+            stop_active_playback=lambda: calls.append("stop_active"),
+        )
+        service._thread_lifecycle._active_thread = _FakeActiveThread(calls)
+
+        result = service.stop_active_playback_and_wait()
+
+        self.assertTrue(result)
+        self.assertEqual(["stop_active", "join_active"], calls)
+
+
+class _FakeActiveThread:
+    def __init__(self, calls):
+        self._calls = calls
+
+    def is_alive(self):
+        return True
+
+    def join(self, timeout=None):
+        self._calls.append("join_active")
+
+
 def _intent(*, media_item_id: str) -> PlaybackIntent:
     return PlaybackIntent(
         media_item_id=media_item_id,

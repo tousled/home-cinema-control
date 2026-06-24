@@ -1,5 +1,5 @@
 bscpylgtv==0.5.2
-fastapi==0.137.2
+fastapi==0.138.0
 onkyo-eiscp==1.2.7
 psutil==7.2.2
 pydantic==2.13.4

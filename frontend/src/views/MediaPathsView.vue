@@ -590,7 +590,7 @@ const {
   clearSmbCredentials: api.clearSmbCredentials,
 })
 
-const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_server?.type)
+const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_servers?.active)
 const mediaServerTypeLabel = computed(() => mediaServerBrand.value.label)
 
 const networkModeLabel = computed(() => smbEnabled.value ? 'SMB/CIFS' : 'NFS')

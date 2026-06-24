@@ -78,21 +78,28 @@ class ConfigureJellyfinTokenTest(unittest.TestCase):
         }
 
         result = configure_jellyfin_token(
-            {"media_server": {"type": "jellyfin", "server_url": "http://jellyfin.local/"}},
+            {
+                "media_servers": {
+                    "active": "jellyfin",
+                    "providers": {"jellyfin": {"server_url": "http://jellyfin.local/"}},
+                }
+            },
             MediaServerLoginCredentials(user_name="pedro", password="secret"),
         )
 
-        self.assertEqual("jellyfin-token", result["media_server"]["access_token"])
-        self.assertEqual("jellyfin-user", result["media_server"]["user_id"])
-        self.assertTrue(result["media_server"]["access_token_configured"])
-        self.assertEqual("Pedro", result["media_server"]["display_name"])
-        self.assertEqual("http://jellyfin.local", result["media_server"]["server_url"])
+        provider = result["media_servers"]["providers"]["jellyfin"]
+        self.assertEqual("jellyfin-token", provider["access_token"])
+        self.assertEqual("jellyfin-user", provider["user_id"])
+        self.assertEqual("Pedro", provider["display_name"])
+        self.assertEqual("http://jellyfin.local", provider["server_url"])
+        self.assertEqual("jellyfin", result["media_servers"]["active"])
 
         public_config = sanitize_config_for_web(result)
 
-        self.assertTrue(public_config["media_server"]["access_token_configured"])
-        self.assertNotIn("access_token", public_config["media_server"])
-        self.assertNotIn("user_id", public_config["media_server"])
+        public_provider = public_config["media_servers"]["providers"]["jellyfin"]
+        self.assertTrue(public_provider["access_token_configured"])
+        self.assertNotIn("access_token", public_provider)
+        self.assertNotIn("user_id", public_provider)
 
 
 if __name__ == "__main__":

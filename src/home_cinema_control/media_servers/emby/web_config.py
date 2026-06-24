@@ -2,6 +2,11 @@ import hashlib
 import logging
 from typing import Any
 
+from home_cinema_control.config.manager import (
+    active_media_server_config,
+    set_active_media_server,
+    upsert_media_server_provider,
+)
 from home_cinema_control.media_servers.emby.constants import DEVICE_ID
 from home_cinema_control.media_servers.emby.client import EmbyClient
 from home_cinema_control.network.http import get_http_session
@@ -170,9 +175,7 @@ def configure_emby_token(
 ) -> dict:
     config = public_config_with_existing_secrets(config)
 
-    media_server = dict(config.get("media_server") or {})
-
-    server_url = str(media_server.get("server_url", "")).strip().rstrip("/")
+    server_url = active_media_server_config(config).server_url.strip().rstrip("/")
     user_name = credentials.user_name.strip()
     password = credentials.password
 
@@ -199,14 +202,15 @@ def configure_emby_token(
     if not access_token or not user_id:
         raise RuntimeError("Emby authentication response did not include AccessToken/User.Id")
 
-    media_server["type"] = "emby"
-    media_server["server_url"] = server_url
-    media_server["display_name"] = display_name
-    media_server["access_token"] = access_token
-    media_server["user_id"] = user_id
-    media_server["access_token_configured"] = True
-
-    config["media_server"] = media_server
+    updated = upsert_media_server_provider(
+        config,
+        "emby",
+        server_url=server_url,
+        display_name=display_name,
+        access_token=access_token,
+        user_id=user_id,
+    )
+    config = set_active_media_server(updated, "emby").model_dump()
 
     _remove_legacy_emby_keys(config)
 

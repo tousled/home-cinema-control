@@ -39,7 +39,13 @@ class RestoreTvMediaServerAppTest(unittest.TestCase):
             return_value=controller,
         ):
             result = restore_tv_media_server_app(
-                {"tv": {"model": "LG"}, "media_server": {"type": "jellyfin"}}
+                {
+                    "tv": {"model": "LG"},
+                    "media_servers": {
+                        "active": "jellyfin",
+                        "providers": {"jellyfin": {"server_url": "http://jf"}},
+                    },
+                }
             )
 
         self.assertEqual("OK", result)
@@ -55,6 +61,46 @@ class RestoreTvMediaServerAppTest(unittest.TestCase):
 
         self.assertEqual("OK", result)
         self.assertEqual([None], controller.launched_app_ids)
+
+    def test_provider_configured_without_server_url_resolves_to_no_app_id(self):
+        # An active provider entry with no server_url isn't "configured" —
+        # nothing to restore to.
+        controller = FakeTvController()
+        with patch(
+                "home_cinema_control.devices.tv.setup_control.create_tv_controller",
+                return_value=controller,
+        ):
+            result = restore_tv_media_server_app(
+                {
+                    "tv": {"model": "LG"},
+                    "media_servers": {
+                        "active": "jellyfin",
+                        "providers": {"jellyfin": {}},
+                    },
+                }
+            )
+
+        self.assertEqual("OK", result)
+        self.assertEqual([None], controller.launched_app_ids)
+
+    def test_launches_app_id_for_migrated_active_provider(self):
+        controller = FakeTvController()
+        with patch(
+                "home_cinema_control.devices.tv.setup_control.create_tv_controller",
+                return_value=controller,
+        ):
+            result = restore_tv_media_server_app(
+                {
+                    "tv": {"model": "LG"},
+                    "media_servers": {
+                        "active": "jellyfin",
+                        "providers": {"jellyfin": {"server_url": "http://jf"}},
+                    },
+                }
+            )
+
+        self.assertEqual("OK", result)
+        self.assertEqual([JELLYFIN_APP_ID], controller.launched_app_ids)
 
 
 class FakeTvController:

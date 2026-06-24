@@ -6,7 +6,7 @@ from home_cinema_control.web.setup_verification import mark_section_verified
 
 def _base_config(**overrides):
     config = {
-        "media_server": {"server_url": "", "access_token_configured": False},
+        "media_servers": {"active": "emby", "providers": {"emby": {"server_url": ""}}},
         "oppo": {"ip": ""},
         "playback": {"path_mappings": []},
         "tv": {"enabled": False},
@@ -16,6 +16,11 @@ def _base_config(**overrides):
     return config
 
 
+def _emby_provider(**fields):
+    """media_servers override for the common case of a single emby provider."""
+    return {"active": "emby", "providers": {"emby": fields}}
+
+
 class MediaServerReadinessTest(unittest.TestCase):
     def test_incomplete_when_no_url(self):
         r = compute_config_readiness(_base_config())
@@ -23,29 +28,47 @@ class MediaServerReadinessTest(unittest.TestCase):
 
     def test_incomplete_when_url_but_no_token(self):
         r = compute_config_readiness(_base_config(
-            media_server={"server_url": "http://emby:8096", "access_token_configured": False}
+            media_servers=_emby_provider(server_url="http://emby:8096")
         ))
         self.assertEqual("incomplete", r["media_server"]["status"])
         self.assertIn("Token not configured", r["media_server"]["detail"])
 
     def test_configured_when_token_present(self):
         r = compute_config_readiness(_base_config(
-            media_server={
-                "server_url": "http://emby:8096",
-                "access_token_configured": True,
-                "display_name": "Admin",
-            }
+            media_servers=_emby_provider(
+                server_url="http://emby:8096",
+                access_token_configured=True,
+                display_name="Admin",
+            )
         ))
         self.assertEqual("configured", r["media_server"]["status"])
         self.assertEqual("Admin", r["media_server"]["detail"])
 
+    def test_configured_reads_active_provider_from_migrated_shape(self):
+        config = _base_config(
+            media_servers={
+                "active": "jellyfin",
+                "providers": {
+                    "emby": {"server_url": "http://emby:8096"},
+                    "jellyfin": {
+                        "server_url": "http://jf:8096",
+                        "access_token_configured": True,
+                        "display_name": "Pedro",
+                    },
+                },
+            }
+        )
+        r = compute_config_readiness(config)
+        self.assertEqual("configured", r["media_server"]["status"])
+        self.assertEqual("Pedro", r["media_server"]["detail"])
+
     def test_verified_when_matching_media_server_verification_exists(self):
         config = _base_config(
-            media_server={
-                "server_url": "http://emby:8096",
-                "access_token_configured": True,
-                "display_name": "Admin",
-            },
+            media_servers=_emby_provider(
+                server_url="http://emby:8096",
+                access_token_configured=True,
+                display_name="Admin",
+            ),
             playback={"hcc_controlled_device": "lg-client"},
         )
         r = compute_config_readiness(mark_section_verified(config, "media_server"))
@@ -53,10 +76,10 @@ class MediaServerReadinessTest(unittest.TestCase):
 
     def test_stale_when_verified_media_server_fields_change(self):
         config = _base_config(
-            media_server={
-                "server_url": "http://emby:8096",
-                "access_token_configured": True,
-            },
+            media_servers=_emby_provider(
+                server_url="http://emby:8096",
+                access_token_configured=True,
+            ),
             playback={"hcc_controlled_device": "lg-client"},
         )
         verified = mark_section_verified(config, "media_server")

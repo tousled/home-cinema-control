@@ -34,10 +34,30 @@
               </div>
               <FormSelect
                   id="ms-provider"
-                  v-model="config.media_server.type"
+                  v-model="selectedType"
+                  :disabled="switching"
                   :options="providerOptions"
                   class="mb-3"
               />
+
+              <div v-if="switching" class="connecting-status mb-3">
+                <span class="s-dot info pulse"></span>
+                <span>{{ $t('x-media-server-connecting', {server: brand.label}) }}</span>
+              </div>
+
+              <div v-if="connectionError" class="library-warning library-warning-err mb-3">
+                <AlertTriangle :size="17" :stroke-width="2"/>
+                <div>
+                  <p class="library-warning-title">{{ $t('x-media-server-connect-error-title') }}</p>
+                  <p class="library-warning-copy">
+                    {{
+                      connectionError.unreachable
+                          ? $t('x-media-server-connect-error-unreachable', {server: connectionError.targetLabel})
+                          : $t('x-media-server-connect-error-generic', {server: connectionError.targetLabel})
+                    }}
+                  </p>
+                </div>
+              </div>
 
               <div class="form-label label-with-help">
                 <label for="ms-url">{{ $t('x-media-server-url') }}</label>
@@ -45,7 +65,7 @@
               </div>
               <input
                   id="ms-url"
-                  v-model="config.media_server.server_url"
+                  v-model="serverUrl"
                   class="form-input mb-3"
                   placeholder="http://192.168.1.x:8096"
                   type="text"
@@ -54,7 +74,7 @@
           </div>
 
           <!-- Auth -->
-          <div :class="authAccentClass" class="panel mb-3">
+          <div :class="[authAccentClass, switching && 'panel-pending']" class="panel mb-3">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
                 <KeyRound :size="13" :stroke-width="2.3"/>
@@ -64,14 +84,24 @@
             </div>
             <div class="panel-body">
 
+              <div v-if="sessionExpiredNotice" class="library-warning mb-3">
+                <AlertTriangle :size="17" :stroke-width="2"/>
+                <div>
+                  <p class="library-warning-title">{{ $t('x-media-server-session-expired-title') }}</p>
+                  <p class="library-warning-copy">
+                    {{ $t('x-media-server-session-expired-copy', {server: brand.label}) }}
+                  </p>
+                </div>
+              </div>
+
               <!-- Token active: show status + change-password button -->
-              <template v-if="config.media_server.access_token_configured && !changingPassword">
+              <template v-if="activeProvider.access_token_configured && !changingPassword">
                 <div class="token-status mb-3">
                   <span class="token-status-icon">✓</span>
                   <div>
                     <div class="token-status-label">{{ $t('x-media-server-token-active') }}</div>
                     <div class="token-status-user">{{ $t('x-media-server-user') }}: {{
-                        config.media_server.display_name
+                        activeProvider.display_name
                       }}
                     </div>
                   </div>
@@ -119,7 +149,7 @@
           </div>
 
           <!-- Monitored device -->
-          <div :class="deviceAccentClass" class="panel mb-3">
+          <div :class="[deviceAccentClass, switching && 'panel-pending']" class="panel mb-3">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
                 <MonitorPlay :size="13" :stroke-width="2.3"/>
@@ -165,8 +195,8 @@
         </div>
 
         <!-- Library paths readiness -->
-        <aside v-if="config.media_server.access_token_configured" class="media-server-side">
-          <div :class="libraryPathsAccentClass" class="panel">
+        <aside v-if="activeProvider.access_token_configured" class="media-server-side">
+          <div :class="[libraryPathsAccentClass, switching && 'panel-pending']" class="panel">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
                 <FolderCheck :size="13" :stroke-width="2.3"/>
@@ -239,7 +269,8 @@ import HelpTooltip from '../components/HelpTooltip.vue'
 import IconActionButton from '../components/IconActionButton.vue'
 import FormSelect from '../components/FormSelect.vue'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
-import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
+import {useMediaServerBrand, mediaServerBrandLabel} from '../composables/useMediaServerBrand.js'
+import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -255,41 +286,66 @@ const loadingDevices = ref(false)
 const loadingLibraryPaths = ref(false)
 const tokenLoading = ref(false)
 const checkLoading = ref(false)
+const switching = ref(false)
 const changingPassword = ref(false)
+const sessionExpiredNotice = ref(false)
+// Set on a failed switch/check/token request: {targetLabel, unreachable}.
+// `unreachable` (backend 503) means the target server didn't respond at
+// all (down, unreachable, or timed out) — distinct from a reachable server
+// rejecting the request, where the backend's own detail message is shown
+// via toast instead.
+const connectionError = ref(null)
 
 const config = ref({
-  media_server: {server_url: '', type: 'emby'},
-  playback: {hcc_controlled_device: '', use_all_libraries: true},
+  media_servers: {active: 'emby', providers: {}},
+  playback: {hcc_controlled_device: ''},
 })
 const login = ref({user_name: '', password: ''})
 const devices = ref([])
 const libraryPaths = ref([])
 const libraryPathsError = ref('')
 
-const canGetToken = computed(() =>
-    !!(config.value.media_server?.server_url && login.value.user_name && login.value.password),
-)
+// Bound to the provider FormSelect directly (not nested in config) — the
+// backend is the source of truth for "is this provider already configured,"
+// so a selector change always asks it via onSelectorChanged below, instead of
+// restoring an in-memory snapshot client-side.
+const selectedType = ref('emby')
 
-const {brand} = useMediaServerBrand(() => config.value.media_server?.type)
+const {provider: activeProvider} = useActiveMediaServer(() => config.value)
+const {brand} = useMediaServerBrand(selectedType)
+
+const serverUrl = computed({
+  get: () => config.value.media_servers?.providers?.[selectedType.value]?.server_url || '',
+  set: (value) => {
+    const providers = (config.value.media_servers ||= {active: selectedType.value, providers: {}}).providers ||= {}
+    providers[selectedType.value] = {...(providers[selectedType.value] || {}), server_url: value}
+  },
+})
+
+const canGetToken = computed(() =>
+    !!(serverUrl.value && login.value.user_name && login.value.password),
+)
 
 const connectionTested = ref(false)
 
-// Suppresses the server_url watcher while we restore a cached provider snapshot,
-// so restoring the saved URL does not wipe the restored "tested" state.
-let restoringConnection = false
+// Suppresses the dirty-watcher while we apply a fresh response from the
+// backend, so rendering the saved server_url does not look like the user
+// just edited it and wipe the "tested" state we're setting in the same response.
+let applyingResponse = false
 
-watch(() => config.value.media_server?.server_url, () => {
-  if (restoringConnection) return
+watch(serverUrl, () => {
+  if (applyingResponse) return
   connectionTested.value = false
 })
 
 const connectionAccentClass = computed(() => {
-  if (!config.value.media_server?.server_url) return 'panel-accent-dim'
+  if (switching.value) return 'panel-accent-info'
+  if (!serverUrl.value) return 'panel-accent-dim'
   return connectionTested.value ? 'panel-accent-ok' : 'panel-accent-info'
 })
 
 const authAccentClass = computed(() =>
-    config.value.media_server?.access_token_configured ? 'panel-accent-ok' : 'panel-accent-dim',
+    activeProvider.value.access_token_configured ? 'panel-accent-ok' : 'panel-accent-dim',
 )
 
 const deviceAccentClass = computed(() =>
@@ -301,6 +357,17 @@ const libraryPathsAccentClass = computed(() => {
   if (!libraryPaths.value.length) return 'panel-accent-warn'
   return 'panel-accent-ok'
 })
+
+// Backend maps an unreachable/timed-out target server to 503 (see
+// api_app.py's _check_connection_or_503) so this can show concrete guidance
+// instead of a generic failure — distinct from a reachable server that
+// rejected the request, where the toast's backend detail message is enough.
+function reportConnectionError(e, targetType) {
+  connectionError.value = {
+    targetLabel: mediaServerBrandLabel(targetType),
+    unreachable: e.status === 503,
+  }
+}
 
 function cancelChangePassword() {
   changingPassword.value = false
@@ -337,19 +404,18 @@ async function loadLibraryPaths() {
 
 async function getToken() {
   tokenLoading.value = true
+  connectionError.value = null
   try {
-    const updated = await api.configureMediaServerToken(await configWithServerSetup(), {
-      user_name: login.value.user_name,
-      password: login.value.password,
-    })
-    config.value = updated
+    const updated = await api.configureMediaServerToken(
+        {media_server: {type: selectedType.value, server_url: serverUrl.value}},
+        {user_name: login.value.user_name, password: login.value.password},
+    )
+    await applyMediaServerResponse(updated)
     login.value.password = ''
     changingPassword.value = false
-    connectionTested.value = true
     toast.success(t('x-media-server-token-ok', {server: brand.value.label}))
-    await Promise.all([loadDevices(), loadLibraryPaths()])
-    captureConfiguredSnapshot()
   } catch (e) {
+    reportConnectionError(e, selectedType.value)
     toast.error(e.message)
   } finally {
     tokenLoading.value = false
@@ -358,14 +424,15 @@ async function getToken() {
 
 async function checkMediaServer() {
   checkLoading.value = true
+  connectionError.value = null
   try {
-    const updated = await api.checkMediaServer(await configWithServerSetup())
-    config.value = updated
-    connectionTested.value = true
+    const updated = await api.checkMediaServer({
+      media_server: {type: selectedType.value, server_url: serverUrl.value},
+    })
+    await applyMediaServerResponse(updated)
     toast.success(t('x-media-server-connection-ok', {server: brand.value.label}))
-    await Promise.all([loadDevices(), loadLibraryPaths()])
-    captureConfiguredSnapshot()
   } catch (e) {
+    reportConnectionError(e, selectedType.value)
     toast.error(e.message)
   } finally {
     checkLoading.value = false
@@ -374,97 +441,97 @@ async function checkMediaServer() {
 
 async function saveConfig() {
   try {
-    config.value = await saveSection('media-server', serverSetupSection())
-    captureConfiguredSnapshot()
+    const updated = await saveSection('media-server', {
+      media_server: {type: selectedType.value, server_url: serverUrl.value},
+      playback: {hcc_controlled_device: config.value.playback?.hcc_controlled_device || ''},
+    })
+    await applyMediaServerResponse(updated)
     toast.success(t('x-common-saved'))
   } catch (e) {
     toast.error(e.message)
   }
 }
 
-function serverSetupSection() {
-  return {
-    media_server: config.value.media_server || {},
-    playback: {
-      hcc_controlled_device: config.value.playback?.hcc_controlled_device || '',
-    },
-  }
-}
-
-async function configWithServerSetup() {
-  const latest = await api.getConfig()
-  return {
-    ...latest,
-    media_server: {
-      ...(latest.media_server || {}),
-      ...(config.value.media_server || {}),
-    },
-    playback: {
-      ...(latest.playback || {}),
-      hcc_controlled_device: config.value.playback?.hcc_controlled_device || '',
-    },
-  }
-}
-
-// In-memory snapshot of the provider currently configured on the backend (only
-// one provider is persisted at a time). Captured whenever we hold authoritative
-// state so onProviderChanged can restore the configured provider's auth,
-// monitored device, and detected libraries without re-querying the media server
-// on every selector change.
-let configuredSnapshot = null
-
-function captureConfiguredSnapshot() {
-  configuredSnapshot = {
-    providerType: config.value.media_server?.type || null,
-    mediaServer: JSON.parse(JSON.stringify(config.value.media_server || {})),
-    hccDevice: config.value.playback?.hcc_controlled_device || '',
-    devices: devices.value.slice(),
-    libraryPaths: libraryPaths.value.slice(),
-    libraryPathsError: libraryPathsError.value,
-    connectionTested: connectionTested.value,
-    loginUserName: login.value.user_name,
-  }
-}
-
-function restoreConfiguredSnapshot() {
-  const snap = configuredSnapshot
-  restoringConnection = true
-  config.value.media_server = JSON.parse(JSON.stringify(snap.mediaServer))
-  if (!config.value.playback) config.value.playback = {}
-  config.value.playback.hcc_controlled_device = snap.hccDevice
-  devices.value = snap.devices.slice()
-  libraryPaths.value = snap.libraryPaths.slice()
-  libraryPathsError.value = snap.libraryPathsError
-  login.value.user_name = snap.loginUserName
-  login.value.password = ''
-  changingPassword.value = false
-  connectionTested.value = snap.connectionTested
-  nextTick(() => {
-    restoringConnection = false
-  })
-}
-
-// Switching provider invalidates the previous provider's auth/device state. The
-// backend keeps only the configured provider's secrets/device, so:
-// - returning to the still-configured provider restores its authorized state,
-//   monitored device, and detected libraries from the in-memory snapshot;
-// - switching to any other (not configured) provider clears the screen for
-//   immediate UI feedback until the user authorizes it.
-function onProviderChanged(newType) {
-  if (configuredSnapshot && newType && newType === configuredSnapshot.providerType) {
-    restoreConfiguredSnapshot()
+// Applies a /config/media-server or /media-server/(check|token) response.
+// Three shapes, per the Provider Switch Flow design:
+// - switch_requires_confirmation: playback is active on the current provider;
+//   nothing changed yet. Ask, then resend with confirm_provider_switch.
+// - media_server_session_expired: the switch went through, but the target's
+//   stored token was rejected — show the login form with that reason.
+// - otherwise: a normal, ready config — render it and refresh devices/libraries.
+async function applyMediaServerResponse(response, {previousType} = {}) {
+  if (response.switch_requires_confirmation) {
+    const providerLabel = mediaServerBrandLabel(response.active_session_provider)
+    const confirmed = window.confirm(
+        t('x-media-server-switch-confirm', {server: providerLabel}),
+    )
+    if (!confirmed) {
+      if (previousType) {
+        revertingSelection = true
+        selectedType.value = previousType
+        await nextTick()
+        revertingSelection = false
+      }
+      return
+    }
+    const retried = await api.saveConfigSection('media-server', {
+      media_server: {type: selectedType.value},
+      confirm_provider_switch: true,
+    })
+    await applyMediaServerResponse(retried, {previousType})
     return
   }
-  config.value.media_server.access_token_configured = false
-  config.value.media_server.display_name = ''
-  if (config.value.playback) config.value.playback.hcc_controlled_device = ''
-  login.value.user_name = ''
+
+  applyingResponse = true
+  config.value = response
+  selectedType.value = response.media_servers?.active || selectedType.value
+  sessionExpiredNotice.value = Boolean(response.media_server_session_expired)
+
+  const provider = activeProvider.value
+  login.value.user_name = provider.display_name || ''
   login.value.password = ''
+  connectionTested.value = Boolean(provider.access_token_configured)
+
+  if (provider.access_token_configured) {
+    await Promise.all([loadDevices(), loadLibraryPaths()])
+  } else {
+    devices.value = []
+    libraryPaths.value = []
+    libraryPathsError.value = ''
+  }
+  applyingResponse = false
+}
+
+// Set while a revert assignment below is in flight, so the selectedType
+// watcher (registered in onMounted) knows to update its own bookkeeping
+// without re-entering onSelectorChanged — otherwise reverting the selector
+// after a failed switch fires a second, unwanted switch-back request that
+// immediately clears the error banner this function just set.
+let revertingSelection = false
+
+// User-driven provider switch: ask the backend immediately (it is the source
+// of truth for whether the target is already configured), rather than
+// restoring an in-memory snapshot client-side.
+async function onSelectorChanged(newType, previousType) {
+  if (switching.value || newType === previousType) return
+  switching.value = true
   changingPassword.value = false
-  connectionTested.value = false
-  devices.value = []
-  libraryPaths.value = []
-  libraryPathsError.value = ''
+  connectionError.value = null
+  try {
+    const response = await api.saveConfigSection('media-server', {
+      media_server: {type: newType},
+    })
+    await applyMediaServerResponse(response, {previousType})
+  } catch (e) {
+    reportConnectionError(e, newType)
+    toast.error(e.message)
+    revertingSelection = true
+    selectedType.value = previousType
+    await nextTick()
+    revertingSelection = false
+  } finally {
+    switching.value = false
+  }
 }
 
 onMounted(async () => {
@@ -472,18 +539,22 @@ onMounted(async () => {
   try {
     const data = await api.getConfig()
     config.value = data
-    if (!config.value.media_server) config.value.media_server = {type: 'emby'}
-    if (!config.value.playback) config.value.playback = {}
-    login.value.user_name = data.media_server?.display_name || ''
-    if (data.media_server?.access_token_configured) {
+    selectedType.value = data.media_servers?.active || 'emby'
+    login.value.user_name = activeProvider.value.display_name || ''
+    if (activeProvider.value.access_token_configured) {
       await Promise.all([loadDevices(), loadLibraryPaths()])
     }
-    connectionTested.value = !!data.media_server?.access_token_configured
-    captureConfiguredSnapshot()
+    connectionTested.value = Boolean(activeProvider.value.access_token_configured)
 
     // Registered after the initial load so it only reacts to user-driven
-    // provider changes, not the type value arriving from the loaded config.
-    watch(() => config.value.media_server?.type, onProviderChanged)
+    // provider changes, not the value arriving from the loaded config.
+    let previousType = selectedType.value
+    watch(selectedType, (newType) => {
+      const fromType = previousType
+      previousType = newType
+      if (revertingSelection) return
+      onSelectorChanged(newType, fromType)
+    })
   } finally {
     loading.value = false
   }
@@ -653,6 +724,30 @@ onMounted(async () => {
   color: var(--status-warning);
   flex-shrink: 0;
   margin-top: 1px;
+}
+
+.library-warning-err {
+  border-color: rgba(255, 92, 122, 0.22);
+  background: rgba(255, 92, 122, 0.07);
+}
+
+.library-warning-err svg {
+  color: var(--status-danger);
+}
+
+.connecting-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.panel-pending {
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
 }
 
 .library-warning-title {

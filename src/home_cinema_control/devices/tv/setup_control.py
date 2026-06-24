@@ -1,3 +1,8 @@
+from home_cinema_control.config.manager import (
+    active_media_server_config,
+    active_media_server_type,
+)
+
 from .factory import create_tv_controller
 from .models import TvInputTarget
 
@@ -31,6 +36,14 @@ def switch_tv_to_player_input(config):
 
 
 def restore_tv_media_server_app(config):
-    provider_type = (config.get("media_server") or {}).get("type", "")
+    # No real server_url means no media server has been configured at all
+    # (active_media_server_type alone can't tell that apart from "configured
+    # as emby", since emby is its default) — nothing to restore to. The
+    # frontend disables this action's button on the same signal so a real
+    # user never hits this branch; it only guards a direct/API call.
+    if not active_media_server_config(config).server_url:
+        return _result_to_status(create_tv_controller(config).launch_app(None))
+
+    provider_type = active_media_server_type(config)
     controller = create_tv_controller(config)
     return _result_to_status(controller.launch_app(controller.media_server_app_id(provider_type)))

@@ -10,12 +10,16 @@ from home_cinema_control.web.config_service import WebConfigService
 class FakeRuntime:
     def __init__(self):
         self.config = {
-            "media_server": {
-                "type": "emby",
-                "server_url": "http://emby",
-                "display_name": "Pedro",
-                "access_token": "secret-token",
-                "user_id": "emby-user-id",
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "server_url": "http://emby",
+                        "display_name": "Pedro",
+                        "access_token": "secret-token",
+                        "user_id": "emby-user-id",
+                    }
+                },
             }
         }
         self.saved_config = None
@@ -33,11 +37,12 @@ class WebConfigServiceTest(unittest.TestCase):
 
         sanitized = service.sanitize(service.load_config())
 
-        self.assertEqual("http://emby", sanitized["media_server"]["server_url"])
-        self.assertEqual("Pedro", sanitized["media_server"]["display_name"])
-        self.assertTrue(sanitized["media_server"]["access_token_configured"])
-        self.assertNotIn("access_token", sanitized["media_server"])
-        self.assertNotIn("user_id", sanitized["media_server"])
+        provider = sanitized["media_servers"]["providers"]["emby"]
+        self.assertEqual("http://emby", provider["server_url"])
+        self.assertEqual("Pedro", provider["display_name"])
+        self.assertTrue(provider["access_token_configured"])
+        self.assertNotIn("access_token", provider)
+        self.assertNotIn("user_id", provider)
 
     def test_prepare_submitted_config_preserves_existing_media_server_secrets(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -47,11 +52,11 @@ class WebConfigServiceTest(unittest.TestCase):
             config_file.write_text(
                 json.dumps(
                     {
-                        "media_server": {
-                            "type": "emby",
-                            "server_url": "http://old",
-                            "display_name": "Pedro",
-                            "access_token_configured": True,
+                        "media_servers": {
+                            "active": "emby",
+                            "providers": {
+                                "emby": {"server_url": "http://old", "display_name": "Pedro"}
+                            },
                         }
                     }
                 ),
@@ -60,9 +65,13 @@ class WebConfigServiceTest(unittest.TestCase):
             secrets_file.write_text(
                 json.dumps(
                     {
-                        "media_server": {
-                            "access_token": "secret-token",
-                            "user_id": "emby-user-id",
+                        "media_servers": {
+                            "providers": {
+                                "emby": {
+                                    "access_token": "secret-token",
+                                    "user_id": "emby-user-id",
+                                }
+                            }
                         }
                     }
                 ),
@@ -78,11 +87,11 @@ class WebConfigServiceTest(unittest.TestCase):
 
                 prepared = service.prepare_submitted_config(
                     {
-                        "media_server": {
-                            "type": "emby",
-                            "server_url": "http://new",
-                            "display_name": "Pedro",
-                            "access_token_configured": True,
+                        "media_servers": {
+                            "active": "emby",
+                            "providers": {
+                                "emby": {"server_url": "http://new", "display_name": "Pedro"}
+                            },
                         }
                     }
                 )
@@ -92,10 +101,11 @@ class WebConfigServiceTest(unittest.TestCase):
                 else:
                     os.environ["HCC_SECRETS_FILE_PATH"] = previous_secrets_path
 
-        self.assertEqual("http://new", prepared["media_server"]["server_url"])
-        self.assertEqual("Pedro", prepared["media_server"]["display_name"])
-        self.assertEqual("secret-token", prepared["media_server"]["access_token"])
-        self.assertEqual("emby-user-id", prepared["media_server"]["user_id"])
+        provider = prepared["media_servers"]["providers"]["emby"]
+        self.assertEqual("http://new", provider["server_url"])
+        self.assertEqual("Pedro", provider["display_name"])
+        self.assertEqual("secret-token", provider["access_token"])
+        self.assertEqual("emby-user-id", provider["user_id"])
         self.assertIsNone(runtime.saved_config)
 
     def test_prepare_submitted_config_does_not_reintroduce_legacy_password_keys(self):
@@ -106,11 +116,11 @@ class WebConfigServiceTest(unittest.TestCase):
             config_file.write_text(
                 json.dumps(
                     {
-                        "media_server": {
-                            "type": "emby",
-                            "server_url": "http://old",
-                            "display_name": "Pedro",
-                            "access_token_configured": True,
+                        "media_servers": {
+                            "active": "emby",
+                            "providers": {
+                                "emby": {"server_url": "http://old", "display_name": "Pedro"}
+                            },
                         }
                     }
                 ),
@@ -119,9 +129,13 @@ class WebConfigServiceTest(unittest.TestCase):
             secrets_file.write_text(
                 json.dumps(
                     {
-                        "media_server": {
-                            "access_token": "secret-token",
-                            "user_id": "emby-user-id",
+                        "media_servers": {
+                            "providers": {
+                                "emby": {
+                                    "access_token": "secret-token",
+                                    "user_id": "emby-user-id",
+                                }
+                            }
                         }
                     }
                 ),
@@ -137,10 +151,11 @@ class WebConfigServiceTest(unittest.TestCase):
 
                 prepared = service.prepare_submitted_config(
                     {
-                        "media_server": {
-                            "type": "emby",
-                            "server_url": "http://new",
-                            "display_name": "Pedro",
+                        "media_servers": {
+                            "active": "emby",
+                            "providers": {
+                                "emby": {"server_url": "http://new", "display_name": "Pedro"}
+                            },
                         },
                         "user_password": "",
                         "user_password_configured": True,
@@ -158,9 +173,10 @@ class WebConfigServiceTest(unittest.TestCase):
         self.assertNotIn("user_password_configured", prepared)
         self.assertNotIn("emby_server", prepared)
         self.assertNotIn("user_name", prepared)
-        self.assertEqual("http://new", prepared["media_server"]["server_url"])
-        self.assertEqual("secret-token", prepared["media_server"]["access_token"])
-        self.assertEqual("emby-user-id", prepared["media_server"]["user_id"])
+        provider = prepared["media_servers"]["providers"]["emby"]
+        self.assertEqual("http://new", provider["server_url"])
+        self.assertEqual("secret-token", provider["access_token"])
+        self.assertEqual("emby-user-id", provider["user_id"])
 
     def test_save_config_delegates_to_runtime_without_preparing_full_config(self):
         runtime = FakeRuntime()

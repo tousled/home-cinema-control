@@ -14,6 +14,7 @@ from home_cinema_control.web.static_assets import load_json_asset
 from home_cinema_control.config.manager import is_configured, save_effective_config
 from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import PlaybackDiagnostic
+from home_cinema_control.playback.dispatch import bridge_playback_is_active
 
 
 @dataclass(frozen=True)
@@ -176,6 +177,47 @@ class HomeCinemaControlRuntime:
         )
         self.playback_listener_thread.start()
 
+    def has_active_playback(self) -> bool:
+        if self.playback_listener is None:
+            return False
+
+        playstate = getattr(self.playback_listener.playback_state, "playstate", None)
+        return bridge_playback_is_active(playstate)
+
+    def stop_playback_listener(self) -> None:
+        """Cleanly stop the current listener, if any.
+
+        If playback is active, waits for its normal finish/cleanup flow (TV/AV
+        restore, media-server reporting) to actually complete first — never
+        tears down the websocket while something is still in progress.
+        """
+        if self.playback_listener is None:
+            return
+
+        app_service = getattr(
+            self.playback_listener, "playback_application_service", None
+        )
+        if app_service is not None:
+            app_service.stop_active_playback_and_wait()
+
+        self.playback_listener.stop()
+        if self.playback_listener_thread is not None:
+            self.playback_listener_thread.join(timeout=10)
+
+        self.playback_listener = None
+        self.playback_listener_thread = None
+
+    def restart_playback_listener(self) -> bool:
+        """The only safe way to make the running listener match the current
+        config after a provider switch or re-login: stop_playback_listener(),
+        then start fresh from the (now-updated) config on disk. Replaces a
+        bare start_playback_listener_if_configured() call at any call site
+        that might already have a listener running — that combination used to
+        leave the old listener's thread/connection orphaned.
+        """
+        self.stop_playback_listener()
+        return self.start_playback_listener_if_configured()
+
     def get_state(self) -> dict:
         status = {"Version": self.version}
 
@@ -249,14 +291,18 @@ class HomeCinemaControlRuntime:
         self.playback_listener.play_from_command(data)
 
     def restart_process(self) -> None:
+        # The process is about to exit (Docker's restart policy brings it back
+        # up, reading config fresh) — there is nothing to "reconnect" here,
+        # only to stop cleanly first. The previous version called
+        # playback_listener.run() right after stop(), which reconnects and
+        # blocks on run_forever(): the process likely never reached
+        # _exit_process at all when a listener was running.
         logging.info("Restarting process")
         try:
-            if self.playback_listener is not None:
-                self.playback_listener.stop()
-                self.playback_listener.run()
+            self.stop_playback_listener()
         except Exception:
             logging.exception(
-                "Failed to restart the Emby WebSocket during process restart"
+                "Failed to stop the playback listener during process restart"
             )
         self._exit_process(0)
 

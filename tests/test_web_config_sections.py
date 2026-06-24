@@ -37,10 +37,35 @@ class ConfigSectionSaveTest(unittest.TestCase):
             },
         )
 
-        self.assertEqual("http://new", updated["media_server"]["server_url"])
+        self.assertEqual(
+            "http://new", updated["media_servers"]["providers"]["emby"]["server_url"]
+        )
+        self.assertEqual("emby", updated["media_servers"]["active"])
         self.assertEqual("new-client", updated["playback"]["hcc_controlled_device"])
         self.assertEqual([{"name": "Movies"}], updated["playback"]["path_mappings"])
         self.assertEqual([{"Name": "Movies"}], updated["playback"]["libraries"])
+
+    def test_media_server_switch_lands_in_target_providers_entry(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {"emby": {"server_url": "http://emby"}},
+            },
+        }
+
+        updated = apply_config_section(
+            config,
+            "media-server",
+            {"media_server": {"type": "jellyfin", "server_url": "http://jf"}},
+        )
+
+        self.assertEqual("jellyfin", updated["media_servers"]["active"])
+        self.assertEqual(
+            "http://jf", updated["media_servers"]["providers"]["jellyfin"]["server_url"]
+        )
+        self.assertEqual(
+            "http://emby", updated["media_servers"]["providers"]["emby"]["server_url"]
+        )
 
     def test_saves_libraries_without_overwriting_path_mappings(self):
         config = {

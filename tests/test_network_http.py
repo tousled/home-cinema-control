@@ -54,6 +54,39 @@ class LoggingHttpSessionTest(unittest.TestCase):
         joined = "\n".join(captured.output)
         self.assertNotIn("secret", joined)
 
+    def test_applies_a_default_timeout_when_caller_passes_none(self):
+        # requests itself has no default timeout — without one, a call to an
+        # unreachable host (e.g. a stopped Emby/Jellyfin server) blocks
+        # forever instead of failing. This is the single chokepoint all
+        # outbound HTTP in the app goes through, so the fix lives here.
+        calls = []
+
+        def fake_request(method, url, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(status_code=200, text="ok")
+
+        fake_session = SimpleNamespace(request=fake_request)
+        http_session = LoggingHttpSession(name="emby", session=fake_session)
+
+        http_session.get("http://emby.local/Sessions")
+
+        self.assertIn("timeout", calls[0])
+        self.assertIsNotNone(calls[0]["timeout"])
+
+    def test_does_not_override_an_explicit_timeout(self):
+        calls = []
+
+        def fake_request(method, url, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(status_code=200, text="ok")
+
+        fake_session = SimpleNamespace(request=fake_request)
+        http_session = LoggingHttpSession(name="oppo", session=fake_session)
+
+        http_session.get("http://oppo.local/getdevicelist", timeout=3)
+
+        self.assertEqual(3, calls[0]["timeout"])
+
 
 if __name__ == "__main__":
     unittest.main()

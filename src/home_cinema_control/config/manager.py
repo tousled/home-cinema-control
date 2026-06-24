@@ -4,7 +4,8 @@ import shutil
 from pathlib import Path
 
 from home_cinema_control.config.migration import _remove_legacy_flat_keys
-from home_cinema_control.config.models import HccConfig
+from home_cinema_control.config.models import HccConfig, MediaServerProviderConfig
+from home_cinema_control.media_servers.common.models import MediaServerProviderType
 
 
 CONFIG_ENV_VAR = "HCC_CONFIG_FILE"
@@ -17,12 +18,17 @@ EXAMPLE_CONFIG_FILE = "config.example.json"
 
 SECRET_PATHS = {
     ("user_password",),
-    ("media_server", "access_token"),
-    ("media_server", "user_id"),
     ("smb", "password"),
 }
 
 SENSITIVE_WEB_CONFIG_PATHS = set(SECRET_PATHS)
+
+# media_servers.providers is keyed by provider type (emby/jellyfin/...), so its
+# secret fields cannot be expressed as a static SECRET_PATHS tuple the way
+# media_server's can. _split_media_server_provider_secrets/
+# _merge_media_server_provider_secrets/_sanitize_media_server_providers handle
+# this per dict key instead.
+MEDIA_SERVER_PROVIDER_SECRET_FIELDS = ("access_token", "user_id")
 
 
 def merge_existing_secrets(config_path: Path | str, config: dict) -> dict:
@@ -44,6 +50,7 @@ def merge_existing_secrets(config_path: Path | str, config: dict) -> dict:
             if existing:
                 _set_nested(merged_config, path, existing)
 
+    _merge_media_server_provider_secrets(merged_config, secrets)
     _remove_legacy_flat_keys(merged_config)
     return merged_config
 
@@ -62,11 +69,7 @@ def sanitize_config_for_web(config: dict) -> dict:
     """
     safe_config = _deep_merge({}, config)
 
-    media_server = safe_config.setdefault("media_server", {})
-    media_server["access_token_configured"] = bool(
-        str(_get_nested(config, ("media_server", "access_token"), "")).strip()
-        or media_server.get("access_token_configured") is True
-    )
+    _sanitize_media_server_providers(safe_config, config)
 
     password_configured = bool(
         str(_get_nested(config, ("smb", "password"), "")).strip()
@@ -216,6 +219,8 @@ def save_effective_config(config_path: Path | str, config: dict) -> None:
         if value not in (None, ""):
             _set_nested(secrets, path, value)
 
+    _split_media_server_provider_secrets(public_config, secrets)
+
     # smb.username moved from secrets.json to config.json (it is not a secret).
     # Drop any leftover copy so a stale secrets.json value can no longer win
     # over a fresher config.json value during load_effective_config's merge.
@@ -224,11 +229,6 @@ def save_effective_config(config_path: Path | str, config: dict) -> None:
     _remove_sensitive_paths(public_config)
     _remove_legacy_flat_keys(public_config)
     _remove_legacy_flat_keys(secrets)
-
-    media_server = public_config.setdefault("media_server", {})
-    media_server["access_token_configured"] = bool(
-        str(_get_nested(secrets, ("media_server", "access_token"), "")).strip()
-    )
 
     _write_json(config_path, public_config)
     _write_json(secrets_path, secrets)
@@ -255,36 +255,6 @@ def clear_smb_credentials(config_path: Path | str) -> None:
     _write_json(config_path, public_config)
 
 
-def clear_media_server_auth(config_path: Path | str) -> None:
-    """Explicitly wipe stored media-server auth and monitored-device state.
-
-    Called when the user switches the selected provider (Emby/Jellyfin):
-    access_token/user_id live in secrets.json; display_name and
-    access_token_configured live in config.json. A blank submission alone
-    would not clear them — merge_existing_secrets fills blanks back in from
-    secrets.json on the next save, by design, so this needs an explicit wipe
-    the same way clear_smb_credentials does.
-
-    Verified path mappings are untouched: Emby and Jellyfin may point at the
-    same NAS paths, so they are preserved across a provider switch.
-    """
-    config_path = Path(config_path)
-    secrets_path = ensure_secrets_exists(config_path)
-
-    secrets = load_secrets(config_path)
-    _set_nested(secrets, ("media_server", "access_token"), "")
-    _set_nested(secrets, ("media_server", "user_id"), "")
-    _write_json(secrets_path, secrets)
-    _chmod_private(secrets_path)
-
-    public_config = _read_json(config_path)
-    media_server = public_config.setdefault("media_server", {})
-    media_server["display_name"] = ""
-    media_server["access_token_configured"] = False
-    playback = public_config.setdefault("playback", {})
-    playback["hcc_controlled_device"] = ""
-    _write_json(config_path, public_config)
-
 
 def migrate_secrets_from_config(config_path: Path | str) -> None:
     """
@@ -296,17 +266,197 @@ def migrate_secrets_from_config(config_path: Path | str) -> None:
     return None
 
 
-def is_configured(config: dict) -> bool:
-    media_server = config.get("media_server") or {}
+def get_media_server_provider(
+        config: HccConfig | dict, provider_type: MediaServerProviderType
+) -> MediaServerProviderConfig:
+    """Return the stored record for provider_type, or an empty one if absent."""
+    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    return validated.media_servers.providers.get(
+        provider_type, MediaServerProviderConfig()
+    )
 
-    server_url = str(media_server.get("server_url", "")).strip()
-    access_token = str(media_server.get("access_token", "")).strip()
-    user_id = str(media_server.get("user_id", "")).strip()
+
+def active_media_server_config(config: HccConfig | dict) -> MediaServerProviderConfig:
+    """Return the provider record for the active provider type.
+
+    Accepts a validated HccConfig or a raw dict (validates internally in the
+    latter case via HccConfig(**config)) — but always returns the typed
+    MediaServerProviderConfig, never a dict. Sugar for
+    get_media_server_provider(config, active type).
+    """
+    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    return get_media_server_provider(validated, validated.media_servers.active)
+
+
+def active_media_server_type(config: HccConfig | dict) -> MediaServerProviderType:
+    """The active provider's type string alone, for consumers that need to
+    dispatch on it (provider.py's factory, the TV app id) rather than read the
+    full provider record.
+    """
+    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    return validated.media_servers.active
+
+
+def upsert_media_server_provider(
+        config: HccConfig | dict,
+        provider_type: MediaServerProviderType,
+        **fields,
+) -> HccConfig:
+    """Return a copy of config with provider_type's record updated by **fields.
+
+    Unspecified fields on an existing record are left untouched (a partial
+    update, e.g. only access_token), not reset to defaults.
+    """
+    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+
+    existing = validated.media_servers.providers.get(
+        provider_type, MediaServerProviderConfig()
+    )
+    updated_providers = dict(validated.media_servers.providers)
+    updated_providers[provider_type] = existing.model_copy(update=fields)
+
+    updated_media_servers = validated.media_servers.model_copy(
+        update={"providers": updated_providers}
+    )
+    return validated.model_copy(update={"media_servers": updated_media_servers})
+
+
+def set_active_media_server(
+        config: HccConfig | dict, provider_type: MediaServerProviderType
+) -> HccConfig:
+    """Return a copy of config with media_servers.active set to provider_type.
+
+    Does not touch the provider's own record — pair with
+    upsert_media_server_provider when a caller needs both (switching to a
+    provider while also writing fresh credentials for it, e.g.
+    configure_token, or the provider-switch flow in web/api_app.py).
+    """
+    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    return validated.model_copy(
+        update={
+            "media_servers": validated.media_servers.model_copy(
+                update={"active": provider_type}
+            )
+        }
+    )
+
+
+def is_configured(config: HccConfig | dict) -> bool:
+    provider = active_media_server_config(config)
+
+    server_url = provider.server_url.strip()
+    access_token = provider.access_token.strip()
+    user_id = provider.user_id.strip()
 
     if not server_url or not access_token or not user_id:
         return False
 
     return server_url.startswith(("http://", "https://"))
+
+
+def migrate_media_server_to_media_servers(public_config: dict, secrets: dict) -> bool:
+    """Transform the old single media_server block into media_servers, in
+    place on both dicts. Return True if a migration was performed.
+
+    Triggered by whether media_server still holds real data (server_url or
+    display_name) — deliberately NOT by whether media_servers is already
+    present. media_servers is a declared HccConfig field with its own
+    Pydantic default, and has existed since before this function was wired
+    into web/main.py — any unrelated config save in that window could already
+    have written the bare default ({"active": "emby", "providers": {}}) to
+    disk via model_dump(). A presence check would then treat that as "already
+    migrated" forever and strand the real data in media_server. No-op if
+    media_server has nothing real left (fresh install, or an already-drained
+    leftover). Pure in-memory transform — see
+    migrate_media_server_to_media_servers_on_disk for the file-level wrapper
+    with backups, called once at startup from web/main.py.
+    """
+    old_public = public_config.get("media_server")
+    has_real_legacy_data = isinstance(old_public, dict) and bool(
+        old_public.get("server_url") or old_public.get("display_name")
+    )
+    if not has_real_legacy_data:
+        return False
+
+    provider_type = old_public.get("type", "emby")
+
+    media_servers = public_config.setdefault("media_servers", {})
+    providers = media_servers.setdefault("providers", {})
+    providers[provider_type] = {
+        "server_url": old_public.get("server_url", ""),
+        "display_name": old_public.get("display_name", ""),
+    }
+
+    has_other_real_provider = any(
+        ptype != provider_type
+        and isinstance(provider, dict)
+        and (provider.get("server_url") or provider.get("display_name"))
+        for ptype, provider in providers.items()
+    )
+    if not has_other_real_provider:
+        # media_servers.active was only ever sitting at its Pydantic default
+        # (nothing real configured under the new shape yet) — the legacy
+        # type is the only real answer. If some other provider already has
+        # real data, leave active alone rather than silently flipping it.
+        media_servers["active"] = provider_type
+
+    public_config.pop("media_server", None)
+
+    old_secret = secrets.get("media_server")
+    if isinstance(old_secret, dict):
+        secret_providers = secrets.setdefault("media_servers", {}).setdefault(
+            "providers", {}
+        )
+        secret_providers[provider_type] = {
+            "access_token": old_secret.get("access_token", ""),
+            "user_id": old_secret.get("user_id", ""),
+        }
+        secrets.pop("media_server", None)
+
+    return True
+
+
+def migrate_media_server_to_media_servers_on_disk(config_path: Path | str) -> bool:
+    """File-level wrapper around migrate_media_server_to_media_servers: reads
+    config.json/secrets.json, writes a .bak-migrate backup of both before
+    transforming, then persists the result. Return True if a migration was
+    performed (and therefore backups were written).
+
+    Called once at startup from web/main.py, after ensure_config_exists().
+    """
+    config_path = Path(config_path)
+    secrets_path = get_secrets_path(config_path)
+
+    public_config = _read_json(config_path)
+    old_public = public_config.get("media_server")
+    has_real_legacy_data = isinstance(old_public, dict) and bool(
+        old_public.get("server_url") or old_public.get("display_name")
+    )
+    if not has_real_legacy_data:
+        # Mirrors migrate_media_server_to_media_servers's own trigger
+        # condition exactly — gating on "media_servers already present"
+        # instead would skip real data forever once an unrelated save has
+        # already written that field's bare Pydantic default to disk.
+        return False
+
+    secrets = _read_json(secrets_path)
+
+    _backup_file(config_path, ".bak-migrate")
+    _backup_file(secrets_path, ".bak-migrate")
+
+    migrate_media_server_to_media_servers(public_config, secrets)
+
+    _write_json(config_path, public_config)
+    _write_json(secrets_path, secrets)
+    _chmod_private(secrets_path)
+    return True
+
+
+def _backup_file(path: Path, suffix: str) -> None:
+    if not path.exists():
+        return
+
+    shutil.copyfile(path, path.with_name(path.name + suffix))
 
 
 def _create_config_file(config_path: Path) -> None:
@@ -433,3 +583,92 @@ def _remove_sensitive_paths(config: dict) -> None:
     for path in SENSITIVE_WEB_CONFIG_PATHS:
         _pop_nested(config, path)
 
+
+def _merge_media_server_provider_secrets(merged_config: dict, secrets: dict) -> None:
+    """Fill blank access_token/user_id in each media_servers.providers entry
+    from secrets, in place on merged_config.
+
+    Read-side counterpart of _split_media_server_provider_secrets, used by
+    merge_existing_secrets the same way the SECRET_PATHS loop above is: a
+    submitted blank value never overwrites an already-stored secret.
+    load_effective_config does not need this — its plain _deep_merge already
+    merges media_servers.providers key-by-key since it is a nested dict, same
+    as any other config section.
+    """
+    providers = merged_config.get("media_servers", {}).get("providers")
+    if not isinstance(providers, dict):
+        return
+
+    secret_providers = secrets.get("media_servers", {}).get("providers") or {}
+
+    for provider_type, provider in providers.items():
+        if not isinstance(provider, dict):
+            continue
+
+        secret_entry = secret_providers.get(provider_type) or {}
+        for field in MEDIA_SERVER_PROVIDER_SECRET_FIELDS:
+            submitted = str(provider.get(field, "") or "").strip()
+            if not submitted:
+                existing = str(secret_entry.get(field, "") or "").strip()
+                if existing:
+                    provider[field] = existing
+
+
+def _split_media_server_provider_secrets(public_config: dict, secrets: dict) -> None:
+    """Move access_token/user_id out of each media_servers.providers entry into
+    secrets, in place on both dicts, replacing them with access_token_configured.
+
+    Write-side counterpart of _merge_media_server_provider_secrets. Mirrors what
+    the SECRET_PATHS loop in save_effective_config does for media_server, but
+    per dict key since provider type is not a fixed path segment a static
+    SECRET_PATHS tuple can express.
+    """
+    providers = public_config.get("media_servers", {}).get("providers")
+    if not isinstance(providers, dict):
+        return
+
+    secret_providers = secrets.setdefault("media_servers", {}).setdefault(
+        "providers", {}
+    )
+
+    for provider_type, provider in providers.items():
+        if not isinstance(provider, dict):
+            continue
+
+        secret_entry = secret_providers.setdefault(provider_type, {})
+        for field in MEDIA_SERVER_PROVIDER_SECRET_FIELDS:
+            value = provider.pop(field, None)
+            if value not in (None, ""):
+                secret_entry[field] = value
+
+        provider["access_token_configured"] = bool(
+            str(secret_entry.get("access_token", "")).strip()
+        )
+
+
+def _sanitize_media_server_providers(safe_config: dict, original_config: dict) -> None:
+    """Per-provider equivalent of the single media_server access_token_configured
+    flag above: every entry in media_servers.providers gets its own flag, with
+    access_token/user_id stripped — for every provider, not just the active
+    one, so an inactive-but-configured provider's token is never sent to the
+    frontend either.
+    """
+    providers = safe_config.get("media_servers", {}).get("providers")
+    if not isinstance(providers, dict):
+        return
+
+    original_providers = (
+            original_config.get("media_servers", {}).get("providers") or {}
+    )
+
+    for provider_type, provider in providers.items():
+        if not isinstance(provider, dict):
+            continue
+
+        original_provider = original_providers.get(provider_type) or {}
+        provider["access_token_configured"] = bool(
+            str(original_provider.get("access_token", "")).strip()
+            or provider.get("access_token_configured") is True
+        )
+        provider.pop("access_token", None)
+        provider.pop("user_id", None)

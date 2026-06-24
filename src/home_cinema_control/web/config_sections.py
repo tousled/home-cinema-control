@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from home_cinema_control.config.manager import (
+    active_media_server_type,
+    set_active_media_server,
+    upsert_media_server_provider,
+)
+
 
 def apply_config_section(config: dict[str, Any], section: str, body: dict[str, Any]) -> dict[str, Any]:
     updated = {**config}
@@ -12,11 +18,21 @@ def apply_config_section(config: dict[str, Any], section: str, body: dict[str, A
         return updated
 
     if section == "media-server":
-        media_server = body.get("media_server") or body
-        updated["media_server"] = {
-            **(config.get("media_server") or {}),
-            **(media_server or {}),
+        # Merges into media_servers.providers[target_type] (and makes it the
+        # active provider) rather than a single media_server dict — see
+        # .agents/specs/2026-06-23-media-server-multi-provider-config-design.md's
+        # Provider Switch Flow. Never touches access_token/user_id: those only
+        # ever come from configure_token/check_connection, not this generic
+        # field-merge path.
+        submitted = body.get("media_server") or body
+        target_type = submitted.get("type") or active_media_server_type(config)
+        provider_fields = {
+            key: submitted[key] for key in ("server_url", "display_name") if key in submitted
         }
+        merged = upsert_media_server_provider(config, target_type, **provider_fields)
+        merged = set_active_media_server(merged, target_type)
+        updated = merged.model_dump()
+
         if "playback" in body:
             updated["playback"] = {
                 **(config.get("playback") or {}),

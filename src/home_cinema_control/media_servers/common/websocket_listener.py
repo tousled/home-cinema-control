@@ -2,7 +2,10 @@ import json
 import logging
 from collections.abc import Callable
 
-from home_cinema_control.config.manager import load_effective_config
+from home_cinema_control.config.manager import (
+    active_media_server_config,
+    load_effective_config,
+)
 from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_playback_command_control,
 )
@@ -177,8 +180,8 @@ class MediaServerWebsocketListener:
         )
 
     def _connect(self):
-        media_server = self.config.get("media_server") or {}
-        server_url = str(media_server.get("server_url", "")).rstrip("/")
+        media_server = active_media_server_config(self.config)
+        server_url = media_server.server_url.rstrip("/")
         session = self.media_server_session or getattr(
             self,
             self._session_attribute_name,
@@ -187,7 +190,7 @@ class MediaServerWebsocketListener:
         access_token = (session.user_info or {}).get(
             "AccessToken"
         ) if session else ""
-        access_token = access_token or media_server.get("access_token", "")
+        access_token = access_token or media_server.access_token
 
         if not server_url:
             raise RuntimeError(

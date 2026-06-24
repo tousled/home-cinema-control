@@ -271,21 +271,28 @@ class ConfigureEmbyTokenTest(unittest.TestCase):
         }
 
         result = configure_emby_token(
-            {"media_server": {"type": "emby", "server_url": "http://emby.local/"}},
+            {
+                "media_servers": {
+                    "active": "emby",
+                    "providers": {"emby": {"server_url": "http://emby.local/"}},
+                }
+            },
             MediaServerLoginCredentials(user_name="pedro", password="secret"),
         )
 
-        self.assertEqual("emby-token", result["media_server"]["access_token"])
-        self.assertEqual("emby-user", result["media_server"]["user_id"])
-        self.assertTrue(result["media_server"]["access_token_configured"])
-        self.assertEqual("Pedro", result["media_server"]["display_name"])
-        self.assertEqual("http://emby.local", result["media_server"]["server_url"])
+        provider = result["media_servers"]["providers"]["emby"]
+        self.assertEqual("emby-token", provider["access_token"])
+        self.assertEqual("emby-user", provider["user_id"])
+        self.assertEqual("Pedro", provider["display_name"])
+        self.assertEqual("http://emby.local", provider["server_url"])
+        self.assertEqual("emby", result["media_servers"]["active"])
 
         public_config = sanitize_config_for_web(result)
 
-        self.assertTrue(public_config["media_server"]["access_token_configured"])
-        self.assertNotIn("access_token", public_config["media_server"])
-        self.assertNotIn("user_id", public_config["media_server"])
+        public_provider = public_config["media_servers"]["providers"]["emby"]
+        self.assertTrue(public_provider["access_token_configured"])
+        self.assertNotIn("access_token", public_provider)
+        self.assertNotIn("user_id", public_provider)
 
 
 if __name__ == "__main__":

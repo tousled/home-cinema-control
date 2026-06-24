@@ -6,7 +6,8 @@ from home_cinema_control.config.models import (
     AppConfig,
     AvConfig,
     HccConfig,
-    MediaServerConfig,
+    MediaServerProviderConfig,
+    MediaServersConfig,
     OppoConfig,
     PathMappingConfig,
     PlaybackConfig,
@@ -22,7 +23,9 @@ class TestHccConfig(unittest.TestCase):
         self.assertFalse(config.av.enabled)
         self.assertFalse(config.tv.enabled)
         self.assertEqual(3, config.oppo.api_retry_attempts)
-        self.assertEqual("emby", config.media_server.type)
+        self.assertEqual("emby", config.media_servers.active)
+        self.assertEqual({}, config.media_servers.providers)
+        self.assertNotIn("media_server", HccConfig.model_fields)
 
     def test_nested_sections_populated_from_dict(self):
         config = HccConfig(**{
@@ -133,16 +136,54 @@ class TestOppoConfig(unittest.TestCase):
             OppoConfig(api_retry_attempts=2.5)
 
 
-class TestMediaServerConfig(unittest.TestCase):
+class TestMediaServerProviderConfig(unittest.TestCase):
     def test_defaults(self):
-        ms = MediaServerConfig()
-        self.assertEqual("emby", ms.type)
-        self.assertEqual("", ms.server_url)
-        self.assertEqual("", ms.access_token)
+        provider = MediaServerProviderConfig()
+        self.assertEqual("", provider.server_url)
+        self.assertEqual("", provider.display_name)
+        self.assertEqual("", provider.access_token)
+        self.assertEqual("", provider.user_id)
+
+    def test_has_no_type_field(self):
+        # The provider type is the dict key in MediaServersConfig.providers,
+        # not a field on the value — a submitted "type" is preserved only as
+        # an extra key, never a declared/typed attribute.
+        self.assertNotIn("type", MediaServerProviderConfig.model_fields)
+        provider = MediaServerProviderConfig(type="emby")
+        self.assertEqual("emby", provider.model_extra["type"])
 
     def test_extra_keys_preserved(self):
-        ms = MediaServerConfig(access_token_configured=True)
-        self.assertTrue(ms.model_extra["access_token_configured"])
+        provider = MediaServerProviderConfig(access_token_configured=True)
+        self.assertTrue(provider.model_extra["access_token_configured"])
+
+
+class TestMediaServersConfig(unittest.TestCase):
+    def test_defaults(self):
+        servers = MediaServersConfig()
+        self.assertEqual("emby", servers.active)
+        self.assertEqual({}, servers.providers)
+
+    def test_providers_keyed_by_type_parsed_as_models(self):
+        servers = MediaServersConfig(
+            active="jellyfin",
+            providers={
+                "emby": {"server_url": "http://emby", "access_token": "emby-token"},
+                "jellyfin": {"server_url": "http://jf", "access_token": "jf-token"},
+            },
+        )
+        self.assertEqual("jellyfin", servers.active)
+        self.assertEqual(2, len(servers.providers))
+        self.assertIsInstance(servers.providers["emby"], MediaServerProviderConfig)
+        self.assertEqual("http://emby", servers.providers["emby"].server_url)
+        self.assertEqual("http://jf", servers.providers["jellyfin"].server_url)
+
+    def test_unknown_provider_type_key_rejected(self):
+        with self.assertRaises(ValidationError):
+            MediaServersConfig(providers={"plex": {"server_url": "http://plex"}})
+
+    def test_extra_keys_preserved(self):
+        servers = MediaServersConfig(some_future_field=True)
+        self.assertTrue(servers.model_extra["some_future_field"])
 
 
 if __name__ == "__main__":

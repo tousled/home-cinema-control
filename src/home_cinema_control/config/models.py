@@ -102,14 +102,33 @@ class SmbConfig(BaseModel):
     password: str = ""
 
 
-class MediaServerConfig(BaseModel):
+class MediaServerProviderConfig(BaseModel):
+    """A single provider's (Emby or Jellyfin) connection/auth record.
+
+    Lives at media_servers.providers[provider_type] — the dict key is the
+    provider type, so this model carries no type field of its own.
+    """
+
     model_config = ConfigDict(extra="allow")
 
-    type: MediaServerProviderType = "emby"
     server_url: str = ""
     display_name: str = ""
     access_token: str = ""
     user_id: str = ""
+
+
+class MediaServersConfig(BaseModel):
+    """Persists every configured provider's record, not just the active one.
+
+    See .agents/specs/2026-06-23-media-server-multi-provider-config-design.md.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    active: MediaServerProviderType = "emby"
+    providers: dict[MediaServerProviderType, MediaServerProviderConfig] = Field(
+        default_factory=dict
+    )
 
 
 class HccConfig(BaseModel):
@@ -117,6 +136,14 @@ class HccConfig(BaseModel):
     Validated user config loaded from disk. Does not include runtime-injected
     fields (Version, tv_dirs, av_dirs, langs, devices) — those are added by
     apply_runtime_defaults after loading.
+
+    The legacy single-provider media_server field is gone: every consumer now
+    reads media_servers (see
+    .agents/specs/2026-06-23-media-server-multi-provider-config-design.md).
+    A stale media_server key from an unmigrated config.json survives as an
+    unvalidated extra field (extra="allow") until
+    migrate_media_server_to_media_servers_on_disk runs at startup — it is
+    never read as a typed model again.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -126,5 +153,5 @@ class HccConfig(BaseModel):
     av: AvConfig = Field(default_factory=AvConfig)
     tv: TvConfig = Field(default_factory=TvConfig)
     oppo: OppoConfig = Field(default_factory=OppoConfig)
-    media_server: MediaServerConfig = Field(default_factory=MediaServerConfig)
+    media_servers: MediaServersConfig = Field(default_factory=MediaServersConfig)
     smb: SmbConfig = Field(default_factory=SmbConfig)

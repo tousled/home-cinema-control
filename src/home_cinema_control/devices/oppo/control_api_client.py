@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from home_cinema_control.config.manager import active_media_server_config
 from home_cinema_control.devices.oppo.constants import (
     OPPO_HTTP_PORT,
     DEFAULT_OPPO_SIGN_IN_TIMEOUT_SECONDS,
@@ -32,13 +33,11 @@ class OppoControlApiClient:
 
     @classmethod
     def from_config(cls, config: dict) -> "OppoControlApiClient":
-        media_server = config.get("media_server") or {}
-
         return cls(
             player_host=str(config["oppo"]["ip"]),
             player_port=int(config.get("OPPO_HTTP_Port", OPPO_HTTP_PORT)),
             media_server_host=extract_host_from_url(
-                str(media_server.get("server_url", ""))
+                active_media_server_config(config).server_url
             ),
         )
 

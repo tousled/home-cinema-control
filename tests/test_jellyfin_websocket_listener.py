@@ -23,7 +23,9 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
         )
 
         self.assertIsInstance(listener, JellyfinWebsocket)
-        self.assertEqual(_config()["media_server"]["server_url"], listener.config["media_server"]["server_url"])
+        expected = _config()["media_servers"]["providers"]["jellyfin"]["server_url"]
+        actual = listener.config["media_servers"]["providers"]["jellyfin"]["server_url"]
+        self.assertEqual(expected, actual)
 
     def test_on_open_subscribes_to_session_updates(self):
         listener = _listener_with_mocks()
@@ -98,6 +100,30 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
             reconnect=10,
         )
 
+    def test_connect_uses_active_provider_when_multiple_are_configured(self):
+        listener = _listener_with_mocks()
+        listener.config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "emby": {"server_url": "http://emby.local:8096", "access_token": "emby-tok"},
+                    "jellyfin": {"server_url": "http://jellyfin.local:8096"},
+                },
+            }
+        }
+        listener.jellyfin_session.user_info = {"AccessToken": "token"}
+
+        with patch(
+                "home_cinema_control.media_servers.jellyfin.websocket_listener.WebSocketApp"
+        ) as ws_app:
+            listener._connect()
+
+        uri = ws_app.call_args.args[0]
+        self.assertEqual(
+            f"ws://jellyfin.local:8096/socket?api_key=token&deviceId={DEVICE_ID}",
+            uri,
+        )
+
 
 def _listener_with_mocks():
     listener = JellyfinWebsocket(config=_config(), config_file="/tmp/config.json")
@@ -111,11 +137,15 @@ def _listener_with_mocks():
 
 def _config():
     return {
-        "media_server": {
-            "type": "jellyfin",
-            "server_url": "http://jellyfin.local:8096",
-            "access_token": "token",
-            "user_id": "user-1",
+        "media_servers": {
+            "active": "jellyfin",
+            "providers": {
+                "jellyfin": {
+                    "server_url": "http://jellyfin.local:8096",
+                    "access_token": "token",
+                    "user_id": "user-1",
+                }
+            },
         },
         "playback": {
             "hcc_controlled_device": "tv-1",
