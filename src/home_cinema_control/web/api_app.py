@@ -329,7 +329,13 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         response = _check_connection_or_503(setup_service, merged)
 
         if 200 <= response.status_code < 300:
-            return _save_and_restart_listener(merged)
+            # This check_connection call is the same validity check the
+            # "Probar conexión" button performs — a switch back to an
+            # already-configured provider should mark it verified too,
+            # instead of leaving readiness stuck on "configured" (yellow)
+            # until the user separately clicks "Probar conexión".
+            verified_config = mark_section_verified(merged, "media_server")
+            return _save_and_restart_listener(verified_config)
 
         if response.status_code in (401, 403):
             # The server explicitly rejected the stored credentials (as

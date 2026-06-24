@@ -408,6 +408,11 @@ class ConfigSectionRouteTest(unittest.TestCase):
         saved = config_service.save_config.call_args.args[0]
         self.assertEqual("jellyfin", saved["media_servers"]["active"])
         runtime.restart_playback_listener.assert_called_once()
+        # Regression: switching to an already-configured provider runs the
+        # same check_connection validity check as "Probar conexión" — it
+        # should mark the section verified too, instead of leaving readiness
+        # stuck on "configured" (yellow) until a separate manual test.
+        self.assertEqual("ok", saved["setup_verification"]["media_server"]["status"])
 
     @patch("home_cinema_control.web.api_app._media_server_setup_service")
     def test_patch_media_server_section_switch_clears_only_target_token_on_401(
