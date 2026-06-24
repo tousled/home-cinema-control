@@ -38,11 +38,11 @@ def _media_player_readiness(config: dict) -> dict:
 
 
 def _media_paths_readiness(config: dict) -> dict:
-    paths = (config.get("playback") or {}).get("path_mappings") or []
+    paths = active_media_server_config(config).playback.path_mappings
     total = len(paths)
     if total == 0:
         return {"status": "incomplete", "detail": "No paths configured"}
-    verified = sum(1 for p in paths if p.get("verified"))
+    verified = sum(1 for p in paths if p.verified)
     if verified == total:
         return {"status": "configured", "detail": f"{verified}/{total} verified"}
     return {"status": "incomplete", "detail": f"{verified}/{total} verified"}

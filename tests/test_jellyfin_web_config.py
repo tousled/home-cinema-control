@@ -1,13 +1,22 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from home_cinema_control.config.manager import sanitize_config_for_web
-from home_cinema_control.media_servers.common.models import MediaServerLoginCredentials
+from home_cinema_control.config.manager import (
+    get_media_server_provider,
+    sanitize_config_for_web,
+)
+from home_cinema_control.config.models import PathMappingConfig
+from home_cinema_control.media_servers.common.models import (
+    MediaServerLibrary,
+    MediaServerLoginCredentials,
+)
 from home_cinema_control.media_servers.jellyfin.web_config import (
     build_control_device_config,
     build_library_config,
     build_virtual_folder_servers,
     configure_jellyfin_token,
+    load_libraries,
+    load_selectable_folders,
 )
 
 
@@ -100,6 +109,130 @@ class ConfigureJellyfinTokenTest(unittest.TestCase):
         self.assertTrue(public_provider["access_token_configured"])
         self.assertNotIn("access_token", public_provider)
         self.assertNotIn("user_id", public_provider)
+
+
+class LoadLibrariesTest(unittest.TestCase):
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticated_user_id")
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticated_client")
+    def test_writes_libraries_into_active_providers_playback(
+            self, mock_client_factory, mock_user_id
+    ):
+        mock_user_id.return_value = "user-1"
+        mock_client = MagicMock()
+        mock_client.get_user_views.return_value = [
+            {"Id": "1", "Name": "Movies"},
+            {"Id": "2", "Name": "Series"},
+        ]
+        mock_client_factory.return_value = mock_client
+
+        config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {"jellyfin": {"server_url": "http://jf"}},
+            }
+        }
+
+        result = load_libraries(config)
+
+        provider = get_media_server_provider(result, "jellyfin")
+        self.assertEqual(2, len(provider.playback.libraries))
+        self.assertEqual("Movies", provider.playback.libraries[0].name)
+        for library in provider.playback.libraries:
+            self.assertIsInstance(library, MediaServerLibrary)
+
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticated_user_id")
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticated_client")
+    def test_does_not_touch_other_providers_libraries(self, mock_client_factory, mock_user_id):
+        mock_user_id.return_value = "user-1"
+        mock_client = MagicMock()
+        mock_client.get_user_views.return_value = [{"Id": "1", "Name": "Movies"}]
+        mock_client_factory.return_value = mock_client
+
+        config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "jellyfin": {"server_url": "http://jf"},
+                    "emby": {
+                        "playback": {"libraries": [{"id": "9", "name": "Old", "active": True}]}
+                    },
+                },
+            }
+        }
+
+        result = load_libraries(config)
+
+        emby = get_media_server_provider(result, "emby")
+        self.assertEqual(1, len(emby.playback.libraries))
+        self.assertEqual("Old", emby.playback.libraries[0].name)
+
+
+class LoadSelectableFoldersTest(unittest.TestCase):
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticated_client")
+    def test_path_mappings_are_real_pathmappingconfig_instances(self, mock_client_factory):
+        # Regression test for the gotcha that sank the previous attempt at
+        # this spec: model_copy(update=...) does not validate on assignment,
+        # so a plain dict assigned to a typed list field silently stays a
+        # dict instead of becoming a PathMappingConfig.
+        mock_client = MagicMock()
+        mock_client.get_virtual_folders.return_value = [
+            {"Name": "Movies", "Locations": ["/media/movies"]}
+        ]
+        mock_client_factory.return_value = mock_client
+
+        config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "jellyfin": {
+                        "server_url": "http://jf",
+                        "playback": {"use_all_libraries": True},
+                    }
+                },
+            }
+        }
+
+        result = load_selectable_folders(config)
+
+        provider = get_media_server_provider(result, "jellyfin")
+        self.assertEqual(1, len(provider.playback.path_mappings))
+        for mapping in provider.playback.path_mappings:
+            self.assertIsInstance(mapping, PathMappingConfig)
+        self.assertEqual("/media/movies", provider.playback.path_mappings[0].source_path)
+
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticated_client")
+    def test_does_not_touch_other_providers_path_mappings(self, mock_client_factory):
+        mock_client = MagicMock()
+        mock_client.get_virtual_folders.return_value = [
+            {"Name": "Movies", "Locations": ["/media/movies"]}
+        ]
+        mock_client_factory.return_value = mock_client
+
+        config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "jellyfin": {
+                        "server_url": "http://jf",
+                        "playback": {"use_all_libraries": True},
+                    },
+                    "emby": {
+                        "playback": {
+                            "path_mappings": [
+                                {"name": "Old", "source_path": "/old", "verified": True}
+                            ]
+                        }
+                    },
+                },
+            }
+        }
+
+        result = load_selectable_folders(config)
+
+        emby = get_media_server_provider(result, "emby")
+        self.assertEqual(1, len(emby.playback.path_mappings))
+        self.assertEqual("/old", emby.playback.path_mappings[0].source_path)
+        self.assertTrue(emby.playback.path_mappings[0].verified)
 
 
 if __name__ == "__main__":

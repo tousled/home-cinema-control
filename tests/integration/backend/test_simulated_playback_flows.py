@@ -292,27 +292,34 @@ class RecordingDispatcher:
 
 def _playback_config(*, oppo_use_smb):
     return {
-        "playback": {
-            "path_mappings": [
-                {
-                    "source_path": "/volume1/Video/Movies",
-                    "player_path": "/NAS-NFS/Video/Movies",
-                    "protocol": "nfs",
-                    "verified": True,
-                },
-                {
-                    "source_path": "/volume1/Video/Series",
-                    "player_path": "/NAS-NFS/Video/Series",
-                    "protocol": "nfs",
-                    "verified": True,
-                },
-                {
-                    "source_path": "/volume1/Video/Trailers",
-                    "player_path": "/NAS-SMB/Trailers",
-                    "protocol": "cifs",
-                    "verified": True,
-                },
-            ],
+        "media_servers": {
+            "active": "emby",
+            "providers": {
+                "emby": {
+                    "playback": {
+                        "path_mappings": [
+                            {
+                                "source_path": "/volume1/Video/Movies",
+                                "player_path": "/NAS-NFS/Video/Movies",
+                                "protocol": "nfs",
+                                "verified": True,
+                            },
+                            {
+                                "source_path": "/volume1/Video/Series",
+                                "player_path": "/NAS-NFS/Video/Series",
+                                "protocol": "nfs",
+                                "verified": True,
+                            },
+                            {
+                                "source_path": "/volume1/Video/Trailers",
+                                "player_path": "/NAS-SMB/Trailers",
+                                "protocol": "cifs",
+                                "verified": True,
+                            },
+                        ],
+                    }
+                }
+            },
         },
         "oppo": {
             "always_on": False,
@@ -331,11 +338,18 @@ def _playback_config(*, oppo_use_smb):
 
 def _monitor_config(*, libraries, path_mappings):
     return {
-        "playback": {
-            "hcc_controlled_device": "device-1",
-            "use_all_libraries": False,
-            "libraries": libraries,
-            "path_mappings": path_mappings,
+        "media_servers": {
+            "active": "emby",
+            "providers": {
+                "emby": {
+                    "playback": {
+                        "hcc_controlled_device": "device-1",
+                        "use_all_libraries": False,
+                        "libraries": libraries,
+                        "path_mappings": path_mappings,
+                    }
+                }
+            },
         }
     }
 

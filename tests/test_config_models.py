@@ -10,7 +10,7 @@ from home_cinema_control.config.models import (
     MediaServersConfig,
     OppoConfig,
     PathMappingConfig,
-    PlaybackConfig,
+    ProviderPlaybackConfig,
     TvConfig,
 )
 
@@ -19,13 +19,13 @@ class TestHccConfig(unittest.TestCase):
     def test_empty_dict_produces_all_defaults(self):
         config = HccConfig()
         self.assertEqual(0, config.app.log_level)
-        self.assertEqual("", config.playback.hcc_controlled_device)
         self.assertFalse(config.av.enabled)
         self.assertFalse(config.tv.enabled)
         self.assertEqual(3, config.oppo.api_retry_attempts)
         self.assertEqual("emby", config.media_servers.active)
         self.assertEqual({}, config.media_servers.providers)
         self.assertNotIn("media_server", HccConfig.model_fields)
+        self.assertNotIn("playback", HccConfig.model_fields)
 
     def test_nested_sections_populated_from_dict(self):
         config = HccConfig(**{
@@ -66,21 +66,25 @@ class TestAppConfig(unittest.TestCase):
         self.assertEqual("value", app.model_extra["unknown_future_key"])
 
 
-class TestPlaybackConfig(unittest.TestCase):
+class TestProviderPlaybackConfig(unittest.TestCase):
     def test_defaults(self):
-        p = PlaybackConfig()
+        p = ProviderPlaybackConfig()
         self.assertEqual("", p.hcc_controlled_device)
         self.assertFalse(p.use_all_libraries)
         self.assertEqual([], p.path_mappings)
         self.assertEqual([], p.libraries)
 
     def test_path_mappings_parsed_as_models(self):
-        p = PlaybackConfig(path_mappings=[
+        p = ProviderPlaybackConfig(path_mappings=[
             {"name": "Movies", "source_path": "/nas/movies", "player_path": "/movies"},
         ])
         self.assertEqual(1, len(p.path_mappings))
         self.assertEqual("/nas/movies", p.path_mappings[0].source_path)
         self.assertFalse(p.path_mappings[0].verified)
+
+    def test_extra_keys_preserved(self):
+        p = ProviderPlaybackConfig(some_future_field=True)
+        self.assertTrue(p.model_extra["some_future_field"])
 
 
 class TestPathMappingConfig(unittest.TestCase):
@@ -143,6 +147,16 @@ class TestMediaServerProviderConfig(unittest.TestCase):
         self.assertEqual("", provider.display_name)
         self.assertEqual("", provider.access_token)
         self.assertEqual("", provider.user_id)
+        self.assertIsInstance(provider.playback, ProviderPlaybackConfig)
+        self.assertEqual("", provider.playback.hcc_controlled_device)
+
+    def test_playback_parsed_from_dict(self):
+        provider = MediaServerProviderConfig(
+            playback={"hcc_controlled_device": "tv-1", "use_all_libraries": True}
+        )
+        self.assertIsInstance(provider.playback, ProviderPlaybackConfig)
+        self.assertEqual("tv-1", provider.playback.hcc_controlled_device)
+        self.assertTrue(provider.playback.use_all_libraries)
 
     def test_has_no_type_field(self):
         # The provider type is the dict key in MediaServersConfig.providers,

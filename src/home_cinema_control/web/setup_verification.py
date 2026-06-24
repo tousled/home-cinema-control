@@ -55,10 +55,6 @@ def verified_status(config: dict[str, Any], section: str) -> str:
 def _section_payload(section: str, config: dict[str, Any]) -> dict[str, Any]:
     if section == "media_server":
         media_server = active_media_server_config(config)
-        # hcc_controlled_device still reads from playback, not the active
-        # provider record — moving it per-provider is scoped to
-        # 2026-06-23-media-server-scoped-paths-libraries-device.md, not here.
-        playback = config.get("playback") or {}
         return {
             "type": active_media_server_type(config),
             "server_url": media_server.server_url,
@@ -67,7 +63,7 @@ def _section_payload(section: str, config: dict[str, Any]) -> dict[str, Any]:
                 media_server.model_extra.get("access_token_configured")
                 or media_server.access_token.strip()
             ),
-            "hcc_controlled_device": playback.get("hcc_controlled_device", ""),
+            "hcc_controlled_device": media_server.playback.hcc_controlled_device,
         }
 
     if section == "media_player":

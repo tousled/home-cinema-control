@@ -164,7 +164,7 @@
               </div>
               <template v-else>
                 <FormSelect
-                    v-model="config.playback.hcc_controlled_device"
+                    v-model="hccControlledDevice"
                     :options="devices.map(d => ({ value: d.id, label: d.name }))"
                     class="mb-3"
                 />
@@ -298,7 +298,6 @@ const connectionError = ref(null)
 
 const config = ref({
   media_servers: {active: 'emby', providers: {}},
-  playback: {hcc_controlled_device: ''},
 })
 const login = ref({user_name: '', password: ''})
 const devices = ref([])
@@ -319,6 +318,15 @@ const serverUrl = computed({
   set: (value) => {
     const providers = (config.value.media_servers ||= {active: selectedType.value, providers: {}}).providers ||= {}
     providers[selectedType.value] = {...(providers[selectedType.value] || {}), server_url: value}
+  },
+})
+
+const hccControlledDevice = computed({
+  get: () => activeProvider.value.playback.hcc_controlled_device,
+  set: (value) => {
+    const providers = (config.value.media_servers ||= {active: selectedType.value, providers: {}}).providers ||= {}
+    const provider = providers[selectedType.value] ||= {}
+    provider.playback = {...(provider.playback || {}), hcc_controlled_device: value}
   },
 })
 
@@ -349,7 +357,7 @@ const authAccentClass = computed(() =>
 )
 
 const deviceAccentClass = computed(() =>
-    config.value.playback?.hcc_controlled_device ? 'panel-accent-ok' : 'panel-accent-dim',
+    activeProvider.value.playback.hcc_controlled_device ? 'panel-accent-ok' : 'panel-accent-dim',
 )
 
 const libraryPathsAccentClass = computed(() => {
@@ -379,9 +387,7 @@ async function loadDevices() {
   try {
     const full = await api.getConfigWithDevices()
     devices.value = full.devices || []
-    if (!config.value.playback) config.value.playback = {}
-    config.value.playback.hcc_controlled_device =
-        full.playback?.hcc_controlled_device || config.value.playback.hcc_controlled_device
+    config.value = full
   } catch {
     devices.value = []
   } finally {
@@ -443,7 +449,7 @@ async function saveConfig() {
   try {
     const updated = await saveSection('media-server', {
       media_server: {type: selectedType.value, server_url: serverUrl.value},
-      playback: {hcc_controlled_device: config.value.playback?.hcc_controlled_device || ''},
+      playback: {hcc_controlled_device: hccControlledDevice.value},
     })
     await applyMediaServerResponse(updated)
     toast.success(t('x-common-saved'))

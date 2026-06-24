@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 MediaServerProviderType = Literal["emby", "jellyfin"]
@@ -66,6 +66,31 @@ class MediaServerLibrary(BaseModel):
     id: str = ""
     name: str = ""
     active: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_legacy_capitalized_keys(cls, data):
+        """Every install predating this model wrote the raw Emby/Jellyfin API
+        field names (Id/Name/Active) straight into playback.libraries — this
+        is the real, current shape of every existing 1.0.5 config.json, not a
+        hypothetical. Without this, id/name/active silently read as
+        ""/""/False (the field defaults) instead of raising, so a library
+        list looked valid but every library was inactive — full playback
+        detection regression for any install not using use_all_libraries.
+        Only fills in a field when the canonical lowercase one is absent;
+        never overrides real lowercase data. Pops the capitalized originals
+        once consumed so they don't linger as inert extras forever.
+        """
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        if not normalized.get("id") and "Id" in normalized:
+            normalized["id"] = str(normalized.pop("Id"))
+        if not normalized.get("name") and "Name" in normalized:
+            normalized["name"] = str(normalized.pop("Name"))
+        if not normalized.get("active") and "Active" in normalized:
+            normalized["active"] = bool(normalized.pop("Active"))
+        return normalized
 
     def reconciled_with(
         self, existing: "MediaServerLibrary | None"

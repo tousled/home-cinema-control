@@ -32,18 +32,15 @@ class ModuleMediaServerSetupService:
 
     def load_devices(self, config: HccConfig | dict) -> dict:
         updated = _validated_config_dict(config)
-        self._module.load_devices(updated)
-        return updated
+        return self._module.load_devices(updated)
 
     def load_libraries(self, config: HccConfig | dict) -> dict:
         updated = _validated_config_dict(config)
-        self._module.load_libraries(updated)
-        return updated
+        return self._module.load_libraries(updated)
 
     def load_selectable_folders(self, config: HccConfig | dict) -> dict:
         updated = _validated_config_dict(config)
-        self._module.load_selectable_folders(updated)
-        return updated
+        return self._module.load_selectable_folders(updated)
 
     def fetch_library_paths(self, config: HccConfig | dict) -> list[dict]:
         return self._module.fetch_library_paths(_validated_config_dict(config))

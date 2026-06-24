@@ -31,15 +31,6 @@ class AppConfig(BaseModel):
     log_level: int = 0
 
 
-class PlaybackConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    hcc_controlled_device: str = ""
-    use_all_libraries: bool = False
-    path_mappings: list[PathMappingConfig] = Field(default_factory=list)
-    libraries: list[MediaServerLibrary] = Field(default_factory=list)
-
-
 class AvConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -102,8 +93,24 @@ class SmbConfig(BaseModel):
     password: str = ""
 
 
+class ProviderPlaybackConfig(BaseModel):
+    """What HCC needs to detect and translate playback from one provider.
+
+    Distinct from MediaServerProviderConfig's auth fields: this comes from
+    library/device detection and the Media Paths screen, not the login flow.
+    See .agents/specs/2026-06-23-media-server-scoped-paths-libraries-device.md.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    hcc_controlled_device: str = ""
+    use_all_libraries: bool = False
+    path_mappings: list[PathMappingConfig] = Field(default_factory=list)
+    libraries: list[MediaServerLibrary] = Field(default_factory=list)
+
+
 class MediaServerProviderConfig(BaseModel):
-    """A single provider's (Emby or Jellyfin) connection/auth record.
+    """A single provider's (Emby or Jellyfin) connection/auth/playback record.
 
     Lives at media_servers.providers[provider_type] — the dict key is the
     provider type, so this model carries no type field of its own.
@@ -115,6 +122,7 @@ class MediaServerProviderConfig(BaseModel):
     display_name: str = ""
     access_token: str = ""
     user_id: str = ""
+    playback: ProviderPlaybackConfig = Field(default_factory=ProviderPlaybackConfig)
 
 
 class MediaServersConfig(BaseModel):
@@ -149,7 +157,6 @@ class HccConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     app: AppConfig = Field(default_factory=AppConfig)
-    playback: PlaybackConfig = Field(default_factory=PlaybackConfig)
     av: AvConfig = Field(default_factory=AvConfig)
     tv: TvConfig = Field(default_factory=TvConfig)
     oppo: OppoConfig = Field(default_factory=OppoConfig)

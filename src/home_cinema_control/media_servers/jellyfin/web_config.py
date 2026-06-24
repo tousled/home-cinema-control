@@ -5,9 +5,12 @@ from typing import Any
 
 from home_cinema_control.config.manager import (
     active_media_server_config,
+    get_media_server_provider,
     set_active_media_server,
     upsert_media_server_provider,
+    upsert_provider_playback,
 )
+from home_cinema_control.config.models import PathMappingConfig
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
 from home_cinema_control.media_servers.common.models import (
     LibraryPath,
@@ -97,14 +100,9 @@ def load_libraries(config: dict) -> dict:
         client = _authenticated_client(config)
         user_id = _authenticated_user_id(client)
         views = client.get_user_views(user_id)
-        playback = config.setdefault("playback", {})
-        playback["libraries"] = [
-            library.model_dump()
-            for library in build_library_config(
-                items_from_response(views),
-                existing_libraries=playback.get("libraries", []),
-            )
-        ]
+        existing = get_media_server_provider(config, "jellyfin").playback.libraries
+        libraries = build_library_config(items_from_response(views), existing_libraries=existing)
+        config = upsert_provider_playback(config, "jellyfin", libraries=libraries).model_dump()
     except Exception:
         logging.exception("Error loading Jellyfin libraries")
     return config
@@ -114,13 +112,15 @@ def load_selectable_folders(config: dict) -> dict:
     try:
         client = _authenticated_client(config)
         media_folders = client.get_virtual_folders()
-        playback = config.setdefault("playback", {})
-        playback["path_mappings"] = build_virtual_folder_servers(
+        playback = get_media_server_provider(config, "jellyfin").playback
+        raw_servers = build_virtual_folder_servers(
             media_folders,
-            libraries=playback.get("libraries", []),
-            existing_servers=playback.get("path_mappings", []),
-            enable_all_libraries=bool(playback.get("use_all_libraries", False)),
+            libraries=playback.libraries,
+            existing_servers=playback.path_mappings,
+            enable_all_libraries=bool(playback.use_all_libraries),
         )
+        path_mappings = [PathMappingConfig.model_validate(s) for s in raw_servers]
+        config = upsert_provider_playback(config, "jellyfin", path_mappings=path_mappings).model_dump()
     except Exception:
         logging.exception("Error loading Jellyfin virtual folders")
     return config
@@ -167,14 +167,13 @@ def build_control_device_config(
 def build_virtual_folder_servers(
     virtual_folders: list[dict[str, Any]],
     *,
-    libraries: list[dict[str, Any]],
-    existing_servers: list[dict[str, Any]],
+        libraries: list[MediaServerLibrary | dict],
+        existing_servers: list[PathMappingConfig | dict],
     enable_all_libraries: bool,
 ) -> list[dict[str, Any]]:
+    existing_server_vos = [PathMappingConfig.model_validate(item) for item in existing_servers]
     existing_by_source_path = {
-        str(server.get("source_path", "")): server
-        for server in existing_servers
-        if server.get("source_path")
+        server.source_path: server for server in existing_server_vos if server.source_path
     }
     library_vos = [MediaServerLibrary.model_validate(item) for item in libraries]
 
@@ -197,16 +196,9 @@ def build_virtual_folder_servers(
 
             existing_server = existing_by_source_path.get(str(source_path))
             if existing_server:
-                server.update(
-                    {
-                        "name": existing_server.get("name", server["name"]),
-                        "player_path": existing_server.get(
-                            "player_path", server["player_path"]
-                        ),
-                    }
-                )
-                if "verified" in existing_server:
-                    server["verified"] = existing_server["verified"]
+                server["name"] = existing_server.name or server["name"]
+                server["player_path"] = existing_server.player_path or server["player_path"]
+                server["verified"] = existing_server.verified
 
             servers.append(server)
 

@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 
+from home_cinema_control.media_servers.common.models import MediaServerLibrary
 from home_cinema_control.media_servers.jellyfin.session_monitor import (
     JellyfinSessionMonitor,
 )
@@ -65,13 +66,62 @@ def _config(
             }
         ]
     return {
-        "playback": {
-            "hcc_controlled_device": device_id,
-            "use_all_libraries": use_all_libraries,
-            "libraries": libraries,
-            "path_mappings": path_mappings,
+        "media_servers": {
+            "active": "jellyfin",
+            "providers": {
+                "jellyfin": {
+                    "playback": {
+                        "hcc_controlled_device": device_id,
+                        "use_all_libraries": use_all_libraries,
+                        "libraries": libraries,
+                        "path_mappings": path_mappings,
+                    }
+                }
+            },
         }
     }
+
+
+class MediaServerLibraryLegacyCasingTest(unittest.TestCase):
+    """Direct, isolated coverage of MediaServerLibrary's model_validator,
+    underneath JellyfinSessionMonitorTest.test_uppercase_library_shape_is_supported's
+    integration-level coverage of the same behavior.
+    """
+
+    def test_pure_legacy_shape_with_no_lowercase_fields(self):
+        # The real shape of every 1.0.5 config.json's playback.libraries.
+        library = MediaServerLibrary.model_validate(
+            {"Name": "Trailers", "Id": "3673", "Active": False}
+        )
+        self.assertEqual("3673", library.id)
+        self.assertEqual("Trailers", library.name)
+        self.assertFalse(library.active)
+        self.assertEqual({}, library.model_extra)
+
+    def test_corrupted_mixed_shape_prefers_capitalized_over_default_lowercase(self):
+        # Observed in a real config.json: lowercase fields sitting at their
+        # Pydantic defaults (empty/False) alongside the real capitalized data.
+        library = MediaServerLibrary.model_validate(
+            {
+                "id": "",
+                "name": "",
+                "active": False,
+                "Name": "Movies",
+                "Id": "4",
+                "Active": True,
+            }
+        )
+        self.assertEqual("4", library.id)
+        self.assertEqual("Movies", library.name)
+        self.assertTrue(library.active)
+
+    def test_modern_lowercase_shape_is_never_overridden(self):
+        library = MediaServerLibrary.model_validate(
+            {"id": "real-id", "name": "Real Name", "active": True}
+        )
+        self.assertEqual("real-id", library.id)
+        self.assertEqual("Real Name", library.name)
+        self.assertTrue(library.active)
 
 
 class JellyfinSessionMonitorTest(unittest.TestCase):
@@ -138,6 +188,11 @@ class JellyfinSessionMonitorTest(unittest.TestCase):
         self.assertEqual(PlaybackOrigin.OBSERVED_TV_CLIENT, kwargs["origin"])
 
     def test_uppercase_library_shape_is_supported(self):
+        # Not a hypothetical: every 1.0.5 config.json has libraries written by
+        # code that predates MediaServerLibrary, in raw Emby/Jellyfin API
+        # casing. Normalization now lives in MediaServerLibrary's own
+        # model_validator, not here - confirmed against a real production
+        # config.json during the scoped-paths-libraries-device spec's Phase 2.
         monitor = self._monitor(
             config=_config(libraries=[{"Id": "lib-1", "Name": "Movies", "Active": True}])
         )
@@ -166,6 +221,28 @@ class JellyfinSessionMonitorTest(unittest.TestCase):
         monitor.on_sessions_update([{"DeviceId": "device-1", "DeviceName": "LG TV"}])
 
         self.assertEqual("", monitor._monitored_state)
+
+    def test_only_active_providers_device_is_used(self):
+        config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "jellyfin": {
+                        "playback": {
+                            "hcc_controlled_device": "device-1",
+                            "use_all_libraries": True,
+                            "path_mappings": [{"source_path": "/movies", "verified": True}],
+                        }
+                    },
+                    "emby": {"playback": {"hcc_controlled_device": "other-device"}},
+                },
+            }
+        }
+        monitor = self._monitor(config=config)
+
+        monitor.on_sessions_update([_make_session(device_id="device-1")])
+
+        self.dispatcher.dispatch.assert_called_once()
 
 
 if __name__ == "__main__":

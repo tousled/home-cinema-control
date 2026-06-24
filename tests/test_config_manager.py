@@ -12,9 +12,12 @@ from home_cinema_control.config.manager import (
     merge_existing_secrets,
     migrate_media_server_to_media_servers,
     migrate_media_server_to_media_servers_on_disk,
+    migrate_playback_to_media_servers,
+    migrate_playback_to_media_servers_on_disk,
     save_effective_config,
     sanitize_config_for_web,
     upsert_media_server_provider,
+    upsert_provider_playback,
     is_configured,
     is_smb_active,
 )
@@ -888,6 +891,197 @@ class MediaServerProviderHelpersTest(unittest.TestCase):
                 }
             )
         )
+
+class UpsertProviderPlaybackTest(unittest.TestCase):
+    """Phase 1 of the scoped-paths spec: upsert_provider_playback partial-
+    updates one field of a provider's playback sub-record without disturbing
+    the other three or the provider's auth fields.
+    """
+
+    def test_partial_update_preserves_other_playback_fields(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "server_url": "http://emby",
+                        "playback": {
+                            "hcc_controlled_device": "tv-1",
+                            "use_all_libraries": True,
+                            "path_mappings": [{"name": "Movies", "source_path": "/m"}],
+                        },
+                    }
+                },
+            }
+        }
+
+        updated = upsert_provider_playback(config, "emby", hcc_controlled_device="tv-2")
+
+        emby = updated.media_servers.providers["emby"]
+        self.assertEqual("http://emby", emby.server_url)
+        self.assertEqual("tv-2", emby.playback.hcc_controlled_device)
+        self.assertTrue(emby.playback.use_all_libraries)
+        self.assertEqual(1, len(emby.playback.path_mappings))
+        self.assertEqual("/m", emby.playback.path_mappings[0].source_path)
+
+    def test_works_on_never_configured_provider(self):
+        updated = upsert_provider_playback({}, "jellyfin", hcc_controlled_device="tv-1")
+
+        jellyfin = updated.media_servers.providers["jellyfin"]
+        self.assertEqual("tv-1", jellyfin.playback.hcc_controlled_device)
+        self.assertEqual("", jellyfin.server_url)
+
+    def test_does_not_touch_other_providers_playback(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"playback": {"hcc_controlled_device": "tv-1"}},
+                    "jellyfin": {"playback": {"hcc_controlled_device": "tv-2"}},
+                },
+            }
+        }
+
+        updated = upsert_provider_playback(config, "emby", hcc_controlled_device="tv-new")
+
+        self.assertEqual(
+            "tv-new", updated.media_servers.providers["emby"].playback.hcc_controlled_device
+        )
+        self.assertEqual(
+            "tv-2", updated.media_servers.providers["jellyfin"].playback.hcc_controlled_device
+        )
+
+
+class MigratePlaybackToMediaServersTest(unittest.TestCase):
+    """Phase 1 of the scoped-paths spec: migrate_playback_to_media_servers
+    moves the four legacy playback.* fields into the active provider's
+    playback entry. Separate function/gate from the auth migration above.
+    """
+
+    def test_moves_legacy_fields_into_active_provider(self):
+        public_config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {"jellyfin": {"server_url": "http://jf"}},
+            },
+            "playback": {
+                "hcc_controlled_device": "tv-1",
+                "use_all_libraries": True,
+                "path_mappings": [{"name": "Movies", "source_path": "/m"}],
+                "libraries": [{"id": "1", "name": "Movies", "active": True}],
+            },
+        }
+
+        migrated = migrate_playback_to_media_servers(public_config)
+
+        self.assertTrue(migrated)
+        self.assertNotIn("playback", public_config)
+        jellyfin_playback = public_config["media_servers"]["providers"]["jellyfin"]["playback"]
+        self.assertEqual("tv-1", jellyfin_playback["hcc_controlled_device"])
+        self.assertTrue(jellyfin_playback["use_all_libraries"])
+        self.assertEqual("/m", jellyfin_playback["path_mappings"][0]["source_path"])
+        self.assertEqual("Movies", jellyfin_playback["libraries"][0]["name"])
+
+    def test_removes_empty_playback_key_entirely(self):
+        # Found via the real-config.json hand-diff required by the spec's
+        # safety gate: leaving an empty `"playback": {}` lying around forever
+        # is debris, not a harmless no-op.
+        public_config = {"playback": {"hcc_controlled_device": "tv-1"}}
+
+        migrate_playback_to_media_servers(public_config)
+
+        self.assertNotIn("playback", public_config)
+
+    def test_preserves_unrelated_keys_left_in_playback(self):
+        public_config = {
+            "playback": {"hcc_controlled_device": "tv-1", "some_unrelated_key": "x"}
+        }
+
+        migrate_playback_to_media_servers(public_config)
+
+        self.assertEqual({"some_unrelated_key": "x"}, public_config["playback"])
+
+    def test_moves_into_active_provider_not_first_dict_key(self):
+        public_config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "emby": {"server_url": "http://emby"},
+                    "jellyfin": {"server_url": "http://jf"},
+                },
+            },
+            "playback": {"hcc_controlled_device": "tv-1"},
+        }
+
+        migrate_playback_to_media_servers(public_config)
+
+        providers = public_config["media_servers"]["providers"]
+        self.assertEqual("tv-1", providers["jellyfin"]["playback"]["hcc_controlled_device"])
+        self.assertNotIn("playback", providers["emby"])
+
+    def test_noop_when_playback_has_none_of_the_four_fields(self):
+        public_config = {"playback": {"some_unrelated_key": "x"}}
+
+        migrated = migrate_playback_to_media_servers(public_config)
+
+        self.assertFalse(migrated)
+
+    def test_noop_on_fresh_install_with_no_playback_key(self):
+        public_config = {}
+
+        migrated = migrate_playback_to_media_servers(public_config)
+
+        self.assertFalse(migrated)
+
+    def test_on_disk_wrapper_writes_backup_and_migrates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_file = Path(directory) / "config.json"
+            config_file.write_text(
+                json.dumps(
+                    {
+                        "media_servers": {
+                            "active": "emby",
+                            "providers": {"emby": {"server_url": "http://emby"}},
+                        },
+                        "playback": {
+                            "hcc_controlled_device": "tv-1",
+                            "path_mappings": [],
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            migrated = migrate_playback_to_media_servers_on_disk(config_file)
+
+            self.assertTrue(migrated)
+
+            backup_file = Path(str(config_file) + ".bak-migrate-playback")
+            self.assertTrue(backup_file.exists())
+            backed_up = json.loads(backup_file.read_text(encoding="utf-8"))
+            self.assertEqual("tv-1", backed_up["playback"]["hcc_controlled_device"])
+
+            new_public = json.loads(config_file.read_text(encoding="utf-8"))
+            self.assertNotIn("playback", new_public)
+            self.assertEqual(
+                "tv-1",
+                new_public["media_servers"]["providers"]["emby"]["playback"]["hcc_controlled_device"],
+            )
+
+    def test_on_disk_wrapper_is_noop_on_second_call(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_file = Path(directory) / "config.json"
+            config_file.write_text(
+                json.dumps({"playback": {"hcc_controlled_device": "tv-1"}}),
+                encoding="utf-8",
+            )
+
+            first = migrate_playback_to_media_servers_on_disk(config_file)
+            second = migrate_playback_to_media_servers_on_disk(config_file)
+
+        self.assertTrue(first)
+        self.assertFalse(second)
+
 
 if __name__ == "__main__":
     unittest.main()

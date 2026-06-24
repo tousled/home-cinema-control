@@ -63,11 +63,18 @@ def _config(
             }
         ]
     return {
-        "playback": {
-            "hcc_controlled_device": device_id,
-            "use_all_libraries": use_all_libraries,
-            "libraries": libraries,
-            "path_mappings": path_mappings,
+        "media_servers": {
+            "active": "emby",
+            "providers": {
+                "emby": {
+                    "playback": {
+                        "hcc_controlled_device": device_id,
+                        "use_all_libraries": use_all_libraries,
+                        "libraries": libraries,
+                        "path_mappings": path_mappings,
+                    }
+                }
+            },
         }
     }
 
@@ -214,6 +221,58 @@ class EmbySessionMonitorTest(unittest.TestCase):
         self.playback_state.playstate = "Free"
         monitor.on_sessions_update([{"DeviceId": "device-1"}])
         self.assertEqual("", monitor._monitored_state)
+
+    # -------------------------------------------------------------------------
+    # Per-provider scoping (2026-06-23-media-server-scoped-paths-libraries-device)
+    # -------------------------------------------------------------------------
+
+    def test_only_active_providers_device_and_libraries_are_used(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "playback": {
+                            "hcc_controlled_device": "device-1",
+                            "use_all_libraries": False,
+                            "libraries": [{"id": "lib-1", "name": "Movies", "active": True}],
+                            "path_mappings": [
+                                {"source_path": "/movies", "verified": True}
+                            ],
+                        }
+                    },
+                    "jellyfin": {
+                        "playback": {
+                            "hcc_controlled_device": "other-device",
+                            "use_all_libraries": False,
+                            "libraries": [{"id": "lib-9", "name": "Films", "active": False}],
+                            "path_mappings": [],
+                        }
+                    },
+                },
+            }
+        }
+        monitor = self._monitor(config=config)
+
+        monitor.on_sessions_update([_make_session(device_id="device-1")])
+
+        self.dispatcher.dispatch.assert_called_once()
+
+    def test_inactive_providers_device_does_not_match(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"playback": {"hcc_controlled_device": "device-1"}},
+                    "jellyfin": {"playback": {"hcc_controlled_device": "other-device"}},
+                },
+            }
+        }
+        monitor = self._monitor(config=config)
+
+        monitor.on_sessions_update([_make_session(device_id="other-device")])
+
+        self.dispatcher.dispatch.assert_not_called()
 
 
 if __name__ == "__main__":

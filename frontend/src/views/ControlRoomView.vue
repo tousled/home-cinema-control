@@ -194,7 +194,7 @@ const avTagClass = computed(() => config.value.av?.enabled ? 'tag-ok' : 'tag-dim
 const avTagLabel = computed(() => config.value.av?.enabled ? t('x-control-room-tag-enabled') : t('x-control-room-tag-disabled'))
 
 /* ── paths card ── */
-const pathMappings = computed(() => config.value.playback?.path_mappings || [])
+const pathMappings = computed(() => mediaServerProvider.value.playback.path_mappings)
 const pathsCardClass = computed(() => {
   if (!pathMappings.value.length) return 'card-dim'
   const unverified = pathMappings.value.filter(p => !p.verified).length

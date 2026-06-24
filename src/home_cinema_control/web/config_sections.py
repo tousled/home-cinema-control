@@ -6,7 +6,10 @@ from home_cinema_control.config.manager import (
     active_media_server_type,
     set_active_media_server,
     upsert_media_server_provider,
+    upsert_provider_playback,
 )
+from home_cinema_control.config.models import PathMappingConfig
+from home_cinema_control.media_servers.common.models import MediaServerLibrary
 
 
 def apply_config_section(config: dict[str, Any], section: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -31,32 +34,37 @@ def apply_config_section(config: dict[str, Any], section: str, body: dict[str, A
         }
         merged = upsert_media_server_provider(config, target_type, **provider_fields)
         merged = set_active_media_server(merged, target_type)
-        updated = merged.model_dump()
 
         if "playback" in body:
-            updated["playback"] = {
-                **(config.get("playback") or {}),
-                "hcc_controlled_device": (body.get("playback") or {}).get("hcc_controlled_device", ""),
-            }
-        elif "hcc_controlled_device" in body:
-            updated["playback"] = {
-                **(config.get("playback") or {}),
-                "hcc_controlled_device": body.get("hcc_controlled_device", ""),
-            }
-        return updated
+            # The monitored-device selector — its body shape has always been
+            # {"playback": {"hcc_controlled_device": ...}}, kept unchanged on
+            # the wire even though it now lands in the provider's nested
+            # playback record instead of a flat playback block. There is no
+            # caller sending a bare top-level hcc_controlled_device (confirmed
+            # against the frontend and tests), so that shape is not handled.
+            device = (body.get("playback") or {}).get("hcc_controlled_device", "")
+            merged = upsert_provider_playback(merged, target_type, hcc_controlled_device=device)
+
+        return merged.model_dump()
 
     if section == "playback-libraries":
-        playback = dict(config.get("playback") or {})
-        playback["libraries"] = body.get("libraries", [])
-        playback["use_all_libraries"] = body.get("use_all_libraries", True)
-        updated["playback"] = playback
-        return updated
+        active_type = active_media_server_type(config)
+        libraries = [MediaServerLibrary.model_validate(item) for item in body.get("libraries", [])]
+        merged = upsert_provider_playback(
+            config,
+            active_type,
+            libraries=libraries,
+            use_all_libraries=body.get("use_all_libraries", True),
+        )
+        return merged.model_dump()
 
     if section == "path-mappings":
-        playback = dict(config.get("playback") or {})
-        playback["path_mappings"] = body.get("path_mappings", [])
-        updated["playback"] = playback
-        return updated
+        active_type = active_media_server_type(config)
+        path_mappings = [
+            PathMappingConfig.model_validate(item) for item in body.get("path_mappings", [])
+        ]
+        merged = upsert_provider_playback(config, active_type, path_mappings=path_mappings)
+        return merged.model_dump()
 
     if section == "network-access":
         updated["oppo"] = {
@@ -68,9 +76,13 @@ def apply_config_section(config: dict[str, Any], section: str, body: dict[str, A
             **(body.get("smb") or {}),
         }
         if "path_mappings" in body:
-            playback = dict(config.get("playback") or {})
-            playback["path_mappings"] = body.get("path_mappings", [])
-            updated["playback"] = playback
+            active_type = active_media_server_type(updated)
+            path_mappings = [
+                PathMappingConfig.model_validate(item) for item in body["path_mappings"]
+            ]
+            updated = upsert_provider_playback(
+                updated, active_type, path_mappings=path_mappings
+            ).model_dump()
         return updated
 
     raise ValueError(f"Unsupported config section: {section}")

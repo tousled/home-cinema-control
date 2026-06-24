@@ -508,6 +508,7 @@ import {useMediaPathWorkflow} from '../composables/useMediaPathWorkflow.js'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useDiagnosticText} from '../composables/useDiagnosticText.js'
 import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
+import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -590,6 +591,7 @@ const {
   clearSmbCredentials: api.clearSmbCredentials,
 })
 
+const {provider: activeProvider} = useActiveMediaServer(() => fullConfig.value)
 const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_servers?.active)
 const mediaServerTypeLabel = computed(() => mediaServerBrand.value.label)
 
@@ -673,16 +675,9 @@ async function loadLibraries() {
   librariesLoading.value = true
   try {
     const full = await api.getConfigWithLibraries()
-    libraries.value = full.playback?.libraries || []
-    useAllLibraries.value = full.playback?.use_all_libraries ?? true
-    fullConfig.value = {
-      ...fullConfig.value,
-      playback: {
-        ...(fullConfig.value.playback || {}),
-        libraries: libraries.value,
-        use_all_libraries: useAllLibraries.value,
-      },
-    }
+    fullConfig.value = full
+    libraries.value = activeProvider.value.playback.libraries
+    useAllLibraries.value = activeProvider.value.playback.use_all_libraries
   } catch {
     libraries.value = []
   } finally {

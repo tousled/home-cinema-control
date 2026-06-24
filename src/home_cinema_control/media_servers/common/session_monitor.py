@@ -2,6 +2,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from home_cinema_control.config.manager import active_media_server_config
 from home_cinema_control.media_servers.common.models import (
     MediaServerItemPlaybackInfo,
     MediaServerSession,
@@ -50,7 +51,7 @@ class MediaServerSessionMonitor:
 
     def on_sessions_update(self, sessions: list) -> None:
         config = self._config_provider()
-        device_id = config["playback"]["hcc_controlled_device"]
+        device_id = active_media_server_config(config).playback.hcc_controlled_device
         if not device_id:
             return
 
@@ -204,20 +205,20 @@ class MediaServerSessionMonitor:
     def _find_matching_library(
         self, item_path: str, config: dict
     ) -> tuple[str, bool]:
-        if config["playback"]["use_all_libraries"]:
+        playback = active_media_server_config(config).playback
+        if playback.use_all_libraries:
             return "All Libraries Enabled", True
 
-        for view in config["playback"]["libraries"]:
-            if _is_active_library(view):
-                if self._session.is_item_path_in_library(_library_id(view), item_path):
-                    return _library_name(view), True
+        for view in playback.libraries:
+            if view.active:
+                if self._session.is_item_path_in_library(view.id, item_path):
+                    return view.name, True
 
         return "", False
 
     def _has_verified_path_mapping(self, item_path: str, config: dict) -> bool:
-        for mapping in config["playback"].get("path_mappings", []):
-            source_path = str(mapping.get("source_path", "") or "")
-            if source_path and source_path in item_path and mapping.get("verified"):
+        for mapping in active_media_server_config(config).playback.path_mappings:
+            if mapping.source_path and mapping.source_path in item_path and mapping.verified:
                 return True
         return False
 
@@ -304,15 +305,3 @@ def describe_session_playback_source(
         "audio_stream_index": session.audio_stream_index,
         "subtitle_stream_index": session.subtitle_stream_index,
     }
-
-
-def _is_active_library(view: dict) -> bool:
-    return bool(view.get("active", view.get("Active", False)))
-
-
-def _library_id(view: dict) -> str:
-    return str(view.get("id", view.get("Id", "")))
-
-
-def _library_name(view: dict) -> str:
-    return str(view.get("name", view.get("Name", "")))

@@ -321,6 +321,23 @@ def upsert_media_server_provider(
     return validated.model_copy(update={"media_servers": updated_media_servers})
 
 
+def upsert_provider_playback(
+        config: HccConfig | dict,
+        provider_type: MediaServerProviderType,
+        **fields,
+) -> HccConfig:
+    """Partial-update provider_type's playback sub-record by **fields.
+
+    Leaves other playback fields and the provider's auth fields untouched —
+    upsert_media_server_provider's model_copy(update=...) would otherwise
+    replace the whole playback sub-object wholesale.
+    """
+    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    provider = get_media_server_provider(validated, provider_type)
+    new_playback = provider.playback.model_copy(update=fields)
+    return upsert_media_server_provider(validated, provider_type, playback=new_playback)
+
+
 def set_active_media_server(
         config: HccConfig | dict, provider_type: MediaServerProviderType
 ) -> HccConfig:
@@ -449,6 +466,71 @@ def migrate_media_server_to_media_servers_on_disk(config_path: Path | str) -> bo
     _write_json(config_path, public_config)
     _write_json(secrets_path, secrets)
     _chmod_private(secrets_path)
+    return True
+
+
+_PLAYBACK_LEGACY_FIELDS = (
+    "path_mappings",
+    "libraries",
+    "use_all_libraries",
+    "hcc_controlled_device",
+)
+
+
+def migrate_playback_to_media_servers(public_config: dict) -> bool:
+    """Return True if a migration was performed.
+
+    Moves the four fields from the old flat playback block into the active
+    provider's playback entry under media_servers.providers. Public config
+    only — none of these four fields are secrets, unlike the auth migration.
+    Separate function from migrate_media_server_to_media_servers, gated on its
+    own evidence (playback still has any of the four fields), not on whether
+    media_servers already exists — see the spec's Migration section for why.
+    """
+    old_playback = public_config.get("playback")
+    has_legacy_data = isinstance(old_playback, dict) and any(
+        field in old_playback for field in _PLAYBACK_LEGACY_FIELDS
+    )
+    if not has_legacy_data:
+        return False
+
+    media_servers = public_config.setdefault(
+        "media_servers", {"active": "emby", "providers": {}}
+    )
+    active_type = media_servers.get("active", "emby")
+    provider = media_servers.setdefault("providers", {}).setdefault(active_type, {})
+    playback = provider.setdefault("playback", {})
+    for field in _PLAYBACK_LEGACY_FIELDS:
+        if field in old_playback:
+            playback[field] = old_playback.pop(field)
+
+    if not old_playback:
+        public_config.pop("playback", None)
+
+    return True
+
+
+def migrate_playback_to_media_servers_on_disk(config_path: Path | str) -> bool:
+    """File-level wrapper around migrate_playback_to_media_servers: reads
+    config.json, writes a .bak-migrate-playback backup before transforming,
+    then persists the result. Return True if a migration was performed.
+
+    Called once at startup from web/main.py, immediately after
+    migrate_media_server_to_media_servers_on_disk.
+    """
+    config_path = Path(config_path)
+    public_config = _read_json(config_path)
+
+    old_playback = public_config.get("playback")
+    has_legacy_data = isinstance(old_playback, dict) and any(
+        field in old_playback for field in _PLAYBACK_LEGACY_FIELDS
+    )
+    if not has_legacy_data:
+        return False
+
+    _backup_file(config_path, ".bak-migrate-playback")
+    migrate_playback_to_media_servers(public_config)
+    _write_json(config_path, public_config)
     return True
 
 

@@ -8,7 +8,6 @@ def _base_config(**overrides):
     config = {
         "media_servers": {"active": "emby", "providers": {"emby": {"server_url": ""}}},
         "oppo": {"ip": ""},
-        "playback": {"path_mappings": []},
         "tv": {"enabled": False},
         "av": {"enabled": False},
     }
@@ -16,8 +15,10 @@ def _base_config(**overrides):
     return config
 
 
-def _emby_provider(**fields):
+def _emby_provider(*, playback=None, **fields):
     """media_servers override for the common case of a single emby provider."""
+    if playback is not None:
+        fields = {**fields, "playback": playback}
     return {"active": "emby", "providers": {"emby": fields}}
 
 
@@ -68,8 +69,8 @@ class MediaServerReadinessTest(unittest.TestCase):
                 server_url="http://emby:8096",
                 access_token_configured=True,
                 display_name="Admin",
+                playback={"hcc_controlled_device": "lg-client"},
             ),
-            playback={"hcc_controlled_device": "lg-client"},
         )
         r = compute_config_readiness(mark_section_verified(config, "media_server"))
         self.assertEqual("verified", r["media_server"]["status"])
@@ -79,11 +80,13 @@ class MediaServerReadinessTest(unittest.TestCase):
             media_servers=_emby_provider(
                 server_url="http://emby:8096",
                 access_token_configured=True,
+                playback={"hcc_controlled_device": "lg-client"},
             ),
-            playback={"hcc_controlled_device": "lg-client"},
         )
         verified = mark_section_verified(config, "media_server")
-        verified["playback"]["hcc_controlled_device"] = "mobile-client"
+        verified["media_servers"]["providers"]["emby"]["playback"]["hcc_controlled_device"] = (
+            "mobile-client"
+        )
         r = compute_config_readiness(verified)
         self.assertEqual("stale", r["media_server"]["status"])
 
@@ -111,17 +114,39 @@ class MediaPathsReadinessTest(unittest.TestCase):
 
     def test_incomplete_when_unverified_paths(self):
         r = compute_config_readiness(_base_config(
-            playback={"path_mappings": [{"name": "Movies", "verified": False}]}
+            media_servers=_emby_provider(
+                playback={"path_mappings": [{"name": "Movies", "verified": False}]}
+            )
         ))
         self.assertEqual("incomplete", r["media_paths"]["status"])
         self.assertIn("0/1", r["media_paths"]["detail"])
 
     def test_configured_when_all_verified(self):
         r = compute_config_readiness(_base_config(
-            playback={"path_mappings": [{"name": "Movies", "verified": True}]}
+            media_servers=_emby_provider(
+                playback={"path_mappings": [{"name": "Movies", "verified": True}]}
+            )
         ))
         self.assertEqual("configured", r["media_paths"]["status"])
         self.assertIn("1/1", r["media_paths"]["detail"])
+
+    def test_ignores_inactive_providers_path_mappings(self):
+        config = _base_config(
+            media_servers={
+                "active": "emby",
+                "providers": {
+                    "emby": {"playback": {"path_mappings": []}},
+                    "jellyfin": {
+                        "playback": {
+                            "path_mappings": [{"name": "Movies", "verified": True}]
+                        }
+                    },
+                },
+            }
+        )
+        r = compute_config_readiness(config)
+        self.assertEqual("incomplete", r["media_paths"]["status"])
+        self.assertEqual("No paths configured", r["media_paths"]["detail"])
 
 
 class TvReadinessTest(unittest.TestCase):

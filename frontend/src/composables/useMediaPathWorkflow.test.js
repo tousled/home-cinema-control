@@ -27,16 +27,23 @@ describe('useMediaPathWorkflow', () => {
 
         subject.initialize(
             {
-                playback: {
-                    path_mappings: [
-                        {
-                            name: 'Movies',
-                            source_path: '/volume1/Video/Movies',
-                            player_path: '/NAS/Movies',
-                            protocol: 'nfs',
-                            verified: true,
+                media_servers: {
+                    active: 'emby',
+                    providers: {
+                        emby: {
+                            playback: {
+                                path_mappings: [
+                                    {
+                                        name: 'Movies',
+                                        source_path: '/volume1/Video/Movies',
+                                        player_path: '/NAS/Movies',
+                                        protocol: 'nfs',
+                                        verified: true,
+                                    },
+                                ],
+                            },
                         },
-                    ],
+                    },
                 },
             },
             [
@@ -54,29 +61,39 @@ describe('useMediaPathWorkflow', () => {
 
     it('invalidates CIFS mappings without invalidating verified NFS mappings', async () => {
         const persistNetworkAccess = vi.fn(async ({pathMappings}) => ({
-            playback: {path_mappings: pathMappings},
+            media_servers: {
+                active: 'emby',
+                providers: {emby: {playback: {path_mappings: pathMappings}}},
+            },
         }))
         const subject = workflow({persistNetworkAccess})
 
         subject.initialize(
             {
-                playback: {
-                    path_mappings: [
-                        {
-                            name: 'Movies',
-                            source_path: '/volume1/Video/Movies',
-                            player_path: '/NAS-NFS/Movies',
-                            protocol: 'nfs',
-                            verified: true,
+                media_servers: {
+                    active: 'emby',
+                    providers: {
+                        emby: {
+                            playback: {
+                                path_mappings: [
+                                    {
+                                        name: 'Movies',
+                                        source_path: '/volume1/Video/Movies',
+                                        player_path: '/NAS-NFS/Movies',
+                                        protocol: 'nfs',
+                                        verified: true,
+                                    },
+                                    {
+                                        name: 'Trailers',
+                                        source_path: '/volume1/Video/Trailers',
+                                        player_path: '/NAS-SMB/Trailers',
+                                        protocol: 'cifs',
+                                        verified: true,
+                                    },
+                                ],
+                            },
                         },
-                        {
-                            name: 'Trailers',
-                            source_path: '/volume1/Video/Trailers',
-                            player_path: '/NAS-SMB/Trailers',
-                            protocol: 'cifs',
-                            verified: true,
-                        },
-                    ],
+                    },
                 },
             },
             [],

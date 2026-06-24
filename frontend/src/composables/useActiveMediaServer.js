@@ -1,6 +1,11 @@
 import {computed, toValue} from 'vue'
 
-const EMPTY_PROVIDER = {server_url: '', display_name: '', access_token_configured: false}
+const EMPTY_PROVIDER = {
+    server_url: '',
+    display_name: '',
+    access_token_configured: false,
+    playback: {hcc_controlled_device: '', use_all_libraries: false, path_mappings: [], libraries: []},
+}
 
 // `config` may be a ref, computed, or plain getter function returning the
 // full loaded config object (e.g. () => config.value). Resolves
