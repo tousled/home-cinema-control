@@ -168,6 +168,36 @@ class JellyfinClientTest(unittest.TestCase):
         )
         self.assertEqual({"PlaybackPositionTicks": 10}, http.calls[1][3])
 
+    def test_get_sessions_by_user_requests_camel_case_filter_param(self):
+        # controllableByUserId confirmed against Jellyfin server source
+        # (SessionController.GetSessions) for find_controlling_session_id's
+        # server-side narrowing.
+        http = RecordingHttpSession()
+        client = _authenticated_client(http)
+
+        client.get_sessions_by_user("user-1")
+
+        self.assertEqual(
+            "http://jellyfin.local:8096/Sessions?controllableByUserId=user-1",
+            http.calls[0][1],
+        )
+
+    def test_get_user_views_uses_the_real_userviews_route(self):
+        # Real bug, never exercised this session: /Users/{userId}/Views is
+        # not a Jellyfin route at all. UserViewsController.GetUserViews is
+        # GET /UserViews with userId as a query param, not a path segment.
+        # The discard-return-value bug in ModuleMediaServerSetupService
+        # (fixed separately) had masked whether this call worked.
+        http = RecordingHttpSession()
+        client = _authenticated_client(http)
+
+        client.get_user_views("user-1")
+
+        self.assertEqual(
+            "http://jellyfin.local:8096/UserViews?userId=user-1&includeExternalContent=false",
+            http.calls[0][1],
+        )
+
     def test_send_session_message_sends_text_in_json_body(self):
         # Regression test for two real bugs found against a real Jellyfin
         # server, in sequence:

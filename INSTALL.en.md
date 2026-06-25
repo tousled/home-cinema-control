@@ -105,15 +105,20 @@ If HCC finds a compatible older configuration, it shows a migration screen.
 
 HCC now saves setup by section and keeps secrets in `/config/secrets.json`.
 
-## 5. Media Server
+## 5. Media Server: Emby or Jellyfin
 
-Configure Emby URL, authentication, and the Emby client/device HCC should monitor.
+Pick the provider (Emby or Jellyfin), then configure its URL, authentication, and the client/device HCC should
+monitor. Screenshots in this guide show Emby, but the flow is the same with Jellyfin.
 
 <p align="center">
   <img src="assets/screenshots/install/02-media-server.png" alt="HCC Media Server setup" width="860"/>
 </p>
 
-This screen avoids manual token editing, reloads Emby devices, and prepares library discovery for path mapping.
+This screen avoids manual token editing, reloads the media server's devices, and prepares library discovery for path
+mapping.
+
+If you use Jellyfin, the account you authorize HCC with must be an **administrator** for device and library reload
+to work — see [Frequent Issues](#14-frequent-issues).
 
 ## 6. Media Player
 
@@ -404,6 +409,15 @@ docker run -d \
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
 ## 14. Frequent Issues
+
+### Jellyfin: devices and libraries don't show up when you click "Reload"
+
+- The Jellyfin account you authorize HCC with must be an **administrator**. Jellyfin restricts the device list
+  (`/Devices`) and the library/virtual-folder list (`/Library/VirtualFolders`) to elevated accounts — a regular
+  account gets a 403 error loading them, even though login itself (authorizing, playing, reporting progress) works
+  normally.
+- If you only have one Jellyfin user, it's almost certainly already the administrator and there's nothing to change.
+  If HCC uses a secondary account, grant it administrator rights from the Jellyfin dashboard.
 
 ### HCC cannot reach the player
 

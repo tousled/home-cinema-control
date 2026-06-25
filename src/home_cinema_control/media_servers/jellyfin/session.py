@@ -42,16 +42,17 @@ class JellyfinSession:
         Jellyfin's "Play" websocket message shares Emby's protocol design and
         the same gap: it never identifies the controller's own session — only
         echoes back the target (this bridge's) session id. Maps the raw
-        Sessions payload to MediaServerSession at this edge (Jellyfin has no
-        confirmed server-side user filter for /Sessions, unlike Emby's
-        ControllableByUserId — see get_sessions's docstring), then delegates
+        Sessions payload to MediaServerSession at this edge, then delegates
         the actual resolution policy to the shared, provider-neutral
         implementation (see common/models.py's find_controlling_session_id).
+        get_sessions_by_user narrows server-side (confirmed param, see its
+        docstring) but the client-side filtering below is what actually
+        guarantees correctness regardless.
         """
         if not controlling_user_id:
             return None
 
-        sessions = self.client.get_sessions()
+        sessions = self.client.get_sessions_by_user(controlling_user_id)
         if not isinstance(sessions, list):
             return None
 

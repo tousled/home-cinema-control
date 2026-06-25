@@ -115,29 +115,53 @@ class JellyfinClient:
     def get_sessions_by_device(self, device_id):
         return self.get_json(f"/Sessions?deviceId={device_id}")
 
-    def get_sessions(self):
-        """All active sessions, unfiltered.
+    def get_sessions_by_user(self, user_id):
+        """Sessions narrowed server-side to one user.
 
-        Emby's equivalent client method filters server-side via
-        `?ControllableByUserId=`. Jellyfin's `/Sessions` query parameters are
-        not confirmed to use the same PascalCase names — `deviceId` above is
-        already known to differ in casing from Emby's `DeviceId`. Rather than
-        guess an unverified Jellyfin-side filter parameter, callers filter the
-        full list client-side (by `UserId`/`DeviceId`, both confirmed present
-        on real Jellyfin session payloads — see JellyfinSession._find_own_session).
+        `controllableByUserId` (`Guid?`) confirmed against Jellyfin server
+        source — `SessionController.GetSessions`,
+        Jellyfin.Api/Controllers/SessionController.cs (jellyfin/jellyfin,
+        master branch) — not a guess. Callers still filter the result
+        client-side too (see JellyfinSession.find_controlling_session_id),
+        since that's the actual correctness guarantee; this param is purely
+        the bandwidth optimization Pedro asked for.
         """
-        return self.get_json("/Sessions")
+        return self.get_json(f"/Sessions?controllableByUserId={user_id}")
 
     def get_item_info(self, user_id, item_id):
         return self.get_json(f"/Users/{user_id}/Items/{item_id}")
 
     def get_user_views(self, user_id):
-        return self.get_json(f"/Users/{user_id}/Views?IncludeExternalContent=false")
+        # Real bug, found by checking this against Jellyfin's server source
+        # rather than assuming the old code was right: /Users/{userId}/Views
+        # is not a route Jellyfin's UserViewsController defines at all. The
+        # real route is GET /UserViews, with userId as a query parameter, not
+        # a path segment (UserViewsController.GetUserViews,
+        # Jellyfin.Api/Controllers/UserViewsController.cs). This had never
+        # been exercised successfully this session: the discard-return-value
+        # bug in ModuleMediaServerSetupService (fixed earlier) was silently
+        # absorbing whatever this call actually did, masking whether it
+        # worked at all.
+        return self.get_json(f"/UserViews?userId={user_id}&includeExternalContent=false")
 
     def get_devices(self):
+        # Confirmed route against Jellyfin server source — DevicesController
+        # has no own [Route], so this relies on the framework's per-controller
+        # convention (matches every other un-prefixed PascalCase route this
+        # client already uses successfully, e.g. /Sessions, /Devices was
+        # also the route this integration was originally built and verified
+        # against). Separately confirmed via source: DevicesController is
+        # [Authorize(Policy = Policies.RequiresElevation)] — this call 403s
+        # unless the authenticated Jellyfin user is an administrator. Not
+        # exercised this session; if Jellyfin device discovery in HCC's setup
+        # screen fails, check that first.
         return self.get_json("/Devices")
 
     def get_virtual_folders(self):
+        # Confirmed route against Jellyfin server source: LibraryStructureController
+        # has [Route("Library/VirtualFolders")]. Also [Authorize(Policy =
+        # Policies.FirstTimeSetupOrElevated)] — same administrator requirement
+        # as get_devices above, not exercised this session.
         folders = self.get_json("/Library/VirtualFolders")
         return folders if isinstance(folders, list) else []
 

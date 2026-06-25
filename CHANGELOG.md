@@ -4,8 +4,53 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
-> This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
-> architecture is progressively removed.
+## [Unreleased]
+
+### Added
+
+* Path mappings, detected libraries, the library-filter preference, and the monitored device now persist
+  independently per media-server provider (`media_servers.providers[type].playback`), instead of one shared block
+  used by whichever provider happened to be active. Switching between Emby and Jellyfin now shows each provider's
+  own mappings/libraries/device, and switching back restores them exactly as left — the same guarantee already
+  shipped for auth in 1.0.5. Includes an automatic, one-time migration of existing installs' config.
+* Added toast feedback for the Media Server provider switch: a confirmation when the switch lands on an
+  already-authorized provider (previously silent — the only feedback was a transient "connecting…" state), and a
+  distinct message when the switch succeeds but the target provider still needs login.
+* Added a shared, provider-neutral `find_controlling_session_id` policy (`media_servers/common/models.py`) that
+  resolves which client session actually issued a remote Play command, used by both Emby and Jellyfin.
+
+### Fixed
+
+* Fixed Jellyfin playback-startup notifications never being sent at all. Jellyfin's `Play` websocket message has the
+  same gap Emby's already-shipped fix (1.0.5) covers — it never identifies the controlling client's own session,
+  only the bridge's target session — but the fix was never ported to Jellyfin. Every notification silently no-opped
+  with "no active source session is available."
+* Fixed `JellyfinClient.send_session_message` sending `Text`/`Header`/`TimeoutMs` as query-string parameters (Emby's
+  shape) instead of the JSON request body Jellyfin's server actually requires, and sending an empty `data={}` body
+  that omitted the `Content-Type` header entirely, which Jellyfin's server rejects with `415 Unsupported Media
+  Type`. Confirmed against a real Jellyfin server's own error responses.
+* Fixed `JellyfinClient.get_user_views` calling a route that does not exist (`/Users/{userId}/Views`). The real
+  route is `GET /UserViews?userId=...`. Jellyfin library detection had likely never worked on any real install —
+  masked by the `ModuleMediaServerSetupService` bug below, which silently absorbed the resulting failure.
+* Fixed `ModuleMediaServerSetupService.load_devices`/`load_libraries`/`load_selectable_folders` discarding the
+  provider module's actual return value and always returning the pre-call config unchanged. Freshly detected
+  libraries, devices, and path mappings were computed correctly and then thrown away before reaching the UI, for
+  both Emby and Jellyfin.
+* Fixed `MediaServerLibrary` reading every library as inactive for any install whose `playback.libraries` predates
+  this value object (every install before this provider-boundary refactor) — those entries use raw
+  `Id`/`Name`/`Active` (capitalized) instead of the model's `id`/`name`/`active`. A model validator now normalizes
+  the legacy shape instead of silently defaulting `active` to `False`.
+* `find_controlling_session_id`'s Jellyfin-side session lookup now narrows server-side via the confirmed
+  `controllableByUserId` query parameter instead of fetching every active session on the server for every single
+  Play command.
+
+### Changed
+
+* Documented that Jellyfin device and library discovery (`GET /Devices`, `GET /Library/VirtualFolders`) requires an
+  administrator-level Jellyfin account — both endpoints are elevation-gated server-side. See `INSTALL.md` /
+  `INSTALL.en.md`'s FAQ.
+* `README.md`/`README.en.md` and `INSTALL.md`/`INSTALL.en.md` updated to reflect Jellyfin as a shipped, supported
+  media-server provider rather than a roadmap item.
 
 ## [1.0.5] - 2026-06-22
 

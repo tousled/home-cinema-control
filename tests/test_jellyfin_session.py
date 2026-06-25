@@ -6,8 +6,10 @@ from home_cinema_control.media_servers.jellyfin.session import JellyfinSession
 class FakeJellyfinClient:
     def __init__(self, sessions=None):
         self._sessions = sessions
+        self.get_sessions_by_user_calls = []
 
-    def get_sessions(self):
+    def get_sessions_by_user(self, user_id):
+        self.get_sessions_by_user_calls.append(user_id)
         return self._sessions
 
 
@@ -82,6 +84,18 @@ class FindControllingSessionIdTest(unittest.TestCase):
         self.assertEqual(
             "phone-session", session.find_controlling_session_id("user-1")
         )
+
+    def test_asks_the_client_to_narrow_by_user_server_side(self):
+        # The actual optimization Pedro asked for: don't fetch every session
+        # on every Play command if the client can narrow it server-side.
+        # Correctness doesn't depend on the server actually honoring this —
+        # see JellyfinClient.get_sessions_by_user's docstring — only that we
+        # ask for it.
+        client = FakeJellyfinClient(sessions=[])
+
+        _session_with_client(client).find_controlling_session_id("user-1")
+
+        self.assertEqual(["user-1"], client.get_sessions_by_user_calls)
 
 
 if __name__ == "__main__":
