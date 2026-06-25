@@ -1,5 +1,6 @@
 from urllib.parse import quote
 
+from home_cinema_control import __version__
 from home_cinema_control.config.manager import active_media_server_config
 from home_cinema_control.media_servers.emby.constants import DEVICE_ID
 from home_cinema_control.network.http import get_http_session
@@ -56,7 +57,7 @@ class EmbyClient:
             'MediaBrowser Client="Home Cinema Control",'
             'Device="Home Cinema Control",'
             f'DeviceId="{DEVICE_ID}",'
-            'Version="0.5.1"'
+            f'Version="{__version__}"'
         )
 
         if user_info:

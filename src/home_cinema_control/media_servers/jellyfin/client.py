@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from home_cinema_control import __version__
 from home_cinema_control.config.manager import active_media_server_config
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
 from home_cinema_control.network.http import get_http_session
@@ -60,7 +61,7 @@ class JellyfinClient:
             'MediaBrowser Client="Home Cinema Control",'
             'Device="Home Cinema Control",'
             f'DeviceId="{DEVICE_ID}",'
-            'Version="1.0.0"'
+            f'Version="{__version__}"'
         )
 
         if user_info:
