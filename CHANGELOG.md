@@ -32,6 +32,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   the named steps and the printed `total` in "Playback startup timing summary," with no way to tell from the log
   alone whether the OPPO, the TV/AV output switch, or something else caused it. No behavior change: both are
   optional, timer-only wrapping.
+* Added a first-run modal offering to import a legacy XNOPPO `config.json` (the predecessor project this app
+  replaces) on a fresh install with nothing configured yet, separate from the existing "legacy config already on
+  disk" migration modal. The user picks the old `config.json` file, HCC migrates AV/TV/OPPO/playback settings the
+  same way the existing migration pipeline already does, moves the Emby server URL into the new multi-provider
+  config shape, and makes a best-effort live login with the file's username/password to obtain a real access token
+  — if that login fails (e.g. the Emby server isn't reachable yet), the provider is just left unauthenticated, same
+  as any freshly added provider, and the existing sidebar readiness indicator shows it needs attention.
 
 ### Fixed
 
@@ -66,6 +73,19 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 * `find_controlling_session_id`'s Jellyfin-side session lookup now narrows server-side via the confirmed
   `controllableByUserId` query parameter instead of fetching every active session on the server for every single
   Play command.
+* Fixed the existing "legacy config found" migration silently discarding `emby_server`/`user_name`/`user_password`
+  from an XNOPPO-era flat `config.json` instead of migrating them — those keys were already listed as legacy
+  (so they got removed) but no step ever moved the server URL anywhere first. `TV_KEY`/`TV_DeviceName` (no current
+  equivalent — LG pairing now goes through a separate key store) are now dropped instead of lingering as orphaned
+  fields.
+* Fixed the Docker image being unable to complete a truly fresh install (no existing config volume at all):
+  the multi-stage build refactor dropped `config.example.json` from the final runtime stage, so
+  `ensure_config_exists()` had nothing to seed `config.json` from and crashed on every container start.
+* Fixed `secrets.json` carrying a stale, empty single-provider `media_server` stub forever. It was seeded by
+  default for every install before the multi-provider `media_servers.providers.*` shape existed, and was only ever
+  cleaned up when the *public* config also had real legacy `media_server` data — which an XNOPPO-era flat config
+  never has. It's no longer seeded for new installs, and existing installs self-heal it on the next config save or
+  container restart.
 
 ### Changed
 
