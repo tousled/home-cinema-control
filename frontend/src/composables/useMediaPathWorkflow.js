@@ -2,6 +2,15 @@ import {computed, nextTick, ref, watch} from 'vue'
 
 const EMPTY_DRAFT = {name: '', source_path: '', player_path: '', protocol: '', verified: false}
 
+// Resolves media_servers.providers[media_servers.active].playback.path_mappings
+// from a full config response — the nested shape that replaced the old flat
+// config.playback.path_mappings. See
+// .agents/specs/2026-06-23-media-server-scoped-paths-libraries-device.md.
+function activeProviderPathMappings(config) {
+    const activeType = config?.media_servers?.active
+    return config?.media_servers?.providers?.[activeType]?.playback?.path_mappings || []
+}
+
 export function useMediaPathWorkflow({
                                          api,
                                          defaultProtocol,
@@ -111,7 +120,7 @@ export function useMediaPathWorkflow({
     })
 
     function initialize(config, libraries) {
-        mappings.value = [...(config.playback?.path_mappings || [])]
+        mappings.value = [...activeProviderPathMappings(config)]
         detectedLibraryPaths.value = [...libraries]
         if (detectedRows.value.length) {
             selectRow(detectedRows.value[0])
@@ -333,7 +342,7 @@ export function useMediaPathWorkflow({
         if (editIndex.value === null) return null
         const nextMappings = mappings.value.filter((_, index) => index !== editIndex.value)
         const savedConfig = await persistRouteMappings(nextMappings)
-        mappings.value = [...(savedConfig.playback?.path_mappings || nextMappings)]
+        mappings.value = [...activeProviderPathMappings(savedConfig)]
         editing.value = false
         selectedKey.value = null
         editIndex.value = null
@@ -356,7 +365,7 @@ export function useMediaPathWorkflow({
             password,
             pathMappings: nextMappings,
         })
-        mappings.value = [...(savedConfig.playback?.path_mappings || nextMappings)]
+        mappings.value = [...activeProviderPathMappings(savedConfig)]
         if (entry) applySavedMappings(savedConfig, entry)
         return savedConfig
     }
@@ -370,7 +379,7 @@ export function useMediaPathWorkflow({
             password: '',
             pathMappings: nextMappings,
         })
-        mappings.value = [...(savedConfig.playback?.path_mappings || nextMappings)]
+        mappings.value = [...activeProviderPathMappings(savedConfig)]
         if (editing.value && form.value.protocol === 'cifs' && hasPlayerPath(form.value.player_path)) {
             form.value = {...form.value, verified: false}
             originalForm.value = {...form.value}
@@ -405,7 +414,7 @@ export function useMediaPathWorkflow({
     }
 
     function applySavedMappings(savedConfig, entry) {
-        mappings.value = [...(savedConfig.playback?.path_mappings || [])]
+        mappings.value = [...activeProviderPathMappings(savedConfig)]
         const nextIndex = mappings.value.findIndex((mapping) => normalizePath(mapping.source_path) === normalizePath(entry.source_path))
         editIndex.value = nextIndex >= 0 ? nextIndex : editIndex.value
         selectedKey.value = advancedMode.value ? `manual:${editIndex.value}` : rowKey(entry.source_path)

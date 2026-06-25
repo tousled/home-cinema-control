@@ -108,6 +108,43 @@ class PlaybackThreadLifecycleTest(unittest.TestCase):
 
         self.assertEqual(["stop_active", "join_active"], calls)
 
+    def test_stop_active_and_wait_returns_false_when_nothing_active(self):
+        lifecycle = PlaybackThreadLifecycle(
+            start_playback=lambda *args, **kwargs: None,
+            reload_config=lambda: None,
+            stop_active_playback=lambda: None,
+        )
+
+        self.assertFalse(lifecycle.stop_active_and_wait())
+
+    def test_stop_active_and_wait_stops_and_joins_then_returns_true(self):
+        calls = []
+        lifecycle = PlaybackThreadLifecycle(
+            start_playback=lambda *args, **kwargs: None,
+            reload_config=lambda: None,
+            stop_active_playback=lambda: calls.append("stop_active"),
+        )
+        lifecycle._active_thread = FakeActiveThread(calls)
+
+        result = lifecycle.stop_active_and_wait()
+
+        self.assertTrue(result)
+        self.assertEqual(["stop_active", "join_active"], calls)
+
+    def test_stop_active_and_wait_sets_replacement_requested_during_stop(self):
+        calls = []
+        lifecycle = PlaybackThreadLifecycle(
+            start_playback=lambda *args, **kwargs: None,
+            reload_config=lambda: None,
+            stop_active_playback=lambda: calls.append(lifecycle.replacement_requested),
+        )
+        lifecycle._active_thread = FakeActiveThread([])
+
+        lifecycle.stop_active_and_wait()
+
+        self.assertEqual([True], calls)
+        self.assertFalse(lifecycle.replacement_requested)
+
     def test_replace_ignores_request_when_replacement_is_already_running(self):
         lifecycle = PlaybackThreadLifecycle(
             start_playback=lambda *args, **kwargs: None,

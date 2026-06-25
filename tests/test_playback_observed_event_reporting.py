@@ -14,8 +14,8 @@ class PlaybackObservedEventReportingTest(unittest.TestCase):
 
         configured = configure_oppo_observed_event_reporting(
             playback_state=BridgePlaybackState(),
-            playback_session=FakePlaybackSession(),
             playback_wiring=wiring,
+            track_mapper=FakeTrackMapper(),
         )
 
         self.assertTrue(configured)
@@ -40,11 +40,6 @@ class PlaybackObservedEventReportingTest(unittest.TestCase):
         self.assertEqual("Free", state.playstate)
 
 
-class FakePlaybackSession:
-    def __init__(self):
-        self.config = {"app": {"log_level": 0}}
-
-
 class FakePlaybackWiring:
     def __init__(self):
         self.startup_wiring = SimpleNamespace(oppo_playback=FakeOppoPlayback())
@@ -66,6 +61,14 @@ class FakeDuringPlaybackOrchestrator:
 
     def set_observed_event_reporter(self, reporter):
         self.reporter = reporter
+
+
+class FakeTrackMapper:
+    def player_audio_to_source_track_id(self, player_track_index):
+        return player_track_index
+
+    def player_subtitle_to_source_track_id(self, player_track_index):
+        return player_track_index
 
 
 class RecordingPublisher:

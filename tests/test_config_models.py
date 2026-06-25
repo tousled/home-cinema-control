@@ -6,10 +6,11 @@ from home_cinema_control.config.models import (
     AppConfig,
     AvConfig,
     HccConfig,
-    MediaServerConfig,
+    MediaServerProviderConfig,
+    MediaServersConfig,
     OppoConfig,
     PathMappingConfig,
-    PlaybackConfig,
+    ProviderPlaybackConfig,
     TvConfig,
 )
 
@@ -18,11 +19,13 @@ class TestHccConfig(unittest.TestCase):
     def test_empty_dict_produces_all_defaults(self):
         config = HccConfig()
         self.assertEqual(0, config.app.log_level)
-        self.assertEqual("", config.playback.hcc_controlled_device)
         self.assertFalse(config.av.enabled)
         self.assertFalse(config.tv.enabled)
         self.assertEqual(3, config.oppo.api_retry_attempts)
-        self.assertEqual("emby", config.media_server.type)
+        self.assertEqual("emby", config.media_servers.active)
+        self.assertEqual({}, config.media_servers.providers)
+        self.assertNotIn("media_server", HccConfig.model_fields)
+        self.assertNotIn("playback", HccConfig.model_fields)
 
     def test_nested_sections_populated_from_dict(self):
         config = HccConfig(**{
@@ -63,21 +66,25 @@ class TestAppConfig(unittest.TestCase):
         self.assertEqual("value", app.model_extra["unknown_future_key"])
 
 
-class TestPlaybackConfig(unittest.TestCase):
+class TestProviderPlaybackConfig(unittest.TestCase):
     def test_defaults(self):
-        p = PlaybackConfig()
+        p = ProviderPlaybackConfig()
         self.assertEqual("", p.hcc_controlled_device)
         self.assertFalse(p.use_all_libraries)
         self.assertEqual([], p.path_mappings)
         self.assertEqual([], p.libraries)
 
     def test_path_mappings_parsed_as_models(self):
-        p = PlaybackConfig(path_mappings=[
+        p = ProviderPlaybackConfig(path_mappings=[
             {"name": "Movies", "source_path": "/nas/movies", "player_path": "/movies"},
         ])
         self.assertEqual(1, len(p.path_mappings))
         self.assertEqual("/nas/movies", p.path_mappings[0].source_path)
         self.assertFalse(p.path_mappings[0].verified)
+
+    def test_extra_keys_preserved(self):
+        p = ProviderPlaybackConfig(some_future_field=True)
+        self.assertTrue(p.model_extra["some_future_field"])
 
 
 class TestPathMappingConfig(unittest.TestCase):
@@ -133,16 +140,64 @@ class TestOppoConfig(unittest.TestCase):
             OppoConfig(api_retry_attempts=2.5)
 
 
-class TestMediaServerConfig(unittest.TestCase):
+class TestMediaServerProviderConfig(unittest.TestCase):
     def test_defaults(self):
-        ms = MediaServerConfig()
-        self.assertEqual("emby", ms.type)
-        self.assertEqual("", ms.server_url)
-        self.assertEqual("", ms.access_token)
+        provider = MediaServerProviderConfig()
+        self.assertEqual("", provider.server_url)
+        self.assertEqual("", provider.display_name)
+        self.assertEqual("", provider.access_token)
+        self.assertEqual("", provider.user_id)
+        self.assertIsInstance(provider.playback, ProviderPlaybackConfig)
+        self.assertEqual("", provider.playback.hcc_controlled_device)
+
+    def test_playback_parsed_from_dict(self):
+        provider = MediaServerProviderConfig(
+            playback={"hcc_controlled_device": "tv-1", "use_all_libraries": True}
+        )
+        self.assertIsInstance(provider.playback, ProviderPlaybackConfig)
+        self.assertEqual("tv-1", provider.playback.hcc_controlled_device)
+        self.assertTrue(provider.playback.use_all_libraries)
+
+    def test_has_no_type_field(self):
+        # The provider type is the dict key in MediaServersConfig.providers,
+        # not a field on the value — a submitted "type" is preserved only as
+        # an extra key, never a declared/typed attribute.
+        self.assertNotIn("type", MediaServerProviderConfig.model_fields)
+        provider = MediaServerProviderConfig(type="emby")
+        self.assertEqual("emby", provider.model_extra["type"])
 
     def test_extra_keys_preserved(self):
-        ms = MediaServerConfig(access_token_configured=True)
-        self.assertTrue(ms.model_extra["access_token_configured"])
+        provider = MediaServerProviderConfig(access_token_configured=True)
+        self.assertTrue(provider.model_extra["access_token_configured"])
+
+
+class TestMediaServersConfig(unittest.TestCase):
+    def test_defaults(self):
+        servers = MediaServersConfig()
+        self.assertEqual("emby", servers.active)
+        self.assertEqual({}, servers.providers)
+
+    def test_providers_keyed_by_type_parsed_as_models(self):
+        servers = MediaServersConfig(
+            active="jellyfin",
+            providers={
+                "emby": {"server_url": "http://emby", "access_token": "emby-token"},
+                "jellyfin": {"server_url": "http://jf", "access_token": "jf-token"},
+            },
+        )
+        self.assertEqual("jellyfin", servers.active)
+        self.assertEqual(2, len(servers.providers))
+        self.assertIsInstance(servers.providers["emby"], MediaServerProviderConfig)
+        self.assertEqual("http://emby", servers.providers["emby"].server_url)
+        self.assertEqual("http://jf", servers.providers["jellyfin"].server_url)
+
+    def test_unknown_provider_type_key_rejected(self):
+        with self.assertRaises(ValidationError):
+            MediaServersConfig(providers={"plex": {"server_url": "http://plex"}})
+
+    def test_extra_keys_preserved(self):
+        servers = MediaServersConfig(some_future_field=True)
+        self.assertTrue(servers.model_extra["some_future_field"])
 
 
 if __name__ == "__main__":

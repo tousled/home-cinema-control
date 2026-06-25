@@ -5,6 +5,11 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+from home_cinema_control.config.manager import (
+    active_media_server_config,
+    active_media_server_type,
+)
+
 
 VERIFICATION_CONFIG_KEY = "setup_verification"
 
@@ -49,17 +54,16 @@ def verified_status(config: dict[str, Any], section: str) -> str:
 
 def _section_payload(section: str, config: dict[str, Any]) -> dict[str, Any]:
     if section == "media_server":
-        media_server = config.get("media_server") or {}
-        playback = config.get("playback") or {}
+        media_server = active_media_server_config(config)
         return {
-            "type": media_server.get("type", "emby"),
-            "server_url": media_server.get("server_url", ""),
-            "display_name": media_server.get("display_name", ""),
+            "type": active_media_server_type(config),
+            "server_url": media_server.server_url,
+            "display_name": media_server.display_name,
             "access_token_configured": bool(
-                media_server.get("access_token_configured")
-                or str(media_server.get("access_token", "")).strip()
+                media_server.model_extra.get("access_token_configured")
+                or media_server.access_token.strip()
             ),
-            "hcc_controlled_device": playback.get("hcc_controlled_device", ""),
+            "hcc_controlled_device": media_server.playback.hcc_controlled_device,
         }
 
     if section == "media_player":

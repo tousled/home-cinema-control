@@ -21,11 +21,18 @@ class WebRuntimeConfigTest(unittest.TestCase):
         config = {
             "tv": {"enabled": True},
             "av": {"enabled": False},
-            "playback": {
-                "path_mappings": [
-                    {"name": "Movies"},
-                    {"name": "Series", "verified": True},
-                ]
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "playback": {
+                            "path_mappings": [
+                                {"name": "Movies"},
+                                {"name": "Series", "verified": True},
+                            ]
+                        }
+                    }
+                },
             },
         }
 
@@ -39,7 +46,7 @@ class WebRuntimeConfigTest(unittest.TestCase):
         self.assertFalse(app["include_prerelease"])
         self.assertEqual("tousled/home-cinema-control", app["release_repository"])
         self.assertEqual(10, app["version_check_timeout_seconds"])
-        playback = config["playback"]
+        playback = config["media_servers"]["providers"]["emby"]["playback"]
         self.assertFalse(playback["use_all_libraries"])
 
         av = config["av"]
@@ -87,6 +94,25 @@ class WebRuntimeConfigTest(unittest.TestCase):
         self.assertEqual(["lg"], config["tv_dirs"])
         self.assertEqual(["denon"], config["av_dirs"])
         self.assertEqual(["en-US", "es-ES"], config["langs"])
+
+    @patch("home_cinema_control.web.runtime_config.get_supported_av_models")
+    @patch("home_cinema_control.web.runtime_config.get_supported_tv_models")
+    def test_apply_runtime_defaults_on_fresh_install_with_no_media_servers_key(
+            self, tv_models, av_models
+    ):
+        tv_models.return_value = []
+        av_models.return_value = []
+
+        config = {}
+
+        result = apply_runtime_defaults(config, version="0.5.1")
+
+        self.assertEqual("emby", result["media_servers"]["active"])
+        playback = result["media_servers"]["providers"]["emby"]["playback"]
+        self.assertEqual("", playback["hcc_controlled_device"])
+        self.assertFalse(playback["use_all_libraries"])
+        self.assertEqual([], playback["path_mappings"])
+        self.assertEqual([], playback["libraries"])
 
     def test_get_dir_folders_returns_sorted_directories_only(self):
         with tempfile.TemporaryDirectory() as temp_dir:

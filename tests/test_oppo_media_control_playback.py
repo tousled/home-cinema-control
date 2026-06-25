@@ -138,6 +138,21 @@ def _mount_failed(detail: str, *, failure_stage="mount") -> OppoMountResult:
     )
 
 
+class RecordingStepTimer:
+    def __init__(self):
+        self.measured_steps = []
+
+    def measure_step(self, step_name):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _measure():
+            self.measured_steps.append(step_name)
+            yield
+
+        return _measure()
+
+
 class OppoMediaControlPlaybackTest(unittest.TestCase):
     def test_starts_nfs_playback_without_legacy_refresh_or_remote_key(self):
         client = RecordingMediaControlClient()
@@ -181,6 +196,47 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         self.assertNotIn("get_setup_menu", client.calls)
         self.assertNotIn(("send_remote_key", "EJT"), client.calls)
         self.assertNotIn(("send_remote_key", "QPW"), client.calls)
+
+    def test_records_mount_and_playback_wait_as_timed_startup_steps(self):
+        # Regression test: the mount() and playback-state-wait calls used to
+        # be invisible to the "Playback startup timing summary" — neither
+        # was wrapped in measure_step, so a slow OPPO device-list/QPL poll
+        # never showed up by name, only as an unexplained gap in the total.
+        step_timer = RecordingStepTimer()
+        client = RecordingMediaControlClient()
+        mount_service = FakeNetworkMountService(
+            _mounted(mount_path="/mnt/nfs1", server="NAS", folder="Movies", is_nfs=True)
+        )
+        playback = OppoMediaControlPlayback(
+            {
+                "oppo": {
+                    "use_smb": False,
+                    "nfs_mount_timeout_seconds": 30,
+                    "playback_start_timeout_seconds": 30,
+                }
+            },
+            client=client,
+            playback_state_waiter=_started_playback,
+            network_mount_service=mount_service,
+            step_timer=step_timer,
+        )
+
+        result = playback.start_playback(
+            OppoPlaybackStartRequest(
+                media_location=PlayerMediaFileLocation(
+                    content_server="NAS",
+                    content_directory="Movies",
+                    playback_file_name="Movie.mkv",
+                    playback_file_format="mkv",
+                )
+            )
+        )
+
+        self.assertTrue(result.successful)
+        self.assertEqual(
+            ["mount_oppo_network_share", "wait_for_oppo_playback_active"],
+            step_timer.measured_steps,
+        )
 
     def test_starts_samba_playback_when_smb_is_active(self):
         client = RecordingMediaControlClient()

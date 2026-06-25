@@ -64,7 +64,7 @@ class BrowseNetworkFolderControlApiActivationTest(unittest.TestCase):
     @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
     @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api")
     def test_raises_without_calling_oppo_when_control_api_is_unavailable(
-        self, check_control_api, get_device_list
+            self, check_control_api, get_device_list
     ):
         check_control_api.return_value = 1
 
@@ -76,7 +76,7 @@ class BrowseNetworkFolderControlApiActivationTest(unittest.TestCase):
     @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
     @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api")
     def test_lists_devices_once_control_api_is_available(
-        self, check_control_api, get_device_list
+            self, check_control_api, get_device_list
     ):
         check_control_api.return_value = 0
         get_device_list.return_value = OppoCommandResponse.from_text(
@@ -100,7 +100,7 @@ class BrowseNetworkFolderMountTest(unittest.TestCase):
     @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
     @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api", return_value=0)
     def test_lists_mounted_folder_files_on_successful_mount(
-        self, _check_control_api, get_device_list, mount_service_cls, list_files
+            self, _check_control_api, get_device_list, mount_service_cls, list_files
     ):
         get_device_list.return_value = OppoCommandResponse.from_text(
             '{"devicelist":[{"name":"NAS"}]}'
@@ -128,7 +128,7 @@ class BrowseNetworkFolderMountTest(unittest.TestCase):
     @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
     @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api", return_value=0)
     def test_raises_login_failed_when_login_stage_fails(
-        self, _check_control_api, get_device_list, mount_service_cls
+            self, _check_control_api, get_device_list, mount_service_cls
     ):
         get_device_list.return_value = OppoCommandResponse.from_text(
             '{"devicelist":[{"name":"NAS"}]}'
@@ -147,7 +147,7 @@ class BrowseNetworkFolderMountTest(unittest.TestCase):
     @patch("home_cinema_control.devices.oppo.setup_control.get_oppo_device_list")
     @patch("home_cinema_control.devices.oppo.setup_control.check_oppo_control_api", return_value=0)
     def test_raises_mount_failed_when_mount_stage_fails(
-        self, _check_control_api, get_device_list, mount_service_cls
+            self, _check_control_api, get_device_list, mount_service_cls
     ):
         get_device_list.return_value = OppoCommandResponse.from_text(
             '{"devicelist":[{"name":"NAS"}]}'

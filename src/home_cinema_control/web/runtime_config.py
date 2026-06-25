@@ -2,7 +2,7 @@ from pathlib import Path
 
 from home_cinema_control.devices.av.factory import get_supported_av_models
 from home_cinema_control.devices.tv.factory import get_supported_tv_models
-from home_cinema_control.config.manager import load_effective_config
+from home_cinema_control.config.manager import active_media_server_type, load_effective_config
 from home_cinema_control.network.arp import ARP_TABLE_PATH
 
 _LANG_PATH = Path(__file__).parent.parent / "lang"
@@ -24,7 +24,13 @@ def apply_runtime_defaults(config, *, version):
     app.setdefault("release_repository", "tousled/home-cinema-control")
     app.setdefault("version_check_timeout_seconds", 10)
     app.setdefault("log_level", 0)
-    playback = config.setdefault("playback", {})
+    provider_type = active_media_server_type(config)
+    playback = (
+        config.setdefault("media_servers", {"active": provider_type, "providers": {}})
+        .setdefault("providers", {})
+        .setdefault(provider_type, {})
+        .setdefault("playback", {})
+    )
     playback.setdefault("hcc_controlled_device", "")
     playback.setdefault("use_all_libraries", False)
     playback.setdefault("path_mappings", [])

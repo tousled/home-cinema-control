@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from home_cinema_control.media_servers.emby.playback import MediaServerPlaybackSource
+from home_cinema_control.config.manager import active_media_server_config
+from home_cinema_control.media_servers.common.playback_source import (
+    MediaServerPlaybackSource,
+)
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.media_location import resolve_player_media_file_location
 from home_cinema_control.devices.tv.models import TvInputTarget
@@ -21,9 +24,10 @@ PLAYBACK_START_POLL_INTERVAL_SECONDS = 0.5
 class PreparedPlaybackRequests:
     """All orchestrator request objects derived from one media-server intent.
 
-    The application service receives Emby-flavoured item/config data. This value
-    object groups the clean requests consumed by playback orchestrators plus the
-    resolved media location used for user-facing logs/messages.
+    The application service receives a provider-mapped item plus config data.
+    This value object groups the clean requests consumed by playback
+    orchestrators plus the resolved media location used for user-facing
+    logs/messages.
     """
 
     media_location: PlayerMediaFileLocation
@@ -41,10 +45,11 @@ def prepare_playback_requests(
     previous_tv_app_id_override: str | None,
 ) -> PreparedPlaybackRequests:
     """Translate config, selected media item, and playback intent into requests."""
+    path_mappings = active_media_server_config(config).playback.path_mappings
     media_location = resolve_player_media_file_location(
         emby_media_path=item_info.path,
         playback_file_format=item_info.container,
-        path_mappings=config["playback"]["path_mappings"],
+        path_mappings=[mapping.model_dump() for mapping in path_mappings],
     )
     output_switch_request = _output_switch_request(
         config,

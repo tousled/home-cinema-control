@@ -96,29 +96,46 @@ class PlaybackThreadLifecycle:
                 if self._active_thread is current_thread:
                     self._active_thread = None
 
-    def _run_replace(self, intent: PlaybackIntent, origin: PlaybackOrigin) -> None:
+    def stop_active_and_wait(self) -> bool:
+        """Stop the active playback, if any, and block until its thread has
+        actually finished the normal finish/cleanup flow (TV/AV restore,
+        media-server reporting) — never just closes a connection out from
+        under it. Returns True if there was something active to stop.
+
+        Used by both replace() below and callers outside normal playback
+        replacement (e.g. swapping the media-server listener on a provider
+        switch) that need a clean slate before doing something disruptive.
+        """
         with self._thread_lock:
             active_thread = self._active_thread
 
-        if active_thread is not None and active_thread.is_alive():
-            logger.info("Stopping active playback before replacement.")
-            self._replacement_requested.set()
-            try:
-                self._stop_active_playback()
-                active_thread.join()
-            finally:
-                self._replacement_requested.clear()
+        if active_thread is None or not active_thread.is_alive():
+            return False
 
-            if (
-                self._last_playback_result is not None
+        logger.info("Stopping active playback and waiting for clean finish.")
+        self._replacement_requested.set()
+        try:
+            self._stop_active_playback()
+            active_thread.join()
+        finally:
+            self._replacement_requested.clear()
+
+        return True
+
+    def _run_replace(self, intent: PlaybackIntent, origin: PlaybackOrigin) -> None:
+        had_active = self.stop_active_and_wait()
+
+        if (
+                had_active
+                and self._last_playback_result is not None
                 and not self._last_playback_result.successful
-            ):
-                logger.warning(
-                    "Skipping replacement startup because active playback did not "
-                    "finish cleanly | successful=%s",
-                    self._last_playback_result.successful,
-                )
-                return
+        ):
+            logger.warning(
+                "Skipping replacement startup because active playback did not "
+                "finish cleanly | successful=%s",
+                self._last_playback_result.successful,
+            )
+            return
 
         replacement_thread = self._thread_factory(
             target=self._run_start,

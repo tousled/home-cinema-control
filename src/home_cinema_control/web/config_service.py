@@ -1,4 +1,8 @@
-from home_cinema_control.config.manager import clear_smb_credentials, merge_existing_secrets, sanitize_config_for_web
+from home_cinema_control.config.manager import (
+    clear_smb_credentials,
+    merge_existing_secrets,
+    sanitize_config_for_web,
+)
 
 
 class WebConfigService:

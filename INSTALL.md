@@ -124,24 +124,37 @@ configuración o empezar desde cero.
 La migración existe para conservar lo reutilizable, pero HCC guarda ahora la configuración por secciones y separa los
 secretos en `/config/secrets.json`.
 
-## 5. Media Server: conecta Emby
+## 5. Media Server: conecta Emby o Jellyfin
 
-En **Media Server** se configura la URL de Emby, el usuario y el dispositivo de Emby que HCC debe monitorizar.
+En **Media Server** eliges el tipo de servidor (Emby o Jellyfin) y configuras su URL, el usuario y el dispositivo que
+HCC debe monitorizar. Las capturas de esta guía muestran Emby, pero el flujo es el mismo con Jellyfin.
 
 <p align="center">
   <img src="assets/screenshots/install/02-media-server.png" alt="Pantalla Media Server de Home Cinema Control" width="860"/>
+</p>
+
+En la cabecera de esta pantalla verás el logo del proveedor seleccionado, por ejemplo Emby o Jellyfin. Ese logo sirve
+para reconocer de un vistazo qué integración estás configurando: aparece atenuado mientras falta autorizar el servidor
+o completar la conexión, y se muestra con más presencia cuando el proveedor queda autorizado. La URL, el usuario y los
+detalles de preparación siguen estando en los paneles de configuración para no duplicar información en la cabecera.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server-pending.png" alt="Media Server con Jellyfin seleccionado pero pendiente de autorización" width="860"/>
 </p>
 
 Qué resuelve esta pantalla:
 
 - evita editar tokens a mano;
 - guarda credenciales sensibles en `secrets.json`;
-- permite recargar dispositivos de Emby;
+- permite recargar dispositivos del servidor multimedia;
 - detecta bibliotecas para usarlas después en el asistente de rutas;
 - mantiene el guardado limitado a la sección de Media Server.
 
-El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo de
-Emby.
+El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo.
+
+Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
+dispositivos
+y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
 
 ## 6. Media Player: localiza el OPPO/Chinoppo
 
@@ -172,8 +185,9 @@ Usa **Probar OPPO** antes de continuar. Si falla, revisa:
 
 ## 7. Rutas de medios: la parte importante
 
-Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby sabe dónde está la
-película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red del NAS.
+Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby o Jellyfin saben
+dónde está la película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red
+del NAS.
 
 Piensa en HCC como un traductor de rutas:
 
@@ -185,7 +199,8 @@ HCC guarda:       esta biblioteca usa esta ruta OPPO y este protocolo
 ```
 
 No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos nombres. Por eso HCC parte de las
-bibliotecas de Emby, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión real.
+bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
+real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qué servidor estás mapeando.
 
 <p align="center">
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="Vista general del asistente de rutas de Home Cinema Control" width="860"/>
@@ -479,6 +494,15 @@ Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar 
 muestra el comando para ejecutarlo manualmente.
 
 ## 14. Problemas frecuentes
+
+### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
+
+- La cuenta de Jellyfin con la que autorizas HCC debe permisos de **administrador**. Jellyfin protege la lista de
+  dispositivos (`/Devices`) y la de carpetas de biblioteca (`/Library/VirtualFolders`) para cuentas con privilegios
+  elevados — una cuenta normal recibe un error 403 al cargarlas, aunque el login en sí (autorizar, reproducir,
+  reportar progreso) funcione con normalidad.
+- Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
+  usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 
 ### HCC no llega al reproductor
 

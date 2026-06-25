@@ -12,8 +12,9 @@ import psutil
 from home_cinema_control.web.runtime_config import _LANG_PATH, load_runtime_config
 from home_cinema_control.web.static_assets import load_json_asset
 from home_cinema_control.config.manager import is_configured, save_effective_config
-from home_cinema_control.media_servers.emby.websocket_listener import EmbyWebsocket
+from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import PlaybackDiagnostic
+from home_cinema_control.playback.dispatch import bridge_playback_is_active
 
 
 @dataclass(frozen=True)
@@ -116,15 +117,17 @@ class HomeCinemaControlRuntime:
         *,
         paths: RuntimePaths,
         version: str,
-        websocket_factory=EmbyWebsocket,
+            media_server_provider_factory=None,
         exit_process=os._exit,
     ):
         self.paths = paths
         self.version = version
-        self._websocket_factory = websocket_factory
+        self._media_server_provider_factory = (
+                media_server_provider_factory or MediaServerProviderFactory()
+        )
         self._exit_process = exit_process
-        self.emby_websocket = None
-        self.websocket_thread = None
+        self.playback_listener = None
+        self.playback_listener_thread = None
 
     def load_config(self) -> dict:
         return load_runtime_config(str(self.paths.config_file), version=self.version)
@@ -141,22 +144,17 @@ class HomeCinemaControlRuntime:
         self.update_active_config(config)
 
     def update_active_config(self, config: dict) -> None:
-        if self.emby_websocket is None:
+        if self.playback_listener is None:
             return
 
-        update_config = getattr(self.emby_websocket, "update_config", None)
-        if callable(update_config):
-            update_config(config)
-            return
-
-        self.emby_websocket.config = config
+        self.playback_listener.update_config(config)
 
     def start_playback_listener_if_configured(self) -> bool:
         config = self.load_config()
         if not is_configured(config):
             logging.info(
                 "Config is not complete yet. Web UI is available; "
-                "Emby websocket will not start."
+                "media-server playback listener will not start."
             )
             return False
 
@@ -165,23 +163,66 @@ class HomeCinemaControlRuntime:
         return True
 
     def start_playback_listener(self, *, config: dict, language: dict) -> None:
-        self.emby_websocket = self._websocket_factory()
-        self.emby_websocket.config = config
-        self.emby_websocket.config_file = str(self.paths.config_file)
-        self.emby_websocket.language = language
+        provider = self._media_server_provider_factory.create(config)
+        self.playback_listener = provider.create_playback_listener(
+            config=config,
+            config_file=str(self.paths.config_file),
+            language=language,
+        )
 
-        self.websocket_thread = threading.Thread(
-            target=_run_websocket,
-            args=(self.emby_websocket,),
+        self.playback_listener_thread = threading.Thread(
+            target=_run_playback_listener,
+            args=(self.playback_listener,),
             daemon=True,
         )
-        self.websocket_thread.start()
+        self.playback_listener_thread.start()
+
+    def has_active_playback(self) -> bool:
+        if self.playback_listener is None:
+            return False
+
+        playstate = getattr(self.playback_listener.playback_state, "playstate", None)
+        return bridge_playback_is_active(playstate)
+
+    def stop_playback_listener(self) -> None:
+        """Cleanly stop the current listener, if any.
+
+        If playback is active, waits for its normal finish/cleanup flow (TV/AV
+        restore, media-server reporting) to actually complete first — never
+        tears down the websocket while something is still in progress.
+        """
+        if self.playback_listener is None:
+            return
+
+        app_service = getattr(
+            self.playback_listener, "playback_application_service", None
+        )
+        if app_service is not None:
+            app_service.stop_active_playback_and_wait()
+
+        self.playback_listener.stop()
+        if self.playback_listener_thread is not None:
+            self.playback_listener_thread.join(timeout=10)
+
+        self.playback_listener = None
+        self.playback_listener_thread = None
+
+    def restart_playback_listener(self) -> bool:
+        """The only safe way to make the running listener match the current
+        config after a provider switch or re-login: stop_playback_listener(),
+        then start fresh from the (now-updated) config on disk. Replaces a
+        bare start_playback_listener_if_configured() call at any call site
+        that might already have a listener running — that combination used to
+        leave the old listener's thread/connection orphaned.
+        """
+        self.stop_playback_listener()
+        return self.start_playback_listener_if_configured()
 
     def get_state(self) -> dict:
         status = {"Version": self.version}
 
         try:
-            state = self.emby_websocket.playback_state
+            state = self.playback_listener.playback_state
             status["Playstate"] = state.playstate
             active_session = getattr(state, "active_session", None)
             status["ActiveSession"] = (
@@ -209,7 +250,7 @@ class HomeCinemaControlRuntime:
 
     def set_last_diagnostic(self, diagnostic: PlaybackDiagnostic) -> None:
         try:
-            state = self.emby_websocket.playback_state
+            state = self.playback_listener.playback_state
             record = getattr(state, "record_diagnostic", None)
             if callable(record):
                 record(diagnostic)
@@ -220,7 +261,7 @@ class HomeCinemaControlRuntime:
 
     def clear_last_diagnostic(self) -> None:
         try:
-            state = self.emby_websocket.playback_state
+            state = self.playback_listener.playback_state
             clear = getattr(state, "clear_last_diagnostic", None)
             if callable(clear):
                 clear()
@@ -244,25 +285,29 @@ class HomeCinemaControlRuntime:
         }
 
     def start_movie(self, data: dict) -> None:
-        if self.emby_websocket is None:
+        if self.playback_listener is None:
             raise RuntimeError("Playback listener is not running")
 
-        self.emby_websocket._play(data)
+        self.playback_listener.play_from_command(data)
 
     def restart_process(self) -> None:
+        # The process is about to exit (Docker's restart policy brings it back
+        # up, reading config fresh) — there is nothing to "reconnect" here,
+        # only to stop cleanly first. The previous version called
+        # playback_listener.run() right after stop(), which reconnects and
+        # blocks on run_forever(): the process likely never reached
+        # _exit_process at all when a listener was running.
         logging.info("Restarting process")
         try:
-            if self.emby_websocket is not None:
-                self.emby_websocket.stop()
-                self.emby_websocket.run()
+            self.stop_playback_listener()
         except Exception:
             logging.exception(
-                "Failed to restart the Emby WebSocket during process restart"
+                "Failed to stop the playback listener during process restart"
             )
         self._exit_process(0)
 
 
-def _run_websocket(ws_object) -> None:
-    logging.info("WebSocket thread: starting")
-    ws_object.run()
-    logging.info("WebSocket thread: finished")
+def _run_playback_listener(listener) -> None:
+    logging.info("Playback listener thread: starting")
+    listener.run()
+    logging.info("Playback listener thread: finished")

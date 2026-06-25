@@ -22,15 +22,22 @@ def test_section_save_preserves_smb_secret_through_real_api_service(tmp_path, mo
             "pre_mount_smb": False,
         },
         "smb": {"username": "nas-user"},
-        "playback": {
-            "path_mappings": [
-                {
-                    "source_path": "/volume1/Video/Trailers",
-                    "player_path": "/NAS-SMB/Trailers",
-                    "protocol": "cifs",
-                    "verified": True,
+        "media_servers": {
+            "active": "emby",
+            "providers": {
+                "emby": {
+                    "playback": {
+                        "path_mappings": [
+                            {
+                                "source_path": "/volume1/Video/Trailers",
+                                "player_path": "/NAS-SMB/Trailers",
+                                "protocol": "cifs",
+                                "verified": True,
+                            }
+                        ]
+                    }
                 }
-            ]
+            },
         },
     }, secrets={"smb": {"password": "stored-secret"}})
 
@@ -50,7 +57,8 @@ def test_section_save_preserves_smb_secret_through_real_api_service(tmp_path, mo
     assert response.status_code == 200
     assert runtime.config["smb"]["password"] == "stored-secret"
     assert runtime.config["oppo"]["pre_mount_smb"] is True
-    assert runtime.config["playback"]["path_mappings"][0]["verified"] is False
+    emby_path_mappings = runtime.config["media_servers"]["providers"]["emby"]["playback"]["path_mappings"]
+    assert emby_path_mappings[0]["verified"] is False
     assert response.json()["smb"]["password_configured"] is True
     assert "password" not in response.json()["smb"]
 

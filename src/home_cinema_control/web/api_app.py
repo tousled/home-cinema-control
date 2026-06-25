@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 
 from home_cinema_control import __version__
+from home_cinema_control.config.models import HccConfig
 from home_cinema_control.devices.av.setup_control import (
     list_av_hdmi_inputs,
     power_off_av_receiver,
@@ -22,28 +23,29 @@ from home_cinema_control.devices.oppo.setup_control import (
 )
 from home_cinema_control.devices.tv.setup_control import (
     detect_tv_sources,
-    restore_tv_emby_app,
+    restore_tv_media_server_app,
     switch_tv_to_player_input,
     test_tv_connection,
 )
-from home_cinema_control.media_servers.emby.web_config import (
-    check_emby_connection,
-    configure_emby_token,
-    fetch_library_paths,
-    load_devices,
-    load_libraries,
-    load_selectable_folders,
-)
+from home_cinema_control.media_servers.common.models import MediaServerLoginCredentials
+from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import (
     diagnose_device_action_failed,
-    diagnose_emby_library_paths_unavailable,
+    diagnose_media_server_library_paths_unavailable,
     diagnose_path_inference_failed,
     diagnose_path_test_failed,
 )
 from home_cinema_control.playback.path_mapping_inference import infer_player_paths
 from home_cinema_control.network.devices import discover_local_devices
 from home_cinema_control.runtime import configure_logging
-from home_cinema_control.config.manager import clear_smb_credentials
+from home_cinema_control.config.manager import (
+    active_media_server_config,
+    active_media_server_type,
+    clear_smb_credentials,
+    get_media_server_provider,
+    set_active_media_server,
+    upsert_media_server_provider,
+)
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.config_sections import apply_config_section
 from home_cinema_control.web.migration import apply_migration, is_migration_available, start_fresh
@@ -58,8 +60,14 @@ from home_cinema_control.web.static_assets import read_binary_asset
 from home_cinema_control.web.version_routes import check_version_response, rollback_version_response, update_version_response
 
 
+def _media_server_setup_service(media_server_provider_factory, config: dict):
+    validated_config = HccConfig(**config)
+    return media_server_provider_factory.create(validated_config).setup_service()
+
+
 def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None)
+    media_server_provider_factory = MediaServerProviderFactory()
 
     app.add_middleware(
         CORSMiddleware,
@@ -83,21 +91,44 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         sanitized = api_runtime.config_service.sanitize(config)
         return compute_config_readiness(sanitized)
 
+    def _config_with_media_server_libraries():
+        config = api_runtime.config_service.load_config()
+        config = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        ).load_libraries(config)
+        return api_runtime.config_service.sanitize(config)
+
     @router.get("/config/libraries")
     def get_config_with_libraries():
+        return _config_with_media_server_libraries()
+
+    @router.get("/media-server/libraries")
+    def get_media_server_libraries():
+        return _config_with_media_server_libraries()
+
+    def _config_with_media_server_devices():
         config = api_runtime.config_service.load_config()
-        load_libraries(config)
+        config = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        ).load_devices(config)
         return api_runtime.config_service.sanitize(config)
 
     @router.get("/config/devices")
     def get_config_with_devices():
-        config = api_runtime.config_service.load_config()
-        load_devices(config)
-        return api_runtime.config_service.sanitize(config)
+        return _config_with_media_server_devices()
+
+    @router.get("/media-server/devices")
+    def get_media_server_devices():
+        return _config_with_media_server_devices()
 
     @router.patch("/config/{section}")
     def save_config_section(section: str, body: dict):
         try:
+            if section == "media-server":
+                return _save_media_server_section(body)
+
             config = api_runtime.config_service.load_config()
             updated = apply_config_section(config, section, body)
             updated = api_runtime.config_service.prepare_submitted_config(updated)
@@ -115,6 +146,8 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             return api_runtime.config_service.sanitize(updated)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
+        except HTTPException:
+            raise
         except Exception as exc:
             logging.exception("save_config_section failed")
             raise HTTPException(status_code=400, detail=str(exc))
@@ -208,30 +241,204 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             logging.exception("Migration skip failed")
             raise HTTPException(status_code=500, detail="Could not create fresh config")
 
-    # --- emby ---
+    # --- media server ---
+
+    def _media_server_switch_confirmation(body: dict, current_type: str):
+        """None if the switch may proceed; otherwise the early response to
+        return without changing anything. See
+        .agents/specs/2026-06-23-media-server-multi-provider-config-design.md's
+        "Listener swap on switch, and confirming active playback" — playback
+        in progress on the currently-active provider must be confirmed before
+        anything that would tear down and recreate the listener.
+        """
+        if bool(body.get("confirm_provider_switch")):
+            return None
+        if not api_runtime.runtime.has_active_playback():
+            return None
+        return {
+            "switch_requires_confirmation": True,
+            "active_session_provider": current_type,
+        }
+
+    def _set_media_server_connection_diagnostic(detail: str):
+        # So a media-server connection failure shows up in /api/state's
+        # LastDiagnostic/DiagnosticHistory — same convention as every other
+        # device action failure (oppo_check, tv/av routes below) — instead of
+        # only being visible as a transient toast in the Media Server screen.
+        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
+            component="media_server",
+            action="connection check",
+            detail=detail,
+            severity="error",
+        ))
+
+    def _check_connection_or_503(setup_service, config: dict):
+        """setup_service.check_connection() talks to a real, user-supplied
+        host — distinguish "couldn't even reach it" (network/DNS/refused/
+        timed out, now bounded by network/http.py's default timeout) from "it
+        responded with an error," same as the existing OPPO unreachable
+        pattern below (paths_navigate).
+        """
+        try:
+            return setup_service.check_connection(config)
+        except _requests.exceptions.RequestException as exc:
+            logging.warning("Media server connection check failed | error=%s", exc)
+            _set_media_server_connection_diagnostic(f"Media server unreachable: {exc}")
+            raise HTTPException(status_code=503, detail="Media server unreachable")
+
+    def _save_and_restart_listener(config_dict: dict):
+        """Persist config_dict as-is (already merged/prepared by the caller —
+        this does not call prepare_submitted_config, since the one caller that
+        needs to clear a token relies on that) and make the running listener
+        match it. The only safe way to do that after a provider switch or
+        re-login: stop whatever's running (waiting for active playback to
+        finish cleanly first), then start fresh.
+        """
+        api_runtime.config_service.save_config(config_dict)
+        api_runtime.runtime.restart_playback_listener()
+        return api_runtime.config_service.sanitize(config_dict)
+
+    def _save_media_server_draft(config_dict: dict, provider_type: str) -> dict:
+        """Persist provider settings without making provider_type active.
+
+        Used when the user selects/prepares a provider that cannot yet run the
+        playback listener: no stored token, expired token, or failed check. The
+        web UI can still render that provider's form via the response marker,
+        while runtime keeps listening to the previously-active provider.
+        """
+        api_runtime.config_service.save_config(config_dict)
+        sanitized = api_runtime.config_service.sanitize(config_dict)
+        sanitized["media_server_pending_provider"] = provider_type
+        return sanitized
+
+    def _save_media_server_section(body: dict):
+        config = api_runtime.config_service.load_config()
+        submitted = body.get("media_server") or body
+        current_type = active_media_server_type(config)
+        target_type = submitted.get("type") or current_type
+
+        if target_type == current_type:
+            # Editing fields on the already-active provider (server_url,
+            # display_name, hcc_controlled_device) — no switch, no listener
+            # restart, matches today's plain "Guardar" behavior.
+            updated = apply_config_section(config, "media-server", body)
+            updated = api_runtime.config_service.prepare_submitted_config(updated)
+            api_runtime.config_service.save_config(updated)
+            return api_runtime.config_service.sanitize(updated)
+
+        merged = apply_config_section(config, "media-server", body)
+        merged = api_runtime.config_service.prepare_submitted_config(merged)
+        target_provider = get_media_server_provider(merged, target_type)
+
+        if not target_provider.access_token:
+            # Target has no stored session yet. Save its public fields as a
+            # draft, but keep the current runtime listener untouched; token
+            # configuration is the first point where the provider can actually
+            # become active.
+            draft = set_active_media_server(merged, current_type).model_dump()
+            return _save_media_server_draft(draft, target_type)
+
+        setup_service = _media_server_setup_service(media_server_provider_factory, merged)
+        response = _check_connection_or_503(setup_service, merged)
+
+        if 200 <= response.status_code < 300:
+            confirmation = _media_server_switch_confirmation(body, current_type)
+            if confirmation is not None:
+                return confirmation
+            # This check_connection call is the same validity check the
+            # "Probar conexión" button performs — a switch back to an
+            # already-configured provider should mark it verified too,
+            # instead of leaving readiness stuck on "configured" (yellow)
+            # until the user separately clicks "Probar conexión".
+            verified_config = mark_section_verified(merged, "media_server")
+            return _save_and_restart_listener(verified_config)
+
+        if response.status_code in (401, 403):
+            # The server explicitly rejected the stored credentials (as
+            # opposed to being unreachable) — clear only this provider's
+            # token, leaving user_id/server_url/display_name so a re-login
+            # doesn't make the user retype the server URL too. Keep runtime on
+            # the current provider because the target cannot authenticate.
+            # Skips prepare_submitted_config deliberately — it would refill
+            # this exact blank from the still-on-disk secret we're clearing.
+            cleared = upsert_media_server_provider(
+                merged, target_type, access_token=""
+            ).model_dump()
+            draft = set_active_media_server(cleared, current_type).model_dump()
+            sanitized = _save_media_server_draft(draft, target_type)
+            sanitized["media_server_session_expired"] = True
+            return sanitized
+
+        # Connection failure (network/server error, not an auth rejection) —
+        # leave the stored token and active provider untouched.
+        _set_media_server_connection_diagnostic(
+            f"Media server responded with status {response.status_code}"
+        )
+        raise HTTPException(status_code=400, detail="Media server connection failed")
+
+    def _configure_media_server_token_response(body: dict):
+        submitted = body.get("config") or {}
+        credentials = MediaServerLoginCredentials.model_validate(
+            body.get("credentials") or {}
+        )
+
+        saved_config = api_runtime.config_service.load_config()
+        # current_type comes from the real saved config, not the submitted
+        # body — the submitted body's config already carries the *target*
+        # type the user just selected, which would make the comparison below
+        # always say "no switch."
+        current_type = active_media_server_type(saved_config)
+        confirmation = _media_server_switch_confirmation(body, current_type)
+        if confirmation is not None:
+            return confirmation
+
+        # The frontend only ever sends the media_server wire shape
+        # (type/server_url) here, not a complete config — merge it onto the
+        # real saved config (resolving media_servers.active/providers so the
+        # setup-service factory dispatches to the right provider) rather than
+        # trusting the submitted body as the whole config. Saving a bare
+        # {media_server: {...}} as-is would wipe every other section.
+        config = apply_config_section(saved_config, "media-server", submitted)
+
+        setup_service = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        )
+        try:
+            config = setup_service.configure_token(config, credentials)
+        except _requests.exceptions.RequestException as exc:
+            logging.warning("Media server token request failed | error=%s", exc)
+            _set_media_server_connection_diagnostic(f"Media server unreachable: {exc}")
+            raise HTTPException(status_code=503, detail="Media server unreachable")
+        except Exception:
+            logging.exception("Media server token configuration failed")
+            raise HTTPException(status_code=400, detail="Token configuration failed")
+        return _save_and_restart_listener(config)
+
+    @router.post("/media-server/token")
+    def media_server_configure_token(body: dict):
+        return _configure_media_server_token_response(body)
 
     @router.post("/emby/token")
     def emby_configure_token(body: dict):
-        config = body.get("config") or {}
-        credentials = body.get("credentials") or {}
-        try:
-            config = configure_emby_token(config, credentials)
-            api_runtime.config_service.save_config(config)
-            return api_runtime.config_service.sanitize(config)
-        except Exception:
-            logging.exception("Emby token configuration failed")
-            raise HTTPException(status_code=400, detail="Token configuration failed")
+        return _configure_media_server_token_response(body)
 
     @router.get("/media-server/library-paths")
     def get_library_paths():
         config = api_runtime.config_service.load_config()
         try:
-            return fetch_library_paths(config)
+            return _media_server_setup_service(
+                media_server_provider_factory,
+                config,
+            ).fetch_library_paths(config)
         except Exception as exc:
             api_runtime.runtime.set_last_diagnostic(
-                diagnose_emby_library_paths_unavailable(str(exc))
+                diagnose_media_server_library_paths_unavailable(str(exc))
             )
-            raise HTTPException(status_code=502, detail="Emby library paths unavailable")
+            raise HTTPException(
+                status_code=502,
+                detail="Media server library paths unavailable",
+            )
 
     @router.post("/path-mapping-suggestions")
     def post_path_mapping_suggestions(body: dict):
@@ -249,25 +456,41 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             api_runtime.runtime.set_last_diagnostic(diagnose_path_inference_failed())
             raise HTTPException(status_code=422, detail=str(exc))
 
-    @router.post("/emby/check")
-    def emby_check(body: dict):
-        config = api_runtime.config_service.prepare_submitted_config(body)
-        response = check_emby_connection(config)
+    def _check_media_server_response(body: dict):
+        saved_config = api_runtime.config_service.load_config()
+        # current_type from the real saved config — body's media_server may
+        # already carry the *target* type the user just selected (same reason
+        # as _configure_media_server_token_response above).
+        current_type = active_media_server_type(saved_config)
+        # body only ever carries the media_server wire shape (type/server_url)
+        # here too — merge it onto the real saved config (resolving
+        # media_servers.active/providers so the setup-service factory
+        # dispatches to the right provider) instead of trusting it as the
+        # whole config; saving the bare submitted body would wipe every other
+        # section.
+        config = apply_config_section(saved_config, "media-server", body)
+        config = api_runtime.config_service.prepare_submitted_config(config)
+        setup_service = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        )
+        response = _check_connection_or_503(setup_service, config)
 
         if 200 <= response.status_code < 300:
+            confirmation = _media_server_switch_confirmation(body, current_type)
+            if confirmation is not None:
+                return confirmation
             verified_config = mark_section_verified(config, "media_server")
-            api_runtime.config_service.save_config(verified_config)
+            return _save_and_restart_listener(verified_config)
 
-            state = api_runtime.runtime.get_state()
-            if state.get("Playstate") == "Not_Connected":
-                try:
-                    api_runtime.runtime.start_playback_listener_if_configured()
-                except Exception:
-                    logging.exception("Could not start playback listener after Emby check")
+        _set_media_server_connection_diagnostic(
+            f"Media server responded with status {response.status_code}"
+        )
+        raise HTTPException(status_code=400, detail="Media server connection failed")
 
-            return api_runtime.config_service.sanitize(verified_config)
-
-        raise HTTPException(status_code=400, detail="Emby connection failed")
+    @router.post("/media-server/check")
+    def media_server_check(body: dict):
+        return _check_media_server_response(body)
 
     # --- oppo ---
 
@@ -323,7 +546,10 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     @router.get("/paths/refresh")
     def paths_refresh():
         config = api_runtime.config_service.load_config()
-        load_selectable_folders(config)
+        config = _media_server_setup_service(
+            media_server_provider_factory,
+            config,
+        ).load_selectable_folders(config)
         return api_runtime.config_service.sanitize(config)
 
     @router.post("/paths/preview")
@@ -422,7 +648,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
 
     @router.post("/tv/restore-input")
     def tv_restore_input(body: dict):
-        result = restore_tv_emby_app(body)
+        result = restore_tv_media_server_app(body)
         if result == "OK":
             _, persisted = persist_verification_if_submitted_matches_saved(
                 config_service=api_runtime.config_service,
@@ -507,9 +733,9 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         if not active or not active.get("media_item_id"):
             raise HTTPException(status_code=404, detail="Nothing playing")
         config = api_runtime.config_service.load_config()
-        ms = config.get("media_server") or {}
-        server_url = str(ms.get("server_url") or "").rstrip("/")
-        token = ms.get("access_token") or ""
+        ms = active_media_server_config(config)
+        server_url = ms.server_url.rstrip("/")
+        token = ms.access_token
         item_id = active["media_item_id"]
         if not server_url or not item_id:
             raise HTTPException(status_code=404, detail="No media server configured")
@@ -538,9 +764,9 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         if not active or not active.get("media_item_id"):
             raise HTTPException(status_code=404, detail="Nothing playing")
         config = api_runtime.config_service.load_config()
-        ms = config.get("media_server") or {}
-        server_url = str(ms.get("server_url") or "").rstrip("/")
-        token = ms.get("access_token") or ""
+        ms = active_media_server_config(config)
+        server_url = ms.server_url.rstrip("/")
+        token = ms.access_token
         item_id = active["media_item_id"]
         if not server_url or not item_id:
             raise HTTPException(status_code=404, detail="No media server configured")

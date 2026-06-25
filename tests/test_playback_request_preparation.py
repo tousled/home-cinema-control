@@ -1,7 +1,7 @@
 import unittest
 
 from home_cinema_control.devices.tv.models import TvInputTarget
-from home_cinema_control.media_servers.emby.playback import (
+from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
 )
 from home_cinema_control.playback.content_kind import MediaContentKind
@@ -16,10 +16,17 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
     def test_prepares_playback_requests_from_config_intent_and_item_info(self):
         prepared = prepare_playback_requests(
             config={
-                "playback": {
-                    "path_mappings": [
-                        {"source_path": "/emby", "player_path": "/nas", "protocol": "nfs"}
-                    ]
+                "media_servers": {
+                    "active": "emby",
+                    "providers": {
+                        "emby": {
+                            "playback": {
+                                "path_mappings": [
+                                    {"source_path": "/emby", "player_path": "/nas", "protocol": "nfs"}
+                                ]
+                            }
+                        }
+                    },
                 },
                 "tv": {
                     "enabled": True,
@@ -88,7 +95,6 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
     def test_uses_safe_defaults_for_optional_output_devices(self):
         prepared = prepare_playback_requests(
             config={
-                "playback": {"path_mappings": []},
                 "oppo": {
                     "always_on": True,
                     "playback_start_timeout_seconds": 30,
@@ -112,6 +118,44 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
         self.assertFalse(output_request.tv_enabled)
         self.assertFalse(output_request.av_enabled)
         self.assertEqual(0, prepared.startup_completion_request.expected_duration_seconds)
+
+    def test_uses_active_providers_path_mappings_not_inactive_providers(self):
+        prepared = prepare_playback_requests(
+            config={
+                "media_servers": {
+                    "active": "jellyfin",
+                    "providers": {
+                        "emby": {
+                            "playback": {
+                                "path_mappings": [
+                                    {"source_path": "/emby", "player_path": "/wrong"}
+                                ]
+                            }
+                        },
+                        "jellyfin": {
+                            "playback": {
+                                "path_mappings": [
+                                    {"source_path": "/jf", "player_path": "/nas"}
+                                ]
+                            }
+                        },
+                    },
+                },
+                "oppo": {"always_on": True, "playback_start_timeout_seconds": 30},
+            },
+            intent=_intent(),
+            item_info=MediaServerPlaybackSource(
+                path="/jf/Movies/Movie.mkv",
+                container="mkv",
+                duration_seconds=0,
+                production_year=None,
+                title="",
+                content_kind=MediaContentKind.OTHER,
+            ),
+            previous_tv_app_id_override=None,
+        )
+
+        self.assertEqual("nas", prepared.media_location.content_server)
 
 
 def _intent() -> PlaybackIntent:

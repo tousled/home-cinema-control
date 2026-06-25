@@ -10,8 +10,8 @@ from home_cinema_control.playback.startup.models import (
 )
 
 
-class MediaPlayerControl(Protocol):
-    """Media-server-facing playback control interface.
+class MediaPlayerPort(Protocol):
+    """Media-server-facing playback control port.
 
     Abstracts over the hardware player so media server command handlers
     (e.g. Emby) do not depend on device-specific types.

@@ -117,7 +117,8 @@ más seria.
 
 | Área                             | Estado                                                                      |
 |----------------------------------|-----------------------------------------------------------------------------|
-| Emby                             | Implementado como proveedor principal.                                      |
+| Emby                             | Implementado como proveedor de media server.                                |
+| Jellyfin                         | Implementado como proveedor de media server, con el mismo flujo que Emby.   |
 | OPPO UDP-203/205                 | Soportado mediante API MediaControl.                                        |
 | Chinoppo M9702/M9201/M9203/M9205 | Soportado si expone la API compatible con OPPO.                             |
 | Rutas por biblioteca             | NFS o SMB/CIFS por mapeo, con verificación.                                 |
@@ -148,7 +149,6 @@ reproducción.
 
 | Futuro           | Intención                                                                                    |
 |------------------|----------------------------------------------------------------------------------------------|
-| Jellyfin         | Añadir un segundo proveedor cuando el contrato de media server esté cerrado y probado.       |
 | Plex             | Explorar viabilidad después de estabilizar la frontera de proveedores.                       |
 | Más marcas de TV | Investigar Samsung, Android TV/Sony y otros ecosistemas cuando exista hardware para validar. |
 | Multiroom        | Estudiar varias salas/reproductores sin romper el modelo actual de una sala fiable.          |
@@ -235,7 +235,9 @@ src/home_cinema_control/
     tv/            LG WebOS y control mediante scripts
     av/            Denon, Marantz, Yamaha, NAD, Onkyo y scripts
   media_servers/
+    common/        Contratos de proveedor compartidos, listener y modelos de dominio
     emby/          WebSocket, monitor de sesiones, progreso y comandos
+    jellyfin/      WebSocket, monitor de sesiones, progreso y comandos
   network/         arp-scan y descubrimiento LAN
 
 frontend/          Aplicación Vue 3

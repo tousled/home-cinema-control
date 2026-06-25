@@ -2,13 +2,29 @@ import hashlib
 import logging
 from typing import Any
 
-from home_cinema_control.media_servers.emby.constants import DEVICE_ID
 from home_cinema_control.config.manager import (
-    get_config_path,
-    merge_existing_secrets,
+    active_media_server_config,
+    get_media_server_provider,
+    set_active_media_server,
+    upsert_media_server_provider,
+    upsert_provider_playback,
 )
+from home_cinema_control.config.models import PathMappingConfig
+from home_cinema_control.media_servers.emby.constants import DEVICE_ID
 from home_cinema_control.media_servers.emby.client import EmbyClient
 from home_cinema_control.network.http import get_http_session
+from home_cinema_control.media_servers.common.models import (
+    LibraryPath,
+    MediaServerDevice,
+    MediaServerLibrary,
+    MediaServerLoginCredentials,
+    is_library_active,
+)
+from home_cinema_control.media_servers.common.web_config import (
+    build_library_config,
+    items_from_response,
+    public_config_with_existing_secrets,
+)
 
 
 BRIDGE_DEVICE_IDS = {DEVICE_ID}
@@ -21,100 +37,81 @@ def check_emby_connection(config: dict):
     return response
 
 
-def load_devices(config: dict) -> None:
+def load_devices(config: dict) -> dict:
     try:
         client = _authenticated_client(config)
         devices = client.get_devices()
-        config["devices"] = build_control_device_config(_items_from_response(devices))
-    except Exception:
+        config["devices"] = [
+            device.model_dump()
+            for device in build_control_device_config(items_from_response(devices))
+        ]
+    except Exception as exc:
         logging.exception("Error loading Emby control devices")
+        raise RuntimeError("Could not read Emby devices") from exc
+    return config
 
 
-def load_libraries(config: dict) -> None:
+def load_libraries(config: dict) -> dict:
     try:
         client = _authenticated_client(config)
         user_id = _authenticated_user_id(client)
         views = client.get_user_views(user_id)
-        playback = config.setdefault("playback", {})
-        playback["libraries"] = build_library_config(
-            _items_from_response(views),
-            existing_libraries=playback.get("libraries", []),
-        )
+        existing = get_media_server_provider(config, "emby").playback.libraries
+        libraries = build_library_config(items_from_response(views), existing_libraries=existing)
+        config = upsert_provider_playback(config, "emby", libraries=libraries).model_dump()
     except Exception:
         logging.exception("Error loading Emby libraries")
+    return config
 
 
-def load_selectable_folders(config: dict) -> None:
+def load_selectable_folders(config: dict) -> dict:
     try:
         client = _authenticated_client(config)
         media_folders = client.get_selectable_media_folders()
-        playback = config.setdefault("playback", {})
-        playback["path_mappings"] = build_selectable_folder_servers(
-            _items_from_response(media_folders),
-            libraries=playback.get("libraries", []),
-            existing_servers=playback.get("path_mappings", []),
-            enable_all_libraries=bool(playback.get("use_all_libraries", False)),
+        playback = get_media_server_provider(config, "emby").playback
+        raw_servers = build_selectable_folder_servers(
+            items_from_response(media_folders),
+            libraries=playback.libraries,
+            existing_servers=playback.path_mappings,
+            enable_all_libraries=bool(playback.use_all_libraries),
         )
+        path_mappings = [PathMappingConfig.model_validate(s) for s in raw_servers]
+        config = upsert_provider_playback(config, "emby", path_mappings=path_mappings).model_dump()
     except Exception:
         logging.exception("Error loading Emby selectable folders")
+    return config
 
 
-def load_selectable_media_folders(config: dict) -> None:
-    load_selectable_folders(config)
+def load_selectable_media_folders(config: dict) -> dict:
+    return load_selectable_folders(config)
 
 
 def fetch_library_paths(config: dict) -> list[dict]:
     """Return [{library_name, source_path}] from Emby virtual folders. config must include secrets."""
     client = _authenticated_client(config)
-    return client.get_library_paths()
-
-
-def build_library_config(
-    views: list[dict[str, Any]],
-    *,
-    existing_libraries: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    existing_by_id = {
-        str(library.get("Id", "")): library
-        for library in existing_libraries
-        if library.get("Id")
-    }
-
-    libraries = []
-    for view in views:
-        view_id = str(view.get("Id", ""))
-        if not view_id:
-            continue
-
-        existing_library = existing_by_id.get(view_id, {})
-        libraries.append(
-            {
-                "Name": view.get("Name", ""),
-                "Id": view_id,
-                "Active": bool(existing_library.get("Active", False)),
-            }
-        )
-
-    return libraries
+    return [
+        LibraryPath.model_validate(path).model_dump()
+        for path in client.get_library_paths()
+    ]
 
 
 def build_selectable_folder_servers(
     media_folders: list[dict[str, Any]],
     *,
-    libraries: list[dict[str, Any]],
-    existing_servers: list[dict[str, Any]],
+        libraries: list[MediaServerLibrary | dict],
+        existing_servers: list[PathMappingConfig | dict],
     enable_all_libraries: bool,
 ) -> list[dict[str, Any]]:
+    existing_server_vos = [PathMappingConfig.model_validate(item) for item in existing_servers]
     existing_by_emby_path = {
-        str(server.get("source_path", "")): server
-        for server in existing_servers
-        if server.get("source_path")
+        server.source_path: server for server in existing_server_vos if server.source_path
     }
+    library_vos = [MediaServerLibrary.model_validate(item) for item in libraries]
 
     servers = []
     for folder in media_folders:
         folder_name = str(folder.get("Name", ""))
-        if not enable_all_libraries and not is_library_active(libraries, folder_name):
+        if not enable_all_libraries and not is_library_active(library_vos, folder_name):
             continue
 
         for index, subfolder in enumerate(folder.get("SubFolders", []), start=1):
@@ -131,21 +128,18 @@ def build_selectable_folder_servers(
 
             existing_server = existing_by_emby_path.get(emby_path)
             if existing_server:
-                server.update(
-                    {
-                        "name": existing_server.get("name", server["name"]),
-                        "player_path": existing_server.get("player_path", server["player_path"]),
-                    }
-                )
-                if "verified" in existing_server:
-                    server["verified"] = existing_server["verified"]
+                server["name"] = existing_server.name or server["name"]
+                server["player_path"] = existing_server.player_path or server["player_path"]
+                server["verified"] = existing_server.verified
 
             servers.append(server)
 
     return servers
 
 
-def build_control_device_config(devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_control_device_config(
+        devices: list[dict[str, Any]],
+) -> list[MediaServerDevice]:
     control_devices = []
 
     for device in devices:
@@ -162,30 +156,23 @@ def build_control_device_config(devices: list[dict[str, Any]]) -> list[dict[str,
             continue
 
         display_name = f"{name} / {app_name}" if app_name else name
-        control_device = dict(device)
-        control_device["Name"] = display_name
-        control_device["Id"] = reported_device_id
-        control_devices.append(control_device)
+        control_devices.append(
+            MediaServerDevice(
+                id=reported_device_id, name=display_name, app_name=app_name
+            )
+        )
 
     return control_devices
 
 
-def is_library_active(libraries: list[dict[str, Any]], library_name: str) -> bool:
-    for library in libraries:
-        if library.get("Name") == library_name:
-            return bool(library.get("Active", False))
+def configure_emby_token(
+        config: dict, credentials: MediaServerLoginCredentials
+) -> dict:
+    config = public_config_with_existing_secrets(config)
 
-    return False
-
-
-def configure_emby_token(config: dict, credentials: dict) -> dict:
-    config = _public_config_with_existing_secrets(config)
-
-    media_server = dict(config.get("media_server") or {})
-
-    server_url = str(media_server.get("server_url", "")).strip().rstrip("/")
-    user_name = str(credentials.get("user_name", "")).strip()
-    password = str(credentials.get("password", ""))
+    server_url = active_media_server_config(config).server_url.strip().rstrip("/")
+    user_name = credentials.user_name.strip()
+    password = credentials.password
 
     if not server_url:
         raise RuntimeError("Missing media_server.server_url")
@@ -210,30 +197,27 @@ def configure_emby_token(config: dict, credentials: dict) -> dict:
     if not access_token or not user_id:
         raise RuntimeError("Emby authentication response did not include AccessToken/User.Id")
 
-    media_server["type"] = "emby"
-    media_server["server_url"] = server_url
-    media_server["display_name"] = display_name
-    media_server["access_token"] = access_token
-    media_server["user_id"] = user_id
-    media_server["access_token_configured"] = True
-
-    config["media_server"] = media_server
+    updated = upsert_media_server_provider(
+        config,
+        "emby",
+        server_url=server_url,
+        display_name=display_name,
+        access_token=access_token,
+        user_id=user_id,
+    )
+    config = set_active_media_server(updated, "emby").model_dump()
 
     _remove_legacy_emby_keys(config)
 
     return config
 
 def _authenticated_client(config: dict) -> EmbyClient:
-    effective_config = _public_config_with_existing_secrets(config)
+    effective_config = public_config_with_existing_secrets(config)
 
     client = EmbyClient.from_config(effective_config)
     client.authenticate()
 
     return client
-
-
-def _public_config_with_existing_secrets(config: dict) -> dict:
-    return merge_existing_secrets(get_config_path(), config)
 
 
 def _authenticated_user_id(client: EmbyClient) -> str:
@@ -275,14 +259,6 @@ def _authenticate_with_temporary_password(
 
     response.raise_for_status()
     return response.json()
-
-
-def _items_from_response(response: Any) -> list[dict[str, Any]]:
-    if isinstance(response, dict):
-        items = response.get("Items", [])
-        return items if isinstance(items, list) else []
-
-    return response if isinstance(response, list) else []
 
 
 def _client_capabilities_payload() -> dict:
@@ -343,3 +319,7 @@ def _remove_legacy_emby_keys(config: dict) -> None:
         "media_server_login",
     ]:
         config.pop(key, None)
+
+
+configure_token = configure_emby_token
+check_connection = check_emby_connection

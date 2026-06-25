@@ -5,7 +5,7 @@ from home_cinema_control.devices.oppo.playback_state import (
     OppoPlaybackStatus,
 )
 from home_cinema_control.devices.tv.models import TvInputTarget
-from home_cinema_control.media_servers.emby.playback import (
+from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
 )
 from home_cinema_control.media_servers.emby.session_monitor import EmbySessionMonitor
@@ -77,7 +77,7 @@ def test_verified_but_not_intercepted_library_does_not_dispatch():
     session = FakeEmbySession(library_membership={"lib-movies": True})
     dispatcher = RecordingDispatcher()
     config = _monitor_config(
-        libraries=[{"Id": "lib-movies", "Name": "Movies", "Active": False}],
+        libraries=[{"id": "lib-movies", "name": "Movies", "active": False}],
         path_mappings=[
             {
                 "source_path": "/volume1/Video/Movies",
@@ -104,7 +104,7 @@ def test_intercepted_library_without_verified_mapping_does_not_dispatch():
     session = FakeEmbySession(library_membership={"lib-movies": True})
     dispatcher = RecordingDispatcher()
     config = _monitor_config(
-        libraries=[{"Id": "lib-movies", "Name": "Movies", "Active": True}],
+        libraries=[{"id": "lib-movies", "name": "Movies", "active": True}],
         path_mappings=[
             {
                 "source_path": "/volume1/Video/Movies",
@@ -131,7 +131,7 @@ def test_intercepted_library_with_verified_mapping_dispatches():
     session = FakeEmbySession(library_membership={"lib-movies": True})
     dispatcher = RecordingDispatcher()
     config = _monitor_config(
-        libraries=[{"Id": "lib-movies", "Name": "Movies", "Active": True}],
+        libraries=[{"id": "lib-movies", "name": "Movies", "active": True}],
         path_mappings=[
             {
                 "source_path": "/volume1/Video/Movies",
@@ -292,27 +292,34 @@ class RecordingDispatcher:
 
 def _playback_config(*, oppo_use_smb):
     return {
-        "playback": {
-            "path_mappings": [
-                {
-                    "source_path": "/volume1/Video/Movies",
-                    "player_path": "/NAS-NFS/Video/Movies",
-                    "protocol": "nfs",
-                    "verified": True,
-                },
-                {
-                    "source_path": "/volume1/Video/Series",
-                    "player_path": "/NAS-NFS/Video/Series",
-                    "protocol": "nfs",
-                    "verified": True,
-                },
-                {
-                    "source_path": "/volume1/Video/Trailers",
-                    "player_path": "/NAS-SMB/Trailers",
-                    "protocol": "cifs",
-                    "verified": True,
-                },
-            ],
+        "media_servers": {
+            "active": "emby",
+            "providers": {
+                "emby": {
+                    "playback": {
+                        "path_mappings": [
+                            {
+                                "source_path": "/volume1/Video/Movies",
+                                "player_path": "/NAS-NFS/Video/Movies",
+                                "protocol": "nfs",
+                                "verified": True,
+                            },
+                            {
+                                "source_path": "/volume1/Video/Series",
+                                "player_path": "/NAS-NFS/Video/Series",
+                                "protocol": "nfs",
+                                "verified": True,
+                            },
+                            {
+                                "source_path": "/volume1/Video/Trailers",
+                                "player_path": "/NAS-SMB/Trailers",
+                                "protocol": "cifs",
+                                "verified": True,
+                            },
+                        ],
+                    }
+                }
+            },
         },
         "oppo": {
             "always_on": False,
@@ -331,11 +338,18 @@ def _playback_config(*, oppo_use_smb):
 
 def _monitor_config(*, libraries, path_mappings):
     return {
-        "playback": {
-            "hcc_controlled_device": "device-1",
-            "use_all_libraries": False,
-            "libraries": libraries,
-            "path_mappings": path_mappings,
+        "media_servers": {
+            "active": "emby",
+            "providers": {
+                "emby": {
+                    "playback": {
+                        "hcc_controlled_device": "device-1",
+                        "use_all_libraries": False,
+                        "libraries": libraries,
+                        "path_mappings": path_mappings,
+                    }
+                }
+            },
         }
     }
 

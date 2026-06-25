@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.observed_events import (
     ObservedPlaybackEvent,
     ObservedPlaybackEventType,
@@ -115,7 +115,7 @@ class ObservedPlaybackEventReporter:
             return ObservedPlaybackReportResult(True, event_name="Unpause")
 
         if event.playback_state == ObservedPlaybackState.STOPPED:
-            position_seconds = int(self._position_ticks() / EMBY_TICKS_PER_SECOND)
+            position_seconds = int(self._position_ticks() / TICKS_PER_SECOND)
             self._sink.stopped(position_seconds=position_seconds, played=False)
             return ObservedPlaybackReportResult(True, event_name="Stopped")
 
@@ -189,7 +189,7 @@ class ObservedPlaybackEventReporter:
 
     def _position_ticks(self) -> int:
         if self._last_position_seconds is not None:
-            return self._last_position_seconds * EMBY_TICKS_PER_SECOND
+            return self._last_position_seconds * TICKS_PER_SECOND
         if hasattr(self._sink, "last_position_ticks"):
             return self._sink.last_position_ticks
         if self._position_provider is not None:

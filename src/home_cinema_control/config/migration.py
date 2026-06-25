@@ -226,6 +226,10 @@ def _rename_playback_keys(config: dict) -> None:
         _rename_key(mapping, "Emby_Path", "source_path")
         _rename_key(mapping, "Oppo_Path", "player_path")
         _rename_key(mapping, "Test_OK", "verified")
+    for library in playback.get("libraries", []):
+        _rename_key(library, "Name", "name")
+        _rename_key(library, "Id", "id")
+        _rename_key(library, "Active", "active")
 
 
 def _rename_av_keys(config: dict) -> None:

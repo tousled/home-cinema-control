@@ -24,17 +24,19 @@ from home_cinema_control.playback.startup.models import (
 logger = logging.getLogger(__name__)
 
 
-def create_oppo_playback_adapter(config: dict[str, Any]) -> OppoPlaybackPort:
+def create_oppo_playback_adapter(
+        config: dict[str, Any], *, step_timer=None
+) -> OppoPlaybackPort:
     logger.info("Creating OPPO stable MediaControl playback adapter.")
-    return OppoStableMediaControlPlaybackAdapter(config)
+    return OppoStableMediaControlPlaybackAdapter(config, step_timer=step_timer)
 
 
 class OppoStableMediaControlPlaybackAdapter(OppoPlaybackPort):
     """Stable OPPO playback adapter backed by MediaControl HTTP + QPL."""
 
-    def __init__(self, config: dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any], *, step_timer=None) -> None:
         self._config = config
-        self._playback = OppoMediaControlPlayback(config)
+        self._playback = OppoMediaControlPlayback(config, step_timer=step_timer)
         self._last_mounted_path: str | None = None
 
     def start_playback(

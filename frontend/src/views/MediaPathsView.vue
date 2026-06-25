@@ -8,6 +8,29 @@
         <h1 class="paths-showcase-title">{{ $t('x-paths-title') }}</h1>
         <p class="paths-showcase-subtitle">{{ $t('x-paths-subtitle') }}</p>
         <div class="paths-showcase-actions">
+          <div
+              :aria-label="$t('x-paths-active-provider', {server: mediaServerTypeLabel})"
+              :class="['paths-provider-badge', serverIncomplete && 'is-pending']"
+              :style="pathsProviderStyle"
+          >
+            <span aria-hidden="true" class="paths-provider-icon">
+              <svg
+                  v-if="pathsProviderIcon"
+                  class="paths-provider-svg"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+              >
+                <path :d="pathsProviderIcon.path"/>
+              </svg>
+              <Server v-else :size="18" :stroke-width="2.2"/>
+            </span>
+            <span class="paths-provider-copy">
+              <span class="paths-provider-label">{{ mediaServerTypeLabel }}</span>
+              <span class="paths-provider-state">
+                {{ serverIncomplete ? $t('x-paths-provider-unavailable') : $t('x-paths-provider-active') }}
+              </span>
+            </span>
+          </div>
           <HelpTooltip :text="$t('x-paths-tooltip-discover')">
             <IconActionButton
                 :disabled="gateActive"
@@ -43,7 +66,8 @@
         <div class="paths-shell">
           <div v-if="gateActive" class="gate-panel">
             <p class="gate-title">{{ $t('x-setup-gate-title') }}</p>
-            <p v-if="serverIncomplete" class="gate-reason">{{ $t('x-setup-gate-discovery') }}</p>
+            <p v-if="serverIncomplete" class="gate-reason">
+              {{ $t('x-setup-gate-discovery', {server: mediaServerTypeLabel}) }}</p>
             <p v-if="playerIncomplete" class="gate-reason">{{ $t('x-setup-gate-testing') }}</p>
             <div class="flex gap-2 mt-3 flex-wrap">
               <button v-if="serverIncomplete" class="btn-ghost" @click="router.push('/media-server')">
@@ -367,7 +391,7 @@
                   </p>
 
                   <div class="resolution-actions">
-                    <HelpTooltip :text="$t('x-paths-tooltip-test-path')">
+                    <HelpTooltip :text="$t('x-paths-tooltip-test-path', {server: mediaServerTypeLabel})">
                       <IconActionButton
                           :disabled="gateActive || !canTest"
                           :label="$t('x-paths-test-path')"
@@ -422,11 +446,11 @@
                     <div v-if="libraries.length" class="library-filter-list">
                       <label
                           v-for="lib in libraries"
-                          :key="lib.Id || lib.Name"
+                          :key="lib.id || lib.name"
                           class="library-filter-row"
                       >
-                        <input v-model="lib.Active" :disabled="useAllLibraries || gateActive" type="checkbox"/>
-                        <span class="body-text">{{ lib.Name }}</span>
+                        <input v-model="lib.active" :disabled="useAllLibraries || gateActive" type="checkbox"/>
+                        <span class="body-text">{{ lib.name }}</span>
                       </label>
                     </div>
                     <p v-else class="caption">{{ $t('x-media-server-no-libraries') }}</p>
@@ -494,8 +518,10 @@ import {
   Info,
   ListFilter,
   Route,
+  Server,
   Shield,
 } from '@lucide/vue'
+import {siEmby, siJellyfin, siPlex} from 'simple-icons'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-media-server.png'
 import {useToast} from '../composables/useToast.js'
@@ -506,6 +532,8 @@ import {useSetupReadiness} from '../composables/useSetupReadiness.js'
 import {useMediaPathWorkflow} from '../composables/useMediaPathWorkflow.js'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useDiagnosticText} from '../composables/useDiagnosticText.js'
+import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
+import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -588,9 +616,18 @@ const {
   clearSmbCredentials: api.clearSmbCredentials,
 })
 
-const mediaServerTypeLabel = computed(() => {
-  const type = fullConfig.value.media_server?.type || 'emby'
-  return type.charAt(0).toUpperCase() + type.slice(1)
+const {provider: activeProvider} = useActiveMediaServer(() => fullConfig.value)
+const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_servers?.active)
+const mediaServerTypeLabel = computed(() => mediaServerBrand.value.label)
+const pathsProviderIcons = {
+  emby: siEmby,
+  jellyfin: siJellyfin,
+  plex: siPlex,
+}
+const pathsProviderIcon = computed(() => pathsProviderIcons[mediaServerBrand.value.brand] || null)
+const pathsProviderStyle = computed(() => {
+  if (!pathsProviderIcon.value?.hex) return undefined
+  return {'--paths-provider-color': `#${pathsProviderIcon.value.hex}`}
 })
 
 const networkModeLabel = computed(() => smbEnabled.value ? 'SMB/CIFS' : 'NFS')
@@ -639,17 +676,17 @@ function defaultProtocol() {
 function isLibraryIntercepted(libraryPath) {
   if (useAllLibraries.value) return true
   const libraryName = String(libraryPath?.library_name || '').trim()
-  const library = libraries.value.find((candidate) => candidate.Name === libraryName)
-  return !!library?.Active
+  const library = libraries.value.find((candidate) => candidate.name === libraryName)
+  return !!library?.active
 }
 
 function libraryFilterSnapshot() {
   return JSON.stringify({
     useAllLibraries: useAllLibraries.value,
     libraries: libraries.value.map((library) => ({
-      Id: String(library.Id || ''),
-      Name: String(library.Name || ''),
-      Active: !!library.Active,
+      id: String(library.id || ''),
+      name: String(library.name || ''),
+      active: !!library.active,
     })),
   })
 }
@@ -662,9 +699,9 @@ function rememberSavedLibraryFilter() {
   savedLibraryFilter.value = {
     useAllLibraries: useAllLibraries.value,
     libraries: libraries.value.map((library) => ({
-      Id: String(library.Id || ''),
-      Name: String(library.Name || ''),
-      Active: !!library.Active,
+      id: String(library.id || ''),
+      name: String(library.name || ''),
+      active: !!library.active,
     })),
   }
 }
@@ -673,16 +710,9 @@ async function loadLibraries() {
   librariesLoading.value = true
   try {
     const full = await api.getConfigWithLibraries()
-    libraries.value = full.playback?.libraries || []
-    useAllLibraries.value = full.playback?.use_all_libraries ?? true
-    fullConfig.value = {
-      ...fullConfig.value,
-      playback: {
-        ...(fullConfig.value.playback || {}),
-        libraries: libraries.value,
-        use_all_libraries: useAllLibraries.value,
-      },
-    }
+    fullConfig.value = full
+    libraries.value = activeProvider.value.playback.libraries
+    useAllLibraries.value = activeProvider.value.playback.use_all_libraries
   } catch {
     libraries.value = []
   } finally {
@@ -913,6 +943,59 @@ onMounted(async () => {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 16px;
+}
+
+.paths-provider-badge {
+  --paths-provider-color: var(--accent-primary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.4);
+  border: 1px solid color-mix(in srgb, var(--paths-provider-color) 26%, rgba(255, 255, 255, 0.09));
+  color: var(--text-main);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--paths-provider-color) 13%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.paths-provider-badge.is-pending {
+  opacity: 0.68;
+  filter: grayscale(0.35);
+}
+
+.paths-provider-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  color: var(--paths-provider-color);
+  flex: 0 0 auto;
+}
+
+.paths-provider-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.paths-provider-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.paths-provider-label {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.paths-provider-state {
+  color: rgba(245, 247, 255, 0.62);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .paths-stats {

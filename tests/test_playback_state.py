@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from home_cinema_control.media_servers.emby.playback import (
+from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
 )
 from home_cinema_control.playback.content_kind import MediaContentKind

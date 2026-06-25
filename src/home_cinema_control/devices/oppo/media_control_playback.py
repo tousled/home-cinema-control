@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol
 
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
@@ -35,6 +35,10 @@ DEFAULT_TRACK_SELECTION_APPLIED_TIMEOUT_SECONDS = 2.0
 DEFAULT_TRACK_SELECTION_APPLIED_POLL_INTERVAL_SECONDS = 0.25
 
 
+class StartupStepTimer(Protocol):
+    def measure_step(self, step_name: str): ...
+
+
 class OppoMediaControlPlayback:
     def __init__(
         self,
@@ -45,6 +49,7 @@ class OppoMediaControlPlayback:
         | None = None,
         sleep: Callable[[float], None] | None = None,
             network_mount_service: OppoNetworkMountService | None = None,
+            step_timer: StartupStepTimer | None = None,
     ) -> None:
         self._config = config
         self._client = client or OppoControlApiClient.from_config(config)
@@ -55,6 +60,14 @@ class OppoMediaControlPlayback:
         self._network_mount_service = network_mount_service or (
             OppoNetworkMountService(config, control_api_client=self._client)
         )
+        self._step_timer = step_timer
+
+    def _measure(self, step_name: str, operation):
+        if self._step_timer is None:
+            return operation()
+
+        with self._step_timer.measure_step(step_name):
+            return operation()
 
     def start_playback(
         self,
@@ -70,7 +83,10 @@ class OppoMediaControlPlayback:
                 protocol=self._resolve_network_protocol(request.network_protocol),
             )
 
-            mount_result = self._network_mount_service.mount(network_folder)
+            mount_result = self._measure(
+                "mount_oppo_network_share",
+                lambda: self._network_mount_service.mount(network_folder),
+            )
 
             if not mount_result.successful:
                 mount_reconciliation = self._reconcile_optical_mount_failure(
@@ -110,11 +126,14 @@ class OppoMediaControlPlayback:
                     mounted_path=mounted_share.mount_path,
                 )
 
-            startup_result = self._playback_state_waiter(
-                config=self._config,
-                timeout=request.startup_timeout_seconds,
-                interval=request.poll_interval_seconds,
-                on_playback_waiting=on_waiting,
+            startup_result = self._measure(
+                "wait_for_oppo_playback_active",
+                lambda: self._playback_state_waiter(
+                    config=self._config,
+                    timeout=request.startup_timeout_seconds,
+                    interval=request.poll_interval_seconds,
+                    on_playback_waiting=on_waiting,
+                ),
             )
 
             playback_state = OppoPlaybackState(
@@ -532,11 +551,14 @@ class OppoMediaControlPlayback:
             failure_detail,
         )
 
-        startup_result = self._playback_state_waiter(
-            config=self._config,
-            timeout=request.startup_timeout_seconds,
-            interval=request.poll_interval_seconds,
-            on_playback_waiting=on_waiting,
+        startup_result = self._measure(
+            "wait_for_oppo_playback_active",
+            lambda: self._playback_state_waiter(
+                config=self._config,
+                timeout=request.startup_timeout_seconds,
+                interval=request.poll_interval_seconds,
+                on_playback_waiting=on_waiting,
+            ),
         )
 
         playback_state = OppoPlaybackState(

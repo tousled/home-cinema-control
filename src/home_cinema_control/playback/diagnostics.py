@@ -307,20 +307,21 @@ def diagnose_path_error(exc: Exception) -> PlaybackDiagnostic:
         operation="media_path_resolution",
         reason=f"Media path could not be resolved: {exc}",
         suggestion=(
-            "Check Media Paths configuration and ensure source paths match the Emby library paths."
+            "Check Media Paths configuration and ensure source paths match the "
+            "media server's library paths."
         ),
         details={"error": str(exc)},
     )
 
 
-def diagnose_emby_library_paths_unavailable(reason: str) -> PlaybackDiagnostic:
+def diagnose_media_server_library_paths_unavailable(reason: str) -> PlaybackDiagnostic:
     return PlaybackDiagnostic(
-        code="EMBY_LIBRARY_PATHS_UNAVAILABLE",
+        code="MEDIA_SERVER_LIBRARY_PATHS_UNAVAILABLE",
         severity="error",
-        component="emby",
+        component="media_server",
         operation="library_path_discovery",
         reason=reason,
-        suggestion="Check Emby connection and token in Media Server settings.",
+        suggestion="Check the media server connection and token in Media Server settings.",
     )
 
 

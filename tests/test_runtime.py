@@ -25,18 +25,29 @@ class FakePlaybackState(BridgePlaybackState):
         self.playstate = "Free"
 
 
-class FakeEmbySession:
+class FakeMediaServerSession:
     def __init__(self):
         self.config = None
 
 
-class FakeWebSocket:
+class FakePlaybackApplicationService:
+    def __init__(self):
+        self.stop_calls = 0
+        self.had_active = True
+
+    def stop_active_playback_and_wait(self):
+        self.stop_calls += 1
+        return self.had_active
+
+
+class FakePlaybackListener:
     def __init__(self):
         self.config = None
         self.config_file = None
         self.language = None
-        self.emby_session = FakeEmbySession()
+        self.media_server_session = FakeMediaServerSession()
         self.playback_state = FakePlaybackState()
+        self.playback_application_service = None
         self.started = False
         self.played_data = None
         self.stopped = False
@@ -48,13 +59,39 @@ class FakeWebSocket:
     def update_config(self, config):
         self.updated_configs.append(config)
         self.config = config
-        self.emby_session.config = config
+        self.media_server_session.config = config
 
     def stop(self):
         self.stopped = True
 
-    def _play(self, data):
+    def play_from_command(self, data):
         self.played_data = data
+
+
+class FakeProvider:
+    def __init__(self, listener):
+        self.listener = listener
+        self.create_calls = []
+
+    def create_playback_listener(self, *, config, config_file, language):
+        self.create_calls.append(
+            {"config": config, "config_file": config_file, "language": language}
+        )
+        self.listener.config = config
+        self.listener.config_file = config_file
+        self.listener.language = language
+        return self.listener
+
+
+class FakeProviderFactory:
+    def __init__(self):
+        self.listener = FakePlaybackListener()
+        self.provider = FakeProvider(self.listener)
+        self.create_calls = []
+
+    def create(self, config):
+        self.create_calls.append(config)
+        return self.provider
 
 
 class RuntimeTest(unittest.TestCase):
@@ -81,55 +118,129 @@ class RuntimeTest(unittest.TestCase):
             started = runtime.start_playback_listener_if_configured()
 
         self.assertFalse(started)
-        self.assertIsNone(runtime.emby_websocket)
+        self.assertIsNone(runtime.playback_listener)
 
     def test_starts_playback_listener_when_config_is_complete(self):
         with self._runtime(configured=True) as runtime:
             started = runtime.start_playback_listener_if_configured()
-            runtime.websocket_thread.join(timeout=1)
+            runtime.playback_listener_thread.join(timeout=1)
 
         self.assertTrue(started)
-        self.assertIsInstance(runtime.emby_websocket, FakeWebSocket)
-        self.assertTrue(runtime.emby_websocket.started)
+        self.assertIsInstance(runtime.playback_listener, FakePlaybackListener)
+        self.assertTrue(runtime.playback_listener.started)
         self.assertEqual(
             "http://emby.local",
-            runtime.emby_websocket.config["media_server"]["server_url"],
+            runtime.playback_listener.config["media_servers"]["providers"]["emby"]["server_url"],
         )
-        self.assertIn("msg-startup-received", runtime.emby_websocket.language)
+        self.assertIn("msg-startup-received", runtime.playback_listener.language)
 
-    def test_save_config_updates_active_websocket_config(self):
+    def test_runtime_uses_provider_factory_to_create_playback_listener(self):
+        with self._runtime(configured=True) as runtime:
+            factory = runtime._media_server_provider_factory
+            started = runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+
+        self.assertTrue(started)
+        self.assertEqual(1, len(factory.create_calls))
+        self.assertEqual(1, len(factory.provider.create_calls))
+        create_call = factory.provider.create_calls[0]
+        self.assertEqual(str(runtime.paths.config_file), create_call["config_file"])
+        self.assertIs(runtime.playback_listener, factory.listener)
+
+    def test_save_config_updates_active_playback_listener_config(self):
         with self._runtime(configured=True) as runtime:
             runtime.start_playback_listener_if_configured()
-            runtime.websocket_thread.join(timeout=1)
+            runtime.playback_listener_thread.join(timeout=1)
 
             config = runtime.load_config()
-            config["media_server"]["server_url"] = "http://updated.local"
+            config["media_servers"]["providers"]["emby"]["server_url"] = "http://updated.local"
             runtime.save_config(config)
 
         self.assertEqual(
             "http://updated.local",
-            runtime.emby_websocket.config["media_server"]["server_url"],
+            runtime.playback_listener.config["media_servers"]["providers"]["emby"]["server_url"],
         )
         self.assertEqual(
             "http://updated.local",
-            runtime.emby_websocket.emby_session.config["media_server"]["server_url"],
+            runtime.playback_listener.media_server_session.config["media_servers"][
+                "providers"
+            ]["emby"]["server_url"],
         )
-        self.assertEqual([config], runtime.emby_websocket.updated_configs)
+        self.assertEqual([config], runtime.playback_listener.updated_configs)
 
-    def test_start_movie_delegates_to_active_websocket(self):
+    def test_start_movie_delegates_to_active_playback_listener(self):
         with self._runtime(configured=True) as runtime:
             runtime.start_playback_listener_if_configured()
-            runtime.websocket_thread.join(timeout=1)
+            runtime.playback_listener_thread.join(timeout=1)
 
             runtime.start_movie({"ItemIds": ["1"]})
 
-        self.assertEqual({"ItemIds": ["1"]}, runtime.emby_websocket.played_data)
+        self.assertEqual({"ItemIds": ["1"]}, runtime.playback_listener.played_data)
+
+    def test_has_active_playback_false_without_listener(self):
+        with self._runtime(configured=False) as runtime:
+            self.assertFalse(runtime.has_active_playback())
+
+    def test_has_active_playback_true_when_playstate_is_active(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            runtime.playback_listener.playback_state.playstate = "Playing"
+
+            self.assertTrue(runtime.has_active_playback())
+
+    def test_stop_playback_listener_waits_for_active_playback_then_stops(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            app_service = FakePlaybackApplicationService()
+            runtime.playback_listener.playback_application_service = app_service
+            listener = runtime.playback_listener
+
+            runtime.stop_playback_listener()
+
+        self.assertEqual(1, app_service.stop_calls)
+        self.assertTrue(listener.stopped)
+        self.assertIsNone(runtime.playback_listener)
+        self.assertIsNone(runtime.playback_listener_thread)
+
+    def test_stop_playback_listener_is_noop_without_listener(self):
+        with self._runtime(configured=False) as runtime:
+            runtime.stop_playback_listener()  # must not raise
+
+        self.assertIsNone(runtime.playback_listener)
+
+    def test_restart_playback_listener_stops_old_and_starts_new(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            old_listener = runtime.playback_listener
+
+            restarted = runtime.restart_playback_listener()
+            runtime.playback_listener_thread.join(timeout=1)
+
+        self.assertTrue(restarted)
+        self.assertTrue(old_listener.stopped)
+        self.assertTrue(runtime.playback_listener.started)
+
+    def test_restart_process_stops_listener_then_exits(self):
+        with self._runtime(configured=True) as runtime:
+            runtime.start_playback_listener_if_configured()
+            runtime.playback_listener_thread.join(timeout=1)
+            listener = runtime.playback_listener
+            exit_calls = []
+            runtime._exit_process = lambda code: exit_calls.append(code)
+
+            runtime.restart_process()
+
+        self.assertTrue(listener.stopped)
+        self.assertEqual([0], exit_calls)
 
     def test_get_state_reports_active_session_as_typed_status(self):
         with self._runtime(configured=True) as runtime:
             runtime.start_playback_listener_if_configured()
-            runtime.websocket_thread.join(timeout=1)
-            playback_state = runtime.emby_websocket.playback_state
+            runtime.playback_listener_thread.join(timeout=1)
+            playback_state = runtime.playback_listener.playback_state
             playback_state.start_loading(_intent())
 
             state = runtime.get_state()
@@ -141,7 +252,7 @@ class RuntimeTest(unittest.TestCase):
     def test_set_last_diagnostic_records_latest_and_history(self):
         with self._runtime(configured=True) as runtime:
             runtime.start_playback_listener_if_configured()
-            runtime.websocket_thread.join(timeout=1)
+            runtime.playback_listener_thread.join(timeout=1)
 
             runtime.set_last_diagnostic(PlaybackDiagnostic(
                 code="OPPO_UNAVAILABLE",
@@ -160,7 +271,7 @@ class RuntimeTest(unittest.TestCase):
     def test_clear_last_diagnostic_preserves_history(self):
         with self._runtime(configured=True) as runtime:
             runtime.start_playback_listener_if_configured()
-            runtime.websocket_thread.join(timeout=1)
+            runtime.playback_listener_thread.join(timeout=1)
             runtime.set_last_diagnostic(PlaybackDiagnostic(
                 code="PATH_TEST_FAILED",
                 severity="error",
@@ -179,7 +290,7 @@ class RuntimeTest(unittest.TestCase):
     def test_support_summary_is_sanitized_runtime_context(self):
         with self._runtime(configured=True) as runtime:
             runtime.start_playback_listener_if_configured()
-            runtime.websocket_thread.join(timeout=1)
+            runtime.playback_listener_thread.join(timeout=1)
             runtime.set_last_diagnostic(PlaybackDiagnostic(
                 code="TEST",
                 severity="info",
@@ -267,11 +378,14 @@ class RuntimeFixture:
         config_file = base_dir / "config.json"
         secrets_file = base_dir / "secrets.json"
         config = {
-            "media_server": {
-                "type": "emby",
-                "server_url": "http://emby.local" if self.configured else "",
-                "display_name": "Emby",
-                "access_token_configured": self.configured,
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "server_url": "http://emby.local" if self.configured else "",
+                        "display_name": "Emby",
+                    }
+                },
             },
             "tv": {"enabled": False},
             "av": {"enabled": False},
@@ -283,9 +397,13 @@ class RuntimeFixture:
         secrets_file.write_text(
             json.dumps(
                 {
-                    "media_server": {
-                        "access_token": "token" if self.configured else "",
-                        "user_id": "user-id" if self.configured else "",
+                    "media_servers": {
+                        "providers": {
+                            "emby": {
+                                "access_token": "token" if self.configured else "",
+                                "user_id": "user-id" if self.configured else "",
+                            }
+                        }
                     }
                 }
             ),
@@ -295,7 +413,7 @@ class RuntimeFixture:
         self.runtime = HomeCinemaControlRuntime(
             paths=build_runtime_paths(base_dir, config_file),
             version="0.5.1",
-            websocket_factory=FakeWebSocket,
+            media_server_provider_factory=FakeProviderFactory(),
             exit_process=lambda _code: None,
         )
         return self.runtime

@@ -1,31 +1,12 @@
-class EmbyTrackResolver:
+from __future__ import annotations
+
+from home_cinema_control.media_servers.common.track_resolver import (
+    MediaServerTrackResolver,
+)
+
+
+class EmbyTrackResolver(MediaServerTrackResolver):
     """Adapts EmbySession track resolution to the PlaybackTrackResolver protocol."""
 
     def __init__(self, emby_session) -> None:
-        self._emby_session = emby_session
-
-    def resolve_audio_track(
-        self,
-        *,
-        source_user_id: str,
-        media_item_id: str,
-        selected_source_track_id: int,
-    ) -> int:
-        return self._emby_session.resolve_audio_track_index(
-            source_user_id,
-            media_item_id,
-            selected_source_track_id,
-        )
-
-    def resolve_subtitle_track(
-        self,
-        *,
-        source_user_id: str,
-        media_item_id: str,
-        selected_source_track_id: int,
-    ) -> int:
-        return self._emby_session.resolve_subtitle_track_index(
-            source_user_id,
-            media_item_id,
-            selected_source_track_id,
-        )
+        super().__init__(emby_session)
