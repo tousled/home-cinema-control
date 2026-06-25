@@ -142,7 +142,12 @@ def find_latest_release(
             "asset_url": asset_url,
         }
 
-    return find_latest_tag(repository, timeout=timeout, http_client=http_client)
+    return find_latest_tag(
+        repository,
+        include_prereleases=include_prereleases,
+        timeout=timeout,
+        http_client=http_client,
+    )
 
 
 def _current_version_info(current_version, *, error=""):
@@ -157,7 +162,7 @@ def _current_version_info(current_version, *, error=""):
     )
 
 
-def find_latest_tag(repository, *, timeout, http_client=requests):
+def find_latest_tag(repository, *, include_prereleases, timeout, http_client=requests):
     tags_url = f"https://api.github.com/repos/{repository}/tags"
     response = http_client.get(
         tags_url,
@@ -166,19 +171,24 @@ def find_latest_tag(repository, *, timeout, http_client=requests):
     )
     response.raise_for_status()
 
-    tags = response.json()
-    if not tags:
-        return None
+    for entry in response.json():
+        tag = entry.get("name", "")
+        if not tag:
+            continue
+        if is_prerelease_tag(tag) and not include_prereleases:
+            continue
 
-    tag = tags[0].get("name", "")
-    if not tag:
-        return None
+        return {
+            "tag": tag,
+            "url": f"https://github.com/{repository}/releases/tag/{tag}",
+            "asset_url": "",
+        }
 
-    return {
-        "tag": tag,
-        "url": f"https://github.com/{repository}/releases/tag/{tag}",
-        "asset_url": "",
-    }
+    return None
+
+
+def is_prerelease_tag(tag):
+    return "-" in normalize_version(tag)
 
 
 def is_newer_version(candidate, current):

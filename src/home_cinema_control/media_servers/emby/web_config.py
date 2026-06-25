@@ -2,6 +2,7 @@ import hashlib
 import logging
 from typing import Any
 
+from home_cinema_control import __version__
 from home_cinema_control.config.manager import (
     active_media_server_config,
     get_media_server_provider,
@@ -251,8 +252,8 @@ def _authenticate_with_temporary_password(
             "X-Emby-Authorization": (
                 f'MediaBrowser Client="Home Cinema Control",'
                 f'Device="Home Cinema Control",'
-                f"DeviceId=${DEVICE_ID},"
-                f'Version="0.5"'
+                f'DeviceId="{DEVICE_ID}",'
+                f'Version="{__version__}"'
             )
         },
     )

@@ -131,6 +131,39 @@ class WebVersionUpdateTest(unittest.TestCase):
             http.get_calls[1][0],
         )
 
+    def test_check_version_skips_prerelease_tags_when_no_releases_exist(self):
+        # Regression: repo has no GitHub Releases (release.yml only pushes Docker
+        # images), so the tags fallback is the only path ever taken. It must not
+        # surface a "1.1.0-rc.1"-style tag when include_prerelease is False.
+        http = FakeHttpClient(
+            releases=[],
+            tags=[{"name": "1.1.0-rc.1"}, {"name": "1.0.5"}, {"name": "1.0.4"}],
+        )
+
+        result = check_application_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": False}},
+            "1.0.5",
+            http,
+        )
+
+        self.assertEqual("1.0.5", result.latest_version)
+        self.assertFalse(result.new_version)
+
+    def test_check_version_can_surface_prerelease_tags_when_enabled(self):
+        http = FakeHttpClient(
+            releases=[],
+            tags=[{"name": "1.1.0-rc.1"}, {"name": "1.0.5"}],
+        )
+
+        result = check_application_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.0.5",
+            http,
+        )
+
+        self.assertEqual("1.1.0-rc.1", result.latest_version)
+        self.assertTrue(result.new_version)
+
     def test_check_version_reports_errors_without_breaking_web_response(self):
         result = check_application_version(
             {"app": {"release_repository": "owner/repo"}},
