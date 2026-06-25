@@ -324,7 +324,7 @@ const posterSrc = computed(() => {
     posterError.value = false;
     return null
   }
-  return `/api/now-playing/poster?item=${itemId}`
+  return `/api/v1/now-playing/poster?item=${itemId}`
 })
 
 usePoll(refreshState, 10000)

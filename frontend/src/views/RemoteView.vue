@@ -206,7 +206,7 @@ const state = ref({})
 
 const activeBg = computed(() => {
   const itemId = state.value.ActiveSession?.media_item_id
-  return itemId ? `/api/now-playing/backdrop?item=${itemId}` : idleSceneBg
+  return itemId ? `/api/v1/now-playing/backdrop?item=${itemId}` : idleSceneBg
 })
 
 const hasNowPlaying = computed(() => Boolean(state.value.ActiveSession?.title))
@@ -220,7 +220,7 @@ const posterSrc = computed(() => {
     posterError.value = false
     return null
   }
-  return `/api/now-playing/poster?item=${itemId}`
+  return `/api/v1/now-playing/poster?item=${itemId}`
 })
 
 const protocolLabel = computed(() => {

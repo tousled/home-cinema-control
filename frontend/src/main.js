@@ -12,7 +12,7 @@ const locales = {'es-ES': esMessages, 'en-US': enMessages}
 async function bootstrap() {
     let locale = 'es-ES'
     try {
-        const res = await fetch('/api/config')
+        const res = await fetch('/api/v1/config')
         if (res.ok) {
             const config = await res.json()
             const lang = config?.app?.language

@@ -1,41 +1,16 @@
 import logging
-import time
 
 import requests as _requests
-from fastapi import APIRouter, BackgroundTasks, Body, FastAPI, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 
-from home_cinema_control import __version__
-from home_cinema_control.config.models import HccConfig
-from home_cinema_control.devices.av.setup_control import (
-    list_av_hdmi_inputs,
-    power_off_av_receiver,
-    power_on_av_receiver,
-    switch_av_to_player_input,
-)
-from home_cinema_control.config.models import OppoConfig
-from home_cinema_control.devices.oppo.control_api_client import OppoControlApiClient
-from home_cinema_control.devices.oppo.setup_control import (
-    check_oppo_control_api,
-    browse_network_folder,
-    send_remote_login_notification,
-)
-from home_cinema_control.devices.tv.setup_control import (
-    detect_tv_sources,
-    restore_tv_media_server_app,
-    switch_tv_to_player_input,
-    test_tv_connection,
-)
 from home_cinema_control.media_servers.common.models import MediaServerLoginCredentials
 from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import (
     diagnose_device_action_failed,
     diagnose_media_server_library_paths_unavailable,
-    diagnose_path_inference_failed,
-    diagnose_path_test_failed,
 )
-from home_cinema_control.playback.path_mapping_inference import infer_player_paths
 from home_cinema_control.network.devices import discover_local_devices
 from home_cinema_control.runtime import configure_logging
 from home_cinema_control.config.manager import (
@@ -47,6 +22,7 @@ from home_cinema_control.config.manager import (
     upsert_media_server_provider,
 )
 from home_cinema_control.web.api_runtime import WebApiRuntime
+from home_cinema_control.web.av_routes import build_av_router
 from home_cinema_control.web.config_sections import apply_config_section
 from home_cinema_control.web.migration import (
     apply_migration,
@@ -55,19 +31,15 @@ from home_cinema_control.web.migration import (
     start_fresh,
 )
 from home_cinema_control.web.config_readiness import compute_config_readiness
-from home_cinema_control.web.path_config import check_path_configuration, preview_path_mapping
-from home_cinema_control.web.setup_actions import (
-    persist_verification_if_submitted_matches_saved,
-    sanitized_submitted_section,
+from home_cinema_control.web.media_server_setup import (
+    media_server_setup_service as _media_server_setup_service,
 )
+from home_cinema_control.web.oppo_routes import build_oppo_router
+from home_cinema_control.web.paths_routes import build_paths_router
 from home_cinema_control.web.setup_verification import mark_section_verified
 from home_cinema_control.web.static_assets import read_binary_asset
-from home_cinema_control.web.version_routes import check_version_response, rollback_version_response, update_version_response
-
-
-def _media_server_setup_service(media_server_provider_factory, config: dict):
-    validated_config = HccConfig(**config)
-    return media_server_provider_factory.create(validated_config).setup_service()
+from home_cinema_control.web.tv_routes import build_tv_router
+from home_cinema_control.web.version_routes import build_version_router
 
 
 def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
@@ -81,7 +53,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         allow_headers=["*"],
     )
 
-    router = APIRouter(prefix="/api")
+    router = APIRouter(prefix="/api/v1")
 
     # --- config ---
 
@@ -197,31 +169,6 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         background_tasks.add_task(api_runtime.runtime.restart_process)
         return {"ok": True}
 
-    # --- version ---
-
-    @router.get("/version/check")
-    def version_check(
-        include_prerelease: bool | None = Query(default=None),
-        force: bool = Query(default=False),
-    ):
-        config = api_runtime.config_service.load_config()
-        if include_prerelease is not None:
-            config = {**config, "app": {**(config.get("app") or {}), "include_prerelease": include_prerelease}}
-        response = check_version_response(config, __version__, force=force)
-        return api_runtime.config_service.sanitize(response)
-
-    @router.post("/version/update")
-    def version_update():
-        config = api_runtime.config_service.load_config()
-        updated = {**config, "app": {**(config.get("app") or {}), "previous_version": __version__}}
-        api_runtime.config_service.save_config(updated)
-        return update_version_response(config, __version__)
-
-    @router.get("/version/rollback")
-    def version_rollback():
-        config = api_runtime.config_service.load_config()
-        return rollback_version_response(config)
-
     # --- migration ---
 
     @router.get("/migration/status")
@@ -279,8 +226,9 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     def _set_media_server_connection_diagnostic(detail: str):
         # So a media-server connection failure shows up in /api/state's
         # LastDiagnostic/DiagnosticHistory — same convention as every other
-        # device action failure (oppo_check, tv/av routes below) — instead of
-        # only being visible as a transient toast in the Media Server screen.
+        # device action failure (oppo_routes.py, tv_routes.py, av_routes.py)
+        # — instead of only being visible as a transient toast in the Media
+        # Server screen.
         api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
             component="media_server",
             action="connection check",
@@ -293,7 +241,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         host — distinguish "couldn't even reach it" (network/DNS/refused/
         timed out, now bounded by network/http.py's default timeout) from "it
         responded with an error," same as the existing OPPO unreachable
-        pattern below (paths_navigate).
+        pattern in paths_routes.py's paths_navigate.
         """
         try:
             return setup_service.check_connection(config)
@@ -456,22 +404,6 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
                 detail="Media server library paths unavailable",
             )
 
-    @router.post("/path-mapping-suggestions")
-    def post_path_mapping_suggestions(body: dict):
-        anchor = body.get("anchor") or {}
-        candidates = body.get("candidates") or []
-        anchor_source = anchor.get("source_path", "")
-        anchor_share = anchor.get("share_path", "")
-        try:
-            pairs = infer_player_paths(anchor_source, anchor_share, candidates)
-            return [
-                {"source_path": src, "share_path": share}
-                for src, share in pairs
-            ]
-        except ValueError as exc:
-            api_runtime.runtime.set_last_diagnostic(diagnose_path_inference_failed())
-            raise HTTPException(status_code=422, detail=str(exc))
-
     def _check_media_server_response(body: dict):
         saved_config = api_runtime.config_service.load_config()
         # current_type from the real saved config — body's media_server may
@@ -507,232 +439,6 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     @router.post("/media-server/check")
     def media_server_check(body: dict):
         return _check_media_server_response(body)
-
-    # --- oppo ---
-
-    @router.post("/oppo/check")
-    def oppo_check(body: dict):
-        if check_oppo_control_api(body) == 0:
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="media_player",
-            )
-            return {"status": "ok", "verification_persisted": persisted}
-        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
-            component="oppo",
-            action="connection check",
-            detail="OPPO connection failed",
-            severity="error",
-        ))
-        raise HTTPException(status_code=400, detail="OPPO connection failed")
-
-    @router.get("/oppo/advanced-defaults")
-    def oppo_advanced_defaults():
-        defaults = OppoConfig()
-        return {
-            "connection_timeout_seconds": defaults.connection_timeout_seconds,
-            "playback_start_timeout_seconds": defaults.playback_start_timeout_seconds,
-            "nfs_mount_timeout_seconds": defaults.nfs_mount_timeout_seconds,
-            "autoscript": defaults.autoscript,
-        }
-
-    @router.get("/oppo/key/{key}")
-    def oppo_send_key(key: str):
-        config = api_runtime.config_service.load_config()
-        send_remote_login_notification(config["oppo"]["ip"])
-        result = check_oppo_control_api(config)
-        client = OppoControlApiClient.from_config(config)
-        if key == "PON":
-            if result == 0:
-                client.sign_in()
-                client.get_device_list()
-                client.send_remote_key("EJT")
-                if config["oppo"].get("br_disc") is True:
-                    time.sleep(1)
-                    client.send_remote_key("EJT")
-                time.sleep(1)
-                client.get_playing_time()
-        else:
-            client.send_remote_key(key)
-        return {"ok": True}
-
-    # --- paths ---
-
-    @router.get("/paths/refresh")
-    def paths_refresh():
-        config = api_runtime.config_service.load_config()
-        config = _media_server_setup_service(
-            media_server_provider_factory,
-            config,
-        ).load_selectable_folders(config)
-        return api_runtime.config_service.sanitize(config)
-
-    @router.post("/paths/preview")
-    def paths_preview(body: dict):
-        try:
-            return preview_path_mapping(body)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-
-    @router.post("/paths/test")
-    def paths_test(body: dict):
-        config = api_runtime.config_service.load_config()
-        result = check_path_configuration(config, body)
-        if result == "OK":
-            return body
-        diagnostic = diagnose_path_test_failed(result, config)
-        api_runtime.runtime.set_last_diagnostic(diagnostic)
-        return JSONResponse(
-            status_code=400,
-            content={"detail": diagnostic.reason, "diagnostic": diagnostic.to_dict()},
-        )
-
-    @router.post("/paths/navigate")
-    def paths_navigate(body: dict):
-        config = api_runtime.config_service.load_config()
-        path = body.get("path", "/")
-        protocol = body.get("protocol")
-        try:
-            result = browse_network_folder(path, config, protocol=protocol)
-            logging.debug("paths_navigate | chars=%s", len(str(result)))
-            return result
-        except (_requests.exceptions.ConnectTimeout, _requests.exceptions.ConnectionError) as exc:
-            logging.warning("paths_navigate: OPPO unreachable | path=%s | error=%s", path, exc)
-            raise HTTPException(status_code=503, detail="OPPO unreachable")
-        except Exception as exc:
-            logging.warning("paths_navigate failed | path=%s | error=%s", path, exc)
-            raise HTTPException(status_code=502, detail=str(exc))
-
-    # --- tv ---
-
-    @router.post("/tv/test-connection")
-    def tv_test_connection(body: dict):
-        result = test_tv_connection(body)
-        if result == "OK":
-            tv = body.get("tv") or {}
-            logging.info(
-                "TV test connection succeeded | model=%s | ip=%s",
-                tv.get("model", ""),
-                tv.get("ip", ""),
-            )
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="tv",
-            )
-            return {
-                "status": "ok",
-                "verification_persisted": persisted,
-                "tv": sanitized_submitted_section(
-                    config_service=api_runtime.config_service,
-                    submitted_config=body,
-                    section_key="tv",
-                ),
-            }
-        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
-            component="tv",
-            action="connection test",
-            detail=str(result),
-            severity="error",
-        ))
-        raise HTTPException(status_code=400, detail=result)
-
-    @router.post("/tv/sources")
-    def tv_get_sources(body: dict):
-        result = detect_tv_sources(body)
-        if result == "OK":
-            return api_runtime.config_service.sanitize(
-                api_runtime.config_service.prepare_submitted_config(body)
-            )
-        raise HTTPException(status_code=400, detail=result)
-
-    @router.post("/tv/switch-input")
-    def tv_switch_input(body: dict):
-        result = switch_tv_to_player_input(body)
-        if result == "OK":
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="tv",
-            )
-            return {"status": "ok", "verification_persisted": persisted}
-        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
-            component="tv", action="switch input", detail=str(result)
-        ))
-        raise HTTPException(status_code=400, detail=result)
-
-    @router.post("/tv/restore-input")
-    def tv_restore_input(body: dict):
-        result = restore_tv_media_server_app(body)
-        if result == "OK":
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="tv",
-            )
-            return {"status": "ok", "verification_persisted": persisted}
-        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
-            component="tv", action="restore app", detail=str(result)
-        ))
-        raise HTTPException(status_code=400, detail=result)
-
-    # --- av ---
-
-    @router.post("/av/sources")
-    def av_get_sources(body: dict):
-        result = list_av_hdmi_inputs(body)
-        if result is not None:
-            body.setdefault("av", {})["available_hdmi_inputs"] = result
-            return api_runtime.config_service.sanitize(
-                api_runtime.config_service.prepare_submitted_config(body)
-            )
-        raise HTTPException(status_code=400, detail="Could not retrieve AV sources")
-
-    @router.post("/av/power-on")
-    def av_power_on(body: dict):
-        result = power_on_av_receiver(body)
-        if result == "OK":
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="av",
-            )
-            return {"status": "ok", "verification_persisted": persisted}
-        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
-            component="av", action="power on", detail=str(result)
-        ))
-        raise HTTPException(status_code=400, detail=result)
-
-    @router.post("/av/power-off")
-    def av_power_off_route(body: dict):
-        result = power_off_av_receiver(body)
-        if result == "OK":
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="av",
-            )
-            return {"status": "ok", "verification_persisted": persisted}
-        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
-            component="av", action="power off", detail=str(result)
-        ))
-        raise HTTPException(status_code=400, detail=result)
-
-    @router.post("/av/switch-input")
-    def av_switch_input(body: dict):
-        result = switch_av_to_player_input(body)
-        if result == "OK":
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="av",
-            )
-            return {"status": "ok", "verification_persisted": persisted}
-        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
-            component="av", action="switch input", detail=str(result)
-        ))
-        raise HTTPException(status_code=400, detail=result)
 
     # --- network ---
 
@@ -812,6 +518,11 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         return {"ok": True}
 
     app.include_router(router)
+    app.include_router(build_tv_router(api_runtime))
+    app.include_router(build_av_router(api_runtime))
+    app.include_router(build_oppo_router(api_runtime))
+    app.include_router(build_paths_router(api_runtime, media_server_provider_factory))
+    app.include_router(build_version_router(api_runtime))
 
     # --- SPA static files ---
     dist_dir = api_runtime.frontend_dist_dir

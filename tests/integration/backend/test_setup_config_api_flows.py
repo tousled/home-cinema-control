@@ -41,7 +41,7 @@ def test_section_save_preserves_smb_secret_through_real_api_service(tmp_path, mo
         },
     }, secrets={"smb": {"password": "stored-secret"}})
 
-    response = client.patch("/api/config/network-access", json={
+    response = client.patch("/api/v1/config/network-access", json={
         "oppo": {"pre_mount_smb": True},
         "smb": {"username": "nas-user", "password": ""},
         "path_mappings": [
@@ -76,17 +76,17 @@ def test_oppo_check_marks_saved_player_verified_then_section_edit_makes_it_stale
         "media_server": {"server_url": "", "access_token": ""},
     })
 
-    with patch("home_cinema_control.web.api_app.check_oppo_control_api", return_value=0):
-        response = client.post("/api/oppo/check", json=copy.deepcopy(runtime.config))
+    with patch("home_cinema_control.web.oppo_routes.check_oppo_control_api", return_value=0):
+        response = client.post("/api/v1/oppo/check", json=copy.deepcopy(runtime.config))
 
     assert response.status_code == 200
     assert response.json()["verification_persisted"] is True
-    assert client.get("/api/config/readiness").json()["media_player"]["status"] == "verified"
+    assert client.get("/api/v1/config/readiness").json()["media_player"]["status"] == "verified"
 
-    response = client.patch("/api/config/oppo", json={"ip": "192.168.1.11"})
+    response = client.patch("/api/v1/config/oppo", json={"ip": "192.168.1.11"})
 
     assert response.status_code == 200
-    assert client.get("/api/config/readiness").json()["media_player"]["status"] == "stale"
+    assert client.get("/api/v1/config/readiness").json()["media_player"]["status"] == "stale"
 
 
 def test_detect_sources_returns_detected_tv_data_without_saving(tmp_path, monkeypatch):
@@ -102,8 +102,8 @@ def test_detect_sources_returns_detected_tv_data_without_saving(tmp_path, monkey
         ]
         return "OK"
 
-    with patch("home_cinema_control.web.api_app.detect_tv_sources", side_effect=_mutate_sources):
-        response = client.post("/api/tv/sources", json=copy.deepcopy(runtime.config))
+    with patch("home_cinema_control.web.tv_routes.detect_tv_sources", side_effect=_mutate_sources):
+        response = client.post("/api/v1/tv/sources", json=copy.deepcopy(runtime.config))
 
     assert response.status_code == 200
     assert response.json()["tv"]["available_hdmi_inputs"] == [

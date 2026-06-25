@@ -110,6 +110,9 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   `HCC_VERSION` environment variable.
 * Fixed `INSTALL.md`/`INSTALL.en.md` presenting Emby as the only supported media server in the requirements section
   — it never reflected Jellyfin support there, even though Jellyfin has been a shipped provider since 1.1.0-rc.1.
+* All backend routes moved from `/api/*` to `/api/v1/*`, ahead of splitting `web/api_app.py`'s 800+ lines into one
+  router per domain. The frontend (`api/index.js`'s base URL, plus the few hardcoded now-playing image/config-bootstrap
+  paths) moved with it; the dev proxy in `vite.config.js` still matches on the `/api` prefix unchanged.
 
 ## [1.0.5] - 2026-06-22
 

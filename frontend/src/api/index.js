@@ -1,4 +1,4 @@
-const BASE = '/api'
+const BASE = '/api/v1'
 
 function detailToMessage(detail) {
     if (Array.isArray(detail)) {
