@@ -24,6 +24,7 @@ function shouldNotifyConfigChanged(method, path) {
         || path === '/av/switch-input'
         || path === '/migration/apply'
         || path === '/migration/skip'
+        || path === '/migration/import-legacy'
 }
 
 function notifyConfigChanged(method, path) {
@@ -75,6 +76,7 @@ export const api = {
     getMigrationStatus: () => request('GET', '/migration/status'),
     applyMigration: () => request('POST', '/migration/apply'),
     skipMigration: () => request('POST', '/migration/skip'),
+    importLegacyConfig: (config) => request('POST', '/migration/import-legacy', config),
 
     // media server (provider-neutral: Emby or Jellyfin)
     configureMediaServerToken: (config, credentials, options = {}) =>

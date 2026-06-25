@@ -178,12 +178,36 @@
         <p v-if="migrationError" class="mt-3" style="font-size:13px;color:var(--status-danger)">{{ migrationError }}</p>
       </div>
     </div>
+
+    <!-- Legacy XNOPPO import modal (fresh install only) -->
+    <div v-if="showLegacyImport" aria-labelledby="legacy-import-title" aria-modal="true" class="modal-backdrop"
+         role="dialog">
+      <div class="modal-box">
+        <h2 id="legacy-import-title" class="modal-title">{{ $t('x-legacy-import-title') }}</h2>
+        <p class="modal-body">{{ $t('x-legacy-import-description') }}</p>
+        <p class="modal-body" style="color:var(--status-warning)">{{ $t('x-legacy-import-warning') }}</p>
+        <input ref="legacyFileInput" accept="application/json,.json" style="display:none" type="file"
+               @change="onLegacyFileSelected">
+        <div class="modal-actions">
+          <button :disabled="legacyImporting" class="btn-ghost" @click="skipLegacyImport">
+            {{ $t('x-legacy-import-skip') }}
+          </button>
+          <button :disabled="legacyImporting" class="btn-primary" @click="pickLegacyFile">
+            {{ legacyImporting ? $t('x-legacy-import-applying') : $t('x-legacy-import-pick-file') }}
+          </button>
+        </div>
+        <p v-if="legacyImportError" class="mt-3" style="font-size:13px;color:var(--status-danger)">{{
+            legacyImportError
+          }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {RouterLink, RouterView, useRoute} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import {api} from './api/index.js'
 import ToastContainer from './components/ToastContainer.vue'
 import {useSetupReadiness} from './composables/useSetupReadiness.js'
@@ -191,7 +215,8 @@ import {useConfigSectionSave} from './composables/useConfigSectionSave.js'
 import {useVersionStore} from './stores/version.js'
 import brandMark from './assets/branding/hcc-mark.png'
 
-const {readiness} = useSetupReadiness()
+const {t} = useI18n()
+const {readiness, refreshReadiness} = useSetupReadiness()
 const {saveSection} = useConfigSectionSave()
 const versionStore = useVersionStore()
 const route = useRoute()
@@ -220,6 +245,19 @@ const showMigration = ref(false)
 const migrating = ref(false)
 const migrationError = ref('')
 const applyBtn = ref(null)
+
+const showLegacyImport = ref(false)
+const legacyImporting = ref(false)
+const legacyImportError = ref('')
+const legacyFileInput = ref(null)
+
+const looksLikeFreshInstall = computed(() => {
+  const r = readiness.value
+  if (!r) return false
+  return r.media_server?.status === 'incomplete'
+      && r.media_player?.status === 'incomplete'
+      && r.media_paths?.status === 'incomplete'
+})
 
 watch(() => route.fullPath, () => {
   mobileNavOpen.value = false
@@ -260,8 +298,10 @@ async function setLang(l) {
 }
 
 onMounted(async () => {
+  let migrationAvailable = false
   try {
     const {available} = await api.getMigrationStatus()
+    migrationAvailable = available
     showMigration.value = available
   } catch { /* non-fatal */
   }
@@ -272,6 +312,11 @@ onMounted(async () => {
     langs.value = data.langs || []
     currentLang.value = data.app?.language || 'es-ES'
   } catch { /* ignore */
+  }
+
+  if (!migrationAvailable) {
+    await refreshReadiness()
+    showLegacyImport.value = looksLikeFreshInstall.value
   }
 })
 
@@ -298,6 +343,44 @@ async function skipMigration() {
     migrationError.value = e.message
   } finally {
     migrating.value = false
+  }
+}
+
+function pickLegacyFile() {
+  legacyImportError.value = ''
+  legacyFileInput.value?.click()
+}
+
+function skipLegacyImport() {
+  showLegacyImport.value = false
+}
+
+async function onLegacyFileSelected(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  legacyImportError.value = ''
+  let parsed
+  try {
+    parsed = JSON.parse(await file.text())
+  } catch {
+    legacyImportError.value = t('x-legacy-import-invalid-file')
+    return
+  }
+
+  legacyImporting.value = true
+  try {
+    await api.importLegacyConfig(parsed)
+    showLegacyImport.value = false
+    await refreshReadiness()
+    const data = await api.getConfig()
+    fullConfig.value = data
+    currentLang.value = data.app?.language || currentLang.value
+  } catch (e) {
+    legacyImportError.value = e.message || t('x-legacy-import-invalid-file')
+  } finally {
+    legacyImporting.value = false
   }
 }
 </script>

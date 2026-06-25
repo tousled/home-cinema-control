@@ -729,6 +729,37 @@ class MigrateMediaServerToMediaServersTest(unittest.TestCase):
         self.assertTrue(first)
         self.assertFalse(second)
 
+    def test_on_disk_wrapper_drops_stale_empty_secret_even_without_legacy_public_data(self):
+        # XNOPPO/flat-key installs never populate the intermediate
+        # media_server block, so has_real_legacy_data is False here — but
+        # the empty single-provider stub _default_secrets() used to seed
+        # should still get cleaned up, not left behind forever.
+        with tempfile.TemporaryDirectory() as directory:
+            config_file = Path(directory) / "config.json"
+            secrets_file = Path(directory) / "secrets.json"
+            config_file.write_text(json.dumps({"oppo": {"ip": "192.168.1.5"}}), encoding="utf-8")
+            secrets_file.write_text(
+                json.dumps({"media_server": {"access_token": "", "user_id": ""}}),
+                encoding="utf-8",
+            )
+
+            previous_secrets_path = os.environ.get("HCC_SECRETS_FILE_PATH")
+            os.environ["HCC_SECRETS_FILE_PATH"] = str(secrets_file)
+
+            try:
+                migrated = migrate_media_server_to_media_servers_on_disk(config_file)
+            finally:
+                if previous_secrets_path is None:
+                    os.environ.pop("HCC_SECRETS_FILE_PATH", None)
+                else:
+                    os.environ["HCC_SECRETS_FILE_PATH"] = previous_secrets_path
+
+            self.assertFalse(migrated)
+            self.assertFalse(Path(str(secrets_file) + ".bak-migrate").exists())
+
+            new_secrets = json.loads(secrets_file.read_text(encoding="utf-8"))
+            self.assertNotIn("media_server", new_secrets)
+
     def test_on_disk_wrapper_recovers_real_install_with_premature_empty_media_servers(
             self,
     ):

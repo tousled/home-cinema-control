@@ -229,6 +229,7 @@ def save_effective_config(config_path: Path | str, config: dict) -> None:
     _remove_sensitive_paths(public_config)
     _remove_legacy_flat_keys(public_config)
     _remove_legacy_flat_keys(secrets)
+    _drop_empty_legacy_media_server_secret(secrets)
 
     _write_json(config_path, public_config)
     _write_json(secrets_path, secrets)
@@ -371,6 +372,24 @@ def is_configured(config: HccConfig | dict) -> bool:
     return server_url.startswith(("http://", "https://"))
 
 
+def _drop_empty_legacy_media_server_secret(secrets: dict) -> bool:
+    """Drop the old single-provider secrets.media_server stub once it holds
+    nothing real. _default_secrets() seeded this shape for every install
+    before media_servers.providers.* existed; migrate_media_server_to_media_servers
+    only migrates it when the public config side also has real legacy data,
+    so an install whose secrets.media_server was already blank (the common
+    case: fresh installs, or any config never on the old single-provider
+    shape) never gets it cleaned up. Return True if something was dropped.
+    """
+    old_secret = secrets.get("media_server")
+    if not isinstance(old_secret, dict):
+        return False
+    if old_secret.get("access_token") or old_secret.get("user_id"):
+        return False
+    secrets.pop("media_server", None)
+    return True
+
+
 def migrate_media_server_to_media_servers(public_config: dict, secrets: dict) -> bool:
     """Transform the old single media_server block into media_servers, in
     place on both dicts. Return True if a migration was performed.
@@ -449,19 +468,27 @@ def migrate_media_server_to_media_servers_on_disk(config_path: Path | str) -> bo
     has_real_legacy_data = isinstance(old_public, dict) and bool(
         old_public.get("server_url") or old_public.get("display_name")
     )
+
+    secrets = _read_json(secrets_path)
+
     if not has_real_legacy_data:
         # Mirrors migrate_media_server_to_media_servers's own trigger
         # condition exactly — gating on "media_servers already present"
         # instead would skip real data forever once an unrelated save has
         # already written that field's bare Pydantic default to disk.
+        # Still worth a pass to drop a stale, empty secrets.media_server
+        # stub (see _drop_empty_legacy_media_server_secret) — that doesn't
+        # need a backup since nothing real is lost.
+        if _drop_empty_legacy_media_server_secret(secrets):
+            _write_json(secrets_path, secrets)
+            _chmod_private(secrets_path)
         return False
-
-    secrets = _read_json(secrets_path)
 
     _backup_file(config_path, ".bak-migrate")
     _backup_file(secrets_path, ".bak-migrate")
 
     migrate_media_server_to_media_servers(public_config, secrets)
+    _drop_empty_legacy_media_server_secret(secrets)
 
     _write_json(config_path, public_config)
     _write_json(secrets_path, secrets)
@@ -567,10 +594,6 @@ def _create_config_file(config_path: Path) -> None:
 
 def _default_secrets() -> dict:
     return {
-        "media_server": {
-            "access_token": "",
-            "user_id": "",
-        },
         "smb": {
             "password": "",
         },
