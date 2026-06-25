@@ -89,7 +89,7 @@ def create_playback_orchestrator_wiring(
     playback_state: BridgePlaybackState | None = None,
     step_timer: StartupStepTimer | None = None,
 ) -> PlaybackOrchestratorWiring:
-    startup_wiring = create_playback_startup_wiring(config)
+    startup_wiring = create_playback_startup_wiring(config, step_timer=step_timer)
     playback_event_publisher = playback_event_publisher_factory(
         media_server_client,
         bridge_session_id=bridge_session_id,

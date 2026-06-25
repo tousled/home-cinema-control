@@ -18,6 +18,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   distinct message when the switch succeeds but the target provider still needs login.
 * Added a shared, provider-neutral `find_controlling_session_id` policy (`media_servers/common/models.py`) that
   resolves which client session actually issued a remote Play command, used by both Emby and Jellyfin.
+* Instrumented two previously invisible OPPO startup phases — mounting the network share (`mount_oppo_network_share`,
+  includes the device-list-ready wait) and waiting for the OPPO to actually report active playback
+  (`wait_for_oppo_playback_active`, the QPL telnet poll after launching the file) — into the existing
+  `PlaybackStartupTimer`. Before this, a slow OPPO response in either phase showed up as an unexplained gap between
+  the named steps and the printed `total` in "Playback startup timing summary," with no way to tell from the log
+  alone whether the OPPO, the TV/AV output switch, or something else caused it. No behavior change: both are
+  optional, timer-only wrapping.
 
 ### Fixed
 
