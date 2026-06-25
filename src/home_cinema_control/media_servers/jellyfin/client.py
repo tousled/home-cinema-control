@@ -99,7 +99,10 @@ class JellyfinClient:
         return self.post(f"/UserItems/{item_id}/UserData?userId={user_id}", json=payload)
 
     def stop_session_playback(self, session_id, payload):
-        return self.post(f"/Sessions/{session_id}/Playing/Stop", data=payload)
+        return self.post(f"/Sessions/{session_id}/Playing/Stop")
+
+    def send_general_command(self, session_id, command):
+        return self.post(f"/Sessions/{session_id}/Command/{command}")
 
     def send_session_message(self, session_id, message, timeout):
         # Unlike Emby's equivalent (Text/Header/TimeoutMs as query params,

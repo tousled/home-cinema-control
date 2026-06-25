@@ -134,16 +134,27 @@ class JellyfinClientTest(unittest.TestCase):
         client.notify_playback_started({"ItemId": "movie-1"})
         client.report_playback_progress({"ItemId": "movie-1"})
         client.notify_playback_stopped({"ItemId": "movie-1"})
+        client.stop_session_playback("source-session", {"Command": "Stop"})
+        client.send_general_command("source-session", "Back")
 
         self.assertEqual(
             [
                 "http://jellyfin.local:8096/Sessions/Playing",
                 "http://jellyfin.local:8096/Sessions/Playing/Progress",
                 "http://jellyfin.local:8096/Sessions/Playing/Stopped",
+                "http://jellyfin.local:8096/Sessions/source-session/Playing/Stop",
+                "http://jellyfin.local:8096/Sessions/source-session/Command/Back",
             ],
             [call[1] for call in http.calls],
         )
-        self.assertEqual(["post", "post", "post"], [call[0] for call in http.calls])
+        self.assertEqual(
+            ["post", "post", "post", "post", "post"],
+            [call[0] for call in http.calls],
+        )
+        self.assertIsNone(http.calls[3][2])
+        self.assertIsNone(http.calls[3][3])
+        self.assertIsNone(http.calls[4][2])
+        self.assertIsNone(http.calls[4][3])
 
     def test_played_and_resume_routes_are_jellyfin_native(self):
         http = RecordingHttpSession()

@@ -196,7 +196,7 @@
                   class="btn-ghost"
                   target="_blank"
               >{{ $t('x-status-view-release') }}</a>
-              <IconActionButton :label="$t('x-status-check-version')" icon="refresh" @click="checkVersion"/>
+              <IconActionButton :label="$t('x-status-check-version')" icon="refresh" @click="() => checkVersion(true)"/>
               <IconActionButton
                   v-if="versionInfo?.new_version"
                   :disabled="updateLoading"
@@ -258,7 +258,11 @@
 
             <div class="flex items-center gap-2">
               <label class="flex items-center gap-2" style="cursor:pointer">
-                <input v-model="includePrerelease" type="checkbox"/>
+                <input
+                    :checked="includePrerelease"
+                    type="checkbox"
+                    @change="onTogglePrerelease($event.target.checked)"
+                />
                 <span style="font-size:12px;color:var(--text-muted)">{{ $t('x-status-include-prerelease') }}</span>
               </label>
               <HelpTooltip :text="$t('x-status-tooltip-include-prerelease')"/>
@@ -320,7 +324,7 @@ const posterSrc = computed(() => {
     posterError.value = false;
     return null
   }
-  return `/api/now-playing/poster?item=${itemId}`
+  return `/api/v1/now-playing/poster?item=${itemId}`
 })
 
 usePoll(refreshState, 10000)
@@ -415,10 +419,10 @@ async function refreshState() {
   }
 }
 
-async function checkVersion() {
+async function checkVersion(force = false) {
   versionLoading.value = true
   try {
-    versionInfo.value = await api.checkVersion(includePrerelease.value)
+    versionInfo.value = await api.checkVersion(includePrerelease.value, force)
     versionStore.setVersionInfo(versionInfo.value)
   } catch (e) {
     versionInfo.value = {error: e.message}
@@ -437,6 +441,22 @@ async function triggerUpdate() {
   } finally {
     updateLoading.value = false
   }
+}
+
+async function onTogglePrerelease(checked) {
+  includePrerelease.value = checked
+  try {
+    fullConfig.value.app = {
+      ...(fullConfig.value.app || {}),
+      include_prerelease: checked,
+    }
+    fullConfig.value = await saveSection('app', fullConfig.value.app)
+  } catch (e) {
+    includePrerelease.value = !checked
+    toast.error(e.message)
+    return
+  }
+  await checkVersion()
 }
 
 async function saveWebhookUrl() {
@@ -478,14 +498,15 @@ onMounted(async () => {
   loading.value = true
   try {
     state.value = await api.getState()
-    await checkVersion()
-    await versionStore.loadRollbackInfo()
     try {
       const data = await api.getConfig()
       fullConfig.value = data
       webhookUrl.value = data.app?.update_webhook_url || ''
+      includePrerelease.value = data.app?.include_prerelease || false
     } catch { /* non-fatal */
     }
+    await checkVersion()
+    await versionStore.loadRollbackInfo()
   } finally {
     loading.value = false
   }

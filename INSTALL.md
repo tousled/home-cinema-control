@@ -3,8 +3,8 @@
 [English](INSTALL.en.md) · [README](README.md)
 
 Esta guía cubre el despliegue de HCC y la configuración desde la interfaz web. Está pensada para evitar los problemas
-que más suelen aparecer en instalaciones con Emby, NAS, OPPO/Chinoppo, TV y receptor AV: rutas mal mapeadas, IPs
-escritas a mano, montajes que fallan sin explicación, CEC/ARC cambiando entradas y logs difíciles de interpretar.
+que más suelen aparecer en instalaciones con Emby/Jellyfin, NAS, OPPO/Chinoppo, TV y receptor AV: rutas mal mapeadas,
+IPs escritas a mano, montajes que fallan sin explicación, CEC/ARC cambiando entradas y logs difíciles de interpretar.
 
 Para capturas específicas de Synology, QNAP, Windows, Unraid o preparación del reproductor OPPO/Chinoppo, usa como
 referencia externa el tutorial de la comunidad de AVPasion sobre Xnoppo:
@@ -17,22 +17,22 @@ Usa ese hilo para permisos de NAS, recursos compartidos y configuración del rep
 
 Necesitas:
 
-| Requisito                | Notas                                                     |
-|--------------------------|-----------------------------------------------------------|
-| Docker                   | Linux recomendado. HCC usa red host.                      |
-| Emby Server              | Accesible desde el host donde corre HCC.                  |
-| OPPO/Chinoppo            | Debe exponer la API MediaControl de OPPO en la red local. |
-| NAS o carpeta compartida | Debe ser visible desde Emby y desde el reproductor.       |
-| NFS o SMB/CIFS           | Se elige por cada mapeo de ruta en HCC.                   |
-| TV y receptor AV         | Opcionales. HCC puede funcionar sin ellos.                |
+| Requisito                | Notas                                                                |
+|--------------------------|----------------------------------------------------------------------|
+| Docker                   | Linux recomendado. HCC usa red host.                                 |
+| Emby o Jellyfin          | Uno de los dos, accesible desde el host donde corre HCC.             |
+| OPPO/Chinoppo            | Debe exponer la API MediaControl de OPPO en la red local.            |
+| NAS o carpeta compartida | Debe ser visible desde tu servidor de medios y desde el reproductor. |
+| NFS o SMB/CIFS           | Se elige por cada mapeo de ruta en HCC.                              |
+| TV y receptor AV         | Opcionales. HCC puede funcionar sin ellos.                           |
 
 Recomendaciones antes de instalar:
 
-- Reserva IP fija para Emby, NAS, OPPO/Chinoppo, TV y receptor AV.
-- Crea primero las bibliotecas en Emby. HCC no inventa bibliotecas: lee las que ya existen en tu servidor. La guía
-  oficial de Emby explica el flujo en
-  [Library Setup](https://emby.media/support/articles/Library-Setup.html) y su
-  [Quick Start](https://emby.media/support/articles/Quick-Start.html).
+- Reserva IP fija para tu servidor de medios, NAS, OPPO/Chinoppo, TV y receptor AV.
+- Crea primero las bibliotecas en Emby o Jellyfin. HCC no inventa bibliotecas: lee las que ya existen en tu servidor.
+  Para Emby, ver [Library Setup](https://emby.media/support/articles/Library-Setup.html) y
+  [Quick Start](https://emby.media/support/articles/Quick-Start.html). Para Jellyfin, ver
+  [Adding Media Libraries](https://jellyfin.org/docs/general/server/libraries/).
 - Comparte las carpetas del NAS por NFS o SMB/CIFS y comprueba que el reproductor puede verlas desde su propio
   explorador de red.
 - Decide qué bibliotecas debe interceptar HCC.
@@ -103,14 +103,22 @@ docker compose pull
 docker compose up -d
 ```
 
-Abre:
+Abre `http://<tu-host>:8090`.
 
-```text
-http://<tu-host>:8090
-```
+`network_mode: host` es necesario: HCC habla directamente con Emby/Jellyfin, el OPPO/Chinoppo, TV, AVR y herramientas
+de descubrimiento como `arp-scan`.
 
-`network_mode: host` es importante porque HCC habla directamente con Emby, el OPPO/Chinoppo, TV, AVR y herramientas de
-descubrimiento como `arp-scan`.
+### 3.1 Instalar con Portainer u otra interfaz web
+
+En Portainer: **Stacks → Add stack** y pega el `compose.yaml` de arriba.
+
+Para fijar una versión concreta (incluidas las release candidates), añade `HCC_VERSION` como variable de entorno del
+stack, por ejemplo `HCC_VERSION=1.1.0-rc.2`. Es lo único que decide qué imagen se descarga — sin ella, Portainer usa
+`latest` (la última estable). Para actualizar, cambia ese valor y vuelve a desplegar tirando de la imagen ("re-pull"),
+no reconstruyendo desde el Dockerfile.
+
+Otras interfaces (Synology Container Manager, Unraid...) deberían funcionar igual si permiten definir variables de
+entorno para el stack — la lógica es la misma.
 
 ## 4. Migración o instalación limpia
 
@@ -500,6 +508,10 @@ docker run -d \
   -v home-cinema-control-config:/config \
   ghcr.io/tousled/home-cinema-control:latest
 ```
+
+Si instalaste con Portainer u otra interfaz web: cambia la variable de entorno `HCC_VERSION` del stack a la versión
+que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), no reconstruyendo desde el Dockerfile — ver
+[3.1](#31-instalar-con-portainer-u-otra-interfaz-web).
 
 Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
 muestra el comando para ejecutarlo manualmente.

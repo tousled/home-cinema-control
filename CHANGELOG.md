@@ -55,6 +55,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   same gap Emby's already-shipped fix (1.0.5) covers — it never identifies the controlling client's own session,
   only the bridge's target session — but the fix was never ported to Jellyfin. Every notification silently no-opped
   with "no active source session is available."
+* Fixed Jellyfin source-client cleanup at playback finish using the bridge target session when Jellyfin's `Play`
+  command only provided `Id`. HCC now treats `Id` as the target session, resolves the real controlling client
+  session, and sends the same double `Stop` used for Emby so the Jellyfin app clears its stale playback screen when
+  the OPPO is stopped from the remote.
+* Fixed Jellyfin Web/App remote-control screens remaining on a frozen playback view after OPPO remote Stop by applying
+  the same best-effort double `Stop` delivery used for Emby to Jellyfin's source client session.
+* Fixed Jellyfin multi-client cleanup when the same user has the web UI and mobile app open for the same HCC playback.
+  HCC now resolves active Jellyfin sessions for that user, excludes its own bridge session, skips only sessions that
+  explicitly report a different now-playing item, and sends best-effort double `Stop` to each stale client instead of
+  only the single session that originally issued Play.
 * Fixed `JellyfinClient.send_session_message` sending `Text`/`Header`/`TimeoutMs` as query-string parameters (Emby's
   shape) instead of the JSON request body Jellyfin's server actually requires, and sending an empty `data={}` body
   that omitted the `Content-Type` header entirely, which Jellyfin's server rejects with `415 Unsupported Media
@@ -86,6 +96,17 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   cleaned up when the *public* config also had real legacy `media_server` data — which an XNOPPO-era flat config
   never has. It's no longer seeded for new installs, and existing installs self-heal it on the next config save or
   container restart.
+* Fixed the "include pre-release versions" checkbox on the Diagnostics page never actually persisting — it was a
+  local-only UI ref, never read from saved config on load and never saved when toggled, so it silently reset to
+  off on every page reload. As a result the version check always ran with pre-releases excluded no matter how the
+  checkbox looked, even though the backend filtering logic itself (fixed in 1.1.0-rc.2) was already correct. The
+  checkbox now loads its saved state and persists immediately on toggle.
+* Fixed `compose.yaml` (the file users/NAS deployments actually run) carrying both `image:` and `build:`. Several
+  Docker GUIs (Portainer's "deploy stack from Git" pointed at a tag, among others) build from the compose file's
+  `build:` section instead of pulling the named image — silently producing a locally-rebuilt image stamped
+  `0.0.0.dev0` (the `SETUPTOOLS_SCM_PRETEND_VERSION` build-arg's fallback, since nothing sets `HCC_VERSION` in that
+  flow) instead of the real, correctly-versioned image from the registry. `compose.yaml` is now pull-only; the
+  `build:` section moved to a local-only, untracked override file for development.
 
 ### Changed
 
@@ -94,6 +115,14 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   `INSTALL.en.md`'s FAQ.
 * `README.md`/`README.en.md` and `INSTALL.md`/`INSTALL.en.md` updated to reflect Jellyfin as a shipped, supported
   media-server provider rather than a roadmap item.
+* Documented installing/updating via Portainer (or similarly-capable web UIs) in `INSTALL.md`/`INSTALL.en.md`'s
+  Docker Compose section — paste `compose.yaml` into the stack, then pin the running version via the stack's
+  `HCC_VERSION` environment variable.
+* Fixed `INSTALL.md`/`INSTALL.en.md` presenting Emby as the only supported media server in the requirements section
+  — it never reflected Jellyfin support there, even though Jellyfin has been a shipped provider since 1.1.0-rc.1.
+* All backend routes moved from `/api/*` to `/api/v1/*`, ahead of splitting `web/api_app.py`'s 800+ lines into one
+  router per domain. The frontend (`api/index.js`'s base URL, plus the few hardcoded now-playing image/config-bootstrap
+  paths) moved with it; the dev proxy in `vite.config.js` still matches on the `/api` prefix unchanged.
 
 ## [1.0.5] - 2026-06-22
 

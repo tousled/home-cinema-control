@@ -1,7 +1,9 @@
 import unittest
 
+import home_cinema_control.web.version_update as version_update_module
 from home_cinema_control.web.version_update import (
     check_application_version,
+    get_cached_version_info,
     get_rollback_info,
     is_newer_version,
     trigger_configured_update,
@@ -206,6 +208,31 @@ class WebVersionUpdateTest(unittest.TestCase):
         self.assertTrue(result["webhook_configured"])
         self.assertEqual(["https://example.com/webhook"], http.post_calls)
 
+
+    def test_cache_is_invalidated_when_include_prerelease_changes(self):
+        # Regression: cache was keyed only by time, so toggling include_prerelease
+        # had no effect until the cache expired (default 24 h) or container restart.
+        version_update_module._version_cache = None
+        version_update_module._version_cache_time = 0.0
+        version_update_module._version_cache_include_prerelease = None
+
+        tags_only = [{"name": "1.1.0-rc.1"}, {"name": "1.0.5"}]
+        http = FakeHttpClient(releases=[], tags=tags_only)
+
+        config_no_pre = {"app": {"release_repository": "owner/repo", "include_prerelease": False}}
+        result1 = get_cached_version_info(config_no_pre, "1.0.4", http_client=http)
+        self.assertEqual("1.0.5", result1.latest_version)
+        calls_after_first = len(http.get_calls)
+
+        # Same setting → cache hit, no new HTTP call.
+        get_cached_version_info(config_no_pre, "1.0.4", http_client=http)
+        self.assertEqual(calls_after_first, len(http.get_calls))
+
+        # Toggle include_prerelease → cache must be invalidated.
+        config_with_pre = {"app": {"release_repository": "owner/repo", "include_prerelease": True}}
+        result2 = get_cached_version_info(config_with_pre, "1.0.4", http_client=http)
+        self.assertGreater(len(http.get_calls), calls_after_first)
+        self.assertEqual("1.1.0-rc.1", result2.latest_version)
 
     def test_rollback_info_not_available_when_no_previous_version(self):
         result = get_rollback_info({"app": {}})

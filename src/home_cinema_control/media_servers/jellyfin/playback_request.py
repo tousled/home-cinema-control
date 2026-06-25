@@ -32,7 +32,7 @@ def build_playback_intent_from_play_command(
         media_item_id=item_id,
         media_source_id=data.get("MediaSourceId", ""),
         source_user_id=controlling_user_id,
-        source_client_session_id=data.get("SessionID") or data.get("Id"),
+        source_client_session_id=data.get("SessionID"),
         source_device_id=data.get("Device_Id", "") or data.get("DeviceId", ""),
         source_device_name=data.get("DeviceName", ""),
         start_position_seconds=int(start_position_ticks) // TICKS_PER_SECOND,

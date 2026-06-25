@@ -24,6 +24,7 @@ config.secrets.json
 .env.*
 .local-config/
 compose.local.yaml
+compose.build.yaml
 
 # Frontend
 node_modules/

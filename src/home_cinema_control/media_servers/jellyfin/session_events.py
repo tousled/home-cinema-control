@@ -38,6 +38,7 @@ def session_from_payload(session: dict[str, Any]) -> MediaServerSession:
     return MediaServerSession(
         device_id=session.get("DeviceId", "") or "",
         device_name=session.get("DeviceName", "") or "",
+        client_name=session.get("Client", "") or "",
         user_id=session.get("UserId", "") or "",
         client_session_id=session.get("Id"),
         last_activity_at=session.get("LastActivityDate", "") or "",
