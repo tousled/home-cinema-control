@@ -124,6 +124,17 @@ configuración o empezar desde cero.
 La migración existe para conservar lo reutilizable, pero HCC guarda ahora la configuración por secciones y separa los
 secretos en `/config/secrets.json`.
 
+Si en cambio es una instalación completamente nueva (sin configuración previa de HCC) y vienes del proyecto
+predecesor XNOPPO/Chinoppo, HCC te ofrecerá un segundo aviso distinto: importar tu antiguo `config.json` de XNOPPO en
+lugar de configurarlo todo desde cero. Selecciona el fichero, HCC migra OPPO/TV/AV/rutas igual que en la migración
+normal, mueve la URL de tu Emby al nuevo formato y, si el servidor está accesible en ese momento, inicia sesión con
+el usuario/contraseña del fichero antiguo para obtener un token — si no puede, el proveedor queda añadido pero sin
+autenticar, y el indicador de Media Server en el menú lateral te avisará en naranja para que termines de conectarlo
+desde su pantalla. Si no tienes un `config.json` de XNOPPO o prefieres no importarlo, elige "Configurar desde cero" y
+sigue el asistente normal.
+
+<!-- TODO: captura de pantalla del modal de importación XNOPPO en instalación nueva -->
+
 ## 5. Media Server: conecta Emby o Jellyfin
 
 En **Media Server** eliges el tipo de servidor (Emby o Jellyfin) y configuras su URL, el usuario y el dispositivo que

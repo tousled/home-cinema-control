@@ -105,6 +105,17 @@ If HCC finds a compatible older configuration, it shows a migration screen.
 
 HCC now saves setup by section and keeps secrets in `/config/secrets.json`.
 
+If this is instead a brand-new install (no prior HCC configuration) and you're coming from the predecessor
+XNOPPO/Chinoppo project, HCC offers a second, separate prompt: import your old XNOPPO `config.json` instead of
+setting everything up from scratch. Pick the file, and HCC migrates OPPO/TV/AV/paths the same way the regular
+migration does, moves your Emby server URL into the new config shape, and — if the server is reachable at that
+moment — logs in with the old file's username/password to obtain a real token. If it can't reach the server, the
+provider is still added but left unauthenticated, and the Media Server sidebar indicator turns orange so you know to
+finish connecting it from its own screen. If you don't have an XNOPPO `config.json`, or would rather not import it,
+choose "Configure from scratch" and follow the normal wizard.
+
+<!-- TODO: screenshot of the XNOPPO import modal on a fresh install -->
+
 ## 5. Media Server: Emby or Jellyfin
 
 Pick the provider (Emby or Jellyfin), then configure its URL, authentication, and the client/device HCC should
