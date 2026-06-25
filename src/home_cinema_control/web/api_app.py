@@ -2,7 +2,7 @@ import logging
 import time
 
 import requests as _requests
-from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 
@@ -48,7 +48,12 @@ from home_cinema_control.config.manager import (
 )
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.config_sections import apply_config_section
-from home_cinema_control.web.migration import apply_migration, is_migration_available, start_fresh
+from home_cinema_control.web.migration import (
+    apply_migration,
+    import_legacy_config,
+    is_migration_available,
+    start_fresh,
+)
 from home_cinema_control.web.config_readiness import compute_config_readiness
 from home_cinema_control.web.path_config import check_path_configuration, preview_path_mapping
 from home_cinema_control.web.setup_actions import (
@@ -240,6 +245,17 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         except Exception:
             logging.exception("Migration skip failed")
             raise HTTPException(status_code=500, detail="Could not create fresh config")
+
+    @router.post("/migration/import-legacy")
+    def migration_import_legacy(payload: dict = Body(...)):
+        try:
+            import_legacy_config(api_runtime.config_file, payload)
+            return {"ok": True}
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Not a recognizable legacy config")
+        except Exception:
+            logging.exception("Legacy config import failed")
+            raise HTTPException(status_code=500, detail="Import failed")
 
     # --- media server ---
 

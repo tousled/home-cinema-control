@@ -758,6 +758,36 @@ class OppoAdvancedDefaultsRouteTest(unittest.TestCase):
         )
 
 
+class MigrationImportLegacyRouteTest(unittest.TestCase):
+    @patch("home_cinema_control.web.api_app.import_legacy_config")
+    def test_returns_ok_on_successful_import(self, mock_import):
+        client, _, _ = _make_client()
+
+        resp = client.post("/api/migration/import-legacy", json={"emby_server": "http://emby.local"})
+
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual({"ok": True}, resp.json())
+        mock_import.assert_called_once()
+
+    @patch("home_cinema_control.web.api_app.import_legacy_config")
+    def test_returns_400_when_payload_is_not_a_legacy_config(self, mock_import):
+        mock_import.side_effect = ValueError("Not a recognizable legacy config")
+        client, _, _ = _make_client()
+
+        resp = client.post("/api/migration/import-legacy", json={"unrelated": "json"})
+
+        self.assertEqual(400, resp.status_code)
+
+    @patch("home_cinema_control.web.api_app.import_legacy_config")
+    def test_returns_500_on_unexpected_failure(self, mock_import):
+        mock_import.side_effect = RuntimeError("disk full")
+        client, _, _ = _make_client()
+
+        resp = client.post("/api/migration/import-legacy", json={"emby_server": "http://emby.local"})
+
+        self.assertEqual(500, resp.status_code)
+
+
 class SaveConfigSectionLoggingTest(unittest.TestCase):
     @patch("home_cinema_control.web.api_app.configure_logging")
     def test_reapplies_logging_live_when_app_section_saved(self, mock_configure):

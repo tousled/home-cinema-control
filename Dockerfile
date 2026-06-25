@@ -65,6 +65,9 @@ COPY --from=python-builder /opt/venv /opt/venv
 
 WORKDIR /app
 
+# Needed to seed config.json on first run (ensure_config_exists / start_fresh).
+COPY config.example.json ./
+
 # Runtime only needs the built frontend assets.
 COPY --from=frontend-builder /frontend/dist ./frontend/dist
 

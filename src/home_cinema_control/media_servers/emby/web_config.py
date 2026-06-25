@@ -262,6 +262,26 @@ def _authenticate_with_temporary_password(
     return response.json()
 
 
+def authenticate_legacy_credentials(
+        server_url: str, user_name: str, password: str
+) -> dict | None:
+    """Best-effort live login for a legacy username/password pair found while
+    migrating an XNOPPO-era config (it stored these instead of a token).
+
+    Returns the auth response (AccessToken/User) on success, None if the
+    Emby server is unreachable or the credentials are rejected — callers
+    treat None as "leave this provider unauthenticated", the same state as a
+    freshly added, not-yet-connected provider.
+    """
+    try:
+        return _authenticate_with_temporary_password(
+            server_url=server_url, user_name=user_name, password=password
+        )
+    except Exception:
+        logging.exception("Legacy Emby credential migration failed to authenticate")
+        return None
+
+
 def _client_capabilities_payload() -> dict:
     return {
         "IconUrl": "https://img.alicdn.com/imgextra/i1/1840220527/O1CN018lXYlv1FlPES6Bgcw_!!1840220527.png",

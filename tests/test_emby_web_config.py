@@ -13,6 +13,7 @@ from home_cinema_control.media_servers.common.models import (
     is_library_active,
 )
 from home_cinema_control.media_servers.emby.web_config import (
+    authenticate_legacy_credentials,
     build_control_device_config,
     build_library_config,
     build_selectable_folder_servers,
@@ -307,6 +308,30 @@ class ConfigureEmbyTokenTest(unittest.TestCase):
         self.assertTrue(public_provider["access_token_configured"])
         self.assertNotIn("access_token", public_provider)
         self.assertNotIn("user_id", public_provider)
+
+
+class AuthenticateLegacyCredentialsTest(unittest.TestCase):
+    @patch("home_cinema_control.media_servers.emby.web_config._authenticate_with_temporary_password")
+    def test_returns_auth_response_on_success(self, mock_authenticate):
+        mock_authenticate.return_value = {
+            "AccessToken": "emby-token",
+            "User": {"Id": "emby-user", "Name": "Pedro"},
+        }
+
+        result = authenticate_legacy_credentials("http://emby.local/", "pedro", "secret")
+
+        self.assertEqual("emby-token", result["AccessToken"])
+        mock_authenticate.assert_called_once_with(
+            server_url="http://emby.local/", user_name="pedro", password="secret"
+        )
+
+    @patch("home_cinema_control.media_servers.emby.web_config._authenticate_with_temporary_password")
+    def test_returns_none_when_authentication_raises(self, mock_authenticate):
+        mock_authenticate.side_effect = RuntimeError("connection refused")
+
+        result = authenticate_legacy_credentials("http://emby.local/", "pedro", "wrong")
+
+        self.assertIsNone(result)
 
 
 class LoadLibrariesTest(unittest.TestCase):
