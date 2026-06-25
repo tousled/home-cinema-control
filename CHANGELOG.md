@@ -55,6 +55,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   same gap Emby's already-shipped fix (1.0.5) covers — it never identifies the controlling client's own session,
   only the bridge's target session — but the fix was never ported to Jellyfin. Every notification silently no-opped
   with "no active source session is available."
+* Fixed Jellyfin source-client cleanup at playback finish using the bridge target session when Jellyfin's `Play`
+  command only provided `Id`. HCC now treats `Id` as the target session, resolves the real controlling client
+  session, and sends the same double `Stop` used for Emby so the Jellyfin app clears its stale playback screen when
+  the OPPO is stopped from the remote.
 * Fixed `JellyfinClient.send_session_message` sending `Text`/`Header`/`TimeoutMs` as query-string parameters (Emby's
   shape) instead of the JSON request body Jellyfin's server actually requires, and sending an empty `data={}` body
   that omitted the `Content-Type` header entirely, which Jellyfin's server rejects with `415 Unsupported Media

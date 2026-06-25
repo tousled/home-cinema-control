@@ -14,10 +14,17 @@ class FakeResponse:
 
 
 class RecordingJellyfinClient:
-    def __init__(self, *, mark_unplayed_error=None, restore_position_error=None):
+    def __init__(
+        self,
+        *,
+        mark_unplayed_error=None,
+        restore_position_error=None,
+        stop_session_error=None,
+    ):
         self.calls = []
         self.mark_unplayed_error = mark_unplayed_error
         self.restore_position_error = restore_position_error
+        self.stop_session_error = stop_session_error
 
     def notify_playback_started(self, payload):
         self.calls.append(("started", payload))
@@ -46,6 +53,12 @@ class RecordingJellyfinClient:
                 {"user_id": user_id, "item_id": item_id, "payload": payload},
             )
         )
+        return FakeResponse()
+
+    def stop_session_playback(self, session_id, payload):
+        if self.stop_session_error is not None:
+            raise self.stop_session_error
+        self.calls.append(("stop_session", {"session_id": session_id, "payload": payload}))
         return FakeResponse()
 
 
@@ -150,7 +163,7 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         publisher.stopped(position_seconds=66, duration_seconds=100, played=False)
 
         self.assertEqual(
-            ["stopped", "mark_unplayed", "set_position"],
+            ["stopped", "mark_unplayed", "set_position", "stop_session", "stop_session"],
             [call[0] for call in client.calls],
         )
         self.assertEqual(
@@ -180,7 +193,10 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
 
         publisher.stopped(position_seconds=0, duration_seconds=100, played=False)
 
-        self.assertEqual(["stopped"], [call[0] for call in client.calls])
+        self.assertEqual(
+            ["stopped", "stop_session", "stop_session"],
+            [call[0] for call in client.calls],
+        )
 
     def test_stopped_does_not_fail_when_mark_unplayed_fails(self):
         client = RecordingJellyfinClient(mark_unplayed_error=TimeoutError("timeout"))
@@ -197,7 +213,10 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         )
 
         self.assertIsInstance(response, FakeResponse)
-        self.assertEqual(["stopped"], [call[0] for call in client.calls])
+        self.assertEqual(
+            ["stopped", "stop_session", "stop_session"],
+            [call[0] for call in client.calls],
+        )
 
     def test_stopped_is_idempotent(self):
         client = RecordingJellyfinClient()
@@ -212,17 +231,63 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
 
         self.assertIsInstance(first_response, FakeResponse)
         self.assertIsNone(second_response)
+        self.assertEqual(
+            ["stopped", "stop_session", "stop_session"],
+            [call[0] for call in client.calls],
+        )
+
+    def test_stopped_clears_stale_source_client_session_twice(self):
+        client = RecordingJellyfinClient()
+        publisher = JellyfinPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(),
+        )
+
+        publisher.stopped(position_seconds=66, duration_seconds=120)
+
+        self.assertEqual(
+            [
+                ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
+                ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
+            ],
+            client.calls[-2:],
+        )
+
+    def test_stopped_skips_source_client_cleanup_without_a_session_id(self):
+        client = RecordingJellyfinClient()
+        publisher = JellyfinPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(source_client_session_id=None),
+        )
+
+        publisher.stopped(position_seconds=66, duration_seconds=120)
+
+        self.assertEqual(["stopped"], [call[0] for call in client.calls])
+
+    def test_stopped_does_not_fail_when_source_client_cleanup_fails(self):
+        client = RecordingJellyfinClient(stop_session_error=TimeoutError("timeout"))
+        publisher = JellyfinPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(),
+        )
+
+        response = publisher.stopped(position_seconds=66, duration_seconds=120)
+
+        self.assertIsInstance(response, FakeResponse)
         self.assertEqual(["stopped"], [call[0] for call in client.calls])
 
 
-def _context(start_position_ticks=0):
+def _context(start_position_ticks=0, source_client_session_id="tv-session"):
     return MediaServerPlaybackContext(
         media_library_item_id="movie-1",
         media_source_file_id="source-1",
         selected_audio_track_id=1,
         selected_subtitle_track_id=-1,
         media_server_user_id="tv-user",
-        source_client_session_id="tv-session",
+        source_client_session_id=source_client_session_id,
         media_server_playback_id="play-session",
         start_position_ticks=start_position_ticks,
     )
