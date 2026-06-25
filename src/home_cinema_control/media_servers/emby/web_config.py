@@ -45,8 +45,9 @@ def load_devices(config: dict) -> dict:
             device.model_dump()
             for device in build_control_device_config(items_from_response(devices))
         ]
-    except Exception:
+    except Exception as exc:
         logging.exception("Error loading Emby control devices")
+        raise RuntimeError("Could not read Emby devices") from exc
     return config
 
 

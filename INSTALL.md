@@ -133,6 +133,15 @@ HCC debe monitorizar. Las capturas de esta guía muestran Emby, pero el flujo es
   <img src="assets/screenshots/install/02-media-server.png" alt="Pantalla Media Server de Home Cinema Control" width="860"/>
 </p>
 
+En la cabecera de esta pantalla verás el logo del proveedor seleccionado, por ejemplo Emby o Jellyfin. Ese logo sirve
+para reconocer de un vistazo qué integración estás configurando: aparece atenuado mientras falta autorizar el servidor
+o completar la conexión, y se muestra con más presencia cuando el proveedor queda autorizado. La URL, el usuario y los
+detalles de preparación siguen estando en los paneles de configuración para no duplicar información en la cabecera.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server-pending.png" alt="Media Server con Jellyfin seleccionado pero pendiente de autorización" width="860"/>
+</p>
+
 Qué resuelve esta pantalla:
 
 - evita editar tokens a mano;
@@ -176,8 +185,9 @@ Usa **Probar OPPO** antes de continuar. Si falla, revisa:
 
 ## 7. Rutas de medios: la parte importante
 
-Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby sabe dónde está la
-película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red del NAS.
+Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby o Jellyfin saben
+dónde está la película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red
+del NAS.
 
 Piensa en HCC como un traductor de rutas:
 
@@ -189,7 +199,8 @@ HCC guarda:       esta biblioteca usa esta ruta OPPO y este protocolo
 ```
 
 No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos nombres. Por eso HCC parte de las
-bibliotecas de Emby, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión real.
+bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
+real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qué servidor estás mapeando.
 
 <p align="center">
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="Vista general del asistente de rutas de Home Cinema Control" width="860"/>

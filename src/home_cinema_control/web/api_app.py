@@ -43,6 +43,7 @@ from home_cinema_control.config.manager import (
     active_media_server_type,
     clear_smb_credentials,
     get_media_server_provider,
+    set_active_media_server,
     upsert_media_server_provider,
 )
 from home_cinema_control.web.api_runtime import WebApiRuntime
@@ -297,6 +298,19 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         api_runtime.runtime.restart_playback_listener()
         return api_runtime.config_service.sanitize(config_dict)
 
+    def _save_media_server_draft(config_dict: dict, provider_type: str) -> dict:
+        """Persist provider settings without making provider_type active.
+
+        Used when the user selects/prepares a provider that cannot yet run the
+        playback listener: no stored token, expired token, or failed check. The
+        web UI can still render that provider's form via the response marker,
+        while runtime keeps listening to the previously-active provider.
+        """
+        api_runtime.config_service.save_config(config_dict)
+        sanitized = api_runtime.config_service.sanitize(config_dict)
+        sanitized["media_server_pending_provider"] = provider_type
+        return sanitized
+
     def _save_media_server_section(body: dict):
         config = api_runtime.config_service.load_config()
         submitted = body.get("media_server") or body
@@ -312,23 +326,25 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             api_runtime.config_service.save_config(updated)
             return api_runtime.config_service.sanitize(updated)
 
-        confirmation = _media_server_switch_confirmation(body, current_type)
-        if confirmation is not None:
-            return confirmation
-
         merged = apply_config_section(config, "media-server", body)
         merged = api_runtime.config_service.prepare_submitted_config(merged)
         target_provider = get_media_server_provider(merged, target_type)
 
         if not target_provider.access_token:
-            # Target has no stored session yet — switch and let the frontend
-            # show its (empty) login form.
-            return _save_and_restart_listener(merged)
+            # Target has no stored session yet. Save its public fields as a
+            # draft, but keep the current runtime listener untouched; token
+            # configuration is the first point where the provider can actually
+            # become active.
+            draft = set_active_media_server(merged, current_type).model_dump()
+            return _save_media_server_draft(draft, target_type)
 
         setup_service = _media_server_setup_service(media_server_provider_factory, merged)
         response = _check_connection_or_503(setup_service, merged)
 
         if 200 <= response.status_code < 300:
+            confirmation = _media_server_switch_confirmation(body, current_type)
+            if confirmation is not None:
+                return confirmation
             # This check_connection call is the same validity check the
             # "Probar conexión" button performs — a switch back to an
             # already-configured provider should mark it verified too,
@@ -341,14 +357,15 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             # The server explicitly rejected the stored credentials (as
             # opposed to being unreachable) — clear only this provider's
             # token, leaving user_id/server_url/display_name so a re-login
-            # doesn't make the user retype the server URL too. Switch anyway:
-            # the user asked to switch, not to stay on the old provider.
+            # doesn't make the user retype the server URL too. Keep runtime on
+            # the current provider because the target cannot authenticate.
             # Skips prepare_submitted_config deliberately — it would refill
             # this exact blank from the still-on-disk secret we're clearing.
             cleared = upsert_media_server_provider(
                 merged, target_type, access_token=""
             ).model_dump()
-            sanitized = _save_and_restart_listener(cleared)
+            draft = set_active_media_server(cleared, current_type).model_dump()
+            sanitized = _save_media_server_draft(draft, target_type)
             sanitized["media_server_session_expired"] = True
             return sanitized
 
@@ -445,10 +462,6 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         # already carry the *target* type the user just selected (same reason
         # as _configure_media_server_token_response above).
         current_type = active_media_server_type(saved_config)
-        confirmation = _media_server_switch_confirmation(body, current_type)
-        if confirmation is not None:
-            return confirmation
-
         # body only ever carries the media_server wire shape (type/server_url)
         # here too — merge it onto the real saved config (resolving
         # media_servers.active/providers so the setup-service factory
@@ -464,6 +477,9 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         response = _check_connection_or_503(setup_service, config)
 
         if 200 <= response.status_code < 300:
+            confirmation = _media_server_switch_confirmation(body, current_type)
+            if confirmation is not None:
+                return confirmation
             verified_config = mark_section_verified(config, "media_server")
             return _save_and_restart_listener(verified_config)
 

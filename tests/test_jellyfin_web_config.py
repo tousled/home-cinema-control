@@ -15,6 +15,7 @@ from home_cinema_control.media_servers.jellyfin.web_config import (
     build_library_config,
     build_virtual_folder_servers,
     configure_jellyfin_token,
+    load_devices,
     load_libraries,
     load_selectable_folders,
 )
@@ -33,6 +34,13 @@ class JellyfinWebConfigTest(unittest.TestCase):
         self.assertEqual(1, len(devices))
         self.assertEqual("device-1", devices[0].id)
         self.assertEqual("Living Room / Jellyfin", devices[0].name)
+
+    @patch("home_cinema_control.media_servers.jellyfin.web_config._authenticated_client")
+    def test_load_devices_raises_when_provider_is_unreachable(self, mock_client_factory):
+        mock_client_factory.side_effect = RuntimeError("offline")
+
+        with self.assertRaisesRegex(RuntimeError, "Could not read Jellyfin devices"):
+            load_devices({"media_servers": {"active": "jellyfin", "providers": {"jellyfin": {}}}})
 
     def test_build_library_config_preserves_existing_active_flag(self):
         libraries = build_library_config(

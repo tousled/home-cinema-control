@@ -8,6 +8,29 @@
         <h1 class="paths-showcase-title">{{ $t('x-paths-title') }}</h1>
         <p class="paths-showcase-subtitle">{{ $t('x-paths-subtitle') }}</p>
         <div class="paths-showcase-actions">
+          <div
+              :aria-label="$t('x-paths-active-provider', {server: mediaServerTypeLabel})"
+              :class="['paths-provider-badge', serverIncomplete && 'is-pending']"
+              :style="pathsProviderStyle"
+          >
+            <span aria-hidden="true" class="paths-provider-icon">
+              <svg
+                  v-if="pathsProviderIcon"
+                  class="paths-provider-svg"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+              >
+                <path :d="pathsProviderIcon.path"/>
+              </svg>
+              <Server v-else :size="18" :stroke-width="2.2"/>
+            </span>
+            <span class="paths-provider-copy">
+              <span class="paths-provider-label">{{ mediaServerTypeLabel }}</span>
+              <span class="paths-provider-state">
+                {{ serverIncomplete ? $t('x-paths-provider-unavailable') : $t('x-paths-provider-active') }}
+              </span>
+            </span>
+          </div>
           <HelpTooltip :text="$t('x-paths-tooltip-discover')">
             <IconActionButton
                 :disabled="gateActive"
@@ -495,8 +518,10 @@ import {
   Info,
   ListFilter,
   Route,
+  Server,
   Shield,
 } from '@lucide/vue'
+import {siEmby, siJellyfin, siPlex} from 'simple-icons'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-media-server.png'
 import {useToast} from '../composables/useToast.js'
@@ -594,6 +619,16 @@ const {
 const {provider: activeProvider} = useActiveMediaServer(() => fullConfig.value)
 const {brand: mediaServerBrand} = useMediaServerBrand(() => fullConfig.value?.media_servers?.active)
 const mediaServerTypeLabel = computed(() => mediaServerBrand.value.label)
+const pathsProviderIcons = {
+  emby: siEmby,
+  jellyfin: siJellyfin,
+  plex: siPlex,
+}
+const pathsProviderIcon = computed(() => pathsProviderIcons[mediaServerBrand.value.brand] || null)
+const pathsProviderStyle = computed(() => {
+  if (!pathsProviderIcon.value?.hex) return undefined
+  return {'--paths-provider-color': `#${pathsProviderIcon.value.hex}`}
+})
 
 const networkModeLabel = computed(() => smbEnabled.value ? 'SMB/CIFS' : 'NFS')
 const activeDetectedLibraryCount = computed(() => detectedRows.value.filter((row) => row.intercepted).length)
@@ -908,6 +943,59 @@ onMounted(async () => {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 16px;
+}
+
+.paths-provider-badge {
+  --paths-provider-color: var(--accent-primary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(7, 11, 13, 0.4);
+  border: 1px solid color-mix(in srgb, var(--paths-provider-color) 26%, rgba(255, 255, 255, 0.09));
+  color: var(--text-main);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--paths-provider-color) 13%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.paths-provider-badge.is-pending {
+  opacity: 0.68;
+  filter: grayscale(0.35);
+}
+
+.paths-provider-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  color: var(--paths-provider-color);
+  flex: 0 0 auto;
+}
+
+.paths-provider-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.paths-provider-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.paths-provider-label {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.paths-provider-state {
+  color: rgba(245, 247, 255, 0.62);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .paths-stats {

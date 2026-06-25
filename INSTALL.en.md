@@ -114,6 +114,16 @@ monitor. Screenshots in this guide show Emby, but the flow is the same with Jell
   <img src="assets/screenshots/install/02-media-server.png" alt="HCC Media Server setup" width="860"/>
 </p>
 
+The page header shows the selected provider logo, for example Emby or Jellyfin, so you can immediately recognize which
+integration you are configuring. The logo is muted while the provider still needs authorization or connection setup, and
+becomes more prominent once that provider is authorized. The server URL, user, and detailed readiness information stay
+in
+the configuration panels instead of being repeated in the header.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server-pending.png" alt="Media Server with Jellyfin selected but pending authorization" width="860"/>
+</p>
+
 This screen avoids manual token editing, reloads the media server's devices, and prepares library discovery for path
 mapping.
 
@@ -153,8 +163,9 @@ OPPO over SMB:    Video/Movies/Dune (2021).mkv
 HCC saves:        this library uses this OPPO path and this protocol
 ```
 
-Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the same names. HCC starts from Emby libraries,
-asks for the equivalent player-visible path, and tests it before a real viewing session.
+Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the same names. HCC starts from the active
+provider's libraries, asks for the equivalent player-visible path, and tests it before a real viewing session. The
+screen shows an Emby/Jellyfin badge so you can tell which server you are mapping.
 
 <p align="center">
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="HCC Media Paths assistant overview" width="860"/>

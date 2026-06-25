@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {useActiveMediaServer} from './useActiveMediaServer.js'
+import {mediaServerProvider, useActiveMediaServer} from './useActiveMediaServer.js'
 
 describe('useActiveMediaServer', () => {
     it('resolves playback for the active provider, not the inactive one', () => {
@@ -48,5 +48,23 @@ describe('useActiveMediaServer', () => {
             path_mappings: [],
             libraries: [],
         })
+    })
+
+    it('can resolve a selected provider without making it active', () => {
+        const config = {
+            media_servers: {
+                active: 'emby',
+                providers: {
+                    emby: {server_url: 'http://emby'},
+                    jellyfin: {server_url: 'http://jf', display_name: 'Pedro'},
+                },
+            },
+        }
+
+        const provider = mediaServerProvider(config, 'jellyfin')
+
+        expect(provider.server_url).toBe('http://jf')
+        expect(provider.display_name).toBe('Pedro')
+        expect(provider.playback.hcc_controlled_device).toBe('')
     })
 })

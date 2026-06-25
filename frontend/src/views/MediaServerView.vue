@@ -5,17 +5,37 @@
 
     <div class="view-body media-server-view-body">
       <section class="media-server-showcase">
-        <h1 class="media-server-showcase-title">{{ $t('x-media-server-title') }}</h1>
-        <p class="media-server-showcase-subtitle">{{ $t('x-media-server-subtitle') }}</p>
+        <div class="media-server-showcase-copy">
+          <h1 class="media-server-showcase-title">{{ $t('x-media-server-title') }}</h1>
+          <p class="media-server-showcase-subtitle">{{ $t('x-media-server-subtitle') }}</p>
+        </div>
+
+        <div
+            v-if="!loading"
+            :aria-label="$t('x-media-server-provider-hero-label', {server: brand.label})"
+            :class="['media-server-hero-provider', selectedProvider.access_token_configured && selectedType === activeType ? 'is-configured' : 'is-pending']"
+            :style="providerMarkStyle"
+        >
+          <span aria-hidden="true" class="media-server-hero-provider-mark">
+            <svg
+                v-if="brandIcon"
+                class="media-server-provider-svg"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+            >
+              <path :d="brandIcon.path"/>
+            </svg>
+            <Server v-else :size="76" :stroke-width="1.8"/>
+          </span>
+          <span class="media-server-hero-provider-copy">
+            <span class="media-server-hero-provider-label">{{ brand.label }}</span>
+          </span>
+        </div>
       </section>
 
       <div v-if="loading" class="text-sm" style="color:var(--text-muted)">{{ $t('x-common-loading') }}</div>
 
     <template v-else>
-      <div class="media-server-kicker">
-        <span class="s-dot dim"></span>
-        <span>{{ $t('x-nav-config-section') }}</span>
-      </div>
       <div class="media-server-grid">
         <div class="media-server-main">
           <!-- Connection -->
@@ -95,13 +115,13 @@
               </div>
 
               <!-- Token active: show status + change-password button -->
-              <template v-if="activeProvider.access_token_configured && !changingPassword">
+              <template v-if="selectedProvider.access_token_configured && !changingPassword">
                 <div class="token-status mb-3">
                   <span class="token-status-icon">✓</span>
                   <div>
                     <div class="token-status-label">{{ $t('x-media-server-token-active') }}</div>
                     <div class="token-status-user">{{ $t('x-media-server-user') }}: {{
-                        activeProvider.display_name
+                        selectedProvider.display_name
                       }}
                     </div>
                   </div>
@@ -162,10 +182,36 @@
               <div v-if="loadingDevices" class="text-xs" style="color:var(--text-muted)">
                 {{ $t('x-media-server-loading-devices') }}
               </div>
+              <div v-else-if="devicesError" class="library-warning library-warning-err mb-3">
+                <AlertTriangle :size="17" :stroke-width="2"/>
+                <div>
+                  <p class="library-warning-title">{{ $t('x-media-server-devices-error') }}</p>
+                  <p class="library-warning-copy">{{ devicesError }}</p>
+                </div>
+              </div>
+              <IconActionButton
+                  v-if="devicesError"
+                  :label="$t('x-media-server-reload-devices')"
+                  :loading="loadingDevices"
+                  :loading-label="$t('x-media-server-loading-devices')"
+                  class="mt-3"
+                  icon="refresh"
+                  @click="loadDevices"
+              />
               <template v-else>
+                <div v-if="!deviceOptions.length" class="library-warning mb-3">
+                  <AlertTriangle :size="17" :stroke-width="2"/>
+                  <div>
+                    <p class="library-warning-title">{{ $t('x-media-server-no-devices-title') }}</p>
+                    <p class="library-warning-copy">{{
+                        $t('x-media-server-no-devices-copy', {server: brand.label})
+                      }}</p>
+                  </div>
+                </div>
                 <FormSelect
+                    v-else
                     v-model="hccControlledDevice"
-                    :options="devices.map(d => ({ value: d.id, label: d.name }))"
+                    :options="deviceOptions"
                     class="mb-3"
                 />
                 <HelpTooltip :text="$t('x-media-server-tooltip-reload-devices')">
@@ -195,7 +241,7 @@
         </div>
 
         <!-- Library paths readiness -->
-        <aside v-if="activeProvider.access_token_configured" class="media-server-side">
+        <aside v-if="selectedProvider.access_token_configured && selectedType === activeType" class="media-server-side">
           <div :class="[libraryPathsAccentClass, switching && 'panel-pending']" class="panel">
             <div class="panel-head">
               <h2 class="panel-title label-with-help">
@@ -260,7 +306,8 @@
 <script setup>
 import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {AlertTriangle, CheckCircle, FolderCheck, KeyRound, MonitorPlay, Plug} from '@lucide/vue'
+import {AlertTriangle, CheckCircle, FolderCheck, KeyRound, MonitorPlay, Plug, Server} from '@lucide/vue'
+import {siEmby, siJellyfin, siPlex} from 'simple-icons'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-media-server.png'
 import {useToast} from '../composables/useToast.js'
@@ -270,7 +317,9 @@ import IconActionButton from '../components/IconActionButton.vue'
 import FormSelect from '../components/FormSelect.vue'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useMediaServerBrand, mediaServerBrandLabel} from '../composables/useMediaServerBrand.js'
-import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
+import {mediaServerProvider} from '../composables/useActiveMediaServer.js'
+import {patchSetupReadiness, refreshSetupReadiness} from '../composables/useSetupReadiness.js'
+import {mediaServerDeviceOptions} from '../composables/useMediaServerDeviceOptions.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -301,6 +350,7 @@ const config = ref({
 })
 const login = ref({user_name: '', password: ''})
 const devices = ref([])
+const devicesError = ref('')
 const libraryPaths = ref([])
 const libraryPathsError = ref('')
 
@@ -310,8 +360,21 @@ const libraryPathsError = ref('')
 // restoring an in-memory snapshot client-side.
 const selectedType = ref('emby')
 
-const {provider: activeProvider} = useActiveMediaServer(() => config.value)
 const {brand} = useMediaServerBrand(selectedType)
+const activeType = computed(() => config.value.media_servers?.active || 'emby')
+const selectedProvider = computed(() => mediaServerProvider(config.value, selectedType.value))
+
+const brandIcons = {
+  emby: siEmby,
+  jellyfin: siJellyfin,
+  plex: siPlex,
+}
+
+const brandIcon = computed(() => brandIcons[brand.value.brand] || null)
+const providerMarkStyle = computed(() => {
+  if (!brandIcon.value?.hex) return undefined
+  return {'--media-server-provider-color': `#${brandIcon.value.hex}`}
+})
 
 const serverUrl = computed({
   get: () => config.value.media_servers?.providers?.[selectedType.value]?.server_url || '',
@@ -322,7 +385,7 @@ const serverUrl = computed({
 })
 
 const hccControlledDevice = computed({
-  get: () => activeProvider.value.playback.hcc_controlled_device,
+  get: () => selectedProvider.value.playback.hcc_controlled_device,
   set: (value) => {
     const providers = (config.value.media_servers ||= {active: selectedType.value, providers: {}}).providers ||= {}
     const provider = providers[selectedType.value] ||= {}
@@ -335,6 +398,13 @@ const canGetToken = computed(() =>
 )
 
 const connectionTested = ref(false)
+const providerDiscoveryError = computed(() => Boolean(devicesError.value || libraryPathsError.value))
+const selectedDeviceAvailable = computed(() => {
+  const selected = selectedProvider.value.playback.hcc_controlled_device
+  if (!selected) return false
+  return deviceOptions.value.some(device => device.value === selected)
+})
+const deviceOptions = computed(() => mediaServerDeviceOptions(devices.value))
 
 // Suppresses the dirty-watcher while we apply a fresh response from the
 // backend, so rendering the saved server_url does not look like the user
@@ -347,18 +417,22 @@ watch(serverUrl, () => {
 })
 
 const connectionAccentClass = computed(() => {
+  if (providerDiscoveryError.value) return 'panel-accent-err'
   if (switching.value) return 'panel-accent-info'
   if (!serverUrl.value) return 'panel-accent-dim'
   return connectionTested.value ? 'panel-accent-ok' : 'panel-accent-info'
 })
 
 const authAccentClass = computed(() =>
-    activeProvider.value.access_token_configured ? 'panel-accent-ok' : 'panel-accent-dim',
+    selectedProvider.value.access_token_configured ? 'panel-accent-ok' : 'panel-accent-dim',
 )
 
-const deviceAccentClass = computed(() =>
-    activeProvider.value.playback.hcc_controlled_device ? 'panel-accent-ok' : 'panel-accent-dim',
-)
+const deviceAccentClass = computed(() => {
+  if (devicesError.value) return 'panel-accent-err'
+  if (loadingDevices.value) return 'panel-accent-info'
+  if (!selectedProvider.value.playback.hcc_controlled_device) return 'panel-accent-dim'
+  return selectedDeviceAvailable.value ? 'panel-accent-ok' : 'panel-accent-warn'
+})
 
 const libraryPathsAccentClass = computed(() => {
   if (libraryPathsError.value) return 'panel-accent-err'
@@ -384,12 +458,26 @@ function cancelChangePassword() {
 
 async function loadDevices() {
   loadingDevices.value = true
+  devicesError.value = ''
   try {
     const full = await api.getConfigWithDevices()
     devices.value = full.devices || []
     config.value = full
-  } catch {
+    if (!deviceOptions.value.length || !selectedDeviceAvailable.value) {
+      patchSetupReadiness('media_server', {
+        status: 'incomplete',
+        detail: t('x-media-server-readiness-no-device', {server: brand.value.label}),
+      })
+      return
+    }
+    if (!libraryPathsError.value) await refreshSetupReadiness()
+  } catch (e) {
     devices.value = []
+    devicesError.value = e.message
+    patchSetupReadiness('media_server', {
+      status: 'incomplete',
+      detail: t('x-media-server-readiness-unreachable', {server: brand.value.label}),
+    })
   } finally {
     loadingDevices.value = false
   }
@@ -400,22 +488,52 @@ async function loadLibraryPaths() {
   libraryPathsError.value = ''
   try {
     libraryPaths.value = await api.getLibraryPaths()
+    if (!devicesError.value) await refreshSetupReadiness()
   } catch (e) {
     libraryPaths.value = []
     libraryPathsError.value = e.message
+    patchSetupReadiness('media_server', {
+      status: 'incomplete',
+      detail: t('x-media-server-readiness-unreachable', {server: brand.value.label}),
+    })
   } finally {
     loadingLibraryPaths.value = false
   }
+}
+
+async function refreshProviderDiscovery({wait = false} = {}) {
+  if (selectedType.value !== activeType.value || !selectedProvider.value.access_token_configured) {
+    devices.value = []
+    devicesError.value = ''
+    libraryPaths.value = []
+    libraryPathsError.value = ''
+    return
+  }
+
+  const refresh = Promise.allSettled([loadDevices(), loadLibraryPaths()])
+  if (wait) await refresh
 }
 
 async function getToken() {
   tokenLoading.value = true
   connectionError.value = null
   try {
-    const updated = await api.configureMediaServerToken(
+    let updated = await api.configureMediaServerToken(
         {media_server: {type: selectedType.value, server_url: serverUrl.value}},
         {user_name: login.value.user_name, password: login.value.password},
     )
+    if (updated.switch_requires_confirmation) {
+      const providerLabel = mediaServerBrandLabel(updated.active_session_provider)
+      const confirmed = window.confirm(
+          t('x-media-server-switch-confirm', {server: providerLabel}),
+      )
+      if (!confirmed) return
+      updated = await api.configureMediaServerToken(
+          {media_server: {type: selectedType.value, server_url: serverUrl.value}},
+          {user_name: login.value.user_name, password: login.value.password},
+          {confirm_provider_switch: true},
+      )
+    }
     await applyMediaServerResponse(updated)
     login.value.password = ''
     changingPassword.value = false
@@ -493,21 +611,15 @@ async function applyMediaServerResponse(response, {previousType} = {}) {
 
   applyingResponse = true
   config.value = response
-  selectedType.value = response.media_servers?.active || selectedType.value
+  selectedType.value = response.media_server_pending_provider || response.media_servers?.active || selectedType.value
   sessionExpiredNotice.value = Boolean(response.media_server_session_expired)
 
-  const provider = activeProvider.value
+  const provider = selectedProvider.value
   login.value.user_name = provider.display_name || ''
   login.value.password = ''
   connectionTested.value = Boolean(provider.access_token_configured)
 
-  if (provider.access_token_configured) {
-    await Promise.all([loadDevices(), loadLibraryPaths()])
-  } else {
-    devices.value = []
-    libraryPaths.value = []
-    libraryPathsError.value = ''
-  }
+  await refreshProviderDiscovery({wait: true})
   applyingResponse = false
   return true
 }
@@ -536,7 +648,7 @@ async function onSelectorChanged(newType, previousType) {
       const switchedLabel = mediaServerBrandLabel(newType)
       toast.success(
           t(
-              activeProvider.value.access_token_configured
+              selectedProvider.value.access_token_configured && selectedType.value === activeType.value
                   ? 'x-media-server-switch-ok'
                   : 'x-media-server-switch-needs-login',
               {server: switchedLabel},
@@ -561,11 +673,9 @@ onMounted(async () => {
     const data = await api.getConfig()
     config.value = data
     selectedType.value = data.media_servers?.active || 'emby'
-    login.value.user_name = activeProvider.value.display_name || ''
-    if (activeProvider.value.access_token_configured) {
-      await Promise.all([loadDevices(), loadLibraryPaths()])
-    }
-    connectionTested.value = Boolean(activeProvider.value.access_token_configured)
+    login.value.user_name = selectedProvider.value.display_name || ''
+    connectionTested.value = Boolean(selectedProvider.value.access_token_configured)
+    refreshProviderDiscovery()
 
     // Registered after the initial load so it only reacts to user-driven
     // provider changes, not the value arriving from the loaded config.
@@ -664,9 +774,64 @@ onMounted(async () => {
 .media-server-showcase {
   display: flex;
   min-height: clamp(126px, 20dvh, 218px);
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   margin-bottom: clamp(16px, 2.2vh, 26px);
+}
+
+.media-server-showcase-copy {
+  min-width: 0;
+}
+
+.media-server-hero-provider {
+  --media-server-provider-color: var(--accent-primary);
+  display: grid;
+  justify-items: center;
+  align-self: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  min-width: 120px;
+  padding: 0;
+  color: var(--media-server-provider-color);
+  filter: drop-shadow(0 22px 46px color-mix(in srgb, var(--media-server-provider-color) 32%, transparent));
+  transition: opacity 0.18s ease, filter 0.18s ease;
+}
+
+.media-server-hero-provider.is-pending {
+  opacity: 0.48;
+  filter: grayscale(0.35) drop-shadow(0 14px 30px color-mix(in srgb, var(--media-server-provider-color) 12%, transparent));
+}
+
+.media-server-hero-provider.is-pending .media-server-hero-provider-label {
+  color: rgba(245, 247, 255, 0.72);
+}
+
+.media-server-hero-provider-mark {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: currentColor;
+}
+
+.media-server-provider-svg {
+  width: 76px;
+  height: 76px;
+}
+
+.media-server-hero-provider-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.media-server-hero-provider-label {
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
 }
 
 .media-server-grid {
@@ -691,8 +856,29 @@ onMounted(async () => {
 }
 
 @media (max-width: 900px) {
+  .media-server-showcase {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .media-server-hero-provider {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+
   .media-server-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .media-server-hero-provider-mark,
+  .media-server-provider-svg {
+    width: 54px;
+    height: 54px;
   }
 }
 

@@ -17,6 +17,7 @@ from home_cinema_control.media_servers.emby.web_config import (
     build_library_config,
     build_selectable_folder_servers,
     configure_emby_token,
+    load_devices,
     load_libraries,
     load_selectable_folders,
 )
@@ -91,6 +92,13 @@ class BuildControlDeviceConfigTest(unittest.TestCase):
         result = build_control_device_config(devices)
 
         self.assertEqual("Smart TV", result[0].name)
+
+    @patch("home_cinema_control.media_servers.emby.web_config._authenticated_client")
+    def test_load_devices_raises_when_provider_is_unreachable(self, mock_client_factory):
+        mock_client_factory.side_effect = RuntimeError("offline")
+
+        with self.assertRaisesRegex(RuntimeError, "Could not read Emby devices"):
+            load_devices({"media_servers": {"active": "emby", "providers": {"emby": {}}}})
 
     def test_captures_app_name_and_drops_arbitrary_provider_fields(self):
         devices = [

@@ -77,8 +77,8 @@ export const api = {
     skipMigration: () => request('POST', '/migration/skip'),
 
     // media server (provider-neutral: Emby or Jellyfin)
-    configureMediaServerToken: (config, credentials) =>
-        request('POST', '/media-server/token', {config, credentials}),
+    configureMediaServerToken: (config, credentials, options = {}) =>
+        request('POST', '/media-server/token', {config, credentials, ...options}),
     checkMediaServer: (config) => request('POST', '/media-server/check', config),
 
     // oppo

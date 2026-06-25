@@ -89,9 +89,18 @@ class MediaServerCheckRouteTest(unittest.TestCase):
     def test_switch_requires_confirmation_when_active_playback_on_current_provider(
             self, mock_setup_service
     ):
-        self._mock_setup_service(mock_setup_service)
+        setup_service = self._mock_setup_service(mock_setup_service)
         client, runtime, config_service = _make_client(config={
-            "media_server": {"type": "emby", "server_url": "http://emby.local"},
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"server_url": "http://emby.local", "access_token": "emby-token"},
+                    "jellyfin": {
+                        "server_url": "http://jellyfin.local",
+                        "access_token": "jf-token",
+                    },
+                },
+            },
         })
         runtime.has_active_playback.return_value = True
 
@@ -102,6 +111,7 @@ class MediaServerCheckRouteTest(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertTrue(resp.json()["switch_requires_confirmation"])
         self.assertEqual("emby", resp.json()["active_session_provider"])
+        setup_service.check_connection.assert_called_once()
         config_service.save_config.assert_not_called()
         runtime.restart_playback_listener.assert_not_called()
 
@@ -247,6 +257,37 @@ class MediaServerTokenRouteTest(unittest.TestCase):
             "media_server", runtime.set_last_diagnostic.call_args.args[0].component
         )
 
+    @patch("home_cinema_control.web.api_app._media_server_setup_service")
+    def test_token_request_requires_confirmation_before_active_playback_switch(
+            self, mock_setup_service
+    ):
+        setup_service = MagicMock()
+        setup_service.configure_token.side_effect = lambda config, credentials: config
+        mock_setup_service.return_value = setup_service
+
+        client, runtime, config_service = _make_client(config={
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"server_url": "http://emby", "access_token": "emby-token"},
+                    "jellyfin": {"server_url": "http://jf.local"},
+                },
+            },
+        })
+        runtime.has_active_playback.return_value = True
+
+        resp = client.post("/api/media-server/token", json={
+            "config": {"media_server": {"type": "jellyfin", "server_url": "http://jf.local"}},
+            "credentials": {"user_name": "pedro", "password": "secret"},
+        })
+
+        self.assertEqual(200, resp.status_code)
+        self.assertTrue(resp.json()["switch_requires_confirmation"])
+        self.assertEqual("emby", resp.json()["active_session_provider"])
+        setup_service.configure_token.assert_not_called()
+        config_service.save_config.assert_not_called()
+        runtime.restart_playback_listener.assert_not_called()
+
 
 class ConfigReadinessRouteTest(unittest.TestCase):
     def test_returns_readiness_payload_shape(self):
@@ -354,7 +395,7 @@ class ConfigSectionRouteTest(unittest.TestCase):
         self.assertEqual("emby", saved["media_servers"]["active"])
         runtime.restart_playback_listener.assert_not_called()
 
-    def test_patch_media_server_section_switch_to_unconfigured_provider_shows_login(self):
+    def test_patch_media_server_section_switch_to_unconfigured_provider_saves_draft_without_runtime_switch(self):
         client, runtime, config_service = _make_client(config={
             "media_server": {"type": "emby", "server_url": "http://old", "display_name": "Pedro"},
             "playback": {"hcc_controlled_device": "emby-device"},
@@ -365,8 +406,9 @@ class ConfigSectionRouteTest(unittest.TestCase):
         })
 
         self.assertEqual(200, resp.status_code)
+        self.assertEqual("jellyfin", resp.json()["media_server_pending_provider"])
         saved = config_service.save_config.call_args.args[0]
-        self.assertEqual("jellyfin", saved["media_servers"]["active"])
+        self.assertEqual("emby", saved["media_servers"]["active"])
         self.assertEqual(
             "http://jellyfin.local",
             saved["media_servers"]["providers"]["jellyfin"]["server_url"],
@@ -376,7 +418,7 @@ class ConfigSectionRouteTest(unittest.TestCase):
         # — the transitional fallback in get_media_server_provider means
         # switching back to "emby" later still resolves it correctly.
         self.assertEqual("Pedro", saved["media_server"]["display_name"])
-        runtime.restart_playback_listener.assert_called_once()
+        runtime.restart_playback_listener.assert_not_called()
 
     @patch("home_cinema_control.web.api_app._media_server_setup_service")
     def test_patch_media_server_section_switch_to_configured_provider_checks_connection(
@@ -447,15 +489,16 @@ class ConfigSectionRouteTest(unittest.TestCase):
 
         self.assertEqual(200, resp.status_code)
         self.assertTrue(resp.json()["media_server_session_expired"])
+        self.assertEqual("jellyfin", resp.json()["media_server_pending_provider"])
         saved = config_service.save_config.call_args.args[0]
         jellyfin = saved["media_servers"]["providers"]["jellyfin"]
         self.assertEqual("", jellyfin["access_token"])
         self.assertEqual("jf-user", jellyfin["user_id"])
         self.assertEqual("http://jellyfin.local", jellyfin["server_url"])
-        self.assertEqual("jellyfin", saved["media_servers"]["active"])
+        self.assertEqual("emby", saved["media_servers"]["active"])
         # Emby's own stored token is untouched by Jellyfin's auth failure.
         self.assertEqual("emby-token", saved["media_servers"]["providers"]["emby"]["access_token"])
-        runtime.restart_playback_listener.assert_called_once()
+        runtime.restart_playback_listener.assert_not_called()
 
     @patch("home_cinema_control.web.api_app._media_server_setup_service")
     def test_patch_media_server_section_switch_connection_failure_changes_nothing(
@@ -528,20 +571,38 @@ class ConfigSectionRouteTest(unittest.TestCase):
             "media_server", runtime.set_last_diagnostic.call_args.args[0].component
         )
 
-    def test_patch_media_server_section_switch_requires_confirmation_with_active_playback(self):
+    @patch("home_cinema_control.web.api_app._media_server_setup_service")
+    def test_patch_media_server_section_checks_connection_before_active_playback_confirmation(
+            self, mock_setup_service
+    ):
+        setup_service = MagicMock()
+        setup_service.check_connection.return_value = MagicMock(status_code=204)
+        mock_setup_service.return_value = setup_service
+
         client, runtime, config_service = _make_client(config={
-            "media_server": {"type": "emby", "server_url": "http://old"},
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"server_url": "http://old", "access_token": "emby-token"},
+                    "jellyfin": {
+                        "server_url": "http://jellyfin.local",
+                        "access_token": "jf-token",
+                    },
+                },
+            },
         })
         runtime.has_active_playback.return_value = True
 
         resp = client.patch("/api/config/media-server", json={
-            "media_server": {"type": "jellyfin", "server_url": "http://jellyfin.local"},
+            "media_server": {"type": "jellyfin"},
         })
 
         self.assertEqual(200, resp.status_code)
         self.assertTrue(resp.json()["switch_requires_confirmation"])
         self.assertEqual("emby", resp.json()["active_session_provider"])
+        setup_service.check_connection.assert_called_once()
         config_service.save_config.assert_not_called()
+        runtime.restart_playback_listener.assert_not_called()
 
     def test_patch_unknown_config_section_returns_404(self):
         client, _, _ = _make_client()

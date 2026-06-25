@@ -16,6 +16,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 * Added toast feedback for the Media Server provider switch: a confirmation when the switch lands on an
   already-authorized provider (previously silent — the only feedback was a transient "connecting…" state), and a
   distinct message when the switch succeeds but the target provider still needs login.
+* Added a provider-branded Media Server hero mark that surfaces the selected Emby/Jellyfin provider without repeating
+  the server URL, user, or readiness details already shown in the configuration panels. The mark stays visible as
+  setup context while the provider is pending authorization, but renders muted until the provider is authorized.
+* Updated the Media Server installation screenshots to show provider selection, the Jellyfin hero mark, and the muted
+  provider state shown before authorization.
+* Added a compact active-provider badge to Media Paths so the detected-library and route-mapping workflow keeps the
+  configured Emby/Jellyfin context visible without overloading the refresh action.
 * Added a shared, provider-neutral `find_controlling_session_id` policy (`media_servers/common/models.py`) that
   resolves which client session actually issued a remote Play command, used by both Emby and Jellyfin.
 * Instrumented two previously invisible OPPO startup phases — mounting the network share (`mount_oppo_network_share`,
@@ -28,6 +35,15 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+* Fixed the Media Server setup screen treating saved provider data as live success when the active Emby/Jellyfin server
+  is unavailable. The form now renders from saved config immediately instead of waiting for slow device/library
+  discovery timeouts, failed device discovery is shown explicitly, affected panels no longer stay green, and the
+  sidebar setup dot is downgraded while the current provider cannot be reached.
+* Fixed the monitored-device selector showing blank rows when a provider returned devices in a non-canonical shape or
+  without display labels. Device options are now normalized defensively and invisible rows are filtered out.
+* Fixed media-server provider switches activating/restarting the runtime listener before the target provider was usable.
+  Selecting an unconfigured provider now saves it as a draft only; expired or unreachable targets leave the current
+  websocket listener untouched; configured targets are checked before any active-playback confirmation or listener swap.
 * Fixed Jellyfin playback-startup notifications never being sent at all. Jellyfin's `Play` websocket message has the
   same gap Emby's already-shipped fix (1.0.5) covers — it never identifies the controlling client's own session,
   only the bridge's target session — but the fix was never ported to Jellyfin. Every notification silently no-opped
