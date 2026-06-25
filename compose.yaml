@@ -3,11 +3,6 @@ name: home-cinema-control
 services:
   home-cinema-control:
     image: ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}
-    build:
-      context: .
-      args:
-        PYTHON_VERSION: "3.14.5"
-        SETUPTOOLS_SCM_PRETEND_VERSION: ${HCC_VERSION:-0.0.0.dev0}
     container_name: home-cinema-control
     network_mode: host
     cap_add:

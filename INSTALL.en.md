@@ -3,8 +3,8 @@
 [Español](INSTALL.md) · [README](README.en.md)
 
 This guide covers Docker deployment and the HCC web setup flow. It focuses on the problems that usually make
-Emby/NAS/OPPO/TV/AV installations hard to debug: path mapping, IP discovery, NFS/SMB mounts, CEC/ARC interference, and
-raw logs without context.
+Emby/Jellyfin/NAS/OPPO/TV/AV installations hard to debug: path mapping, IP discovery, NFS/SMB mounts, CEC/ARC
+interference, and raw logs without context.
 
 For NAS-specific screenshots and OPPO/Chinoppo player preparation, use the AVPasion Xnoppo community tutorial as an
 external reference:
@@ -15,22 +15,22 @@ Use that guide for NAS permissions, shares, and player-side setup. Use this guid
 
 ## 1. Before You Start
 
-| Requirement                | Notes                                           |
-|----------------------------|-------------------------------------------------|
-| Docker                     | Linux recommended. Host networking is required. |
-| Emby Server                | Must be reachable from HCC.                     |
-| OPPO/Chinoppo player       | Must expose the OPPO MediaControl API.          |
-| NAS or shared media folder | Must be visible to both Emby and the player.    |
-| NFS or SMB/CIFS            | Selected per path mapping in HCC.               |
-| TV and AV receiver         | Optional. HCC can run without them.             |
+| Requirement                | Notes                                                     |
+|----------------------------|-----------------------------------------------------------|
+| Docker                     | Linux recommended. Host networking is required.           |
+| Emby or Jellyfin           | Either one, reachable from HCC.                           |
+| OPPO/Chinoppo player       | Must expose the OPPO MediaControl API.                    |
+| NAS or shared media folder | Must be visible to both your media server and the player. |
+| NFS or SMB/CIFS            | Selected per path mapping in HCC.                         |
+| TV and AV receiver         | Optional. HCC can run without them.                       |
 
 Recommendations:
 
-- Reserve fixed IPs for Emby, NAS, player, TV, and AV receiver.
-- Create the libraries in Emby first. HCC does not invent libraries; it reads the ones already configured on your
-  server.
-  See Emby's official [Library Setup](https://emby.media/support/articles/Library-Setup.html) and
-  [Quick Start](https://emby.media/support/articles/Quick-Start.html).
+- Reserve fixed IPs for your media server, NAS, player, TV, and AV receiver.
+- Create the libraries in Emby or Jellyfin first. HCC does not invent libraries; it reads the ones already configured
+  on your server. For Emby, see [Library Setup](https://emby.media/support/articles/Library-Setup.html) and
+  [Quick Start](https://emby.media/support/articles/Quick-Start.html). For Jellyfin, see
+  [Adding Media Libraries](https://jellyfin.org/docs/general/server/libraries/).
 - Share the NAS folders through NFS or SMB/CIFS and confirm the player can browse them from its own network browser.
 - Decide which libraries HCC should intercept.
 - If your AV receiver switches back to TV Audio after HCC selects the player input, review HDMI CEC/ARC. In some setups,
@@ -86,6 +86,8 @@ volumes:
     name: home-cinema-control-config
 ```
 
+Start it:
+
 ```bash
 docker compose pull
 docker compose up -d
@@ -93,7 +95,20 @@ docker compose up -d
 
 Open `http://<your-host>:8090`.
 
-Host networking is required so HCC can reach Emby, the player, TV, AVR, and network discovery tools directly.
+`network_mode: host` is required: HCC talks directly to Emby/Jellyfin, the OPPO/Chinoppo, TV, AVR, and discovery
+tools like `arp-scan`.
+
+### 3.1 Installing with Portainer or another web UI
+
+In Portainer: **Stacks → Add stack**, then paste the `compose.yaml` above.
+
+To pin a specific version (release candidates included), add `HCC_VERSION` as a stack environment variable, e.g.
+`HCC_VERSION=1.1.0-rc.2`. That's the only thing that decides which image gets pulled — without it, Portainer uses
+`latest` (the latest stable release). To update, change that value and redeploy by re-pulling the image, not by
+rebuilding from the Dockerfile.
+
+Other web UIs (Synology Container Manager, Unraid, etc.) should work the same way if they let you set environment
+variables for the stack — same logic applies.
 
 ## 4. Migration Or Fresh Setup
 
@@ -427,6 +442,10 @@ docker run -d \
   -v home-cinema-control-config:/config \
   ghcr.io/tousled/home-cinema-control:latest
 ```
+
+If you installed with Portainer or another web UI: change the stack's `HCC_VERSION` environment variable to the
+version you want and redeploy by re-pulling the image, not by rebuilding from the Dockerfile — see
+[3.1](#31-installing-with-portainer-or-another-web-ui).
 
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
