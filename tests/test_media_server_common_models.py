@@ -1,8 +1,10 @@
 import unittest
 
 from home_cinema_control.media_servers.common.models import (
+    MediaServerNowPlaying,
     MediaServerSession,
     find_controlling_session_id,
+    find_stale_playback_session_ids,
 )
 
 
@@ -12,6 +14,23 @@ def _session(id_, device_id, user_id, last_activity_at=""):
         device_id=device_id,
         user_id=user_id,
         last_activity_at=last_activity_at,
+    )
+
+
+def _playing_session(id_, device_id, user_id, item_id):
+    return MediaServerSession(
+        client_session_id=id_,
+        device_id=device_id,
+        user_id=user_id,
+        now_playing=MediaServerNowPlaying(item_id=item_id),
+    )
+
+
+def _idle_session(id_, device_id, user_id):
+    return MediaServerSession(
+        client_session_id=id_,
+        device_id=device_id,
+        user_id=user_id,
     )
 
 
@@ -65,6 +84,64 @@ class FindControllingSessionIdTest(unittest.TestCase):
         )
 
         self.assertEqual("phone-session", result)
+
+
+class FindStalePlaybackSessionIdsTest(unittest.TestCase):
+    def test_keeps_source_session_when_session_list_is_empty(self):
+        result = find_stale_playback_session_ids(
+            [],
+            controlling_user_id="user-1",
+            media_library_item_id="movie-1",
+            own_device_id="home-cinema-control",
+            source_client_session_id="web-session",
+        )
+
+        self.assertEqual(["web-session"], result)
+
+    def test_returns_source_plus_same_user_sessions_actively_playing_the_item(self):
+        sessions = [
+            _playing_session("bridge", "home-cinema-control", "user-1", "movie-1"),
+            _playing_session("web-session", "web-device", "user-1", "movie-1"),
+            _playing_session("phone-session", "phone-device", "user-1", "movie-1"),
+            _idle_session("mobile-cleared-session", "mobile-device", "user-1"),
+            _playing_session("other-item", "tablet-device", "user-1", "movie-2"),
+            _playing_session("other-user", "guest-device", "user-2", "movie-1"),
+        ]
+
+        result = find_stale_playback_session_ids(
+            sessions,
+            controlling_user_id="user-1",
+            media_library_item_id="movie-1",
+            own_device_id="home-cinema-control",
+            source_client_session_id="web-session",
+        )
+
+        self.assertEqual(
+            ["web-session", "phone-session"],
+            result,
+        )
+
+    def test_does_not_include_idle_non_source_sessions_as_cleanup_targets(self):
+        """Regression: idle sessions (now_playing=None) must not receive a Stop.
+
+        When a mobile client initiates Stop, Jellyfin clears its now_playing
+        before HCC's cleanup query runs. Including that session as a stale
+        target sends an extra Stop back to the mobile mid-transition, which
+        freezes the playback screen instead of closing it.
+        """
+        mobile = _idle_session("mobile-session", "mobile-device", "user-1")
+        sessions = [mobile]
+
+        result = find_stale_playback_session_ids(
+            sessions,
+            controlling_user_id="user-1",
+            media_library_item_id="movie-1",
+            own_device_id="home-cinema-control",
+            source_client_session_id="chrome-session",
+        )
+
+        self.assertNotIn("mobile-session", result)
+        self.assertEqual(["chrome-session"], result)
 
 
 if __name__ == "__main__":

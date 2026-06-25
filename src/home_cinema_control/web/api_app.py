@@ -7,7 +7,6 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response
 from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.network.devices import discover_local_devices
 from home_cinema_control.runtime import configure_logging
-from home_cinema_control.config.manager import clear_smb_credentials
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.av_routes import build_av_router
 from home_cinema_control.web.config_sections import apply_config_section
@@ -81,7 +80,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     @router.post("/config/smb/clear")
     def clear_smb_creds():
         try:
-            clear_smb_credentials(api_runtime.config_file)
+            api_runtime.config_service.clear_smb_credentials()
             return {"ok": True}
         except Exception as exc:
             logging.exception("clear_smb_creds failed")

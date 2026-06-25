@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import requests
 from fastapi.testclient import TestClient
 
+from home_cinema_control.config.manager import active_media_server_config
 from home_cinema_control.web.api_app import create_api_app
 from home_cinema_control.web.api_runtime import WebApiRuntime
 
@@ -19,6 +20,9 @@ def _make_client(*, config=None, sanitized=None):
     config_service.load_config.return_value = config
     config_service.sanitize.side_effect = lambda x: x
     config_service.prepare_submitted_config.side_effect = lambda x: x
+    config_service.active_media_server.side_effect = (
+        lambda current_config=None: active_media_server_config(current_config or config)
+    )
 
     api_runtime = WebApiRuntime(
         runtime=runtime,

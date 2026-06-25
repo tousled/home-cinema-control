@@ -17,14 +17,18 @@ class RecordingJellyfinClient:
     def __init__(
         self,
         *,
+        sessions=None,
         mark_unplayed_error=None,
         restore_position_error=None,
         stop_session_error=None,
+        session_lookup_error=None,
     ):
         self.calls = []
+        self.sessions = sessions if sessions is not None else []
         self.mark_unplayed_error = mark_unplayed_error
         self.restore_position_error = restore_position_error
         self.stop_session_error = stop_session_error
+        self.session_lookup_error = session_lookup_error
 
     def notify_playback_started(self, payload):
         self.calls.append(("started", payload))
@@ -66,6 +70,11 @@ class RecordingJellyfinClient:
             raise self.stop_session_error
         self.calls.append(("general_command", {"session_id": session_id, "command": command}))
         return FakeResponse()
+
+    def get_sessions_by_user(self, user_id):
+        if self.session_lookup_error is not None:
+            raise self.session_lookup_error
+        return self.sessions
 
 
 class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
@@ -175,8 +184,6 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
                 "set_position",
                 "stop_session",
                 "stop_session",
-                "general_command",
-                "general_command",
             ],
             [call[0] for call in client.calls],
         )
@@ -208,7 +215,7 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         publisher.stopped(position_seconds=0, duration_seconds=100, played=False)
 
         self.assertEqual(
-            ["stopped", "stop_session", "stop_session", "general_command", "general_command"],
+            ["stopped", "stop_session", "stop_session"],
             [call[0] for call in client.calls],
         )
 
@@ -228,7 +235,7 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
 
         self.assertIsInstance(response, FakeResponse)
         self.assertEqual(
-            ["stopped", "stop_session", "stop_session", "general_command", "general_command"],
+            ["stopped", "stop_session", "stop_session"],
             [call[0] for call in client.calls],
         )
 
@@ -246,11 +253,11 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         self.assertIsInstance(first_response, FakeResponse)
         self.assertIsNone(second_response)
         self.assertEqual(
-            ["stopped", "stop_session", "stop_session", "general_command", "general_command"],
+            ["stopped", "stop_session", "stop_session"],
             [call[0] for call in client.calls],
         )
 
-    def test_stopped_clears_stale_source_client_session_and_remote_screen(self):
+    def test_stopped_clears_stale_source_client_session_with_double_stop(self):
         client = RecordingJellyfinClient()
         publisher = JellyfinPlaybackEventPublisher(
             client,
@@ -264,11 +271,124 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
             [
                 ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
                 ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
-                ("general_command", {"session_id": "tv-session", "command": "Back"}),
-                ("general_command", {"session_id": "tv-session", "command": "Back"}),
             ],
-            client.calls[-4:],
+            client.calls[-2:],
         )
+
+    def test_stopped_clears_sessions_actively_playing_the_item_excludes_idle(self):
+        client = RecordingJellyfinClient(
+            sessions=[
+                _session_payload(
+                    session_id="bridge-session",
+                    device_id="home-cinema-control",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="web-session",
+                    device_id="web-device",
+                    device_name="Chrome",
+                    client_name="Jellyfin Web",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="phone-session",
+                    device_id="phone-device",
+                    device_name="OPPO Find X9 Pro",
+                    client_name="Jellyfin Android",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="mobile-frozen-session",
+                    device_id="mobile-device",
+                    device_name="Pixel",
+                    client_name="Jellyfin Android",
+                    user_id="tv-user",
+                    item_id=None,
+                ),
+                _session_payload(
+                    session_id="tablet-session",
+                    device_id="tablet-device",
+                    device_name="iPad",
+                    client_name="Jellyfin iOS",
+                    user_id="tv-user",
+                    item_id="movie-2",
+                ),
+                _session_payload(
+                    session_id="guest-session",
+                    device_id="guest-device",
+                    user_id="guest-user",
+                    item_id="movie-1",
+                ),
+            ]
+        )
+        publisher = JellyfinPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(source_client_session_id="web-session"),
+        )
+
+        publisher.stopped(position_seconds=66, duration_seconds=120)
+
+        stop_calls = [c for c in client.calls if c[0] == "stop_session"]
+        # mobile-frozen-session has item_id=None (already idle) — must NOT receive Playstate Stop
+        self.assertEqual(
+            [
+                ("stop_session", {"session_id": "web-session", "payload": {"Command": "Stop"}}),
+                ("stop_session", {"session_id": "web-session", "payload": {"Command": "Stop"}}),
+                ("stop_session", {"session_id": "phone-session", "payload": {"Command": "Stop"}}),
+                ("stop_session", {"session_id": "phone-session", "payload": {"Command": "Stop"}}),
+            ],
+            stop_calls,
+        )
+
+    def test_stopped_sends_back_to_all_non_bridge_sessions(self):
+        client = RecordingJellyfinClient(
+            sessions=[
+                _session_payload(
+                    session_id="bridge-session",
+                    device_id="home-cinema-control",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="web-session",
+                    device_id="web-device",
+                    device_name="Chrome",
+                    client_name="Jellyfin Web",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="mobile-idle-session",
+                    device_id="mobile-device",
+                    device_name="OPPO Find X9 Pro",
+                    client_name="Jellyfin Android",
+                    user_id="tv-user",
+                    item_id=None,
+                ),
+            ]
+        )
+        publisher = JellyfinPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(source_client_session_id="web-session"),
+        )
+
+        publisher.stopped(position_seconds=66, duration_seconds=120)
+
+        back_calls = [c for c in client.calls if c[0] == "general_command"]
+        navigated_ids = [c[1]["session_id"] for c in back_calls]
+        # Idle sessions get Back even though they don't get Playstate Stop — this
+        # is what closes the remote-player screen after the user presses Stop.
+        self.assertIn("mobile-idle-session", navigated_ids)
+        # The source also gets Back so the queue page navigates away.
+        self.assertIn("web-session", navigated_ids)
+        # Bridge (HCC itself) must never receive Back.
+        self.assertNotIn("bridge-session", navigated_ids)
+        self.assertTrue(all(c[1]["command"] == "Back" for c in back_calls))
 
     def test_stopped_skips_source_client_cleanup_without_a_session_id(self):
         client = RecordingJellyfinClient()
@@ -307,6 +427,28 @@ def _context(start_position_ticks=0, source_client_session_id="tv-session"):
         media_server_playback_id="play-session",
         start_position_ticks=start_position_ticks,
     )
+
+
+def _session_payload(
+    *,
+    session_id,
+    device_id,
+    user_id,
+    item_id,
+    device_name="",
+    client_name="",
+):
+    payload = {
+        "Id": session_id,
+        "DeviceId": device_id,
+        "DeviceName": device_name,
+        "Client": client_name,
+        "UserId": user_id,
+        "PlayState": {},
+    }
+    if item_id is not None:
+        payload["NowPlayingItem"] = {"Id": item_id, "Name": "Movie"}
+    return payload
 
 
 if __name__ == "__main__":

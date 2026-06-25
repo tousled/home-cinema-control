@@ -2,7 +2,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import requests
 from fastapi.testclient import TestClient
 
 from home_cinema_control.web.api_app import create_api_app
@@ -19,6 +18,12 @@ def _make_client(*, config=None, sanitized=None):
     config_service.load_config.return_value = config
     config_service.sanitize.side_effect = lambda x: x
     config_service.prepare_submitted_config.side_effect = lambda x: x
+    config_service.with_app_updates.side_effect = (
+        lambda current_config, **updates: {
+            **current_config,
+            "app": {**(current_config.get("app") or {}), **updates},
+        }
+    )
 
     api_runtime = WebApiRuntime(
         runtime=runtime,

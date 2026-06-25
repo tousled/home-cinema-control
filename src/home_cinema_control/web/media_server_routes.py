@@ -5,7 +5,6 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from home_cinema_control.config.manager import (
-    active_media_server_config,
     active_media_server_type,
     get_media_server_provider,
     set_active_media_server,
@@ -295,7 +294,7 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
         if not active or not active.get("media_item_id"):
             raise HTTPException(status_code=404, detail="Nothing playing")
         config = api_runtime.config_service.load_config()
-        ms = active_media_server_config(config)
+        ms = api_runtime.config_service.active_media_server(config)
         server_url = ms.server_url.rstrip("/")
         token = ms.access_token
         item_id = active["media_item_id"]

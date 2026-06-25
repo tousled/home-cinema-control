@@ -19,14 +19,18 @@ def build_version_router(api_runtime: WebApiRuntime) -> APIRouter:
     ):
         config = api_runtime.config_service.load_config()
         if include_prerelease is not None:
-            config = {**config, "app": {**(config.get("app") or {}), "include_prerelease": include_prerelease}}
+            config = api_runtime.config_service.with_app_updates(
+                config, include_prerelease=include_prerelease
+            )
         response = check_version_response(config, __version__, force=force)
         return api_runtime.config_service.sanitize(response)
 
     @router.post("/update")
     def version_update():
         config = api_runtime.config_service.load_config()
-        updated = {**config, "app": {**(config.get("app") or {}), "previous_version": __version__}}
+        updated = api_runtime.config_service.with_app_updates(
+            config, previous_version=__version__
+        )
         api_runtime.config_service.save_config(updated)
         return update_version_response(config, __version__)
 

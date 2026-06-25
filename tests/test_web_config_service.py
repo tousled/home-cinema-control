@@ -4,6 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from home_cinema_control.config.models import (
+    AppConfig,
+    MediaServerProviderConfig,
+    OppoConfig,
+)
 from home_cinema_control.web.config_service import WebConfigService
 
 
@@ -32,6 +37,66 @@ class FakeRuntime:
 
 
 class WebConfigServiceTest(unittest.TestCase):
+    def test_load_model_validates_runtime_config_and_applies_defaults(self):
+        service = WebConfigService(runtime=FakeRuntime(), config_file="/tmp/config.json")
+
+        model = service.load_model()
+
+        self.assertEqual("emby", model.media_servers.active)
+        self.assertIsInstance(model.app, AppConfig)
+        self.assertIsInstance(model.oppo, OppoConfig)
+
+    def test_section_accessors_return_typed_config_models(self):
+        service = WebConfigService(runtime=FakeRuntime(), config_file="/tmp/config.json")
+        config = {
+            "app": {"include_prerelease": True},
+            "oppo": {"ip": "192.168.1.10"},
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "jellyfin": {
+                        "server_url": "http://jellyfin",
+                        "display_name": "Jellyfin",
+                    }
+                },
+            },
+        }
+
+        self.assertTrue(service.app(config).include_prerelease)
+        self.assertEqual("192.168.1.10", service.oppo(config).ip)
+        self.assertEqual("jellyfin", service.active_media_server_type(config))
+        self.assertIsInstance(
+            service.active_media_server(config),
+            MediaServerProviderConfig,
+        )
+        self.assertEqual(
+            "http://jellyfin",
+            service.active_media_server(config).server_url,
+        )
+
+    def test_with_app_updates_applies_typed_defaults_and_preserves_other_sections(self):
+        service = WebConfigService(runtime=FakeRuntime(), config_file="/tmp/config.json")
+        config = {
+            "app": {"include_prerelease": False},
+            "oppo": {"ip": "192.168.1.10"},
+        }
+
+        updated = service.with_app_updates(config, include_prerelease=True)
+
+        self.assertIsNot(config, updated)
+        self.assertTrue(updated["app"]["include_prerelease"])
+        self.assertEqual("tousled/home-cinema-control", updated["app"]["release_repository"])
+        self.assertEqual({"ip": "192.168.1.10"}, updated["oppo"])
+
+    def test_sanitized_config_loads_and_sanitizes_once(self):
+        service = WebConfigService(runtime=FakeRuntime(), config_file="/tmp/config.json")
+
+        sanitized = service.sanitized_config()
+
+        provider = sanitized["media_servers"]["providers"]["emby"]
+        self.assertTrue(provider["access_token_configured"])
+        self.assertNotIn("access_token", provider)
+
     def test_sanitizes_loaded_config_for_web(self):
         service = WebConfigService(runtime=FakeRuntime(), config_file="/tmp/config.json")
 

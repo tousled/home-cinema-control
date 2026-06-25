@@ -196,7 +196,7 @@
                   class="btn-ghost"
                   target="_blank"
               >{{ $t('x-status-view-release') }}</a>
-              <IconActionButton :label="$t('x-status-check-version')" icon="refresh" @click="checkVersion"/>
+              <IconActionButton :label="$t('x-status-check-version')" icon="refresh" @click="() => checkVersion(true)"/>
               <IconActionButton
                   v-if="versionInfo?.new_version"
                   :disabled="updateLoading"
@@ -419,10 +419,10 @@ async function refreshState() {
   }
 }
 
-async function checkVersion() {
+async function checkVersion(force = false) {
   versionLoading.value = true
   try {
-    versionInfo.value = await api.checkVersion(includePrerelease.value)
+    versionInfo.value = await api.checkVersion(includePrerelease.value, force)
     versionStore.setVersionInfo(versionInfo.value)
   } catch (e) {
     versionInfo.value = {error: e.message}

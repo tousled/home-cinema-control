@@ -136,6 +136,7 @@ class MediaServerSession(BaseModel):
 
     device_id: str = ""
     device_name: str = ""
+    client_name: str = ""
     user_id: str = ""
     client_session_id: str | None = None
     last_activity_at: str = ""
@@ -174,6 +175,48 @@ def find_controlling_session_id(
 
     candidates.sort(key=lambda session: session.last_activity_at)
     return candidates[-1].client_session_id
+
+
+def find_stale_playback_session_ids(
+        sessions: list[MediaServerSession],
+        *,
+        controlling_user_id: str,
+        media_library_item_id: str,
+        own_device_id: str,
+        source_client_session_id: str | None,
+) -> list[str]:
+    """Return client sessions that may still show the external playback screen.
+
+    The source client is always kept as a target when known, preserving the
+    original single-session cleanup behavior. Additional sessions are included
+    only when they are actively playing the exact same item, excluding HCC's
+    own bridge device and sessions that have already cleared their now-playing
+    state.
+    """
+    session_ids: list[str] = []
+    seen: set[str] = set()
+
+    if source_client_session_id:
+        session_ids.append(source_client_session_id)
+        seen.add(source_client_session_id)
+
+    if not controlling_user_id or not media_library_item_id:
+        return session_ids
+
+    for session in sessions:
+        session_id = session.client_session_id
+        if not session_id or session_id in seen:
+            continue
+        if session.device_id == own_device_id:
+            continue
+        if session.user_id != controlling_user_id:
+            continue
+        if not session.now_playing or session.now_playing.item_id != media_library_item_id:
+            continue
+        session_ids.append(session_id)
+        seen.add(session_id)
+
+    return session_ids
 
 
 class MediaServerItemPlaybackInfo(BaseModel):

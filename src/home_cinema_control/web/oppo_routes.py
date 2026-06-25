@@ -48,7 +48,8 @@ def build_oppo_router(api_runtime: WebApiRuntime) -> APIRouter:
     @router.get("/key/{key}")
     def oppo_send_key(key: str):
         config = api_runtime.config_service.load_config()
-        send_remote_login_notification(config["oppo"]["ip"])
+        oppo_config = api_runtime.config_service.oppo(config)
+        send_remote_login_notification(oppo_config.ip)
         result = check_oppo_control_api(config)
         client = OppoControlApiClient.from_config(config)
         if key == "PON":
@@ -56,7 +57,7 @@ def build_oppo_router(api_runtime: WebApiRuntime) -> APIRouter:
                 client.sign_in()
                 client.get_device_list()
                 client.send_remote_key("EJT")
-                if config["oppo"].get("br_disc") is True:
+                if oppo_config.bluray_disc_mode is True:
                     time.sleep(1)
                     client.send_remote_key("EJT")
                 time.sleep(1)
