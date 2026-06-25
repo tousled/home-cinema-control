@@ -59,6 +59,9 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   command only provided `Id`. HCC now treats `Id` as the target session, resolves the real controlling client
   session, and sends the same double `Stop` used for Emby so the Jellyfin app clears its stale playback screen when
   the OPPO is stopped from the remote.
+* Fixed Jellyfin Web/App remote-control screens remaining on a frozen playback view after OPPO remote Stop. Jellyfin
+  Web does not emit `playbackstop` when HCC's remote player session merely changes to an empty `NowPlayingItem`, so
+  HCC now follows Jellyfin's remote `Stop` with a best-effort remote `Back` command to the source client session.
 * Fixed `JellyfinClient.send_session_message` sending `Text`/`Header`/`TimeoutMs` as query-string parameters (Emby's
   shape) instead of the JSON request body Jellyfin's server actually requires, and sending an empty `data={}` body
   that omitted the `Content-Type` header entirely, which Jellyfin's server rejects with `415 Unsupported Media

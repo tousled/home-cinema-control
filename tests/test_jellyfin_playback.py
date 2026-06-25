@@ -61,6 +61,12 @@ class RecordingJellyfinClient:
         self.calls.append(("stop_session", {"session_id": session_id, "payload": payload}))
         return FakeResponse()
 
+    def send_general_command(self, session_id, command):
+        if self.stop_session_error is not None:
+            raise self.stop_session_error
+        self.calls.append(("general_command", {"session_id": session_id, "command": command}))
+        return FakeResponse()
+
 
 class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
     def test_started_uses_resume_position_and_play_session_id(self):
@@ -163,7 +169,15 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         publisher.stopped(position_seconds=66, duration_seconds=100, played=False)
 
         self.assertEqual(
-            ["stopped", "mark_unplayed", "set_position", "stop_session", "stop_session"],
+            [
+                "stopped",
+                "mark_unplayed",
+                "set_position",
+                "stop_session",
+                "stop_session",
+                "general_command",
+                "general_command",
+            ],
             [call[0] for call in client.calls],
         )
         self.assertEqual(
@@ -194,7 +208,7 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         publisher.stopped(position_seconds=0, duration_seconds=100, played=False)
 
         self.assertEqual(
-            ["stopped", "stop_session", "stop_session"],
+            ["stopped", "stop_session", "stop_session", "general_command", "general_command"],
             [call[0] for call in client.calls],
         )
 
@@ -214,7 +228,7 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
 
         self.assertIsInstance(response, FakeResponse)
         self.assertEqual(
-            ["stopped", "stop_session", "stop_session"],
+            ["stopped", "stop_session", "stop_session", "general_command", "general_command"],
             [call[0] for call in client.calls],
         )
 
@@ -232,11 +246,11 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         self.assertIsInstance(first_response, FakeResponse)
         self.assertIsNone(second_response)
         self.assertEqual(
-            ["stopped", "stop_session", "stop_session"],
+            ["stopped", "stop_session", "stop_session", "general_command", "general_command"],
             [call[0] for call in client.calls],
         )
 
-    def test_stopped_clears_stale_source_client_session_twice(self):
+    def test_stopped_clears_stale_source_client_session_and_remote_screen(self):
         client = RecordingJellyfinClient()
         publisher = JellyfinPlaybackEventPublisher(
             client,
@@ -250,8 +264,10 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
             [
                 ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
                 ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
+                ("general_command", {"session_id": "tv-session", "command": "Back"}),
+                ("general_command", {"session_id": "tv-session", "command": "Back"}),
             ],
-            client.calls[-2:],
+            client.calls[-4:],
         )
 
     def test_stopped_skips_source_client_cleanup_without_a_session_id(self):

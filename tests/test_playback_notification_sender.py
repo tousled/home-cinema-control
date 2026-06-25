@@ -5,6 +5,7 @@ from home_cinema_control.playback.notification_sender import (
     playback_start_messages,
     send_playback_message,
     send_stop_with_delivery_reliability,
+    send_with_delivery_reliability,
 )
 
 
@@ -116,6 +117,17 @@ class SendStopWithDeliveryReliabilityTest(unittest.TestCase):
                 raise RuntimeError("network blip")
 
         send_stop_with_delivery_reliability(_stop, "session-1")
+
+        self.assertEqual(["session-1", "session-1"], calls)
+
+    def test_generic_helper_sends_named_command_twice(self):
+        calls = []
+
+        send_with_delivery_reliability(
+            calls.append,
+            "session-1",
+            command_name="Back",
+        )
 
         self.assertEqual(["session-1", "session-1"], calls)
 
