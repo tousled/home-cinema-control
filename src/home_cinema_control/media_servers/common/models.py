@@ -226,8 +226,7 @@ class MediaServerItemPlaybackInfo(BaseModel):
     Providers fetch the raw item response (``get_item_info``) and map it here,
     at the edge, before it reaches shared session-monitor policy. Emby and
     Jellyfin share this Item-API response shape (Jellyfin forked it from Emby),
-    the same precedent already accepted for ``track_mapping`` and
-    ``command_from_playstate_message``.
+    the same precedent already accepted for ``track_mapping``.
     """
 
     model_config = ConfigDict(extra="allow")

@@ -3,9 +3,10 @@ import unittest
 from unittest.mock import MagicMock, call, patch
 
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
-from home_cinema_control.media_servers.common.playback_command_handler import (
-    command_from_general_command_message,
-    command_from_playstate_message,
+from home_cinema_control.media_servers.jellyfin.websocket_event_mapper import (
+    JellyfinWebsocketEventMapper,
+    command_from_jellyfin_general_command_message,
+    command_from_jellyfin_playstate_message,
 )
 from home_cinema_control.media_servers.jellyfin.provider import JellyfinProvider
 from home_cinema_control.media_servers.jellyfin.websocket_listener import (
@@ -62,23 +63,28 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
         )
         listener.on_message(
             None,
-            json.dumps({"MessageType": "Play", "Data": {"PlayCommand": "PlayNow"}}),
+            json.dumps(
+                {
+                    "MessageType": "Play",
+                    "Data": {"PlayCommand": "PlayNow", "ItemIds": ["item-1"]},
+                }
+            ),
         )
 
         self.assertEqual(
             [
-                call(command_from_playstate_message({"Command": "Pause"})),
+                call(command_from_jellyfin_playstate_message({"Command": "Pause"})),
                 call(
-                    command_from_general_command_message(
+                    command_from_jellyfin_general_command_message(
                         {"Name": "SetAudioStreamIndex", "Arguments": {"Index": 2}}
                     )
                 ),
             ],
             listener.playback_command_handler.handle_command.call_args_list,
         )
-        listener.playback_command_handler.handle_play.assert_called_once_with(
-            {"PlayCommand": "PlayNow"}
-        )
+        listener.playback_command_handler.handle_playback_intent.assert_called_once()
+        intent = listener.playback_command_handler.handle_playback_intent.call_args.args[0]
+        self.assertEqual("item-1", intent.media_item_id)
 
     def test_connect_uses_jellyfin_socket_endpoint(self):
         listener = _listener_with_mocks()
@@ -130,8 +136,17 @@ def _listener_with_mocks():
     listener.playback_state = BridgePlaybackState()
     listener.jellyfin_session = MagicMock()
     listener.jellyfin_session.user_info = {"AccessToken": "token"}
+    listener.jellyfin_session.get_item_info.return_value = {
+        "UserData": {"PlaybackPositionTicks": 0}
+    }
+    listener.jellyfin_session.find_controlling_session_id.return_value = (
+        "controller-session"
+    )
     listener.playback_command_handler = MagicMock()
     listener._session_monitor = MagicMock()
+    listener._websocket_event_mapper = JellyfinWebsocketEventMapper(
+        jellyfin_session=listener.jellyfin_session,
+    )
     return listener
 
 

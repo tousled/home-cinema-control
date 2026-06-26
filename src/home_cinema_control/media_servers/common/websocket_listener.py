@@ -1,4 +1,3 @@
-import json
 import logging
 from collections.abc import Callable
 
@@ -10,9 +9,8 @@ from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_playback_command_control,
 )
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
-from home_cinema_control.media_servers.common.playback_command_handler import (
-    command_from_general_command_message,
-    command_from_playstate_message,
+from home_cinema_control.media_servers.common.websocket_events import (
+    MediaServerWebsocketEventKind,
 )
 from home_cinema_control.playback.application import PlaybackApplicationService
 from home_cinema_control.playback.dispatch import PlaybackIntentDispatcher
@@ -28,6 +26,8 @@ class MediaServerWebsocketListener:
         session_factory: Callable,
         command_handler_factory: Callable,
         session_monitor_factory: Callable,
+        websocket_event_mapper_factory: Callable,
+        session_subscription_message: str,
         websocket_app_factory: Callable,
         websocket_uri_factory: Callable[[str, str], str],
         config=None,
@@ -40,6 +40,8 @@ class MediaServerWebsocketListener:
         self._session_factory = session_factory
         self._command_handler_factory = command_handler_factory
         self._session_monitor_factory = session_monitor_factory
+        self._websocket_event_mapper_factory = websocket_event_mapper_factory
+        self._session_subscription_message = session_subscription_message
         self._websocket_app_factory = websocket_app_factory
         self._websocket_uri_factory = websocket_uri_factory
 
@@ -54,6 +56,7 @@ class MediaServerWebsocketListener:
         self.playback_application_service = None
         self.playback_command_handler = None
         self._session_monitor = None
+        self._websocket_event_mapper = None
         logging.info("%s websocket init", self._provider_name)
 
     def stop(self):
@@ -72,46 +75,53 @@ class MediaServerWebsocketListener:
         if self.media_server_session:
             self.media_server_session.config = config
 
-    def _play(self, data):
-        self.playback_command_handler.handle_play(data)
-
     def play_from_command(self, data):
-        self._play(data)
+        event = self._websocket_event_mapper.map_play_payload(data)
+        if event.kind != MediaServerWebsocketEventKind.PLAYBACK_INTENT:
+            logging.debug(
+                "%s direct play command ignored | type=%s",
+                self._provider_name,
+                event.raw_type,
+            )
+            return
+        self.playback_command_handler.handle_playback_intent(event.playback_intent)
 
     def on_message(self, _ws, msg):
-        msg_json = json.loads(msg)
-        msg_type = msg_json.get("MessageType")
-        data = msg_json.get("Data")
+        event = self._websocket_event_mapper.map(msg)
 
-        if msg_type == "Sessions" and isinstance(data, list):
+        if event.kind == MediaServerWebsocketEventKind.SESSIONS_UPDATE:
             logging.info(
                 "%s websocket message: Sessions | playstate=%s | sessions=%s",
                 self._provider_name,
                 self.playback_state.playstate,
-                len(data),
+                len(event.sessions or []),
             )
         else:
             logging.info(
                 "%s websocket message: %s | playstate=%s",
                 self._provider_name,
-                msg_type,
+                event.raw_type,
                 self.playback_state.playstate,
             )
 
-        if msg_type == "Play":
-            self._play(data)
-        elif msg_type == "Playstate":
-            self.playback_command_handler.handle_command(
-                command_from_playstate_message(data)
+        if event.kind == MediaServerWebsocketEventKind.PLAYBACK_INTENT:
+            if event.playback_intent is None:
+                return
+            self.playback_command_handler.handle_playback_intent(
+                event.playback_intent
             )
-        elif msg_type == "GeneralCommand":
-            self.playback_command_handler.handle_command(
-                command_from_general_command_message(data)
-            )
-        elif msg_type == "Sessions":
-            self._session_monitor.on_sessions_update(data)
+        elif event.kind == MediaServerWebsocketEventKind.PLAYBACK_COMMAND:
+            if event.command is None:
+                return
+            self.playback_command_handler.handle_command(event.command)
+        elif event.kind == MediaServerWebsocketEventKind.SESSIONS_UPDATE:
+            self._session_monitor.on_sessions_update(event.sessions or [])
         else:
-            logging.debug("%s websocket message type: %s", self._provider_name, msg_type)
+            logging.debug(
+                "%s websocket message type: %s",
+                self._provider_name,
+                event.raw_type,
+            )
 
     def on_error(self, _ws, error):
         logging.warning("%s WebSocket error", self._provider_name, exc_info=error)
@@ -129,7 +139,7 @@ class MediaServerWebsocketListener:
     def on_open(self, ws):
         logging.info("%s WebSocket connection opened", self._provider_name)
         self._session_monitor.reset()
-        ws.send('{"MessageType":"SessionsStart", "Data": "0,1500"}')
+        ws.send(self._session_subscription_message)
 
     def run(self):
         self._setup_services()
@@ -178,6 +188,7 @@ class MediaServerWebsocketListener:
             config_provider=lambda: self.config,
             dispatcher=dispatcher,
         )
+        self._websocket_event_mapper = self._websocket_event_mapper_factory(session)
 
     def _connect(self):
         media_server = active_media_server_config(self.config)

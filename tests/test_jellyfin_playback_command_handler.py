@@ -1,11 +1,11 @@
 import unittest
 
-from home_cinema_control.media_servers.common.playback_command_handler import (
-    command_from_general_command_message,
-    command_from_playstate_message,
-)
 from home_cinema_control.media_servers.jellyfin.playback_command_handler import (
     JellyfinPlaybackCommandHandler,
+)
+from home_cinema_control.media_servers.jellyfin.websocket_event_mapper import (
+    command_from_jellyfin_general_command_message,
+    command_from_jellyfin_playstate_message,
 )
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.startup.models import DeviceCommandResult
@@ -13,11 +13,11 @@ from home_cinema_control.playback.state import BridgePlaybackState
 
 
 def _playstate(handler, data):
-    handler.handle_command(command_from_playstate_message(data))
+    handler.handle_command(command_from_jellyfin_playstate_message(data))
 
 
 def _general(handler, data):
-    handler.handle_command(command_from_general_command_message(data))
+    handler.handle_command(command_from_jellyfin_general_command_message(data))
 
 
 class JellyfinPlaybackCommandHandlerTest(unittest.TestCase):
@@ -32,63 +32,12 @@ class JellyfinPlaybackCommandHandlerTest(unittest.TestCase):
             oppo_control_factory=lambda config: RecordingOppoControl(config, []),
         )
 
-        handler.handle_play({"PlayCommand": "PlayNow", "ItemIds": ["1234"]})
+        handler.handle_playback_intent(_playback_intent(media_item_id="1234"))
 
         self.assertEqual(1, len(dispatcher.dispatched_intents))
         dispatched_intent, dispatched_origin = dispatcher.dispatched_intents[0]
         self.assertEqual("1234", dispatched_intent.media_item_id)
         self.assertEqual(PlaybackOrigin.REMOTE_CONTROL_COMMAND, dispatched_origin)
-
-    def test_resolves_controlling_session_when_jellyfin_omits_session_id(self):
-        # Jellyfin's "Play" message never carries the controller's own session
-        # id either (see playback_request.py) — the handler is responsible
-        # for resolving it via the user's other active sessions. Regression
-        # test for the real bug: every startup notification for Jellyfin
-        # silently skipped sending because this resolution never happened.
-        dispatcher = RecordingDispatcher()
-        handler = JellyfinPlaybackCommandHandler(
-            jellyfin_session=RecordingJellyfinSession(
-                controlling_session_id="resolved-session"
-            ),
-            playback_state=BridgePlaybackState(),
-            config_provider=lambda: {},
-            playback_intent_dispatcher_factory=lambda: dispatcher,
-            active_publisher_provider=lambda: None,
-            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
-        )
-        payload = {
-            "PlayCommand": "PlayNow",
-            "ItemIds": ["1234"],
-            "ControllingUserId": "user-1",
-        }
-
-        handler.handle_play(payload)
-
-        dispatched_intent, _ = dispatcher.dispatched_intents[0]
-        self.assertEqual("resolved-session", dispatched_intent.source_client_session_id)
-
-    def test_does_not_resolve_controlling_session_when_jellyfin_provides_one(self):
-        jellyfin_session = RecordingJellyfinSession(controlling_session_id="should-not-be-used")
-        dispatcher = RecordingDispatcher()
-        handler = JellyfinPlaybackCommandHandler(
-            jellyfin_session=jellyfin_session,
-            playback_state=BridgePlaybackState(),
-            config_provider=lambda: {},
-            playback_intent_dispatcher_factory=lambda: dispatcher,
-            active_publisher_provider=lambda: None,
-            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
-        )
-        payload = {
-            "PlayCommand": "PlayNow",
-            "ItemIds": ["1234"],
-            "SessionID": "real-session",
-        }
-
-        handler.handle_play(payload)
-
-        dispatched_intent, _ = dispatcher.dispatched_intents[0]
-        self.assertEqual("real-session", dispatched_intent.source_client_session_id)
-        self.assertEqual([], jellyfin_session.resolve_calls)
 
     def test_playstate_command_uses_latest_config(self):
         controls = []
@@ -235,6 +184,20 @@ class RecordingPublisher:
 
     def report_event(self, event_name, **kwargs):
         self.events.append({"event_name": event_name, **kwargs})
+
+
+def _playback_intent(*, media_item_id="item-1"):
+    return PlaybackIntent(
+        media_item_id=media_item_id,
+        media_source_id="source-1",
+        source_user_id="user-1",
+        source_client_session_id="session-1",
+        source_device_id="device-1",
+        source_device_name="TV",
+        start_position_seconds=0,
+        selected_audio_track_id=1,
+        selected_subtitle_track_id=-1,
+    )
 
 
 def _default_playback_state():

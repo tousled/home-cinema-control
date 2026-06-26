@@ -11,9 +11,6 @@ from home_cinema_control.media_servers.common.models import (
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.ports import MediaPlayerCommandPort
 from home_cinema_control.playback.state import BridgePlaybackState
-from home_cinema_control.playback.time_units import TICKS_PER_SECOND
-
-DEFAULT_REMOTE_SKIP_SECONDS = 10
 
 _Kind = MediaServerCommandKind
 
@@ -21,11 +18,9 @@ _Kind = MediaServerCommandKind
 class MediaServerPlaybackCommandHandler:
     """Translate media-server playback commands into bridge playback actions.
 
-    The handler operates on :class:`MediaServerCommand` domain objects. Wire
-    messages are mapped to commands at the websocket edge
-    (:func:`command_from_playstate_message`,
-    :func:`command_from_general_command_message`); the handler never reads
-    provider wire shape.
+    The handler operates on :class:`MediaServerCommand` and
+    :class:`PlaybackIntent` domain objects. Provider websocket mappers own
+    external wire payloads.
     """
 
     def __init__(
@@ -38,7 +33,6 @@ class MediaServerPlaybackCommandHandler:
         playback_intent_dispatcher_factory: Callable,
         active_publisher_provider: Callable[[], Any],
         oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerCommandPort],
-        play_command_parser: Callable[[dict[str, Any]], PlaybackIntent],
     ) -> None:
         self._provider_name = provider_name
         self._session = media_server_session
@@ -47,22 +41,8 @@ class MediaServerPlaybackCommandHandler:
         self._playback_intent_dispatcher_factory = playback_intent_dispatcher_factory
         self._oppo_control_factory = oppo_control_factory
         self._active_publisher_provider = active_publisher_provider
-        self._play_command_parser = play_command_parser
 
-    def handle_play(self, data: dict) -> None:
-        # ``data`` is opaque here: the provider's play-command parser is the
-        # inbound mapper (wire -> domain). It returns None for anything that is
-        # not an actionable PlayNow, so the handler never reads wire shape.
-        intent = self._play_command_parser(data)
-        if intent is None:
-            return
-
-        self._dispatch_play_intent(intent)
-
-    def _dispatch_play_intent(self, intent: PlaybackIntent) -> None:
-        # Split out from handle_play so a provider whose wire format needs
-        # extra intent resolution (e.g. Emby's controlling-session-id lookup)
-        # can override handle_play and still reuse this logging/dispatch tail.
+    def handle_playback_intent(self, intent: PlaybackIntent) -> None:
         logging.info(
             "%s play command -> handoff | item_id=%s | media_source_id=%s | "
             "device=%s | start_seconds=%s | audio=%s | subtitle=%s",
@@ -370,89 +350,6 @@ class MediaServerPlaybackCommandHandler:
     @property
     def _oppo_control(self) -> MediaPlayerCommandPort:
         return self._oppo_control_factory(self._config)
-
-
-def command_from_playstate_message(data: dict[str, Any]) -> MediaServerCommand:
-    """Inbound mapper: a ``Playstate`` websocket message -> domain command.
-
-    Fast-forward/rewind defaults and relative-seek offsets are resolved here, at
-    the edge, so the handler only applies an explicit ``offset_ticks``.
-    """
-    command = data.get("Command")
-
-    if command == "Seek":
-        return MediaServerCommand(
-            kind=_Kind.SEEK,
-            position_ticks=int(data["SeekPositionTicks"]),
-            raw_name=command,
-        )
-
-    if command == "SeekRelative":
-        return MediaServerCommand(
-            kind=_Kind.SEEK_RELATIVE,
-            offset_ticks=int(data.get("SeekPositionTicks", 0)),
-            raw_name=command,
-        )
-
-    if command == "FastForward":
-        return MediaServerCommand(
-            kind=_Kind.SEEK_RELATIVE,
-            offset_ticks=int(
-                data.get(
-                    "SeekPositionTicks",
-                    DEFAULT_REMOTE_SKIP_SECONDS * TICKS_PER_SECOND,
-                )
-            ),
-            raw_name=command,
-        )
-
-    if command == "Rewind":
-        return MediaServerCommand(
-            kind=_Kind.SEEK_RELATIVE,
-            offset_ticks=int(
-                data.get(
-                    "SeekPositionTicks",
-                    -DEFAULT_REMOTE_SKIP_SECONDS * TICKS_PER_SECOND,
-                )
-            ),
-            raw_name=command,
-        )
-
-    kind = {
-        "Pause": _Kind.PAUSE,
-        "Unpause": _Kind.UNPAUSE,
-        "PlayPause": _Kind.PLAY_PAUSE,
-        "Stop": _Kind.STOP,
-        "NextTrack": _Kind.NEXT_TRACK,
-        "PreviousTrack": _Kind.PREVIOUS_TRACK,
-    }.get(command)
-
-    if kind is None:
-        return MediaServerCommand(kind=_Kind.UNSUPPORTED, raw_name=str(command or ""))
-
-    return MediaServerCommand(kind=kind, raw_name=command)
-
-
-def command_from_general_command_message(data: dict[str, Any]) -> MediaServerCommand:
-    """Inbound mapper: a ``GeneralCommand`` websocket message -> domain command."""
-    name = data.get("Name")
-    args = data.get("Arguments") or {}
-
-    if name == "SetAudioStreamIndex":
-        return MediaServerCommand(
-            kind=_Kind.SET_AUDIO_TRACK,
-            track_index=int(args["Index"]),
-            raw_name=name,
-        )
-
-    if name == "SetSubtitleStreamIndex":
-        return MediaServerCommand(
-            kind=_Kind.SET_SUBTITLE_TRACK,
-            track_index=int(args["Index"]),
-            raw_name=name,
-        )
-
-    return MediaServerCommand(kind=_Kind.UNSUPPORTED, raw_name=str(name or ""))
 
 
 def _media_player_command_for_kind(
