@@ -191,9 +191,13 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
         ws_app.assert_called_once()
         uri = ws_app.call_args.args[0]
         self.assertEqual(
-            f"ws://jellyfin.local:8096/socket?api_key=token&deviceId={DEVICE_ID}",
+            f"ws://jellyfin.local:8096/socket?ApiKey=token&api_key=token&deviceId={DEVICE_ID}",
             uri,
         )
+        headers = ws_app.call_args.kwargs["header"]
+        self.assertIn('Token="token"', headers["Authorization"])
+        self.assertEqual("token", headers["X-Emby-Token"])
+        self.assertEqual("token", headers["X-MediaBrowser-Token"])
         ws_app.return_value.run_forever.assert_called_once_with(
             ping_interval=10,
             reconnect=10,
@@ -219,9 +223,12 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
 
         uri = ws_app.call_args.args[0]
         self.assertEqual(
-            f"ws://jellyfin.local:8096/socket?api_key=token&deviceId={DEVICE_ID}",
+            f"ws://jellyfin.local:8096/socket?ApiKey=token&api_key=token&deviceId={DEVICE_ID}",
             uri,
         )
+        headers = ws_app.call_args.kwargs["header"]
+        self.assertIn('Token="token"', headers["Authorization"])
+        self.assertEqual("token", headers["X-Emby-Token"])
 
 
 def _listener_with_mocks():
