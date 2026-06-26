@@ -143,7 +143,7 @@ class HccConfig(BaseModel):
     """
     Validated user config loaded from disk. Does not include runtime-injected
     fields (Version, tv_dirs, av_dirs, langs, devices) — those are added by
-    apply_runtime_defaults after loading.
+    web runtime enrichment after loading.
 
     The legacy single-provider media_server field is gone: every consumer now
     reads media_servers (see

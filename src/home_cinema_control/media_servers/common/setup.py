@@ -49,4 +49,4 @@ class ModuleMediaServerSetupService:
 def _validated_config_dict(config: HccConfig | dict) -> dict:
     if isinstance(config, HccConfig):
         return config.model_dump()
-    return HccConfig(**config).model_dump()
+    return HccConfig.model_validate(config).model_dump()

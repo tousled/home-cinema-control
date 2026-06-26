@@ -172,7 +172,7 @@ def load_effective_config(config_path: Path | str | None = None) -> dict:
     secrets = load_secrets(config_path)
 
     effective_config = _deep_merge(public_config, secrets)
-    return HccConfig(**effective_config).model_dump()
+    return HccConfig.model_validate(effective_config).model_dump()
 
 
 def load_public_config(config_path: Path | str | None = None) -> dict:
@@ -271,7 +271,9 @@ def get_media_server_provider(
         config: HccConfig | dict, provider_type: MediaServerProviderType
 ) -> MediaServerProviderConfig:
     """Return the stored record for provider_type, or an empty one if absent."""
-    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    validated = (
+        config if isinstance(config, HccConfig) else HccConfig.model_validate(config)
+    )
     return validated.media_servers.providers.get(
         provider_type, MediaServerProviderConfig()
     )
@@ -281,11 +283,13 @@ def active_media_server_config(config: HccConfig | dict) -> MediaServerProviderC
     """Return the provider record for the active provider type.
 
     Accepts a validated HccConfig or a raw dict (validates internally in the
-    latter case via HccConfig(**config)) — but always returns the typed
+    latter case via HccConfig.model_validate(config)) — but always returns the typed
     MediaServerProviderConfig, never a dict. Sugar for
     get_media_server_provider(config, active type).
     """
-    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    validated = (
+        config if isinstance(config, HccConfig) else HccConfig.model_validate(config)
+    )
     return get_media_server_provider(validated, validated.media_servers.active)
 
 
@@ -294,7 +298,9 @@ def active_media_server_type(config: HccConfig | dict) -> MediaServerProviderTyp
     dispatch on it (provider.py's factory, the TV app id) rather than read the
     full provider record.
     """
-    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    validated = (
+        config if isinstance(config, HccConfig) else HccConfig.model_validate(config)
+    )
     return validated.media_servers.active
 
 
@@ -308,7 +314,9 @@ def upsert_media_server_provider(
     Unspecified fields on an existing record are left untouched (a partial
     update, e.g. only access_token), not reset to defaults.
     """
-    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    validated = (
+        config if isinstance(config, HccConfig) else HccConfig.model_validate(config)
+    )
 
     existing = validated.media_servers.providers.get(
         provider_type, MediaServerProviderConfig()
@@ -333,7 +341,9 @@ def upsert_provider_playback(
     upsert_media_server_provider's model_copy(update=...) would otherwise
     replace the whole playback sub-object wholesale.
     """
-    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    validated = (
+        config if isinstance(config, HccConfig) else HccConfig.model_validate(config)
+    )
     provider = get_media_server_provider(validated, provider_type)
     new_playback = provider.playback.model_copy(update=fields)
     return upsert_media_server_provider(validated, provider_type, playback=new_playback)
@@ -349,7 +359,9 @@ def set_active_media_server(
     provider while also writing fresh credentials for it, e.g.
     configure_token, or the provider-switch flow in web/api_app.py).
     """
-    validated = config if isinstance(config, HccConfig) else HccConfig(**config)
+    validated = (
+        config if isinstance(config, HccConfig) else HccConfig.model_validate(config)
+    )
     return validated.model_copy(
         update={
             "media_servers": validated.media_servers.model_copy(
