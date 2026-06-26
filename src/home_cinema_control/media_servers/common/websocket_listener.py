@@ -146,8 +146,23 @@ class MediaServerWebsocketListener:
 
     def on_open(self, ws):
         logging.info("%s WebSocket connection opened", self._provider_name)
+        self._reregister_capabilities()
         self._session_monitor.reset()
         ws.send(self._session_subscription_message)
+
+    def _reregister_capabilities(self) -> None:
+        session = self.media_server_session
+        if session is None:
+            return
+        try:
+            session.set_capabilities()
+        except Exception:
+            logging.warning(
+                "%s failed to re-register media-control capabilities on connect; "
+                "remote-control UI may not appear until next reconnect",
+                self._provider_name,
+                exc_info=True,
+            )
 
     def run(self):
         self._setup_services()
@@ -160,7 +175,9 @@ class MediaServerWebsocketListener:
         self.playback_state = BridgePlaybackState()
         session = self._session_factory(self.config, self.playback_state)
         session.lang = self.language
-        session.set_capabilities()
+        # Capability registration is owned by on_open so it re-runs on every
+        # reconnect, not just cold start (see spec
+        # 2026-06-26-websocket-reconnect-capability-reregistration).
         self.media_server_session = session
         setattr(self, self._session_attribute_name, session)
 

@@ -37,6 +37,60 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
         listener._session_monitor.reset.assert_called_once()
         ws.send.assert_called_once_with('{"MessageType":"SessionsStart", "Data": "0,1500"}')
 
+    def test_on_open_reregisters_capabilities_before_subscribing(self):
+        listener = _listener_with_mocks()
+        ws = MagicMock()
+        calls = []
+        listener.media_server_session.set_capabilities.side_effect = (
+            lambda: calls.append("capabilities")
+        )
+        ws.send.side_effect = lambda _message: calls.append("subscribe")
+
+        listener.on_open(ws)
+
+        listener.media_server_session.set_capabilities.assert_called_once_with()
+        self.assertEqual(["capabilities", "subscribe"], calls)
+
+    def test_on_open_reregisters_capabilities_on_every_reconnect(self):
+        listener = _listener_with_mocks()
+        ws = MagicMock()
+
+        listener.on_open(ws)
+        listener.on_open(ws)
+
+        self.assertEqual(
+            2, listener.media_server_session.set_capabilities.call_count
+        )
+
+    def test_on_open_survives_capability_registration_failure(self):
+        listener = _listener_with_mocks()
+        ws = MagicMock()
+        listener.media_server_session.set_capabilities.side_effect = RuntimeError(
+            "boom"
+        )
+
+        with self.assertLogs(level="WARNING") as logs:
+            listener.on_open(ws)
+
+        self.assertTrue(any("capabilities" in r.getMessage() for r in logs.records))
+        listener._session_monitor.reset.assert_called_once()
+        ws.send.assert_called_once_with('{"MessageType":"SessionsStart", "Data": "0,1500"}')
+
+    def test_setup_services_does_not_register_capabilities(self):
+        listener = _listener_with_mocks()
+        listener._playback_services = MagicMock()
+        session = MagicMock()
+        session.user_info = {"AccessToken": "token"}
+        listener._session_factory = MagicMock(return_value=session)
+        listener._command_handler_factory = MagicMock()
+        listener._session_monitor_factory = MagicMock()
+        listener._websocket_event_mapper_factory = MagicMock()
+
+        listener._setup_services()
+
+        session.set_capabilities.assert_not_called()
+        self.assertIs(session, listener.media_server_session)
+
     def test_on_message_dispatches_session_updates(self):
         listener = _listener_with_mocks()
         sessions = [{"DeviceId": "tv-1"}]
@@ -162,6 +216,7 @@ def _listener_with_mocks():
     listener = JellyfinWebsocket(config=_config(), config_file="/tmp/config.json")
     listener.playback_state = BridgePlaybackState()
     listener.jellyfin_session = MagicMock()
+    listener.media_server_session = listener.jellyfin_session
     listener.jellyfin_session.user_info = {"AccessToken": "token"}
     listener.jellyfin_session.get_item_info.return_value = {
         "UserData": {"PlaybackPositionTicks": 0}
