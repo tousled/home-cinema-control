@@ -37,44 +37,56 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
         listener._session_monitor.reset.assert_called_once()
         ws.send.assert_called_once_with('{"MessageType":"SessionsStart", "Data": "0,1500"}')
 
-    def test_on_open_reregisters_capabilities_before_subscribing(self):
+    def test_on_open_subscribes_then_starts_capability_registration(self):
         listener = _listener_with_mocks()
+        listener._start_capability_registration = MagicMock()
         ws = MagicMock()
-        calls = []
-        listener.media_server_session.set_capabilities.side_effect = (
-            lambda: calls.append("capabilities")
-        )
-        ws.send.side_effect = lambda _message: calls.append("subscribe")
 
         listener.on_open(ws)
+
+        listener._session_monitor.reset.assert_called_once()
+        ws.send.assert_called_once_with('{"MessageType":"SessionsStart", "Data": "0,1500"}')
+        listener._start_capability_registration.assert_called_once_with()
+
+    def test_capability_registration_succeeds_on_first_attempt(self):
+        listener = _listener_with_mocks()
+        listener._sleep = MagicMock()
+
+        listener._register_capabilities_with_retry()
 
         listener.media_server_session.set_capabilities.assert_called_once_with()
-        self.assertEqual(["capabilities", "subscribe"], calls)
+        listener._sleep.assert_not_called()
 
-    def test_on_open_reregisters_capabilities_on_every_reconnect(self):
+    def test_capability_registration_retries_until_server_ready(self):
         listener = _listener_with_mocks()
-        ws = MagicMock()
+        listener._capability_retry_delays = (2, 5, 10)
+        listener._sleep = MagicMock()
+        listener.media_server_session.set_capabilities.side_effect = [
+            RuntimeError("loading"),
+            RuntimeError("loading"),
+            None,
+        ]
 
-        listener.on_open(ws)
-        listener.on_open(ws)
+        listener._register_capabilities_with_retry()
 
-        self.assertEqual(
-            2, listener.media_server_session.set_capabilities.call_count
-        )
+        self.assertEqual(3, listener.media_server_session.set_capabilities.call_count)
+        self.assertEqual([call(2), call(5)], listener._sleep.call_args_list)
 
-    def test_on_open_survives_capability_registration_failure(self):
+    def test_capability_registration_gives_up_after_all_attempts(self):
         listener = _listener_with_mocks()
-        ws = MagicMock()
+        listener._capability_retry_delays = (2, 5)
+        listener._sleep = MagicMock()
         listener.media_server_session.set_capabilities.side_effect = RuntimeError(
-            "boom"
+            "still loading"
         )
 
         with self.assertLogs(level="WARNING") as logs:
-            listener.on_open(ws)
+            listener._register_capabilities_with_retry()
 
-        self.assertTrue(any("capabilities" in r.getMessage() for r in logs.records))
-        listener._session_monitor.reset.assert_called_once()
-        ws.send.assert_called_once_with('{"MessageType":"SessionsStart", "Data": "0,1500"}')
+        self.assertEqual(3, listener.media_server_session.set_capabilities.call_count)
+        self.assertTrue(
+            any("capabilities" in r.getMessage() for r in logs.records)
+        )
 
     def test_setup_services_does_not_register_capabilities(self):
         listener = _listener_with_mocks()

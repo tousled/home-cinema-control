@@ -1,4 +1,6 @@
 import logging
+import threading
+import time
 from collections.abc import Callable
 
 from websocket import WebSocketConnectionClosedException
@@ -59,6 +61,11 @@ class MediaServerWebsocketListener:
         self.playback_command_handler = None
         self._session_monitor = None
         self._websocket_event_mapper = None
+        # After a full media-server restart the websocket reconnects before the
+        # REST API finishes loading (503 "server is loading"), so capability
+        # registration must retry off the websocket read thread until it sticks.
+        self._capability_retry_delays = (2, 5, 10, 20, 30)
+        self._sleep = time.sleep
         logging.info("%s websocket init", self._provider_name)
 
     def stop(self):
@@ -146,23 +153,61 @@ class MediaServerWebsocketListener:
 
     def on_open(self, ws):
         logging.info("%s WebSocket connection opened", self._provider_name)
-        self._reregister_capabilities()
         self._session_monitor.reset()
         ws.send(self._session_subscription_message)
+        self._start_capability_registration()
 
-    def _reregister_capabilities(self) -> None:
+    def _start_capability_registration(self) -> None:
+        thread = threading.Thread(
+            target=self._register_capabilities_with_retry,
+            name=f"{self._provider_name}-capability-registration",
+            daemon=True,
+        )
+        thread.start()
+
+    def _register_capabilities_with_retry(self) -> None:
+        """Re-register media-control capabilities, retrying while the server loads.
+
+        Runs off the websocket read thread because the connection reopens before
+        the media server's REST API is ready after a full restart; retrying here
+        is the only chance to register, since the now-open websocket will not
+        fire on_open again to trigger another attempt.
+        """
         session = self.media_server_session
         if session is None:
             return
-        try:
-            session.set_capabilities()
-        except Exception:
-            logging.warning(
-                "%s failed to re-register media-control capabilities on connect; "
-                "remote-control UI may not appear until next reconnect",
-                self._provider_name,
-                exc_info=True,
-            )
+        total_attempts = 1 + len(self._capability_retry_delays)
+        for attempt in range(1, total_attempts + 1):
+            try:
+                session.set_capabilities()
+                if attempt > 1:
+                    logging.info(
+                        "%s media-control capabilities registered on attempt %s",
+                        self._provider_name,
+                        attempt,
+                    )
+                return
+            except Exception:
+                if attempt < total_attempts:
+                    delay = self._capability_retry_delays[attempt - 1]
+                    logging.info(
+                        "%s capability registration not ready (attempt %s/%s); "
+                        "retrying in %ss",
+                        self._provider_name,
+                        attempt,
+                        total_attempts,
+                        delay,
+                    )
+                    self._sleep(delay)
+                else:
+                    logging.warning(
+                        "%s failed to register media-control capabilities after "
+                        "%s attempts; remote-control UI may not appear until the "
+                        "next reconnect",
+                        self._provider_name,
+                        total_attempts,
+                        exc_info=True,
+                    )
 
     def run(self):
         self._setup_services()
