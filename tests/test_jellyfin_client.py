@@ -93,6 +93,9 @@ class JellyfinClientTest(unittest.TestCase):
         )
         self.assertIsNone(data)
         self.assertEqual({"SupportsMediaControl": True}, json_payload)
+        self.assertIn('Token="token"', headers["Authorization"])
+        self.assertIn('UserId="user1"', headers["Authorization"])
+        self.assertTrue(headers["Authorization"].startswith("MediaBrowser "))
         self.assertEqual("token", headers["X-Emby-Token"])
         self.assertEqual("token", headers["X-MediaBrowser-Token"])
 

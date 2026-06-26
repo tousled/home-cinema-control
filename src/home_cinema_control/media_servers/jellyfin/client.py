@@ -66,10 +66,12 @@ class JellyfinClient:
 
         if user_info:
             auth_string += ',UserId="' + user_info["User"]["Id"] + '"'
+            auth_string += ',Token="' + user_info["AccessToken"] + '"'
 
         headers = {
             "Accept-encoding": "gzip",
             "Accept-Charset": "UTF-8,*",
+            "Authorization": auth_string,
             "X-Emby-Authorization": auth_string,
         }
 
