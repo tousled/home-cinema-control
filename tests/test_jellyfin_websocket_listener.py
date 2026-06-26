@@ -86,6 +86,33 @@ class JellyfinWebsocketListenerTest(unittest.TestCase):
         intent = listener.playback_command_handler.handle_playback_intent.call_args.args[0]
         self.assertEqual("item-1", intent.media_item_id)
 
+    def test_on_error_logs_expected_close_without_traceback(self):
+        from websocket import WebSocketConnectionClosedException
+
+        listener = _listener_with_mocks()
+
+        with self.assertLogs(level="INFO") as logs:
+            listener.on_error(
+                None,
+                WebSocketConnectionClosedException("Connection to remote host was lost."),
+            )
+
+        self.assertEqual(1, len(logs.records))
+        record = logs.records[0]
+        self.assertEqual("INFO", record.levelname)
+        self.assertIsNone(record.exc_info)
+
+    def test_on_error_logs_unexpected_error_with_traceback(self):
+        listener = _listener_with_mocks()
+
+        with self.assertLogs(level="WARNING") as logs:
+            listener.on_error(None, ValueError("boom"))
+
+        self.assertEqual(1, len(logs.records))
+        record = logs.records[0]
+        self.assertEqual("WARNING", record.levelname)
+        self.assertIsNotNone(record.exc_info)
+
     def test_connect_uses_jellyfin_socket_endpoint(self):
         listener = _listener_with_mocks()
         listener.jellyfin_session.user_info = {"AccessToken": "token"}

@@ -1,6 +1,8 @@
 import logging
 from collections.abc import Callable
 
+from websocket import WebSocketConnectionClosedException
+
 from home_cinema_control.config.manager import (
     active_media_server_config,
     load_effective_config,
@@ -124,6 +126,12 @@ class MediaServerWebsocketListener:
             )
 
     def on_error(self, _ws, error):
+        if isinstance(error, WebSocketConnectionClosedException):
+            logging.info(
+                "%s WebSocket connection lost; will reconnect",
+                self._provider_name,
+            )
+            return
         logging.warning("%s WebSocket error", self._provider_name, exc_info=error)
 
     def on_close(self, _ws, close_status_code=None, close_msg=None):
