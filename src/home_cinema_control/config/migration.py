@@ -72,6 +72,11 @@ LEGACY_FLAT_CONFIG_KEYS = (
         "emby_user_id",
         "emby_access_token_configured",
         "resume_on",
+        # XNOPPO-era LG fields with no current equivalent: pairing now goes
+        # through a different library with its own key store
+        # (devices/tv/adapters/lg.py), and the device name was never read.
+        "TV_KEY",
+        "TV_DeviceName",
     }
 )
 
@@ -92,6 +97,7 @@ def apply_all_migrations(config: dict) -> None:
     _migrate_av_flat_keys(config)
     _migrate_app_flat_keys(config)
     _migrate_playback_flat_keys(config)
+    _migrate_emby_flat_keys(config)
     _migrate_app_to_playback_keys(config)
     _rename_app_keys(config)
     _rename_playback_keys(config)
@@ -180,6 +186,32 @@ def _migrate_playback_flat_keys(config: dict) -> None:
                 config.pop(flat_key)
 
 
+def _migrate_emby_flat_keys(config: dict) -> None:
+    """Move the XNOPPO-era flat emby_server into media_servers, in place.
+
+    user_name/user_password are deliberately left untouched here: turning
+    them into a stored access_token needs a live login call, which this pure
+    dict-transform must not make (see web/migration.py, which reads them
+    before calling apply_all_migrations and performs that login separately).
+    LEGACY_FLAT_CONFIG_KEYS already lists both, so _remove_legacy_flat_keys
+    still drops them from the config afterward.
+    """
+    server_url = str(config.get("emby_server", "")).strip()
+    if not server_url:
+        return
+
+    media_servers = config.setdefault("media_servers", {})
+    providers = media_servers.setdefault("providers", {})
+    provider = providers.setdefault("emby", {})
+    if not provider.get("server_url"):
+        provider["server_url"] = server_url
+
+    if "active" not in media_servers:
+        media_servers["active"] = "emby"
+
+    config.pop("emby_server", None)
+
+
 def _migrate_app_to_playback_keys(config: dict) -> None:
     """Move playback keys that were temporarily stored under app.*."""
     app = config.get("app")
@@ -226,6 +258,10 @@ def _rename_playback_keys(config: dict) -> None:
         _rename_key(mapping, "Emby_Path", "source_path")
         _rename_key(mapping, "Oppo_Path", "player_path")
         _rename_key(mapping, "Test_OK", "verified")
+    for library in playback.get("libraries", []):
+        _rename_key(library, "Name", "name")
+        _rename_key(library, "Id", "id")
+        _rename_key(library, "Active", "active")
 
 
 def _rename_av_keys(config: dict) -> None:

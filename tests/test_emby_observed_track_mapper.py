@@ -3,6 +3,10 @@ import unittest
 from home_cinema_control.media_servers.emby.observed_track_mapper import (
     EmbyObservedTrackMapper,
 )
+from home_cinema_control.media_servers.common.media_tracks import (
+    MediaTrack,
+    MediaTrackKind,
+)
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.state import BridgePlaybackState
 
@@ -50,20 +54,18 @@ class EmbyObservedTrackMapperTest(unittest.TestCase):
 
 
 class FakeEmbySession:
-    def get_item_info(self, user_id, item_id):
+    def get_item_tracks(self, user_id, item_id):
         if user_id != "user-1" or item_id != "3092":
             raise AssertionError((user_id, item_id))
 
-        return {
-            "MediaStreams": [
-                {"Type": "Video", "Index": 0},
-                {"Type": "Audio", "Index": 1},
-                {"Type": "Audio", "Index": 2},
-                {"Type": "Subtitle", "Index": 3},
-                {"Type": "Subtitle", "Index": 4},
-                {"Type": "Subtitle", "Index": 5},
-            ]
-        }
+        return [
+            MediaTrack(kind=MediaTrackKind.VIDEO, source_index=0),
+            MediaTrack(kind=MediaTrackKind.AUDIO, source_index=1),
+            MediaTrack(kind=MediaTrackKind.AUDIO, source_index=2),
+            MediaTrack(kind=MediaTrackKind.SUBTITLE, source_index=3),
+            MediaTrack(kind=MediaTrackKind.SUBTITLE, source_index=4),
+            MediaTrack(kind=MediaTrackKind.SUBTITLE, source_index=5),
+        ]
 
 
 def _playback_state() -> BridgePlaybackState:

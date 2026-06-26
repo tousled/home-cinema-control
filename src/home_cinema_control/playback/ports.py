@@ -1,25 +1,37 @@
 from typing import Protocol, Callable
 
 from home_cinema_control.devices.tv.models import TvInputTarget
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackPosition,
+    PlayerPlaybackStartResult,
+    PlayerPlaybackState,
+)
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
-    OppoPlaybackStartRequest,
-    OppoPlaybackStartResult,
-    OppoPlaybackPosition,
-    OppoPlaybackState,
+    MediaPlayerStartRequest,
 )
 
 
-class MediaPlayerControl(Protocol):
-    """Media-server-facing playback control interface.
+class MediaPlayerCommandPort(Protocol):
+    """Media-server-facing playback command port.
 
-    Abstracts over the hardware player so media server command handlers
-    (e.g. Emby) do not depend on device-specific types.
+    Command handlers only need the interactive control subset, not the whole
+    playback startup/cleanup lifecycle.
     """
 
-    def send_remote_key(self, key: str) -> DeviceCommandResult: ...
+    def pause(self) -> DeviceCommandResult: ...
 
-    def get_playback_state(self) -> OppoPlaybackState: ...
+    def resume(self) -> DeviceCommandResult: ...
+
+    def toggle_play_pause(self) -> DeviceCommandResult: ...
+
+    def stop(self) -> DeviceCommandResult: ...
+
+    def next_track(self) -> DeviceCommandResult: ...
+
+    def previous_track(self) -> DeviceCommandResult: ...
+
+    def get_playback_state(self) -> PlayerPlaybackState: ...
 
     def seek_to_position_ticks(self, position_ticks: int) -> DeviceCommandResult: ...
 
@@ -28,6 +40,23 @@ class MediaPlayerControl(Protocol):
     def select_audio_track(self, audio_index: int) -> DeviceCommandResult: ...
 
     def select_subtitle_track(self, subtitle_index: int) -> DeviceCommandResult: ...
+
+
+class MediaPlayerPort(MediaPlayerCommandPort, Protocol):
+    """Hardware media player port used by playback orchestration."""
+
+    def start(
+        self,
+        request: MediaPlayerStartRequest,
+        *,
+        on_waiting: Callable[[int], None] | None = None,
+    ) -> PlayerPlaybackStartResult: ...
+
+    def get_playback_position(self) -> PlayerPlaybackPosition: ...
+
+    def seek_to(self, position_ticks: int) -> DeviceCommandResult: ...
+
+    def cleanup_after_playback_finish(self) -> DeviceCommandResult: ...
 
 
 class TelevisionOutputPort(Protocol):
@@ -56,24 +85,3 @@ class AvReceiverOutputPort(Protocol):
     def restore_tv_audio(self) -> DeviceCommandResult:
         """Restore the AV receiver to TV audio."""
         ...
-
-
-class OppoPlaybackPort(Protocol):
-    def start_playback(
-        self,
-        request: OppoPlaybackStartRequest,
-        *,
-        on_waiting: Callable[[int], None] | None = None,
-    ) -> OppoPlaybackStartResult: ...
-
-    def get_playback_state(self) -> OppoPlaybackState: ...
-
-    def get_playback_position(self) -> OppoPlaybackPosition: ...
-
-    def seek_to(self, position_ticks: int) -> DeviceCommandResult: ...
-
-    def select_audio_track(self, audio_index: int) -> DeviceCommandResult: ...
-
-    def select_subtitle_track(self, subtitle_index: int) -> DeviceCommandResult: ...
-
-    def stop_playback(self) -> DeviceCommandResult: ...

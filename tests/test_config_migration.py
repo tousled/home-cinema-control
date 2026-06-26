@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from home_cinema_control.config.migration import (
     LEGACY_DETECTION_KEYS,
@@ -10,6 +11,7 @@ from home_cinema_control.config.migration import (
     _migrate_app_flat_keys,
     _migrate_app_to_playback_keys,
     _migrate_av_flat_keys,
+    _migrate_emby_flat_keys,
     _migrate_oppo_flat_keys,
     _migrate_playback_flat_keys,
     _migrate_tv_flat_keys,
@@ -19,7 +21,11 @@ from home_cinema_control.config.migration import (
     _rename_playback_keys,
     _rename_tv_keys,
 )
-from home_cinema_control.web.migration import apply_migration, is_migration_available
+from home_cinema_control.web.migration import (
+    apply_migration,
+    import_legacy_config,
+    is_migration_available,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +82,57 @@ class MigrateTvFlatKeysTest(unittest.TestCase):
         config = {"TV_IP": "old", "tv": {"ip": "current"}}
         _migrate_tv_flat_keys(config)
         self.assertEqual("current", config["tv"]["ip"])
+
+
+class MigrateEmbyFlatKeysTest(unittest.TestCase):
+    def test_moves_emby_server_into_media_servers_emby(self):
+        config = {"emby_server": "http://emby.local:8096"}
+        _migrate_emby_flat_keys(config)
+        self.assertEqual(
+            "http://emby.local:8096",
+            config["media_servers"]["providers"]["emby"]["server_url"],
+        )
+        self.assertEqual("emby", config["media_servers"]["active"])
+        self.assertNotIn("emby_server", config)
+
+    def test_does_not_set_active_when_already_set(self):
+        config = {
+            "emby_server": "http://emby.local:8096",
+            "media_servers": {"active": "jellyfin"},
+        }
+        _migrate_emby_flat_keys(config)
+        self.assertEqual("jellyfin", config["media_servers"]["active"])
+
+    def test_does_not_clobber_existing_server_url(self):
+        config = {
+            "emby_server": "http://old:8096",
+            "media_servers": {"providers": {"emby": {"server_url": "http://current:8096"}}},
+        }
+        _migrate_emby_flat_keys(config)
+        self.assertEqual(
+            "http://current:8096",
+            config["media_servers"]["providers"]["emby"]["server_url"],
+        )
+        self.assertNotIn("emby_server", config)
+
+    def test_no_op_when_emby_server_blank_or_absent(self):
+        config = {"emby_server": ""}
+        _migrate_emby_flat_keys(config)
+        self.assertNotIn("media_servers", config)
+
+        config = {}
+        _migrate_emby_flat_keys(config)
+        self.assertNotIn("media_servers", config)
+
+    def test_user_name_and_password_left_untouched(self):
+        config = {
+            "emby_server": "http://emby.local:8096",
+            "user_name": "pedro",
+            "user_password": "secret",
+        }
+        _migrate_emby_flat_keys(config)
+        self.assertEqual("pedro", config["user_name"])
+        self.assertEqual("secret", config["user_password"])
 
 
 class MigrateOppoFlatKeysTest(unittest.TestCase):
@@ -256,6 +313,18 @@ class RenamePlaybackKeysTest(unittest.TestCase):
         _rename_playback_keys(config)
         self.assertNotIn("resume_on", config["playback"])
 
+    def test_renames_library_value_object_keys_to_snake_case(self):
+        config = {
+            "playback": {
+                "libraries": [{"Id": "lib-1", "Name": "Movies", "Active": True}],
+            }
+        }
+        _rename_playback_keys(config)
+        self.assertEqual(
+            [{"id": "lib-1", "name": "Movies", "active": True}],
+            config["playback"]["libraries"],
+        )
+
 
 class RenameAvKeysTest(unittest.TestCase):
     def test_renames_intermediate_av_keys(self):
@@ -378,6 +447,9 @@ class ApplyAllMigrationsTest(unittest.TestCase):
             "check_beta": False,
             "DebugLevel": 1,
             "media_server": {"type": "emby", "server_url": "http://emby:8096"},
+            "emby_server": "http://xnoppo-emby:8096",
+            "TV_KEY": "0123456789",
+            "TV_DeviceName": "LG Smart TV (OLED65C9MLB)",
         }
 
         apply_all_migrations(config)
@@ -385,6 +457,15 @@ class ApplyAllMigrationsTest(unittest.TestCase):
         # no legacy flat keys remain
         for key in LEGACY_FLAT_CONFIG_KEYS:
             self.assertNotIn(key, config, f"legacy key still present: {key}")
+
+        # XNOPPO-era emby_server moves into media_servers; the newer
+        # media_server block (a different vintage, handled elsewhere) is
+        # untouched by this pipeline.
+        self.assertEqual(
+            "http://xnoppo-emby:8096",
+            config["media_servers"]["providers"]["emby"]["server_url"],
+        )
+        self.assertEqual({"type": "emby", "server_url": "http://emby:8096"}, config["media_server"])
 
         # sections are populated
         self.assertEqual("192.168.1.5", config["oppo"]["ip"])
@@ -502,6 +583,67 @@ class ApplyMigrationTest(unittest.TestCase):
             apply_migration(config_path)
             self.assertFalse(is_migration_available(config_path))
 
+    @patch("home_cinema_control.web.migration.authenticate_legacy_credentials")
+    def test_legacy_emby_credentials_authenticate_into_secrets(self, mock_authenticate):
+        mock_authenticate.return_value = {
+            "AccessToken": "emby-token",
+            "User": {"Id": "emby-user", "Name": "Pedro"},
+        }
+
+        with tempfile.TemporaryDirectory() as d:
+            config_path = Path(d) / "config.json"
+            secrets_path = Path(d) / "secrets.json"
+            secrets_path.write_text("{}")
+            config_path.write_text(json.dumps({
+                "emby_server": "http://xnoppo-emby:8096",
+                "user_name": "pedro",
+                "user_password": "secret",
+                "Oppo_IP": "192.168.1.5",
+            }))
+
+            apply_migration(config_path)
+
+            result = json.loads(config_path.read_text())
+            provider = result["media_servers"]["providers"]["emby"]
+            self.assertEqual("http://xnoppo-emby:8096", provider["server_url"])
+            self.assertTrue(provider["access_token_configured"])
+            self.assertNotIn("access_token", provider)
+            self.assertNotIn("user_name", result)
+            self.assertNotIn("user_password", result)
+
+            secrets = json.loads(secrets_path.read_text())
+            secret_provider = secrets["media_servers"]["providers"]["emby"]
+            self.assertEqual("emby-token", secret_provider["access_token"])
+            self.assertEqual("emby-user", secret_provider["user_id"])
+
+            mock_authenticate.assert_called_once_with(
+                "http://xnoppo-emby:8096", "pedro", "secret"
+            )
+
+    @patch("home_cinema_control.web.migration.authenticate_legacy_credentials")
+    def test_legacy_emby_login_failure_does_not_abort_rest_of_migration(self, mock_authenticate):
+        mock_authenticate.return_value = None
+
+        with tempfile.TemporaryDirectory() as d:
+            config_path = Path(d) / "config.json"
+            (Path(d) / "secrets.json").write_text("{}")
+            config_path.write_text(json.dumps({
+                "emby_server": "http://xnoppo-emby:8096",
+                "user_name": "pedro",
+                "user_password": "wrong",
+                "Oppo_IP": "192.168.1.5",
+                "MonitoredDevice": "TV-Living",
+            }))
+
+            apply_migration(config_path)
+
+            result = json.loads(config_path.read_text())
+            provider = result["media_servers"]["providers"]["emby"]
+            self.assertEqual("http://xnoppo-emby:8096", provider["server_url"])
+            self.assertFalse(provider.get("access_token_configured", False))
+            self.assertEqual("192.168.1.5", result["oppo"]["ip"])
+            self.assertEqual("TV-Living", result["playback"]["hcc_controlled_device"])
+
     def test_migrates_stale_nested_default_nfs_without_other_legacy_keys(self):
         with tempfile.TemporaryDirectory() as d:
             config_path = Path(d) / "config.json"
@@ -517,6 +659,49 @@ class ApplyMigrationTest(unittest.TestCase):
             self.assertNotIn("default_nfs", result["oppo"])
             self.assertTrue(result["oppo"]["use_smb"])
             self.assertFalse(is_migration_available(config_path))
+
+
+class ImportLegacyConfigTest(unittest.TestCase):
+    def test_imports_valid_legacy_config(self):
+        with tempfile.TemporaryDirectory() as d:
+            config_path = Path(d) / "config.json"
+            config_path.write_text(json.dumps({"app": {}}))  # fresh-install default
+            (Path(d) / "secrets.json").write_text("{}")
+
+            uploaded = {
+                "emby_server": "http://xnoppo-emby:8096",
+                "Oppo_IP": "192.168.1.5",
+                "MonitoredDevice": "TV-Living",
+            }
+
+            import_legacy_config(config_path, uploaded)
+
+            result = json.loads(config_path.read_text())
+            self.assertEqual("192.168.1.5", result["oppo"]["ip"])
+            self.assertEqual("TV-Living", result["playback"]["hcc_controlled_device"])
+            self.assertEqual(
+                "http://xnoppo-emby:8096",
+                result["media_servers"]["providers"]["emby"]["server_url"],
+            )
+
+    def test_rejects_payload_with_no_legacy_markers(self):
+        with tempfile.TemporaryDirectory() as d:
+            config_path = Path(d) / "config.json"
+            config_path.write_text(json.dumps({"app": {}}))
+            original = config_path.read_text()
+
+            with self.assertRaises(ValueError):
+                import_legacy_config(config_path, {"some": "unrelated json"})
+
+            self.assertEqual(original, config_path.read_text())
+
+    def test_rejects_non_dict_payload(self):
+        with tempfile.TemporaryDirectory() as d:
+            config_path = Path(d) / "config.json"
+            config_path.write_text(json.dumps({"app": {}}))
+
+            with self.assertRaises(ValueError):
+                import_legacy_config(config_path, ["not", "a", "dict"])
 
 
 class LegacyDetectionKeysTest(unittest.TestCase):

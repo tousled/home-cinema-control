@@ -1,6 +1,6 @@
 import unittest
 
-from home_cinema_control.media_servers.emby.playback import MediaContentKind
+from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.media_servers.emby.session import EmbySession
 
 
@@ -95,16 +95,19 @@ class FindControllingSessionIdTest(unittest.TestCase):
                     {
                         "Id": "bridge-session",
                         "DeviceId": "home-cinema-control",
+                        "UserId": "user-1",
                         "LastActivityDate": "2026-06-22T13:50:00Z",
                     },
                     {
                         "Id": "tv-session",
                         "DeviceId": "tv-device",
+                        "UserId": "user-1",
                         "LastActivityDate": "2026-06-22T13:41:04Z",
                     },
                     {
                         "Id": "phone-session",
                         "DeviceId": "phone-device",
+                        "UserId": "user-1",
                         "LastActivityDate": "2026-06-22T13:45:56Z",
                     },
                 ]

@@ -1,8 +1,8 @@
 import unittest
 
 from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.devices.oppo.playback_status_client import (
     OppoPlaybackStatusClient,
@@ -28,8 +28,8 @@ class OppoPlaybackStatusClientTest(unittest.TestCase):
         result = client.query_playback_state()
 
         self.assertTrue(result.ok)
-        self.assertEqual(OppoPlaybackStatus.PLAY, result.status)
-        self.assertEqual(OppoPlaybackCategory.ACTIVE, result.category)
+        self.assertEqual(PlayerPlaybackStatus.PLAY, result.status)
+        self.assertEqual(PlayerPlaybackLifecyclePhase.ACTIVE, result.lifecycle_phase)
 
     def test_verbose_qpl_response_is_complete(self):
         self.assertTrue(_tcp_status_response_is_complete("@QPL OK PLAY\r@UPL PLAY"))

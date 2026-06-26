@@ -3,8 +3,8 @@
 [English](INSTALL.en.md) · [README](README.md)
 
 Esta guía cubre el despliegue de HCC y la configuración desde la interfaz web. Está pensada para evitar los problemas
-que más suelen aparecer en instalaciones con Emby, NAS, OPPO/Chinoppo, TV y receptor AV: rutas mal mapeadas, IPs
-escritas a mano, montajes que fallan sin explicación, CEC/ARC cambiando entradas y logs difíciles de interpretar.
+que más suelen aparecer en instalaciones con Emby/Jellyfin, NAS, OPPO/Chinoppo, TV y receptor AV: rutas mal mapeadas,
+IPs escritas a mano, montajes que fallan sin explicación, CEC/ARC cambiando entradas y logs difíciles de interpretar.
 
 Para capturas específicas de Synology, QNAP, Windows, Unraid o preparación del reproductor OPPO/Chinoppo, usa como
 referencia externa el tutorial de la comunidad de AVPasion sobre Xnoppo:
@@ -17,22 +17,22 @@ Usa ese hilo para permisos de NAS, recursos compartidos y configuración del rep
 
 Necesitas:
 
-| Requisito                | Notas                                                     |
-|--------------------------|-----------------------------------------------------------|
-| Docker                   | Linux recomendado. HCC usa red host.                      |
-| Emby Server              | Accesible desde el host donde corre HCC.                  |
-| OPPO/Chinoppo            | Debe exponer la API MediaControl de OPPO en la red local. |
-| NAS o carpeta compartida | Debe ser visible desde Emby y desde el reproductor.       |
-| NFS o SMB/CIFS           | Se elige por cada mapeo de ruta en HCC.                   |
-| TV y receptor AV         | Opcionales. HCC puede funcionar sin ellos.                |
+| Requisito                | Notas                                                                |
+|--------------------------|----------------------------------------------------------------------|
+| Docker                   | Linux recomendado. HCC usa red host.                                 |
+| Emby o Jellyfin          | Uno de los dos, accesible desde el host donde corre HCC.             |
+| OPPO/Chinoppo            | Debe exponer la API MediaControl de OPPO en la red local.            |
+| NAS o carpeta compartida | Debe ser visible desde tu servidor de medios y desde el reproductor. |
+| NFS o SMB/CIFS           | Se elige por cada mapeo de ruta en HCC.                              |
+| TV y receptor AV         | Opcionales. HCC puede funcionar sin ellos.                           |
 
 Recomendaciones antes de instalar:
 
-- Reserva IP fija para Emby, NAS, OPPO/Chinoppo, TV y receptor AV.
-- Crea primero las bibliotecas en Emby. HCC no inventa bibliotecas: lee las que ya existen en tu servidor. La guía
-  oficial de Emby explica el flujo en
-  [Library Setup](https://emby.media/support/articles/Library-Setup.html) y su
-  [Quick Start](https://emby.media/support/articles/Quick-Start.html).
+- Reserva IP fija para tu servidor de medios, NAS, OPPO/Chinoppo, TV y receptor AV.
+- Crea primero las bibliotecas en Emby o Jellyfin. HCC no inventa bibliotecas: lee las que ya existen en tu servidor.
+  Para Emby, ver [Library Setup](https://emby.media/support/articles/Library-Setup.html) y
+  [Quick Start](https://emby.media/support/articles/Quick-Start.html). Para Jellyfin, ver
+  [Adding Media Libraries](https://jellyfin.org/docs/general/server/libraries/).
 - Comparte las carpetas del NAS por NFS o SMB/CIFS y comprueba que el reproductor puede verlas desde su propio
   explorador de red.
 - Decide qué bibliotecas debe interceptar HCC.
@@ -103,14 +103,22 @@ docker compose pull
 docker compose up -d
 ```
 
-Abre:
+Abre `http://<tu-host>:8090`.
 
-```text
-http://<tu-host>:8090
-```
+`network_mode: host` es necesario: HCC habla directamente con Emby/Jellyfin, el OPPO/Chinoppo, TV, AVR y herramientas
+de descubrimiento como `arp-scan`.
 
-`network_mode: host` es importante porque HCC habla directamente con Emby, el OPPO/Chinoppo, TV, AVR y herramientas de
-descubrimiento como `arp-scan`.
+### 3.1 Instalar con Portainer u otra interfaz web
+
+En Portainer: **Stacks → Add stack** y pega el `compose.yaml` de arriba.
+
+Para fijar una versión concreta (incluidas las release candidates), añade `HCC_VERSION` como variable de entorno del
+stack, por ejemplo `HCC_VERSION=1.1.0-rc.2`. Es lo único que decide qué imagen se descarga — sin ella, Portainer usa
+`latest` (la última estable). Para actualizar, cambia ese valor y vuelve a desplegar tirando de la imagen ("re-pull"),
+no reconstruyendo desde el Dockerfile.
+
+Otras interfaces (Synology Container Manager, Unraid...) deberían funcionar igual si permiten definir variables de
+entorno para el stack — la lógica es la misma.
 
 ## 4. Migración o instalación limpia
 
@@ -124,24 +132,48 @@ configuración o empezar desde cero.
 La migración existe para conservar lo reutilizable, pero HCC guarda ahora la configuración por secciones y separa los
 secretos en `/config/secrets.json`.
 
-## 5. Media Server: conecta Emby
+Si en cambio es una instalación completamente nueva (sin configuración previa de HCC) y vienes del proyecto
+predecesor XNOPPO/Chinoppo, HCC te ofrecerá un segundo aviso distinto: importar tu antiguo `config.json` de XNOPPO en
+lugar de configurarlo todo desde cero. Selecciona el fichero, HCC migra OPPO/TV/AV/rutas igual que en la migración
+normal, mueve la URL de tu Emby al nuevo formato y, si el servidor está accesible en ese momento, inicia sesión con
+el usuario/contraseña del fichero antiguo para obtener un token — si no puede, el proveedor queda añadido pero sin
+autenticar, y el indicador de Media Server en el menú lateral te avisará en naranja para que termines de conectarlo
+desde su pantalla. Si no tienes un `config.json` de XNOPPO o prefieres no importarlo, elige "Configurar desde cero" y
+sigue el asistente normal.
 
-En **Media Server** se configura la URL de Emby, el usuario y el dispositivo de Emby que HCC debe monitorizar.
+<!-- TODO: captura de pantalla del modal de importación XNOPPO en instalación nueva -->
+
+## 5. Media Server: conecta Emby o Jellyfin
+
+En **Media Server** eliges el tipo de servidor (Emby o Jellyfin) y configuras su URL, el usuario y el dispositivo que
+HCC debe monitorizar. Las capturas de esta guía muestran Emby, pero el flujo es el mismo con Jellyfin.
 
 <p align="center">
   <img src="assets/screenshots/install/02-media-server.png" alt="Pantalla Media Server de Home Cinema Control" width="860"/>
+</p>
+
+En la cabecera de esta pantalla verás el logo del proveedor seleccionado, por ejemplo Emby o Jellyfin. Ese logo sirve
+para reconocer de un vistazo qué integración estás configurando: aparece atenuado mientras falta autorizar el servidor
+o completar la conexión, y se muestra con más presencia cuando el proveedor queda autorizado. La URL, el usuario y los
+detalles de preparación siguen estando en los paneles de configuración para no duplicar información en la cabecera.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server-pending.png" alt="Media Server con Jellyfin seleccionado pero pendiente de autorización" width="860"/>
 </p>
 
 Qué resuelve esta pantalla:
 
 - evita editar tokens a mano;
 - guarda credenciales sensibles en `secrets.json`;
-- permite recargar dispositivos de Emby;
+- permite recargar dispositivos del servidor multimedia;
 - detecta bibliotecas para usarlas después en el asistente de rutas;
 - mantiene el guardado limitado a la sección de Media Server.
 
-El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo de
-Emby.
+El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo.
+
+Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
+dispositivos
+y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
 
 ## 6. Media Player: localiza el OPPO/Chinoppo
 
@@ -172,8 +204,9 @@ Usa **Probar OPPO** antes de continuar. Si falla, revisa:
 
 ## 7. Rutas de medios: la parte importante
 
-Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby sabe dónde está la
-película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red del NAS.
+Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby o Jellyfin saben
+dónde está la película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red
+del NAS.
 
 Piensa en HCC como un traductor de rutas:
 
@@ -185,7 +218,8 @@ HCC guarda:       esta biblioteca usa esta ruta OPPO y este protocolo
 ```
 
 No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos nombres. Por eso HCC parte de las
-bibliotecas de Emby, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión real.
+bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
+real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qué servidor estás mapeando.
 
 <p align="center">
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="Vista general del asistente de rutas de Home Cinema Control" width="860"/>
@@ -475,10 +509,23 @@ docker run -d \
   ghcr.io/tousled/home-cinema-control:latest
 ```
 
+Si instalaste con Portainer u otra interfaz web: cambia la variable de entorno `HCC_VERSION` del stack a la versión
+que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), no reconstruyendo desde el Dockerfile — ver
+[3.1](#31-instalar-con-portainer-u-otra-interfaz-web).
+
 Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
 muestra el comando para ejecutarlo manualmente.
 
 ## 14. Problemas frecuentes
+
+### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
+
+- La cuenta de Jellyfin con la que autorizas HCC debe permisos de **administrador**. Jellyfin protege la lista de
+  dispositivos (`/Devices`) y la de carpetas de biblioteca (`/Library/VirtualFolders`) para cuentas con privilegios
+  elevados — una cuenta normal recibe un error 403 al cargarlas, aunque el login en sí (autorizar, reproducir,
+  reportar progreso) funcione con normalidad.
+- Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
+  usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 
 ### HCC no llega al reproductor
 

@@ -1,11 +1,20 @@
 import unittest
 
-from home_cinema_control.media_servers.emby.session_events import (
-    build_playback_intent_from_session,
+from home_cinema_control.media_servers.common.models import (
+    MediaServerNowPlaying,
+    MediaServerSession,
+)
+from home_cinema_control.media_servers.common.session_monitor import (
     describe_session_playback_source,
+    playback_intent_from_session,
+)
+from home_cinema_control.media_servers.emby.session_events import (
     find_monitored_session,
     is_same_media_item_request,
     playback_request_media_item_id,
+)
+from home_cinema_control.media_servers.emby.item_mapper import (
+    media_server_item_playback_info_from_item,
 )
 
 
@@ -40,34 +49,45 @@ class EmbySessionEventsTest(unittest.TestCase):
             )
         )
 
-    def test_finds_monitored_session_by_device_id(self):
-        session = {"DeviceId": "lg-tv", "Id": "session-1"}
-
-        self.assertEqual(
-            session,
-            find_monitored_session(
-                [{"DeviceId": "phone"}, session],
-                "lg-tv",
-            ),
+    def test_maps_monitored_session_by_device_id_to_domain(self):
+        session = find_monitored_session(
+            [
+                {"DeviceId": "phone"},
+                {
+                    "DeviceId": "lg-tv",
+                    "Id": "session-1",
+                    "DeviceName": "LG TV",
+                    "UserId": "user-1",
+                    "NowPlayingItem": {"Id": "11136", "Name": "Aquaman"},
+                    "PlayState": {"MediaSourceId": "source-1"},
+                },
+            ],
+            "lg-tv",
         )
+
+        self.assertIsInstance(session, MediaServerSession)
+        self.assertEqual("lg-tv", session.device_id)
+        self.assertEqual("session-1", session.client_session_id)
+        self.assertEqual("11136", session.now_playing.item_id)
+        self.assertEqual("source-1", session.media_source_id)
+
+    def test_unknown_device_maps_to_none(self):
+        self.assertIsNone(find_monitored_session([{"DeviceId": "phone"}], "lg-tv"))
 
     def test_builds_playback_intent_from_session_snapshot(self):
-        intent = build_playback_intent_from_session(
-            {
-                "Id": "session-1",
-                "DeviceId": "lg-tv",
-                "DeviceName": "LG TV",
-                "UserId": "user-1",
-                "NowPlayingItem": {"Id": "11136"},
-                "PlayState": {
-                    "MediaSourceId": "source-1",
-                    "PositionTicks": 120_000_000,
-                    "AudioStreamIndex": 2,
-                    "SubtitleStreamIndex": 4,
-                },
-            },
-            monitored_device_id="lg-tv",
+        session = MediaServerSession(
+            device_id="lg-tv",
+            device_name="LG TV",
+            user_id="user-1",
+            client_session_id="session-1",
+            now_playing=MediaServerNowPlaying(item_id="11136"),
+            media_source_id="source-1",
+            position_ticks=120_000_000,
+            audio_stream_index=2,
+            subtitle_stream_index=4,
         )
+
+        intent = playback_intent_from_session(session)
 
         self.assertEqual("11136", intent.media_item_id)
         self.assertEqual("source-1", intent.media_source_id)
@@ -77,38 +97,38 @@ class EmbySessionEventsTest(unittest.TestCase):
         self.assertEqual(2, intent.selected_audio_track_id)
         self.assertEqual(4, intent.selected_subtitle_track_id)
 
-    def test_builds_playback_intent_from_user_data_position(self):
-        intent = build_playback_intent_from_session(
-            {
-                "Id": "session-1",
-                "DeviceId": "lg-tv",
-                "UserId": "user-1",
-                "NowPlayingItem": {"Id": "11136"},
-                "PlayState": {},
-            },
-            monitored_device_id="lg-tv",
-            item_user_data={"PlaybackPositionTicks": 420_000_000},
+    def test_builds_playback_intent_from_saved_position_when_session_has_none(self):
+        session = MediaServerSession(
+            device_id="lg-tv",
+            user_id="user-1",
+            now_playing=MediaServerNowPlaying(item_id="11136"),
+            position_ticks=None,
+        )
+
+        intent = playback_intent_from_session(
+            session,
+            saved_position_ticks=420_000_000,
         )
 
         self.assertEqual(42, intent.start_position_seconds)
 
     def test_describes_session_playback_source_for_diagnostics(self):
-        source = describe_session_playback_source(
+        session = MediaServerSession(
+            device_id="lg-tv",
+            now_playing=MediaServerNowPlaying(
+                item_id="11136",
+                name="Aquaman",
+                item_type="Movie",
+                container="blurayiso",
+            ),
+            media_source_id="source-1",
+            position_ticks=0,
+            audio_stream_index=1,
+            subtitle_stream_index=-1,
+        )
+
+        item_playback_info = media_server_item_playback_info_from_item(
             {
-                "NowPlayingItem": {
-                    "Id": "11136",
-                    "Name": "Aquaman",
-                    "Type": "Movie",
-                    "Container": "blurayiso",
-                },
-                "PlayState": {
-                    "MediaSourceId": "source-1",
-                    "PositionTicks": 0,
-                    "AudioStreamIndex": 1,
-                    "SubtitleStreamIndex": -1,
-                },
-            },
-            item_info={
                 "UserData": {
                     "PlaybackPositionTicks": 420_000_000,
                     "Played": False,
@@ -123,6 +143,12 @@ class EmbySessionEventsTest(unittest.TestCase):
                     }
                 ],
             },
+            media_source_id="source-1",
+        )
+
+        source = describe_session_playback_source(
+            session,
+            item_playback_info=item_playback_info,
         )
 
         self.assertEqual("11136", source["item_id"])

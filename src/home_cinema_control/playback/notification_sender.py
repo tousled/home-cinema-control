@@ -71,11 +71,13 @@ def send_playback_message(
         )
 
 
-def send_stop_with_delivery_reliability(
-        stop_session_playback: Callable[[str], object],
+def send_with_delivery_reliability(
+        send_command: Callable[[str], object],
         session_id: str | None,
+        *,
+        command_name: str,
 ) -> object | None:
-    """Send a remote Stop to the source client twice, best-effort.
+    """Send a remote command to the source client twice, best-effort.
 
     Emby's remote playback commands are fire-and-forget over the client's
     websocket connection — confirmed against upstream Jellyfin source (which
@@ -102,21 +104,35 @@ def send_stop_with_delivery_reliability(
 
     response = None
     try:
-        response = stop_session_playback(session_id)
+        response = send_command(session_id)
     except Exception:
         logger.warning(
-            "Could not send Stop for delivery reliability | session_id=%s",
+            "Could not send %s for delivery reliability | session_id=%s",
+            command_name,
             session_id,
             exc_info=True,
         )
 
     try:
-        stop_session_playback(session_id)
+        send_command(session_id)
     except Exception:
         logger.warning(
-            "Could not resend Stop for delivery reliability | session_id=%s",
+            "Could not resend %s for delivery reliability | session_id=%s",
+            command_name,
             session_id,
             exc_info=True,
         )
 
     return response
+
+
+def send_stop_with_delivery_reliability(
+        stop_session_playback: Callable[[str], object],
+        session_id: str | None,
+) -> object | None:
+    """Send a remote Stop to the source client twice, best-effort."""
+    return send_with_delivery_reliability(
+        stop_session_playback,
+        session_id,
+        command_name="Stop",
+    )

@@ -30,6 +30,16 @@ export async function refreshSetupReadiness() {
     }
 }
 
+export function patchSetupReadiness(section, value) {
+    _readiness.value = {
+        ...(_readiness.value || {}),
+        [section]: {
+            ...((_readiness.value || {})[section] || {}),
+            ...value,
+        },
+    }
+}
+
 function ensureReadinessListener() {
     if (_listenerRegistered || typeof window === 'undefined') return
     window.addEventListener('hcc:config-saved', () => {

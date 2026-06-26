@@ -1,7 +1,7 @@
 import unittest
 
 from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
+    PlayerPlaybackLifecyclePhase,
     classify_oppo_status,
     normalize_oppo_status,
 )
@@ -42,7 +42,7 @@ class OppoPlaybackStateTest(unittest.TestCase):
             "STEP",
         ]:
             with self.subTest(status=status):
-                self.assertEqual(OppoPlaybackCategory.ACTIVE, classify_oppo_status(status))
+                self.assertEqual(PlayerPlaybackLifecyclePhase.ACTIVE, classify_oppo_status(status))
 
     def test_idle_states(self):
         for status in [
@@ -52,7 +52,7 @@ class OppoPlaybackStateTest(unittest.TestCase):
             "NO_DISC",
         ]:
             with self.subTest(status=status):
-                self.assertEqual(OppoPlaybackCategory.IDLE, classify_oppo_status(status))
+                self.assertEqual(PlayerPlaybackLifecyclePhase.IDLE, classify_oppo_status(status))
 
     def test_transition_states(self):
         for status in [
@@ -62,10 +62,10 @@ class OppoPlaybackStateTest(unittest.TestCase):
             "LOADING",
         ]:
             with self.subTest(status=status):
-                self.assertEqual(OppoPlaybackCategory.TRANSITION, classify_oppo_status(status))
+                self.assertEqual(PlayerPlaybackLifecyclePhase.TRANSITION, classify_oppo_status(status))
 
     def test_unknown_state(self):
-        self.assertEqual(OppoPlaybackCategory.UNKNOWN, classify_oppo_status("SOMETHING_ELSE"))
+        self.assertEqual(PlayerPlaybackLifecyclePhase.UNKNOWN, classify_oppo_status("SOMETHING_ELSE"))
 
 
 if __name__ == "__main__":

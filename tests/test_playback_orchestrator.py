@@ -1,8 +1,10 @@
 import unittest
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackStartResult,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.during import (
     PlaybackMonitoringResult,
@@ -18,13 +20,11 @@ from home_cinema_control.playback.orchestrator import (
 from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
-    OppoPlaybackStartRequest,
-    OppoPlaybackStartResult,
+    MediaPlayerStartRequest,
     PlaybackOutputSwitchRequest,
     PlaybackOutputSwitchResult,
     PlaybackStartupRequest,
     PlaybackStartupResult,
-    OppoPlaybackState,
     PlayerMediaFileLocation,
 )
 from home_cinema_control.playback.startup.completion import (
@@ -42,10 +42,10 @@ class RecordingStartupOrchestrator:
 
     def start_playback(self, request, *, on_waiting=None):
         self.output_switch_calls.append(request)
-        self.start_calls.append((request.oppo_start_request, on_waiting))
+        self.start_calls.append((request.media_player_start_request, on_waiting))
         return PlaybackStartupResult(
             output_switch_result=self.output_switch_result,
-            oppo_start_result=self.result,
+            media_player_start_result=self.result,
         )
 
 
@@ -413,7 +413,7 @@ class PlaybackOrchestratorTest(unittest.TestCase):
 
 
 def _start_request():
-    return OppoPlaybackStartRequest(
+    return MediaPlayerStartRequest(
         media_location=PlayerMediaFileLocation(
             content_server="nas",
             content_directory="Movies",
@@ -426,7 +426,7 @@ def _start_request():
 def _startup_request():
     return PlaybackStartupRequest(
         output_switch_request=_output_switch_request(),
-        oppo_start_request=_start_request(),
+        media_player_start_request=_start_request(),
     )
 
 
@@ -459,11 +459,11 @@ def _startup_completion_request():
 
 
 def _startup_result(*, successful):
-    return OppoPlaybackStartResult(
+    return PlayerPlaybackStartResult(
         media_mounted=successful,
         playback_command_accepted=successful,
         playback_started_on_device=successful,
-        playback_state=_state(OppoPlaybackStatus.PLAY),
+        playback_state=_state(PlayerPlaybackStatus.PLAY),
     )
 
 
@@ -476,7 +476,7 @@ def _monitoring_result(
     return PlaybackMonitoringResult(
         position_seconds=position_seconds,
         duration_seconds=duration_seconds,
-        final_state=_state(OppoPlaybackStatus.STOP),
+        final_state=_state(PlayerPlaybackStatus.STOP),
         stop_reason=stop_reason,
     )
 
@@ -495,19 +495,19 @@ def _finish_result(*, successful=True):
             else DeviceCommandResult.failed("tv failed")
         ),
         av_audio_result=DeviceCommandResult.success(),
-        final_player_state=_state(OppoPlaybackStatus.MEDIA_CENTER),
+        final_player_state=_state(PlayerPlaybackStatus.MEDIA_CENTER),
     )
 
 
 def _state(status):
-    category = (
-        OppoPlaybackCategory.ACTIVE
-        if status == OppoPlaybackStatus.PLAY
-        else OppoPlaybackCategory.TRANSITION
+    lifecycle_phase = (
+        PlayerPlaybackLifecyclePhase.ACTIVE
+        if status == PlayerPlaybackStatus.PLAY
+        else PlayerPlaybackLifecyclePhase.TRANSITION
     )
-    return OppoPlaybackState(
+    return PlayerPlaybackState(
         status=status,
-        category=category,
+        lifecycle_phase=lifecycle_phase,
         raw_response=f"@OK {status.value}",
         ok=True,
     )

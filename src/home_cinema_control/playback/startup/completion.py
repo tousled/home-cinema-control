@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
-from home_cinema_control.media_servers.emby.constants import EMBY_TICKS_PER_SECOND
+from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.startup.models import DeviceCommandResult
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ class OppoStartupCompletionPlayer:
         self._startup_orchestrator = startup_orchestrator
 
     def seek_to_seconds(self, position_seconds: int) -> DeviceCommandResult:
-        position_units = max(0, position_seconds) * EMBY_TICKS_PER_SECOND
+        position_units = max(0, position_seconds) * TICKS_PER_SECOND
         return self._startup_orchestrator.seek_oppo_to(position_units)
 
     def select_audio_track(self, audio_track_id: int) -> DeviceCommandResult:

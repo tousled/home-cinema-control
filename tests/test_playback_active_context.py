@@ -13,7 +13,7 @@ class ActivePlaybackRuntimeContextTest(unittest.TestCase):
         context.activate(
             SimpleNamespace(
                 playback_event_publisher=publisher,
-                startup_wiring=SimpleNamespace(oppo_playback=oppo_playback),
+                startup_wiring=SimpleNamespace(media_player=oppo_playback),
             )
         )
 
@@ -25,7 +25,7 @@ class ActivePlaybackRuntimeContextTest(unittest.TestCase):
         context.activate(
             SimpleNamespace(
                 playback_event_publisher=object(),
-                startup_wiring=SimpleNamespace(oppo_playback=object()),
+                startup_wiring=SimpleNamespace(media_player=object()),
             )
         )
 

@@ -1,0 +1,254 @@
+import unittest
+from unittest.mock import MagicMock
+
+from home_cinema_control.media_servers.common.models import (
+    MediaServerItemPlaybackInfo,
+    MediaServerLibrary,
+)
+from home_cinema_control.media_servers.jellyfin.session_monitor import (
+    JellyfinSessionMonitor,
+)
+from home_cinema_control.playback.intent import PlaybackOrigin
+from home_cinema_control.playback.state import BridgePlaybackState
+
+
+def _make_session(
+    device_id="device-1",
+    device_name="LG TV",
+    user_id="user-1",
+    item_id="42",
+    item_name="Blade Runner 2049",
+    item_path="/movies/blade_runner.mkv",
+    audio_index=1,
+    subtitle_index=-1,
+    position_ticks=0,
+):
+    return {
+        "DeviceId": device_id,
+        "DeviceName": device_name,
+        "UserId": user_id,
+        "NowPlayingItem": {
+            "Id": item_id,
+            "Name": item_name,
+            "Type": "Movie",
+            "Path": item_path,
+            "Container": "mkv",
+        },
+        "PlayState": {
+            "AudioStreamIndex": audio_index,
+            "SubtitleStreamIndex": subtitle_index,
+            "PositionTicks": position_ticks,
+            "MediaSourceId": "source-1",
+        },
+    }
+
+
+def _make_item_playback_info():
+    return MediaServerItemPlaybackInfo(
+        played=False,
+        play_count=0,
+        media_source_container="mkv",
+    )
+
+
+def _config(
+    device_id="device-1",
+    use_all_libraries=False,
+    libraries=None,
+    path_mappings=None,
+):
+    if libraries is None:
+        libraries = [{"id": "lib-1", "name": "Movies", "active": True}]
+    if path_mappings is None:
+        path_mappings = [
+            {
+                "source_path": "/movies",
+                "player_path": "/NAS/Movies",
+                "protocol": "nfs",
+                "verified": True,
+            }
+        ]
+    return {
+        "media_servers": {
+            "active": "jellyfin",
+            "providers": {
+                "jellyfin": {
+                    "playback": {
+                        "hcc_controlled_device": device_id,
+                        "use_all_libraries": use_all_libraries,
+                        "libraries": libraries,
+                        "path_mappings": path_mappings,
+                    }
+                }
+            },
+        }
+    }
+
+
+class MediaServerLibraryLegacyCasingTest(unittest.TestCase):
+    """Direct, isolated coverage of MediaServerLibrary's model_validator,
+    underneath JellyfinSessionMonitorTest.test_uppercase_library_shape_is_supported's
+    integration-level coverage of the same behavior.
+    """
+
+    def test_pure_legacy_shape_with_no_lowercase_fields(self):
+        # The real shape of every 1.0.5 config.json's playback.libraries.
+        library = MediaServerLibrary.model_validate(
+            {"Name": "Trailers", "Id": "3673", "Active": False}
+        )
+        self.assertEqual("3673", library.id)
+        self.assertEqual("Trailers", library.name)
+        self.assertFalse(library.active)
+        self.assertEqual({}, library.model_extra)
+
+    def test_corrupted_mixed_shape_prefers_capitalized_over_default_lowercase(self):
+        # Observed in a real config.json: lowercase fields sitting at their
+        # Pydantic defaults (empty/False) alongside the real capitalized data.
+        library = MediaServerLibrary.model_validate(
+            {
+                "id": "",
+                "name": "",
+                "active": False,
+                "Name": "Movies",
+                "Id": "4",
+                "Active": True,
+            }
+        )
+        self.assertEqual("4", library.id)
+        self.assertEqual("Movies", library.name)
+        self.assertTrue(library.active)
+
+    def test_modern_lowercase_shape_is_never_overridden(self):
+        library = MediaServerLibrary.model_validate(
+            {"id": "real-id", "name": "Real Name", "active": True}
+        )
+        self.assertEqual("real-id", library.id)
+        self.assertEqual("Real Name", library.name)
+        self.assertTrue(library.active)
+
+
+class JellyfinSessionMonitorTest(unittest.TestCase):
+    def setUp(self):
+        self.jellyfin_session = MagicMock()
+        self.jellyfin_session.get_item_playback_info.return_value = (
+            _make_item_playback_info()
+        )
+        self.jellyfin_session.is_item_path_in_library.return_value = True
+        self.playback_state = BridgePlaybackState()
+        self.dispatcher = MagicMock()
+        self.config = _config()
+
+    def _monitor(self, config=None):
+        return JellyfinSessionMonitor(
+            jellyfin_session=self.jellyfin_session,
+            playback_state=self.playback_state,
+            config_provider=lambda: config or self.config,
+            dispatcher=self.dispatcher,
+        )
+
+    def test_no_matching_session_does_nothing(self):
+        monitor = self._monitor()
+
+        monitor.on_sessions_update([_make_session(device_id="other-device")])
+
+        self.dispatcher.dispatch.assert_not_called()
+
+    def test_item_not_in_library_does_not_dispatch(self):
+        self.jellyfin_session.is_item_path_in_library.return_value = False
+        monitor = self._monitor()
+
+        monitor.on_sessions_update([_make_session()])
+
+        self.dispatcher.dispatch.assert_not_called()
+
+    def test_item_without_verified_path_mapping_does_not_dispatch(self):
+        monitor = self._monitor(
+            config=_config(
+                path_mappings=[
+                    {
+                        "source_path": "/movies",
+                        "player_path": "/NAS/Movies",
+                        "protocol": "nfs",
+                        "verified": False,
+                    }
+                ]
+            )
+        )
+
+        monitor.on_sessions_update([_make_session()])
+
+        self.dispatcher.dispatch.assert_not_called()
+
+    def test_new_item_in_library_dispatches_intent(self):
+        monitor = self._monitor()
+
+        monitor.on_sessions_update([_make_session(item_id="99", audio_index=2)])
+
+        self.dispatcher.dispatch.assert_called_once()
+        intent = self.dispatcher.dispatch.call_args[0][0]
+        kwargs = self.dispatcher.dispatch.call_args.kwargs
+        self.assertEqual("99", intent.media_item_id)
+        self.assertEqual("source-1", intent.media_source_id)
+        self.assertEqual(2, intent.selected_audio_track_id)
+        self.assertEqual(PlaybackOrigin.OBSERVED_TV_CLIENT, kwargs["origin"])
+
+    def test_uppercase_library_shape_is_supported(self):
+        # Not a hypothetical: every 1.0.5 config.json has libraries written by
+        # code that predates MediaServerLibrary, in raw Emby/Jellyfin API
+        # casing. Normalization now lives in MediaServerLibrary's own
+        # model_validator, not here - confirmed against a real production
+        # config.json during the scoped-paths-libraries-device spec's Phase 2.
+        monitor = self._monitor(
+            config=_config(libraries=[{"Id": "lib-1", "Name": "Movies", "Active": True}])
+        )
+
+        monitor.on_sessions_update([_make_session()])
+
+        self.jellyfin_session.is_item_path_in_library.assert_called_once_with(
+            "lib-1",
+            "/movies/blade_runner.mkv",
+        )
+        self.dispatcher.dispatch.assert_called_once()
+
+    def test_same_item_on_second_update_does_not_dispatch_again(self):
+        monitor = self._monitor()
+        session = _make_session()
+
+        monitor.on_sessions_update([session])
+        monitor.on_sessions_update([session])
+
+        self.dispatcher.dispatch.assert_called_once()
+
+    def test_item_stopped_resets_monitored_state_when_bridge_inactive(self):
+        monitor = self._monitor()
+        monitor.on_sessions_update([_make_session()])
+
+        monitor.on_sessions_update([{"DeviceId": "device-1", "DeviceName": "LG TV"}])
+
+        self.assertEqual("", monitor._monitored_state)
+
+    def test_only_active_providers_device_is_used(self):
+        config = {
+            "media_servers": {
+                "active": "jellyfin",
+                "providers": {
+                    "jellyfin": {
+                        "playback": {
+                            "hcc_controlled_device": "device-1",
+                            "use_all_libraries": True,
+                            "path_mappings": [{"source_path": "/movies", "verified": True}],
+                        }
+                    },
+                    "emby": {"playback": {"hcc_controlled_device": "other-device"}},
+                },
+            }
+        }
+        monitor = self._monitor(config=config)
+
+        monitor.on_sessions_update([_make_session(device_id="device-1")])
+
+        self.dispatcher.dispatch.assert_called_once()
+
+
+if __name__ == "__main__":
+    unittest.main()

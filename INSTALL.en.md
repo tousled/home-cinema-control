@@ -3,8 +3,8 @@
 [Español](INSTALL.md) · [README](README.en.md)
 
 This guide covers Docker deployment and the HCC web setup flow. It focuses on the problems that usually make
-Emby/NAS/OPPO/TV/AV installations hard to debug: path mapping, IP discovery, NFS/SMB mounts, CEC/ARC interference, and
-raw logs without context.
+Emby/Jellyfin/NAS/OPPO/TV/AV installations hard to debug: path mapping, IP discovery, NFS/SMB mounts, CEC/ARC
+interference, and raw logs without context.
 
 For NAS-specific screenshots and OPPO/Chinoppo player preparation, use the AVPasion Xnoppo community tutorial as an
 external reference:
@@ -15,22 +15,22 @@ Use that guide for NAS permissions, shares, and player-side setup. Use this guid
 
 ## 1. Before You Start
 
-| Requirement                | Notes                                           |
-|----------------------------|-------------------------------------------------|
-| Docker                     | Linux recommended. Host networking is required. |
-| Emby Server                | Must be reachable from HCC.                     |
-| OPPO/Chinoppo player       | Must expose the OPPO MediaControl API.          |
-| NAS or shared media folder | Must be visible to both Emby and the player.    |
-| NFS or SMB/CIFS            | Selected per path mapping in HCC.               |
-| TV and AV receiver         | Optional. HCC can run without them.             |
+| Requirement                | Notes                                                     |
+|----------------------------|-----------------------------------------------------------|
+| Docker                     | Linux recommended. Host networking is required.           |
+| Emby or Jellyfin           | Either one, reachable from HCC.                           |
+| OPPO/Chinoppo player       | Must expose the OPPO MediaControl API.                    |
+| NAS or shared media folder | Must be visible to both your media server and the player. |
+| NFS or SMB/CIFS            | Selected per path mapping in HCC.                         |
+| TV and AV receiver         | Optional. HCC can run without them.                       |
 
 Recommendations:
 
-- Reserve fixed IPs for Emby, NAS, player, TV, and AV receiver.
-- Create the libraries in Emby first. HCC does not invent libraries; it reads the ones already configured on your
-  server.
-  See Emby's official [Library Setup](https://emby.media/support/articles/Library-Setup.html) and
-  [Quick Start](https://emby.media/support/articles/Quick-Start.html).
+- Reserve fixed IPs for your media server, NAS, player, TV, and AV receiver.
+- Create the libraries in Emby or Jellyfin first. HCC does not invent libraries; it reads the ones already configured
+  on your server. For Emby, see [Library Setup](https://emby.media/support/articles/Library-Setup.html) and
+  [Quick Start](https://emby.media/support/articles/Quick-Start.html). For Jellyfin, see
+  [Adding Media Libraries](https://jellyfin.org/docs/general/server/libraries/).
 - Share the NAS folders through NFS or SMB/CIFS and confirm the player can browse them from its own network browser.
 - Decide which libraries HCC should intercept.
 - If your AV receiver switches back to TV Audio after HCC selects the player input, review HDMI CEC/ARC. In some setups,
@@ -86,6 +86,8 @@ volumes:
     name: home-cinema-control-config
 ```
 
+Start it:
+
 ```bash
 docker compose pull
 docker compose up -d
@@ -93,7 +95,20 @@ docker compose up -d
 
 Open `http://<your-host>:8090`.
 
-Host networking is required so HCC can reach Emby, the player, TV, AVR, and network discovery tools directly.
+`network_mode: host` is required: HCC talks directly to Emby/Jellyfin, the OPPO/Chinoppo, TV, AVR, and discovery
+tools like `arp-scan`.
+
+### 3.1 Installing with Portainer or another web UI
+
+In Portainer: **Stacks → Add stack**, then paste the `compose.yaml` above.
+
+To pin a specific version (release candidates included), add `HCC_VERSION` as a stack environment variable, e.g.
+`HCC_VERSION=1.1.0-rc.2`. That's the only thing that decides which image gets pulled — without it, Portainer uses
+`latest` (the latest stable release). To update, change that value and redeploy by re-pulling the image, not by
+rebuilding from the Dockerfile.
+
+Other web UIs (Synology Container Manager, Unraid, etc.) should work the same way if they let you set environment
+variables for the stack — same logic applies.
 
 ## 4. Migration Or Fresh Setup
 
@@ -105,15 +120,41 @@ If HCC finds a compatible older configuration, it shows a migration screen.
 
 HCC now saves setup by section and keeps secrets in `/config/secrets.json`.
 
-## 5. Media Server
+If this is instead a brand-new install (no prior HCC configuration) and you're coming from the predecessor
+XNOPPO/Chinoppo project, HCC offers a second, separate prompt: import your old XNOPPO `config.json` instead of
+setting everything up from scratch. Pick the file, and HCC migrates OPPO/TV/AV/paths the same way the regular
+migration does, moves your Emby server URL into the new config shape, and — if the server is reachable at that
+moment — logs in with the old file's username/password to obtain a real token. If it can't reach the server, the
+provider is still added but left unauthenticated, and the Media Server sidebar indicator turns orange so you know to
+finish connecting it from its own screen. If you don't have an XNOPPO `config.json`, or would rather not import it,
+choose "Configure from scratch" and follow the normal wizard.
 
-Configure Emby URL, authentication, and the Emby client/device HCC should monitor.
+<!-- TODO: screenshot of the XNOPPO import modal on a fresh install -->
+
+## 5. Media Server: Emby or Jellyfin
+
+Pick the provider (Emby or Jellyfin), then configure its URL, authentication, and the client/device HCC should
+monitor. Screenshots in this guide show Emby, but the flow is the same with Jellyfin.
 
 <p align="center">
   <img src="assets/screenshots/install/02-media-server.png" alt="HCC Media Server setup" width="860"/>
 </p>
 
-This screen avoids manual token editing, reloads Emby devices, and prepares library discovery for path mapping.
+The page header shows the selected provider logo, for example Emby or Jellyfin, so you can immediately recognize which
+integration you are configuring. The logo is muted while the provider still needs authorization or connection setup, and
+becomes more prominent once that provider is authorized. The server URL, user, and detailed readiness information stay
+in
+the configuration panels instead of being repeated in the header.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server-pending.png" alt="Media Server with Jellyfin selected but pending authorization" width="860"/>
+</p>
+
+This screen avoids manual token editing, reloads the media server's devices, and prepares library discovery for path
+mapping.
+
+If you use Jellyfin, the account you authorize HCC with must be an **administrator** for device and library reload
+to work — see [Frequent Issues](#14-frequent-issues).
 
 ## 6. Media Player
 
@@ -148,8 +189,9 @@ OPPO over SMB:    Video/Movies/Dune (2021).mkv
 HCC saves:        this library uses this OPPO path and this protocol
 ```
 
-Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the same names. HCC starts from Emby libraries,
-asks for the equivalent player-visible path, and tests it before a real viewing session.
+Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the same names. HCC starts from the active
+provider's libraries, asks for the equivalent player-visible path, and tests it before a real viewing session. The
+screen shows an Emby/Jellyfin badge so you can tell which server you are mapping.
 
 <p align="center">
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="HCC Media Paths assistant overview" width="860"/>
@@ -401,9 +443,22 @@ docker run -d \
   ghcr.io/tousled/home-cinema-control:latest
 ```
 
+If you installed with Portainer or another web UI: change the stack's `HCC_VERSION` environment variable to the
+version you want and redeploy by re-pulling the image, not by rebuilding from the Dockerfile — see
+[3.1](#31-installing-with-portainer-or-another-web-ui).
+
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
 ## 14. Frequent Issues
+
+### Jellyfin: devices and libraries don't show up when you click "Reload"
+
+- The Jellyfin account you authorize HCC with must be an **administrator**. Jellyfin restricts the device list
+  (`/Devices`) and the library/virtual-folder list (`/Library/VirtualFolders`) to elevated accounts — a regular
+  account gets a 403 error loading them, even though login itself (authorizing, playing, reporting progress) works
+  normally.
+- If you only have one Jellyfin user, it's almost certainly already the administrator and there's nothing to change.
+  If HCC uses a secondary account, grant it administrator rights from the Jellyfin dashboard.
 
 ### HCC cannot reach the player
 

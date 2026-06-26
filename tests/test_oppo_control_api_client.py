@@ -82,13 +82,30 @@ class OppoControlApiClientTest(unittest.TestCase):
         client = OppoControlApiClient.from_config(
             {
                 "oppo": {"ip": "192.168.1.50"},
-                "media_server": {
-                    "server_url": "http://192.168.1.100:8096",
+                "media_servers": {
+                    "active": "emby",
+                    "providers": {"emby": {"server_url": "http://192.168.1.100:8096"}},
                 },
             }
         )
 
         self.assertEqual("192.168.1.50", client.player_host)
+        self.assertEqual("192.168.1.100", client.media_server_host)
+
+    def test_from_config_reads_active_provider_from_migrated_shape(self):
+        client = OppoControlApiClient.from_config(
+            {
+                "oppo": {"ip": "192.168.1.50"},
+                "media_servers": {
+                    "active": "jellyfin",
+                    "providers": {
+                        "emby": {"server_url": "http://192.168.1.200:8096"},
+                        "jellyfin": {"server_url": "http://192.168.1.100:8096"},
+                    },
+                },
+            }
+        )
+
         self.assertEqual("192.168.1.100", client.media_server_host)
 
     def test_set_play_time_uses_media_control_endpoint_payload(self):

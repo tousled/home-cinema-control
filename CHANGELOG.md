@@ -4,8 +4,127 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
-> This project is currently in pre-1.0 stabilization. Versions `0.x` may introduce breaking changes while the legacy
-> architecture is progressively removed.
+## [Unreleased]
+
+## [1.1.0] - 2026-06-26
+
+### Added
+
+* Path mappings, detected libraries, the library-filter preference, and the monitored device now persist
+  independently per media-server provider (`media_servers.providers[type].playback`), instead of one shared block
+  used by whichever provider happened to be active. Switching between Emby and Jellyfin now shows each provider's
+  own mappings/libraries/device, and switching back restores them exactly as left — the same guarantee already
+  shipped for auth in 1.0.5. Includes an automatic, one-time migration of existing installs' config.
+* Added toast feedback for the Media Server provider switch: a confirmation when the switch lands on an
+  already-authorized provider (previously silent — the only feedback was a transient "connecting…" state), and a
+  distinct message when the switch succeeds but the target provider still needs login.
+* Added a provider-branded Media Server hero mark that surfaces the selected Emby/Jellyfin provider without repeating
+  the server URL, user, or readiness details already shown in the configuration panels. The mark stays visible as
+  setup context while the provider is pending authorization, but renders muted until the provider is authorized.
+* Updated the Media Server installation screenshots to show provider selection, the Jellyfin hero mark, and the muted
+  provider state shown before authorization.
+* Added a compact active-provider badge to Media Paths so the detected-library and route-mapping workflow keeps the
+  configured Emby/Jellyfin context visible without overloading the refresh action.
+* Added a shared, provider-neutral `find_controlling_session_id` policy (`media_servers/common/models.py`) that
+  resolves which client session actually issued a remote Play command, used by both Emby and Jellyfin.
+* Instrumented two previously invisible OPPO startup phases — mounting the network share (`mount_oppo_network_share`,
+  includes the device-list-ready wait) and waiting for the OPPO to actually report active playback
+  (`wait_for_oppo_playback_active`, the QPL telnet poll after launching the file) — into the existing
+  `PlaybackStartupTimer`. Before this, a slow OPPO response in either phase showed up as an unexplained gap between
+  the named steps and the printed `total` in "Playback startup timing summary," with no way to tell from the log
+  alone whether the OPPO, the TV/AV output switch, or something else caused it. No behavior change: both are
+  optional, timer-only wrapping.
+* Added a first-run modal offering to import a legacy XNOPPO `config.json` (the predecessor project this app
+  replaces) on a fresh install with nothing configured yet, separate from the existing "legacy config already on
+  disk" migration modal. The user picks the old `config.json` file, HCC migrates AV/TV/OPPO/playback settings the
+  same way the existing migration pipeline already does, moves the Emby server URL into the new multi-provider
+  config shape, and makes a best-effort live login with the file's username/password to obtain a real access token
+  — if that login fails (e.g. the Emby server isn't reachable yet), the provider is just left unauthenticated, same
+  as any freshly added provider, and the existing sidebar readiness indicator shows it needs attention.
+
+### Fixed
+
+* Fixed the Media Server setup screen treating saved provider data as live success when the active Emby/Jellyfin server
+  is unavailable. The form now renders from saved config immediately instead of waiting for slow device/library
+  discovery timeouts, failed device discovery is shown explicitly, affected panels no longer stay green, and the
+  sidebar setup dot is downgraded while the current provider cannot be reached.
+* Fixed the monitored-device selector showing blank rows when a provider returned devices in a non-canonical shape or
+  without display labels. Device options are now normalized defensively and invisible rows are filtered out.
+* Fixed media-server provider switches activating/restarting the runtime listener before the target provider was usable.
+  Selecting an unconfigured provider now saves it as a draft only; expired or unreachable targets leave the current
+  websocket listener untouched; configured targets are checked before any active-playback confirmation or listener swap.
+* Fixed Jellyfin playback-startup notifications never being sent at all. Jellyfin's `Play` websocket message has the
+  same gap Emby's already-shipped fix (1.0.5) covers — it never identifies the controlling client's own session,
+  only the bridge's target session — but the fix was never ported to Jellyfin. Every notification silently no-opped
+  with "no active source session is available."
+* Fixed Jellyfin source-client cleanup at playback finish using the bridge target session when Jellyfin's `Play`
+  command only provided `Id`. HCC now treats `Id` as the target session, resolves the real controlling client
+  session, and sends the same double `Stop` used for Emby so the Jellyfin app clears its stale playback screen when
+  the OPPO is stopped from the remote.
+* Fixed Jellyfin Web/App remote-control screens remaining on a frozen playback view after OPPO remote Stop by applying
+  the same best-effort double `Stop` delivery used for Emby to Jellyfin's source client session.
+* Fixed Jellyfin multi-client cleanup when the same user has the web UI and mobile app open for the same HCC playback.
+  HCC now resolves active Jellyfin sessions for that user, excludes its own bridge session, skips only sessions that
+  explicitly report a different now-playing item, and sends best-effort double `Stop` to each stale client instead of
+  only the single session that originally issued Play.
+* Fixed `JellyfinClient.send_session_message` sending `Text`/`Header`/`TimeoutMs` as query-string parameters (Emby's
+  shape) instead of the JSON request body Jellyfin's server actually requires, and sending an empty `data={}` body
+  that omitted the `Content-Type` header entirely, which Jellyfin's server rejects with `415 Unsupported Media
+  Type`. Confirmed against a real Jellyfin server's own error responses.
+* Fixed `JellyfinClient.get_user_views` calling a route that does not exist (`/Users/{userId}/Views`). The real
+  route is `GET /UserViews?userId=...`. Jellyfin library detection had likely never worked on any real install —
+  masked by the `ModuleMediaServerSetupService` bug below, which silently absorbed the resulting failure.
+* Fixed `ModuleMediaServerSetupService.load_devices`/`load_libraries`/`load_selectable_folders` discarding the
+  provider module's actual return value and always returning the pre-call config unchanged. Freshly detected
+  libraries, devices, and path mappings were computed correctly and then thrown away before reaching the UI, for
+  both Emby and Jellyfin.
+* Fixed `MediaServerLibrary` reading every library as inactive for any install whose `playback.libraries` predates
+  this value object (every install before this provider-boundary refactor) — those entries use raw
+  `Id`/`Name`/`Active` (capitalized) instead of the model's `id`/`name`/`active`. A model validator now normalizes
+  the legacy shape instead of silently defaulting `active` to `False`.
+* `find_controlling_session_id`'s Jellyfin-side session lookup now narrows server-side via the confirmed
+  `controllableByUserId` query parameter instead of fetching every active session on the server for every single
+  Play command.
+* Fixed the existing "legacy config found" migration silently discarding `emby_server`/`user_name`/`user_password`
+  from an XNOPPO-era flat `config.json` instead of migrating them — those keys were already listed as legacy
+  (so they got removed) but no step ever moved the server URL anywhere first. `TV_KEY`/`TV_DeviceName` (no current
+  equivalent — LG pairing now goes through a separate key store) are now dropped instead of lingering as orphaned
+  fields.
+* Fixed the Docker image being unable to complete a truly fresh install (no existing config volume at all):
+  the multi-stage build refactor dropped `config.example.json` from the final runtime stage, so
+  `ensure_config_exists()` had nothing to seed `config.json` from and crashed on every container start.
+* Fixed `secrets.json` carrying a stale, empty single-provider `media_server` stub forever. It was seeded by
+  default for every install before the multi-provider `media_servers.providers.*` shape existed, and was only ever
+  cleaned up when the *public* config also had real legacy `media_server` data — which an XNOPPO-era flat config
+  never has. It's no longer seeded for new installs, and existing installs self-heal it on the next config save or
+  container restart.
+* Fixed the "include pre-release versions" checkbox on the Diagnostics page never actually persisting — it was a
+  local-only UI ref, never read from saved config on load and never saved when toggled, so it silently reset to
+  off on every page reload. As a result the version check always ran with pre-releases excluded no matter how the
+  checkbox looked, even though the backend filtering logic itself (fixed in 1.1.0-rc.2) was already correct. The
+  checkbox now loads its saved state and persists immediately on toggle.
+* Fixed `compose.yaml` (the file users/NAS deployments actually run) carrying both `image:` and `build:`. Several
+  Docker GUIs (Portainer's "deploy stack from Git" pointed at a tag, among others) build from the compose file's
+  `build:` section instead of pulling the named image — silently producing a locally-rebuilt image stamped
+  `0.0.0.dev0` (the `SETUPTOOLS_SCM_PRETEND_VERSION` build-arg's fallback, since nothing sets `HCC_VERSION` in that
+  flow) instead of the real, correctly-versioned image from the registry. `compose.yaml` is now pull-only; the
+  `build:` section moved to a local-only, untracked override file for development.
+
+### Changed
+
+* Documented that Jellyfin device and library discovery (`GET /Devices`, `GET /Library/VirtualFolders`) requires an
+  administrator-level Jellyfin account — both endpoints are elevation-gated server-side. See `INSTALL.md` /
+  `INSTALL.en.md`'s FAQ.
+* `README.md`/`README.en.md` and `INSTALL.md`/`INSTALL.en.md` updated to reflect Jellyfin as a shipped, supported
+  media-server provider rather than a roadmap item.
+* Documented installing/updating via Portainer (or similarly-capable web UIs) in `INSTALL.md`/`INSTALL.en.md`'s
+  Docker Compose section — paste `compose.yaml` into the stack, then pin the running version via the stack's
+  `HCC_VERSION` environment variable.
+* Fixed `INSTALL.md`/`INSTALL.en.md` presenting Emby as the only supported media server in the requirements section
+  — it never reflected Jellyfin support there, even though Jellyfin has been a shipped provider since 1.1.0-rc.1.
+* All backend routes moved from `/api/*` to `/api/v1/*`, ahead of splitting `web/api_app.py`'s 800+ lines into one
+  router per domain. The frontend (`api/index.js`'s base URL, plus the few hardcoded now-playing image/config-bootstrap
+  paths) moved with it; the dev proxy in `vite.config.js` still matches on the `/api` prefix unchanged.
 
 ## [1.0.5] - 2026-06-22
 

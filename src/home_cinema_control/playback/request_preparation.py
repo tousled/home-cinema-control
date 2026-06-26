@@ -3,13 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from home_cinema_control.media_servers.emby.playback import MediaServerPlaybackSource
+from home_cinema_control.config.manager import active_media_server_config
+from home_cinema_control.media_servers.common.playback_source import (
+    MediaServerPlaybackSource,
+)
 from home_cinema_control.playback.intent import PlaybackIntent
 from home_cinema_control.playback.media_location import resolve_player_media_file_location
 from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.playback.startup.completion import PlayMediaItemRequest
 from home_cinema_control.playback.startup.models import (
-    OppoPlaybackStartRequest,
+    MediaPlayerStartRequest,
     PlaybackOutputSwitchRequest,
     PlayerMediaFileLocation,
 )
@@ -21,15 +24,16 @@ PLAYBACK_START_POLL_INTERVAL_SECONDS = 0.5
 class PreparedPlaybackRequests:
     """All orchestrator request objects derived from one media-server intent.
 
-    The application service receives Emby-flavoured item/config data. This value
-    object groups the clean requests consumed by playback orchestrators plus the
-    resolved media location used for user-facing logs/messages.
+    The application service receives a provider-mapped item plus config data.
+    This value object groups the clean requests consumed by playback
+    orchestrators plus the resolved media location used for user-facing
+    logs/messages.
     """
 
     media_location: PlayerMediaFileLocation
     movie_path: str
     output_switch_request: PlaybackOutputSwitchRequest
-    oppo_playback_start_request: OppoPlaybackStartRequest
+    media_player_start_request: MediaPlayerStartRequest
     startup_completion_request: PlayMediaItemRequest
 
 
@@ -41,16 +45,17 @@ def prepare_playback_requests(
     previous_tv_app_id_override: str | None,
 ) -> PreparedPlaybackRequests:
     """Translate config, selected media item, and playback intent into requests."""
+    path_mappings = active_media_server_config(config).playback.path_mappings
     media_location = resolve_player_media_file_location(
         emby_media_path=item_info.path,
         playback_file_format=item_info.container,
-        path_mappings=config["playback"]["path_mappings"],
+        path_mappings=[mapping.model_dump() for mapping in path_mappings],
     )
     output_switch_request = _output_switch_request(
         config,
         previous_tv_app_id_override=previous_tv_app_id_override,
     )
-    oppo_playback_start_request = _oppo_playback_start_request(
+    media_player_start_request = _media_player_start_request(
         config,
         media_location=media_location,
     )
@@ -67,7 +72,7 @@ def prepare_playback_requests(
         media_location=media_location,
         movie_path=item_info.path,
         output_switch_request=output_switch_request,
-        oppo_playback_start_request=oppo_playback_start_request,
+        media_player_start_request=media_player_start_request,
         startup_completion_request=startup_completion_request,
     )
 
@@ -107,14 +112,14 @@ def _resolve_tv_input_target(tv: dict) -> TvInputTarget:
     )
 
 
-def _oppo_playback_start_request(
+def _media_player_start_request(
     config: dict[str, Any],
     *,
     media_location: PlayerMediaFileLocation,
-) -> OppoPlaybackStartRequest:
+) -> MediaPlayerStartRequest:
     oppo = config["oppo"]
 
-    return OppoPlaybackStartRequest(
+    return MediaPlayerStartRequest(
         media_location=media_location,
         network_protocol=media_location.network_protocol,
         assume_player_already_on=oppo["always_on"] is True,

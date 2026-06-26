@@ -9,6 +9,7 @@ DEFAULT_RELEASE_REPOSITORY = "tousled/home-cinema-control"
 
 _version_cache = None
 _version_cache_time: float = 0.0
+_version_cache_include_prerelease: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -34,13 +35,17 @@ class VersionInfo:
 
 
 def get_cached_version_info(config, current_version, *, force=False, http_client=requests):
-    global _version_cache, _version_cache_time
-    interval_hours = (config.get("app") or {}).get("version_check_interval_hours", 24)
+    global _version_cache, _version_cache_time, _version_cache_include_prerelease
+    app = config.get("app") or {}
+    interval_hours = app.get("version_check_interval_hours", 24)
+    include_prerelease = bool(app.get("include_prerelease", False))
     age = time.time() - _version_cache_time
-    if not force and _version_cache is not None and age < interval_hours * 3600:
+    prerelease_changed = include_prerelease != _version_cache_include_prerelease
+    if not force and not prerelease_changed and _version_cache is not None and age < interval_hours * 3600:
         return _version_cache
     _version_cache = check_application_version(config, current_version, http_client)
     _version_cache_time = time.time()
+    _version_cache_include_prerelease = include_prerelease
     return _version_cache
 
 
@@ -142,7 +147,12 @@ def find_latest_release(
             "asset_url": asset_url,
         }
 
-    return find_latest_tag(repository, timeout=timeout, http_client=http_client)
+    return find_latest_tag(
+        repository,
+        include_prereleases=include_prereleases,
+        timeout=timeout,
+        http_client=http_client,
+    )
 
 
 def _current_version_info(current_version, *, error=""):
@@ -157,7 +167,7 @@ def _current_version_info(current_version, *, error=""):
     )
 
 
-def find_latest_tag(repository, *, timeout, http_client=requests):
+def find_latest_tag(repository, *, include_prereleases, timeout, http_client=requests):
     tags_url = f"https://api.github.com/repos/{repository}/tags"
     response = http_client.get(
         tags_url,
@@ -166,19 +176,24 @@ def find_latest_tag(repository, *, timeout, http_client=requests):
     )
     response.raise_for_status()
 
-    tags = response.json()
-    if not tags:
-        return None
+    for entry in response.json():
+        tag = entry.get("name", "")
+        if not tag:
+            continue
+        if is_prerelease_tag(tag) and not include_prereleases:
+            continue
 
-    tag = tags[0].get("name", "")
-    if not tag:
-        return None
+        return {
+            "tag": tag,
+            "url": f"https://github.com/{repository}/releases/tag/{tag}",
+            "asset_url": "",
+        }
 
-    return {
-        "tag": tag,
-        "url": f"https://github.com/{repository}/releases/tag/{tag}",
-        "asset_url": "",
-    }
+    return None
+
+
+def is_prerelease_tag(tag):
+    return "-" in normalize_version(tag)
 
 
 def is_newer_version(candidate, current):

@@ -108,7 +108,8 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 
 | Area                             | Status                                                                 |
 |----------------------------------|------------------------------------------------------------------------|
-| Emby                             | Implemented as the primary media-server provider.                      |
+| Emby                             | Implemented as a media-server provider.                                |
+| Jellyfin                         | Implemented as a media-server provider, same flow as Emby.             |
 | OPPO UDP-203/205                 | Supported through the MediaControl API.                                |
 | Chinoppo M9702/M9201/M9203/M9205 | Supported when the OPPO-compatible API is exposed.                     |
 | Per-library paths                | NFS or SMB/CIFS per mapping, with verification.                        |
@@ -138,7 +139,6 @@ After 1.0.0, the architecture is intended to grow without mixing future integrat
 
 | Future area       | Intent                                                                                         |
 |-------------------|------------------------------------------------------------------------------------------------|
-| Jellyfin          | Add a second media-server provider once the provider contract is stable and tested.            |
 | Plex              | Explore feasibility after the provider boundary is proven.                                     |
 | More TV brands    | Research Samsung, Android TV/Sony, and other ecosystems when hardware validation is possible.  |
 | Multiroom         | Explore multiple rooms/players without compromising the current single-room reliability model. |

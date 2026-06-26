@@ -86,6 +86,7 @@ class BuildPlaybackIntentFromPlayCommandTest(unittest.TestCase):
     def test_uses_session_id_when_emby_provides_it(self):
         intent = build_playback_intent_from_play_command(
             {
+                "PlayCommand": "PlayNow",
                 "ItemIds": ["item-1"],
                 "StartPositionTicks": 0,
                 "SessionID": "real-controller-session",
@@ -99,6 +100,7 @@ class BuildPlaybackIntentFromPlayCommandTest(unittest.TestCase):
     def test_does_not_fall_back_to_the_bridge_own_session_id(self):
         intent = build_playback_intent_from_play_command(
             {
+                "PlayCommand": "PlayNow",
                 "ItemIds": ["item-1"],
                 "StartPositionTicks": 0,
                 "Id": "bridge-own-session",

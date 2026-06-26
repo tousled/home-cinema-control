@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from home_cinema_control.config.manager import active_media_server_config
 from home_cinema_control.web.setup_verification import verified_status
 
 
@@ -15,13 +16,16 @@ def compute_config_readiness(config: dict) -> dict:
 
 
 def _media_server_readiness(config: dict) -> dict:
-    ms = config.get("media_server") or {}
-    if ms.get("access_token_configured") or ms.get("access_token"):
+    ms = active_media_server_config(config)
+    # access_token_configured is a sanitize_config_for_web display artifact:
+    # on a sanitized config (the normal caller here) the real access_token is
+    # already stripped, so that flag is the only surviving signal.
+    if ms.model_extra.get("access_token_configured") or ms.access_token:
         return {
             "status": verified_status(config, "media_server"),
-            "detail": ms.get("display_name") or ms.get("server_url") or "",
+            "detail": ms.display_name or ms.server_url or "",
         }
-    if ms.get("server_url"):
+    if ms.server_url:
         return {"status": "incomplete", "detail": "Token not configured"}
     return {"status": "incomplete", "detail": "Server URL not set"}
 
@@ -34,11 +38,11 @@ def _media_player_readiness(config: dict) -> dict:
 
 
 def _media_paths_readiness(config: dict) -> dict:
-    paths = (config.get("playback") or {}).get("path_mappings") or []
+    paths = active_media_server_config(config).playback.path_mappings
     total = len(paths)
     if total == 0:
         return {"status": "incomplete", "detail": "No paths configured"}
-    verified = sum(1 for p in paths if p.get("verified"))
+    verified = sum(1 for p in paths if p.verified)
     if verified == total:
         return {"status": "configured", "detail": f"{verified}/{total} verified"}
     return {"status": "incomplete", "detail": f"{verified}/{total} verified"}

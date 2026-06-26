@@ -16,7 +16,7 @@ class PlaybackStartupOrchestratorTest(unittest.TestCase):
         orchestrator = PlaybackStartupOrchestrator(
             television=television,
             av_receiver=RecordingAvReceiverOutput(),
-            oppo_playback=UnusedOppoPlayback(),
+            media_player=UnusedOppoPlayback(),
         )
 
         result = orchestrator.switch_playback_output_to_oppo(
@@ -36,7 +36,7 @@ class PlaybackStartupOrchestratorTest(unittest.TestCase):
         orchestrator = PlaybackStartupOrchestrator(
             television=television,
             av_receiver=RecordingAvReceiverOutput(),
-            oppo_playback=UnusedOppoPlayback(),
+            media_player=UnusedOppoPlayback(),
         )
 
         result = orchestrator.switch_playback_output_to_oppo(

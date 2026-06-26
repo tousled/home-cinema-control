@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 
+from home_cinema_control.media_servers.common.models import MediaServerItemPlaybackInfo
 from home_cinema_control.media_servers.emby.session_monitor import EmbySessionMonitor
 from home_cinema_control.playback.intent import PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
@@ -37,12 +38,8 @@ def _make_session(
     }
 
 
-def _make_item_info(item_id="42", user_data=None):
-    return {
-        "Id": item_id,
-        "UserData": user_data or {"Played": False, "PlayCount": 0},
-        "MediaSources": [],
-    }
+def _make_item_playback_info():
+    return MediaServerItemPlaybackInfo(played=False, play_count=0)
 
 
 def _config(
@@ -52,7 +49,7 @@ def _config(
         path_mappings=None,
 ):
     if libraries is None:
-        libraries = [{"Id": "lib-1", "Name": "Movies", "Active": True}]
+        libraries = [{"id": "lib-1", "name": "Movies", "active": True}]
     if path_mappings is None:
         path_mappings = [
             {
@@ -63,11 +60,18 @@ def _config(
             }
         ]
     return {
-        "playback": {
-            "hcc_controlled_device": device_id,
-            "use_all_libraries": use_all_libraries,
-            "libraries": libraries,
-            "path_mappings": path_mappings,
+        "media_servers": {
+            "active": "emby",
+            "providers": {
+                "emby": {
+                    "playback": {
+                        "hcc_controlled_device": device_id,
+                        "use_all_libraries": use_all_libraries,
+                        "libraries": libraries,
+                        "path_mappings": path_mappings,
+                    }
+                }
+            },
         }
     }
 
@@ -75,7 +79,9 @@ def _config(
 class EmbySessionMonitorTest(unittest.TestCase):
     def setUp(self):
         self.emby_session = MagicMock()
-        self.emby_session.get_item_info.return_value = _make_item_info()
+        self.emby_session.get_item_playback_info.return_value = (
+            _make_item_playback_info()
+        )
         self.emby_session.is_item_path_in_library.return_value = True
         self.playback_state = BridgePlaybackState()
 
@@ -156,8 +162,8 @@ class EmbySessionMonitorTest(unittest.TestCase):
 
     def test_inactive_library_is_skipped(self):
         libraries = [
-            {"Id": "lib-1", "Name": "Movies", "Active": False},
-            {"Id": "lib-2", "Name": "TV", "Active": True},
+            {"id": "lib-1", "name": "Movies", "active": False},
+            {"id": "lib-2", "name": "TV", "active": True},
         ]
         self.emby_session.is_item_path_in_library.side_effect = (
             lambda view_id, path: view_id == "lib-2"
@@ -214,6 +220,58 @@ class EmbySessionMonitorTest(unittest.TestCase):
         self.playback_state.playstate = "Free"
         monitor.on_sessions_update([{"DeviceId": "device-1"}])
         self.assertEqual("", monitor._monitored_state)
+
+    # -------------------------------------------------------------------------
+    # Per-provider scoping (2026-06-23-media-server-scoped-paths-libraries-device)
+    # -------------------------------------------------------------------------
+
+    def test_only_active_providers_device_and_libraries_are_used(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "playback": {
+                            "hcc_controlled_device": "device-1",
+                            "use_all_libraries": False,
+                            "libraries": [{"id": "lib-1", "name": "Movies", "active": True}],
+                            "path_mappings": [
+                                {"source_path": "/movies", "verified": True}
+                            ],
+                        }
+                    },
+                    "jellyfin": {
+                        "playback": {
+                            "hcc_controlled_device": "other-device",
+                            "use_all_libraries": False,
+                            "libraries": [{"id": "lib-9", "name": "Films", "active": False}],
+                            "path_mappings": [],
+                        }
+                    },
+                },
+            }
+        }
+        monitor = self._monitor(config=config)
+
+        monitor.on_sessions_update([_make_session(device_id="device-1")])
+
+        self.dispatcher.dispatch.assert_called_once()
+
+    def test_inactive_providers_device_does_not_match(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"playback": {"hcc_controlled_device": "device-1"}},
+                    "jellyfin": {"playback": {"hcc_controlled_device": "other-device"}},
+                },
+            }
+        }
+        monitor = self._monitor(config=config)
+
+        monitor.on_sessions_update([_make_session(device_id="other-device")])
+
+        self.dispatcher.dispatch.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -11,52 +11,57 @@ from home_cinema_control.devices.oppo.media_control_playback import (
 from home_cinema_control.devices.oppo.playback_status_client import (
     OppoPlaybackStatusClient,
 )
+from home_cinema_control.devices.oppo.remote_control import send_stop_playback
 from home_cinema_control.devices.oppo.telnet_shell import unmount_oppo_path
-from home_cinema_control.playback.ports import OppoPlaybackPort
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackPosition,
+    PlayerPlaybackStartResult,
+    PlayerPlaybackState,
+)
+from home_cinema_control.playback.ports import MediaPlayerPort
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
-    OppoPlaybackPosition,
-    OppoPlaybackStartRequest,
-    OppoPlaybackStartResult,
-    OppoPlaybackState,
+    MediaPlayerStartRequest,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def create_oppo_playback_adapter(config: dict[str, Any]) -> OppoPlaybackPort:
-    logger.info("Creating OPPO stable MediaControl playback adapter.")
-    return OppoStableMediaControlPlaybackAdapter(config)
+def create_oppo_playback_adapter(
+    config: dict[str, Any], *, step_timer=None
+) -> MediaPlayerPort:
+    logger.info("Creating OPPO media player adapter.")
+    return OppoMediaPlayerAdapter(config, step_timer=step_timer)
 
 
-class OppoStableMediaControlPlaybackAdapter(OppoPlaybackPort):
-    """Stable OPPO playback adapter backed by MediaControl HTTP + QPL."""
+class OppoMediaPlayerAdapter(MediaPlayerPort):
+    """OPPO media player adapter backed by MediaControl HTTP + QPL."""
 
-    def __init__(self, config: dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any], *, step_timer=None) -> None:
         self._config = config
-        self._playback = OppoMediaControlPlayback(config)
+        self._playback = OppoMediaControlPlayback(config, step_timer=step_timer)
         self._last_mounted_path: str | None = None
 
-    def start_playback(
+    def start(
         self,
-        request: OppoPlaybackStartRequest,
+        request: MediaPlayerStartRequest,
         *,
         on_waiting=None,
-    ) -> OppoPlaybackStartResult:
+    ) -> PlayerPlaybackStartResult:
         result = self._playback.start_playback(request, on_waiting=on_waiting)
         self._last_mounted_path = result.mounted_path
         return result
 
-    def get_playback_state(self) -> OppoPlaybackState:
+    def get_playback_state(self) -> PlayerPlaybackState:
         result = self._playback_status_client().query_playback_state()
-        return OppoPlaybackState(
+        return PlayerPlaybackState(
             status=result.status,
-            category=result.category,
+            lifecycle_phase=result.lifecycle_phase,
             raw_response=result.raw_response,
             ok=result.ok,
         )
 
-    def get_playback_position(self) -> OppoPlaybackPosition:
+    def get_playback_position(self) -> PlayerPlaybackPosition:
         return self._playback.get_playback_position()
 
     def seek_to(self, position_ticks: int) -> DeviceCommandResult:
@@ -68,17 +73,49 @@ class OppoStableMediaControlPlaybackAdapter(OppoPlaybackPort):
     def select_subtitle_track(self, subtitle_index: int) -> DeviceCommandResult:
         return self._playback.select_subtitle_track(subtitle_index)
 
-    def stop_playback(self) -> DeviceCommandResult:
+    def stop(self) -> DeviceCommandResult:
         try:
-            response = OppoControlApiClient.from_config(self._config).send_remote_key(
-                "STP"
-            )
+            response = send_stop_playback(self._config)
             return DeviceCommandResult.success(f"OPPO playback stop sent: {response}")
         except Exception as exc:
             logger.exception("Unable to stop OPPO playback.")
             return DeviceCommandResult.failed(
                 f"OPPO playback stop failed: {type(exc).__name__}: {exc}"
             )
+
+    def pause(self) -> DeviceCommandResult:
+        return self._send_remote_key("PAU")
+
+    def resume(self) -> DeviceCommandResult:
+        return self._send_remote_key("PLA")
+
+    def toggle_play_pause(self) -> DeviceCommandResult:
+        return self._send_remote_key("PAU")
+
+    def next_track(self) -> DeviceCommandResult:
+        return self._send_remote_key("NXT")
+
+    def previous_track(self) -> DeviceCommandResult:
+        return self._send_remote_key("PRE")
+
+    def _send_remote_key(self, key: str) -> DeviceCommandResult:
+        try:
+            response = OppoControlApiClient.from_config(self._config).send_remote_key(
+                key
+            )
+            return DeviceCommandResult.success(f"OPPO remote key sent: {response}")
+        except Exception as exc:
+            return DeviceCommandResult.failed(
+                f"OPPO remote key failed: {type(exc).__name__}: {exc}"
+            )
+
+    def seek_to_position_ticks(self, position_ticks: int) -> DeviceCommandResult:
+        return self.seek_to(position_ticks)
+
+    def current_position_ticks(self) -> int:
+        from home_cinema_control.playback.time_units import seconds_to_ticks
+
+        return seconds_to_ticks(self.get_playback_position().current_seconds)
 
     def cleanup_after_playback_finish(self) -> DeviceCommandResult:
         oppo = self._config["oppo"]

@@ -8,14 +8,12 @@ from home_cinema_control.playback.during.models import (
     PlaybackMonitoringResult,
     PlaybackMonitoringStopReason,
 )
-from home_cinema_control.playback.startup.models import (
-    DeviceCommandResult,
-    OppoPlaybackState,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
-)
+from home_cinema_control.playback.startup.models import DeviceCommandResult
 
 
 class DuringPlaybackOrchestratorTest(unittest.TestCase):
@@ -163,9 +161,9 @@ class DuringPlaybackOrchestratorTest(unittest.TestCase):
         self.assertEqual([b"#SVM 0\r"], tcp.payloads)  # SVM0 restored despite exception
 
     def test_carries_last_active_state_into_polling_retry_after_svm3_watchdog(self):
-        paused_state = OppoPlaybackState(
-            status=OppoPlaybackStatus.PAUSE,
-            category=OppoPlaybackCategory.ACTIVE,
+        paused_state = PlayerPlaybackState(
+            status=PlayerPlaybackStatus.PAUSE,
+            lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
             raw_response="@QPL OK PAUSE",
             ok=True,
         )
@@ -195,9 +193,9 @@ class DuringPlaybackOrchestratorTest(unittest.TestCase):
         self.assertEqual(paused_state, polling.requests[0].last_active_state)
 
     def test_does_not_overwrite_last_active_state_when_result_is_not_active(self):
-        paused_state = OppoPlaybackState(
-            status=OppoPlaybackStatus.PAUSE,
-            category=OppoPlaybackCategory.ACTIVE,
+        paused_state = PlayerPlaybackState(
+            status=PlayerPlaybackStatus.PAUSE,
+            lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
             raw_response="@QPL OK PAUSE",
             ok=True,
         )
@@ -375,9 +373,9 @@ def _result(
     return PlaybackMonitoringResult(
         position_seconds=position_seconds,
         duration_seconds=120,
-        final_state=OppoPlaybackState(
-            status=OppoPlaybackStatus.STOP,
-            category=OppoPlaybackCategory.IDLE,
+        final_state=PlayerPlaybackState(
+            status=PlayerPlaybackStatus.STOP,
+            lifecycle_phase=PlayerPlaybackLifecyclePhase.IDLE,
             raw_response="@QPL OK STOP",
             ok=True,
         ),

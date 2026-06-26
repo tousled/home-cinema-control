@@ -1,14 +1,14 @@
 import unittest
 from unittest.mock import patch
 
-from home_cinema_control.web.version_routes import (
+from home_cinema_control.web.version_responses import (
     check_version_response,
     update_version_response,
 )
 from home_cinema_control.web.version_update import VersionInfo
 
 
-class WebVersionRoutesTest(unittest.TestCase):
+class WebVersionResponsesTest(unittest.TestCase):
     def test_check_version_response_preserves_legacy_payload_shape(self):
         version_info = VersionInfo(
             current_version="0.5.1",
@@ -20,7 +20,7 @@ class WebVersionRoutesTest(unittest.TestCase):
         )
 
         with patch(
-            "home_cinema_control.web.version_routes.get_cached_version_info",
+            "home_cinema_control.web.version_responses.get_cached_version_info",
             return_value=version_info,
         ):
             response = check_version_response({"app": {"include_prerelease": False}}, "0.5.1")
@@ -35,7 +35,7 @@ class WebVersionRoutesTest(unittest.TestCase):
 
     def test_update_version_response_keeps_automatic_update_disabled(self):
         with patch(
-            "home_cinema_control.web.version_routes.trigger_configured_update",
+            "home_cinema_control.web.version_responses.trigger_configured_update",
             return_value={"success": False, "message": "disabled"},
         ):
             response = update_version_response({"app": {"include_prerelease": False}}, "0.5.1")

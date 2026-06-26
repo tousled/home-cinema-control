@@ -4,10 +4,12 @@ import logging
 import time
 from typing import Protocol
 
-from home_cinema_control.devices.oppo.playback_state import (
+from home_cinema_control.playback.player_state import (
     ACTIVE_PLAYBACK_STATUSES,
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackPosition,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.during.models import (
     PlaybackMonitoringRequest,
@@ -18,12 +20,7 @@ from home_cinema_control.playback.during.natural_end import (
     is_oppo_end_of_content,
     is_oppo_next_title_started,
 )
-from home_cinema_control.playback.ports import OppoPlaybackPort
-from home_cinema_control.playback.startup.models import (
-    OppoPlaybackPosition,
-    OppoPlaybackState,
-)
-
+from home_cinema_control.playback.ports import MediaPlayerPort
 logger = logging.getLogger(__name__)
 
 
@@ -55,11 +52,11 @@ class PollingPlaybackObservationStrategy:
     def __init__(
         self,
         *,
-        oppo_playback: OppoPlaybackPort,
+        media_player: MediaPlayerPort,
         progress_reporter: PlaybackProgressReporter | None = None,
         sleep=time.sleep,
     ) -> None:
-        self._oppo_playback = oppo_playback
+        self._media_player = media_player
         self._progress_reporter = progress_reporter
         self._sleep = sleep
 
@@ -76,7 +73,7 @@ class PollingPlaybackObservationStrategy:
         elapsed_monitoring_seconds = 0.0
         paused_screensaver_logged = False
 
-        final_state = self._oppo_playback.get_playback_state()
+        final_state = self._media_player.get_playback_state()
         last_active_state = _active_state_or_none(final_state) or request.last_active_state
         stop_reason = PlaybackMonitoringStopReason.PLAYER_IDLE
 
@@ -86,7 +83,7 @@ class PollingPlaybackObservationStrategy:
         ):
             self._sleep(request.poll_interval_seconds)
             elapsed_monitoring_seconds += request.poll_interval_seconds
-            final_state = self._oppo_playback.get_playback_state()
+            final_state = self._media_player.get_playback_state()
 
             if _is_paused_screensaver_state(final_state, last_active_state):
                 transition_polls = 0
@@ -127,7 +124,7 @@ class PollingPlaybackObservationStrategy:
             paused_screensaver_logged = False
             last_active_state = _active_state_or_none(final_state) or last_active_state
 
-            if final_state.category != OppoPlaybackCategory.ACTIVE:
+            if final_state.lifecycle_phase != PlayerPlaybackLifecyclePhase.ACTIVE:
                 if is_oppo_end_of_content(
                         current_seconds=last_position_seconds,
                         total_seconds=last_duration_seconds,
@@ -136,11 +133,11 @@ class PollingPlaybackObservationStrategy:
                 ):
                     logger.info(
                         "OPPO polling detected transition at end of content | "
-                        "last_position=%s | total=%s | state=%s | category=%s",
+                        "last_position=%s | total=%s | state=%s | lifecycle_phase=%s",
                         last_position_seconds,
                         last_duration_seconds,
                         final_state.status.value,
-                        final_state.category.value,
+                        final_state.lifecycle_phase.value,
                     )
                     stop_reason = PlaybackMonitoringStopReason.NATURAL_END
                     break
@@ -149,10 +146,10 @@ class PollingPlaybackObservationStrategy:
                 if transition_polls >= request.max_transition_polls:
                     logger.warning(
                         "OPPO playback monitoring stopped after transition grace | "
-                        "polls=%s | state=%s | category=%s",
+                        "polls=%s | state=%s | lifecycle_phase=%s",
                         transition_polls,
                         final_state.status.value,
-                        final_state.category.value,
+                        final_state.lifecycle_phase.value,
                     )
                     stop_reason = (
                         PlaybackMonitoringStopReason.TRANSITION_GRACE_EXCEEDED
@@ -190,16 +187,16 @@ class PollingPlaybackObservationStrategy:
             seconds_since_position_poll = 0.0
 
             try:
-                position = self._oppo_playback.get_playback_position()
+                position = self._media_player.get_playback_position()
             except Exception:
                 position_read_failures += 1
                 logger.warning(
                     "OPPO playback position read failed while QPL still reports "
-                    "active playback | failures=%s | state=%s | category=%s | "
+                    "active playback | failures=%s | state=%s | lifecycle_phase=%s | "
                     "last_position=%s | last_duration=%s",
                     position_read_failures,
                     final_state.status.value,
-                    final_state.category.value,
+                    final_state.lifecycle_phase.value,
                     last_position_seconds,
                     last_duration_seconds,
                     exc_info=True,
@@ -301,8 +298,8 @@ class PollingPlaybackObservationStrategy:
         self,
         *,
         request: PlaybackMonitoringRequest,
-        position: OppoPlaybackPosition,
-        playback_state: OppoPlaybackState,
+        position: PlayerPlaybackPosition,
+        playback_state: PlayerPlaybackState,
     ) -> None:
         if not request.report_progress:
             return
@@ -329,14 +326,14 @@ class PollingPlaybackObservationStrategy:
 
         self._report_progress(
             request=request,
-            position=OppoPlaybackPosition(
+            position=PlayerPlaybackPosition(
                 current_seconds=position_seconds,
                 total_seconds=duration_seconds,
                 raw_response="last-known-paused-position",
             ),
-            playback_state=OppoPlaybackState(
-                status=OppoPlaybackStatus.PAUSE,
-                category=OppoPlaybackCategory.ACTIVE,
+            playback_state=PlayerPlaybackState(
+                status=PlayerPlaybackStatus.PAUSE,
+                lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
                 raw_response="@OK PAUSE (screen saver)",
                 ok=True,
             ),
@@ -345,33 +342,38 @@ class PollingPlaybackObservationStrategy:
 
 def _should_continue_monitoring(
     *,
-    final_state: OppoPlaybackState,
-    last_active_state: OppoPlaybackState | None,
+    final_state: PlayerPlaybackState,
+    last_active_state: PlayerPlaybackState | None,
 ) -> bool:
-    return final_state.category in {
-        OppoPlaybackCategory.ACTIVE,
-        OppoPlaybackCategory.TRANSITION,
-    } or (
-        final_state.category == OppoPlaybackCategory.UNKNOWN
-        and last_active_state is not None
-    ) or _is_paused_screensaver_state(final_state, last_active_state)
+    return (
+        final_state.lifecycle_phase
+        in {
+            PlayerPlaybackLifecyclePhase.ACTIVE,
+            PlayerPlaybackLifecyclePhase.TRANSITION,
+        }
+        or (
+            final_state.lifecycle_phase == PlayerPlaybackLifecyclePhase.UNKNOWN
+            and last_active_state is not None
+        )
+        or _is_paused_screensaver_state(final_state, last_active_state)
+    )
 
 
 def _active_state_or_none(
-    playback_state: OppoPlaybackState,
-) -> OppoPlaybackState | None:
-    if playback_state.category == OppoPlaybackCategory.ACTIVE:
+    playback_state: PlayerPlaybackState,
+) -> PlayerPlaybackState | None:
+    if playback_state.lifecycle_phase == PlayerPlaybackLifecyclePhase.ACTIVE:
         return playback_state
 
     return None
 
 
 def _is_paused_screensaver_state(
-    playback_state: OppoPlaybackState,
-    last_active_state: OppoPlaybackState | None,
+    playback_state: PlayerPlaybackState,
+    last_active_state: PlayerPlaybackState | None,
 ) -> bool:
     return (
-        playback_state.status == OppoPlaybackStatus.SCREEN_SAVER
+        playback_state.status == PlayerPlaybackStatus.SCREEN_SAVER
         and last_active_state is not None
         # The bridge may miss the PAUSE state between poll intervals before
         # screen saver activates. STOP → SCREEN_SAVER cannot occur within
@@ -400,20 +402,20 @@ def _monitoring_window_expired(
     return timeout_seconds is not None and elapsed_seconds >= timeout_seconds
 
 
-def _is_paused(playback_state: OppoPlaybackState) -> bool:
-    return playback_state.status == OppoPlaybackStatus.PAUSE
+def _is_paused(playback_state: PlayerPlaybackState) -> bool:
+    return playback_state.status == PlayerPlaybackStatus.PAUSE
 
 
 def _normalize_playback_position(
-    position: OppoPlaybackPosition,
-) -> OppoPlaybackPosition:
+    position: PlayerPlaybackPosition,
+) -> PlayerPlaybackPosition:
     if not (
         position.total_seconds > 0
         and position.current_seconds >= position.total_seconds
     ):
         return position
 
-    return OppoPlaybackPosition(
+    return PlayerPlaybackPosition(
         current_seconds=position.total_seconds,
         total_seconds=position.total_seconds,
         raw_response=position.raw_response,

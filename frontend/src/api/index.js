@@ -1,4 +1,4 @@
-const BASE = '/api'
+const BASE = '/api/v1'
 
 function detailToMessage(detail) {
     if (Array.isArray(detail)) {
@@ -12,8 +12,8 @@ function detailToMessage(detail) {
 function shouldNotifyConfigChanged(method, path) {
     if (method === 'PATCH' && path.startsWith('/config/')) return true
     if (method !== 'POST') return false
-    return path === '/emby/token'
-        || path === '/emby/check'
+    return path === '/media-server/token'
+        || path === '/media-server/check'
         || path === '/config/smb/clear'
         || path === '/oppo/check'
         || path === '/tv/test-connection'
@@ -24,6 +24,7 @@ function shouldNotifyConfigChanged(method, path) {
         || path === '/av/switch-input'
         || path === '/migration/apply'
         || path === '/migration/skip'
+        || path === '/migration/import-legacy'
 }
 
 function notifyConfigChanged(method, path) {
@@ -75,11 +76,12 @@ export const api = {
     getMigrationStatus: () => request('GET', '/migration/status'),
     applyMigration: () => request('POST', '/migration/apply'),
     skipMigration: () => request('POST', '/migration/skip'),
+    importLegacyConfig: (config) => request('POST', '/migration/import-legacy', config),
 
-    // emby
-    configureEmbyToken: (config, credentials) =>
-        request('POST', '/emby/token', {config, credentials}),
-    checkEmby: (config) => request('POST', '/emby/check', config),
+    // media server (provider-neutral: Emby or Jellyfin)
+    configureMediaServerToken: (config, credentials, options = {}) =>
+        request('POST', '/media-server/token', {config, credentials, ...options}),
+    checkMediaServer: (config) => request('POST', '/media-server/check', config),
 
     // oppo
     checkOppo: (config) => request('POST', '/oppo/check', config),

@@ -23,7 +23,7 @@ def report_orchestration_result(
 ) -> None:
     """Notify startup failures and log completed orchestration results."""
     oppo_playback_start_result = (
-        playback_orchestration_result.startup_result.oppo_start_result
+        playback_orchestration_result.startup_result.media_player_start_result
     )
 
     if not oppo_playback_start_result.successful:
@@ -114,20 +114,20 @@ def _log_successful_orchestration(playback_orchestration_result) -> None:
     )
     logger.info(
         "OPPO playback monitoring result | monitoring_final_state=%s | "
-        "monitoring_final_category=%s | "
+        "monitoring_final_lifecycle_phase=%s | "
         "position_seconds=%s | duration_seconds=%s",
         playback_monitoring_result.final_state.status.value,
-        playback_monitoring_result.final_state.category.value,
+        playback_monitoring_result.final_state.lifecycle_phase.value,
         playback_monitoring_result.position_seconds,
         playback_monitoring_result.duration_seconds,
     )
     logger.info(
         "Playback finish result | successful=%s | player_idle=%s | tv=%s | "
-        "av_audio=%s | final_state=%s | category=%s",
+        "av_audio=%s | final_state=%s | lifecycle_phase=%s",
         finish_result.successful,
         finish_result.player_idle_result.status.value,
         finish_result.tv_app_result.status.value,
         finish_result.av_audio_result.status.value,
         finish_result.final_player_state.status.value,
-        finish_result.final_player_state.category.value,
+        finish_result.final_player_state.lifecycle_phase.value,
     )

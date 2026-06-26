@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import logging
 
-from home_cinema_control.media_servers.emby.observed_track_mapper import (
-    EmbyObservedTrackMapper,
-)
 from home_cinema_control.playback.observed_event_reporter import (
     ObservedPlaybackEventReporter,
 )
@@ -81,8 +78,8 @@ class ObservedPlaybackSessionSink:
 def configure_oppo_observed_event_reporting(
     *,
     playback_state: BridgePlaybackState,
-    playback_session,
     playback_wiring,
+        track_mapper,
 ) -> bool:
     """Wire OPPO observed-event reporting into the active during-playback flow."""
     reporter = ObservedPlaybackEventReporter(
@@ -90,10 +87,7 @@ def configure_oppo_observed_event_reporting(
             playback_state=playback_state,
             publisher=playback_wiring.playback_event_publisher,
         ),
-        track_mapper=EmbyObservedTrackMapper(
-            playback_session,
-            playback_state=playback_state,
-        ),
+        track_mapper=track_mapper,
     )
     during_set_reporter = getattr(
         playback_wiring.during_playback_orchestrator,

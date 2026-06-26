@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from home_cinema_control.media_servers.emby.playback import (
+from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
 )
 from home_cinema_control.playback.application import (
@@ -92,15 +92,15 @@ class PlaybackApplicationServiceTest(unittest.TestCase):
 
     def test_active_iso_replacement_uses_stop_command(self):
 
-        command = "STP"
+        command = "stop_active_playback"
 
-        self.assertEqual("STP", command)
+        self.assertEqual("stop_active_playback", command)
 
     def test_active_file_replacement_uses_stop_command(self):
 
-        command = "STP"
+        command = "stop_active_playback"
 
-        self.assertEqual("STP", command)
+        self.assertEqual("stop_active_playback", command)
 
     def test_remembers_non_hdmi_tv_return_app(self):
         service = PlaybackApplicationService(
@@ -169,6 +169,9 @@ class OnStartupCompletedTest(unittest.TestCase):
             playback_session=SimpleNamespace(config={"tv": {"enabled": True}}),
             playback_state=BridgePlaybackState(),
             reload_config=lambda: None,
+            media_server_playback_services=SimpleNamespace(
+                create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
+            ),
         )
 
     def test_delegates_to_messaging_action_with_the_resolved_content_kind(self):
@@ -245,7 +248,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
             media_location=media_location,
             movie_path="/nas/Series/Show/episode.mkv",
             output_switch_request=SimpleNamespace(),
-            oppo_playback_start_request=SimpleNamespace(),
+            media_player_start_request=SimpleNamespace(),
             startup_completion_request=SimpleNamespace(),
         )
         fake_orchestration_result = SimpleNamespace(
@@ -267,6 +270,12 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
             playback_session=playback_session,
             playback_state=BridgePlaybackState(),
             reload_config=lambda: None,
+            media_server_playback_services=SimpleNamespace(
+                playback_context_from_intent=lambda intent: SimpleNamespace(),
+                create_playback_event_publisher=lambda client, *, bridge_session_id, context: None,
+                create_track_resolver=lambda playback_session: SimpleNamespace(),
+                create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
+            ),
         )
 
         with (
@@ -282,7 +291,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                     playback_orchestrator=FakeOrchestrator(),
                     playback_event_publisher=None,
                     during_playback_orchestrator=SimpleNamespace(),
-                    startup_wiring=SimpleNamespace(oppo_playback=None),
+                    startup_wiring=SimpleNamespace(media_player=None),
                 ),
             ),
             patch(
@@ -366,6 +375,49 @@ class ShouldStopSourceClientBeforeHandoffTest(unittest.TestCase):
                 PlaybackOrigin.REMOTE_CONTROL_COMMAND
             )
         )
+
+
+class StopActivePlaybackAndWaitTest(unittest.TestCase):
+    """Exposed for callers outside normal playback replacement (e.g. the
+    runtime swapping the media-server listener on a provider switch) that
+    need a clean slate before doing something disruptive.
+    """
+
+    def test_returns_false_when_nothing_active(self):
+        service = PlaybackApplicationService(
+            playback_session=FakePlaybackSession(),
+            playback_state=BridgePlaybackState(),
+            reload_config=lambda: None,
+            stop_active_playback=lambda: None,
+        )
+
+        self.assertFalse(service.stop_active_playback_and_wait())
+
+    def test_stops_and_waits_for_active_playback(self):
+        calls = []
+        service = PlaybackApplicationService(
+            playback_session=FakePlaybackSession(),
+            playback_state=BridgePlaybackState(),
+            reload_config=lambda: None,
+            stop_active_playback=lambda: calls.append("stop_active"),
+        )
+        service._thread_lifecycle._active_thread = _FakeActiveThread(calls)
+
+        result = service.stop_active_playback_and_wait()
+
+        self.assertTrue(result)
+        self.assertEqual(["stop_active", "join_active"], calls)
+
+
+class _FakeActiveThread:
+    def __init__(self, calls):
+        self._calls = calls
+
+    def is_alive(self):
+        return True
+
+    def join(self, timeout=None):
+        self._calls.append("join_active")
 
 
 def _intent(*, media_item_id: str) -> PlaybackIntent:

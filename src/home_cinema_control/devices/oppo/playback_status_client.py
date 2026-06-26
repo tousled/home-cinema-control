@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from collections.abc import Callable
 
 from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
+    PlayerPlaybackLifecyclePhase,
     classify_oppo_status,
-    OppoPlaybackStatus,
+    PlayerPlaybackStatus,
     parse_oppo_playback_status,
 )
 from home_cinema_control.network.tcp import LoggingTcpClient
@@ -15,8 +15,8 @@ class OppoCommandResult:
     command: str
     raw_response: str
     ok: bool
-    status: OppoPlaybackStatus
-    category: OppoPlaybackCategory
+    status: PlayerPlaybackStatus
+    lifecycle_phase: PlayerPlaybackLifecyclePhase
 
 
 class OppoPlaybackStatusClient:
@@ -59,7 +59,7 @@ class OppoPlaybackStatusClient:
             raw_response=raw_response,
             ok=_tcp_status_response_is_complete(raw_response),
             status=status,
-            category=classify_oppo_status(status),
+            lifecycle_phase=classify_oppo_status(status),
         )
 
     def _send(self, payload: bytes) -> str:
@@ -83,6 +83,10 @@ class OppoPlaybackStatusClient:
             command = f"{command}\r"
 
         return command.encode("ascii")
+
+
+def create_oppo_playback_status_client(**kwargs) -> OppoPlaybackStatusClient:
+    return OppoPlaybackStatusClient(**kwargs)
 
 
 def _tcp_status_response_is_complete(response: str) -> bool:

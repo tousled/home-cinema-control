@@ -25,7 +25,7 @@ from home_cinema_control.playback.startup.models import (
     PlaybackOutputSwitchResult,
     PlaybackStartupRequest,
     PlaybackStartupResult,
-    OppoPlaybackStartResult,
+    PlayerPlaybackStartResult,
 )
 from home_cinema_control.playback.startup.completion import (
     PlayMediaItemRequest,
@@ -46,7 +46,7 @@ class PlaybackOrchestrationRequest:
     finish_idle_confirmation_polls: int | Callable[[], int] = 5
     on_startup_waiting: Callable[[int], None] | None = None
     on_tracks_applying: Callable[[], None] | None = None
-    on_startup_completed: Callable[[OppoPlaybackStartResult], None] | None = None
+    on_startup_completed: Callable[[PlayerPlaybackStartResult], None] | None = None
 
 
 @dataclass(frozen=True)
@@ -113,7 +113,7 @@ class PlaybackOrchestrator:
                 request.startup_completion_request
             )
             if request.on_startup_completed is not None:
-                request.on_startup_completed(startup_result.oppo_start_result)
+                request.on_startup_completed(startup_result.media_player_start_result)
 
             self._wire_deferred_audio_if_needed(startup_completion_result)
 
@@ -143,10 +143,10 @@ class PlaybackOrchestrator:
             )
 
         logger.info(
-            "Playback orchestration completed | final_state=%s | category=%s | "
+            "Playback orchestration completed | final_state=%s | lifecycle_phase=%s | "
             "position_seconds=%s | duration_seconds=%s",
             monitoring_result.final_state.status.value,
-            monitoring_result.final_state.category.value,
+            monitoring_result.final_state.lifecycle_phase.value,
             monitoring_result.position_seconds,
             monitoring_result.duration_seconds,
         )
@@ -205,13 +205,13 @@ class PlaybackOrchestrator:
         log = logger.info if finish_result.successful else logger.warning
         log(
             "Playback finish completed | successful=%s | player_idle=%s | "
-            "tv=%s | av_audio=%s | final_state=%s | category=%s",
+            "tv=%s | av_audio=%s | final_state=%s | lifecycle_phase=%s",
             finish_result.successful,
             finish_result.player_idle_result.status.value,
             finish_result.tv_app_result.status.value,
             finish_result.av_audio_result.status.value,
             finish_result.final_player_state.status.value,
-            finish_result.final_player_state.category.value,
+            finish_result.final_player_state.lifecycle_phase.value,
         )
         return PlaybackOrchestrationResult(
             startup_result=startup_result,
@@ -288,23 +288,23 @@ class PlaybackOrchestrator:
 
     def _log_startup_result(self, startup_result: PlaybackStartupResult) -> None:
         self._log_output_switch_result(startup_result.output_switch_result)
-        oppo_start_result = startup_result.oppo_start_result
-        playback_state = oppo_start_result.playback_state
+        media_player_start_result = startup_result.media_player_start_result
+        playback_state = media_player_start_result.playback_state
         # OPPO_MOUNT_FAILED / OPPO_PLAY_FAILED / OPPO_PLAYBACK_TIMEOUT are all
         # "error"-severity diagnostics — a failed OPPO startup is a real failure,
         # not routine narration.
-        log = logger.info if oppo_start_result.successful else logger.error
+        log = logger.info if media_player_start_result.successful else logger.error
         log(
             "OPPO playback startup result | successful=%s | media_mounted=%s | "
             "playback_command_accepted=%s | playback_started_on_device=%s | "
-            "status=%s | category=%s | detail=%s",
-            oppo_start_result.successful,
-            oppo_start_result.media_mounted,
-            oppo_start_result.playback_command_accepted,
-            oppo_start_result.playback_started_on_device,
+            "status=%s | lifecycle_phase=%s | detail=%s",
+            media_player_start_result.successful,
+            media_player_start_result.media_mounted,
+            media_player_start_result.playback_command_accepted,
+            media_player_start_result.playback_started_on_device,
             playback_state.status.value if playback_state is not None else None,
-            playback_state.category.value if playback_state is not None else None,
-            oppo_start_result.detail,
+            playback_state.lifecycle_phase.value if playback_state is not None else None,
+            media_player_start_result.detail,
         )
 
 

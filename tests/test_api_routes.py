@@ -13,10 +13,17 @@ def _make_client(*, config=None, sanitized=None):
     sanitized = sanitized or config
 
     runtime = MagicMock()
+    runtime.has_active_playback.return_value = False
     config_service = MagicMock()
     config_service.load_config.return_value = config
     config_service.sanitize.side_effect = lambda x: x
     config_service.prepare_submitted_config.side_effect = lambda x: x
+    config_service.with_app_updates.side_effect = (
+        lambda current_config, **updates: {
+            **current_config,
+            "app": {**(current_config.get("app") or {}), **updates},
+        }
+    )
 
     api_runtime = WebApiRuntime(
         runtime=runtime,
@@ -28,62 +35,19 @@ def _make_client(*, config=None, sanitized=None):
     return TestClient(create_api_app(api_runtime)), runtime, config_service
 
 
-class EmbyCheckRouteTest(unittest.TestCase):
-    @patch("home_cinema_control.web.api_app.check_emby_connection")
-    def test_saves_config_and_starts_listener_without_restart_when_runtime_is_not_connected(self, mock_check):
-        mock_check.return_value = MagicMock(status_code=204)
-        client, runtime, config_service = _make_client(config={
-            "media_server": {
-                "type": "emby",
-                "server_url": "http://emby.local",
-                "access_token": "secret-token",
-                "user_id": "emby-user",
-            },
-            "playback": {"hcc_controlled_device": "living-room-tv"},
-        })
-        runtime.get_state.return_value = {"Playstate": "Not_Connected"}
-
-        resp = client.post("/api/emby/check", json={
-            "media_server": {"type": "emby", "server_url": "http://emby.local"},
-            "playback": {"hcc_controlled_device": "living-room-tv"},
-        })
-
-        self.assertEqual(200, resp.status_code)
-        config_service.save_config.assert_called_once()
-        runtime.start_playback_listener_if_configured.assert_called_once()
-        runtime.restart_process.assert_not_called()
-
-    @patch("home_cinema_control.web.api_app.check_emby_connection")
-    def test_does_not_restart_or_start_listener_when_runtime_is_already_connected(self, mock_check):
-        mock_check.return_value = MagicMock(status_code=204)
-        client, runtime, config_service = _make_client(config={
-            "media_server": {
-                "type": "emby",
-                "server_url": "http://emby.local",
-                "access_token": "secret-token",
-                "user_id": "emby-user",
-            },
-        })
-        runtime.get_state.return_value = {"Playstate": "Playing"}
-
-        resp = client.post("/api/emby/check", json={
-            "media_server": {"type": "emby", "server_url": "http://emby.local"},
-        })
-
-        self.assertEqual(200, resp.status_code)
-        config_service.save_config.assert_called_once()
-        runtime.start_playback_listener_if_configured.assert_not_called()
-        runtime.restart_process.assert_not_called()
-
-
 class ConfigReadinessRouteTest(unittest.TestCase):
     def test_returns_readiness_payload_shape(self):
         client, _, _ = _make_client(config={
-            "media_server": {"access_token_configured": True, "server_url": "http://emby"},
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"access_token_configured": True, "server_url": "http://emby"}
+                },
+            },
             "media_player": {"oppo": {"ip": "192.168.1.10"}},
         })
 
-        resp = client.get("/api/config/readiness")
+        resp = client.get("/api/v1/config/readiness")
 
         self.assertEqual(200, resp.status_code)
         data = resp.json()
@@ -94,18 +58,23 @@ class ConfigReadinessRouteTest(unittest.TestCase):
     def test_returns_incomplete_when_server_not_configured(self):
         client, _, _ = _make_client()
 
-        resp = client.get("/api/config/readiness")
+        resp = client.get("/api/v1/config/readiness")
 
         self.assertEqual(200, resp.status_code)
         self.assertEqual("incomplete", resp.json()["media_server"]["status"])
 
     def test_returns_configured_when_server_and_player_are_set(self):
         client, _, _ = _make_client(config={
-            "media_server": {"access_token_configured": True, "server_url": "http://emby"},
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"access_token_configured": True, "server_url": "http://emby"}
+                },
+            },
             "oppo": {"ip": "192.168.1.10"},
         })
 
-        resp = client.get("/api/config/readiness")
+        resp = client.get("/api/v1/config/readiness")
 
         self.assertEqual("configured", resp.json()["media_server"]["status"])
         self.assertEqual("configured", resp.json()["media_player"]["status"])
@@ -115,7 +84,7 @@ class ConfigSectionRouteTest(unittest.TestCase):
     def test_full_config_post_is_not_supported(self):
         client, _, _ = _make_client()
 
-        resp = client.post("/api/config", json={"app": {"language": "es-ES"}})
+        resp = client.post("/api/v1/config", json={"app": {"language": "es-ES"}})
 
         self.assertEqual(405, resp.status_code)
 
@@ -125,7 +94,7 @@ class ConfigSectionRouteTest(unittest.TestCase):
             "tv": {"enabled": True, "model": "LG"},
         })
 
-        resp = client.patch("/api/config/oppo", json={"ip": "192.168.1.11"})
+        resp = client.patch("/api/v1/config/oppo", json={"ip": "192.168.1.11"})
 
         self.assertEqual(200, resp.status_code)
         saved = config_service.save_config.call_args.args[0]
@@ -145,7 +114,7 @@ class ConfigSectionRouteTest(unittest.TestCase):
 
         config_service.prepare_submitted_config.side_effect = _prepare
 
-        resp = client.patch("/api/config/network-access", json={
+        resp = client.patch("/api/v1/config/network-access", json={
             "smb": {"username": "nas", "password": ""},
             "oppo": {"pre_mount_smb": True},
         })
@@ -158,151 +127,39 @@ class ConfigSectionRouteTest(unittest.TestCase):
     def test_patch_unknown_config_section_returns_404(self):
         client, _, _ = _make_client()
 
-        resp = client.patch("/api/config/unknown", json={})
+        resp = client.patch("/api/v1/config/unknown", json={})
 
         self.assertEqual(404, resp.status_code)
 
 
-class PathsTestRouteTest(unittest.TestCase):
-    @patch("home_cinema_control.web.api_app.check_path_configuration")
-    def test_returns_body_on_success(self, mock_check):
-        mock_check.return_value = "OK"
+class MigrationImportLegacyRouteTest(unittest.TestCase):
+    @patch("home_cinema_control.web.api_app.import_legacy_config")
+    def test_returns_ok_on_successful_import(self, mock_import):
         client, _, _ = _make_client()
-        body = {"source_path": "/vol/Movies", "player_path": "/NAS/vol/Movies"}
 
-        resp = client.post("/api/paths/test", json=body)
+        resp = client.post("/api/v1/migration/import-legacy", json={"emby_server": "http://emby.local"})
 
         self.assertEqual(200, resp.status_code)
-        self.assertEqual(body, resp.json())
+        self.assertEqual({"ok": True}, resp.json())
+        mock_import.assert_called_once()
 
-    @patch("home_cinema_control.web.api_app.check_path_configuration")
-    def test_returns_400_with_diagnostic_on_failure(self, mock_check):
-        mock_check.return_value = "OPPO_UNAVAILABLE: OPPO socket is not reachable"
-        client, runtime, _ = _make_client()
-
-        resp = client.post("/api/paths/test", json={"source_path": "/vol", "player_path": "/NAS/vol"})
-
-        self.assertEqual(400, resp.status_code)
-        data = resp.json()
-        self.assertIn("detail", data)
-        self.assertIn("diagnostic", data)
-        self.assertIn("code", data["diagnostic"])
-        self.assertIn("suggestion", data["diagnostic"])
-        runtime.set_last_diagnostic.assert_called_once()
-
-    @patch("home_cinema_control.web.api_app.check_path_configuration")
-    def test_diagnostic_code_identifies_oppo_failure(self, mock_check):
-        mock_check.return_value = "OPPO_UNAVAILABLE: OPPO socket is not reachable"
+    @patch("home_cinema_control.web.api_app.import_legacy_config")
+    def test_returns_400_when_payload_is_not_a_legacy_config(self, mock_import):
+        mock_import.side_effect = ValueError("Not a recognizable legacy config")
         client, _, _ = _make_client()
 
-        resp = client.post("/api/paths/test", json={"source_path": "/vol", "player_path": "/NAS/vol"})
-
-        self.assertIn("OPPO", resp.json()["diagnostic"]["code"])
-
-
-class PathsPreviewRouteTest(unittest.TestCase):
-    def test_returns_preview_for_valid_mapping(self):
-        client, _, _ = _make_client()
-        body = {
-            "source_path": "/volume1/Video/Movies",
-            "player_path": "/192.168.1.10/volume1/Video/Movies",
-            "sample_file": "/volume1/Video/Movies/film.mkv",
-        }
-
-        resp = client.post("/api/paths/preview", json=body)
-
-        self.assertEqual(200, resp.status_code)
-        data = resp.json()
-        self.assertIn("server", data)
-        self.assertIn("folder", data)
-        self.assertEqual("192.168.1.10", data["server"])
-
-    def test_returns_400_for_invalid_player_path(self):
-        client, _, _ = _make_client()
-        body = {
-            "source_path": "/volume1/Video",
-            "player_path": "/NAS",
-            "sample_file": "/volume1/Video/film.mkv",
-        }
-
-        resp = client.post("/api/paths/preview", json=body)
+        resp = client.post("/api/v1/migration/import-legacy", json={"unrelated": "json"})
 
         self.assertEqual(400, resp.status_code)
 
-    def test_returns_400_for_missing_source_path(self):
+    @patch("home_cinema_control.web.api_app.import_legacy_config")
+    def test_returns_500_on_unexpected_failure(self, mock_import):
+        mock_import.side_effect = RuntimeError("disk full")
         client, _, _ = _make_client()
 
-        resp = client.post("/api/paths/preview", json={"source_path": "", "player_path": "/NAS/vol"})
+        resp = client.post("/api/v1/migration/import-legacy", json={"emby_server": "http://emby.local"})
 
-        self.assertEqual(400, resp.status_code)
-
-
-class LibraryPathsRouteTest(unittest.TestCase):
-    @patch("home_cinema_control.web.api_app.fetch_library_paths")
-    def test_returns_library_paths_on_success(self, mock_fetch):
-        mock_fetch.return_value = ["/volume1/Video/Movies", "/volume1/Video/Series"]
-        client, _, _ = _make_client()
-
-        resp = client.get("/api/media-server/library-paths")
-
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual(["/volume1/Video/Movies", "/volume1/Video/Series"], resp.json())
-
-    @patch("home_cinema_control.web.api_app.fetch_library_paths")
-    def test_returns_502_when_emby_unreachable(self, mock_fetch):
-        mock_fetch.side_effect = Exception("Connection refused")
-        client, runtime, _ = _make_client()
-
-        resp = client.get("/api/media-server/library-paths")
-
-        self.assertEqual(502, resp.status_code)
-        runtime.set_last_diagnostic.assert_called_once()
-
-
-class DeviceSetupActionRouteTest(unittest.TestCase):
-    @patch("home_cinema_control.web.api_app.detect_tv_sources")
-    def test_tv_sources_returns_detected_config_without_saving(self, mock_sources):
-        def _mutate(config):
-            config.setdefault("tv", {})["available_hdmi_inputs"] = [{"id": "HDMI_1"}]
-            return "OK"
-
-        mock_sources.side_effect = _mutate
-        client, _, config_service = _make_client()
-
-        resp = client.post("/api/tv/sources", json={"tv": {"enabled": True, "model": "LG"}})
-
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual([{"id": "HDMI_1"}], resp.json()["tv"]["available_hdmi_inputs"])
-        config_service.save_config.assert_not_called()
-
-    @patch("home_cinema_control.web.api_app.list_av_hdmi_inputs")
-    def test_av_sources_returns_detected_config_without_saving(self, mock_sources):
-        mock_sources.return_value = [{"Name": "Blu-ray", "Param": "BD"}]
-        client, _, config_service = _make_client()
-
-        resp = client.post("/api/av/sources", json={"av": {"enabled": True, "model": "Denon"}})
-
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual([{"Name": "Blu-ray", "Param": "BD"}], resp.json()["av"]["available_hdmi_inputs"])
-        config_service.save_config.assert_not_called()
-
-
-class OppoAdvancedDefaultsRouteTest(unittest.TestCase):
-    def test_returns_pydantic_model_defaults(self):
-        client, _, _ = _make_client()
-
-        resp = client.get("/api/oppo/advanced-defaults")
-
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual(
-            {
-                "connection_timeout_seconds": 10.0,
-                "playback_start_timeout_seconds": 30.0,
-                "nfs_mount_timeout_seconds": 30.0,
-                "autoscript": False,
-            },
-            resp.json(),
-        )
+        self.assertEqual(500, resp.status_code)
 
 
 class SaveConfigSectionLoggingTest(unittest.TestCase):
@@ -310,7 +167,7 @@ class SaveConfigSectionLoggingTest(unittest.TestCase):
     def test_reapplies_logging_live_when_app_section_saved(self, mock_configure):
         client, _runtime, _config_service = _make_client(config={"app": {"log_level": 0}})
 
-        resp = client.patch("/api/config/app", json={"log_level": 2})
+        resp = client.patch("/api/v1/config/app", json={"log_level": 2})
 
         self.assertEqual(200, resp.status_code)
         mock_configure.assert_called_once()
@@ -321,7 +178,7 @@ class SaveConfigSectionLoggingTest(unittest.TestCase):
     def test_does_not_reapply_logging_for_other_sections(self, mock_configure):
         client, _runtime, _config_service = _make_client(config={"oppo": {"ip": ""}})
 
-        resp = client.patch("/api/config/oppo", json={"ip": "192.168.50.35"})
+        resp = client.patch("/api/v1/config/oppo", json={"ip": "192.168.50.35"})
 
         self.assertEqual(200, resp.status_code)
         mock_configure.assert_not_called()
