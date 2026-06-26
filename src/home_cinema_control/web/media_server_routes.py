@@ -16,7 +16,7 @@ from home_cinema_control.playback.diagnostics import (
     diagnose_media_server_library_paths_unavailable,
 )
 from home_cinema_control.web.api_runtime import WebApiRuntime
-from home_cinema_control.web.config_sections import apply_config_section
+from home_cinema_control.web.config_sections import apply_media_server_section
 from home_cinema_control.web.media_server_setup import media_server_setup_service
 from home_cinema_control.web.setup_verification import mark_section_verified
 
@@ -106,12 +106,12 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
             # Editing fields on the already-active provider (server_url,
             # display_name, hcc_controlled_device) — no switch, no listener
             # restart, matches today's plain "Guardar" behavior.
-            updated = apply_config_section(config, "media-server", body)
+            updated = apply_media_server_section(config, body)
             updated = api_runtime.config_service.prepare_submitted_config(updated)
             api_runtime.config_service.save_config(updated)
             return api_runtime.config_service.sanitize(updated)
 
-        merged = apply_config_section(config, "media-server", body)
+        merged = apply_media_server_section(config, body)
         merged = api_runtime.config_service.prepare_submitted_config(merged)
         target_provider = get_media_server_provider(merged, target_type)
 
@@ -219,7 +219,7 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
         # setup-service factory dispatches to the right provider) rather than
         # trusting the submitted body as the whole config. Saving a bare
         # {media_server: {...}} as-is would wipe every other section.
-        config = apply_config_section(saved_config, "media-server", submitted)
+        config = apply_media_server_section(saved_config, submitted)
 
         setup_service = _setup_service(config)
         try:
@@ -267,7 +267,7 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
         # dispatches to the right provider) instead of trusting it as the
         # whole config; saving the bare submitted body would wipe every other
         # section.
-        config = apply_config_section(saved_config, "media-server", body)
+        config = apply_media_server_section(saved_config, body)
         config = api_runtime.config_service.prepare_submitted_config(config)
         setup_service = _setup_service(config)
         response = _check_connection_or_503(setup_service, config)
