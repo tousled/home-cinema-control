@@ -108,7 +108,7 @@ class JellyfinPlaybackCommandHandlerTest(unittest.TestCase):
         config = {"name": "new"}
         _playstate(handler, {"Command": "Stop"})
 
-        self.assertEqual([("remote_key", "new", "STP")], controls)
+        self.assertEqual([("stop", "new")], controls)
 
     def test_audio_track_change_applies_to_oppo_and_notifies_jellyfin(self):
         controls = []
@@ -188,8 +188,28 @@ class RecordingOppoControl:
         self.controls = controls
         self._current_position_ticks = current_position_ticks
 
-    def send_remote_key(self, key):
-        self.controls.append(("remote_key", self.config["name"], key))
+    def pause(self):
+        self.controls.append(("pause", self.config["name"]))
+        return DeviceCommandResult.success()
+
+    def resume(self):
+        self.controls.append(("resume", self.config["name"]))
+        return DeviceCommandResult.success()
+
+    def toggle_play_pause(self):
+        self.controls.append(("toggle_play_pause", self.config["name"]))
+        return DeviceCommandResult.success()
+
+    def stop(self):
+        self.controls.append(("stop", self.config["name"]))
+        return DeviceCommandResult.success()
+
+    def next_track(self):
+        self.controls.append(("next_track", self.config["name"]))
+        return DeviceCommandResult.success()
+
+    def previous_track(self):
+        self.controls.append(("previous_track", self.config["name"]))
         return DeviceCommandResult.success()
 
     def seek_to_position_ticks(self, position_ticks):

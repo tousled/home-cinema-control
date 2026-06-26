@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from home_cinema_control.playback.player_state import PlayerPlaybackState
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
-    OppoPlaybackState,
 )
 
 
@@ -13,7 +13,7 @@ from home_cinema_control.playback.startup.models import (
 class PlaybackFinishRequest:
     position_seconds: int
     duration_seconds: int
-    final_player_state: OppoPlaybackState
+    final_player_state: PlayerPlaybackState
     previous_tv_app_id: str | None
     tv_enabled: bool = True
     av_enabled: bool = True
@@ -31,7 +31,7 @@ class PlaybackFinishResult:
     player_idle_result: DeviceCommandResult
     tv_app_result: DeviceCommandResult
     av_audio_result: DeviceCommandResult
-    final_player_state: OppoPlaybackState
+    final_player_state: PlayerPlaybackState
 
     @property
     def successful(self) -> bool:

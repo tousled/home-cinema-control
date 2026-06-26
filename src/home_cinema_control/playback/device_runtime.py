@@ -10,7 +10,11 @@ from home_cinema_control.devices.oppo.control_api_activation import (
 )
 from home_cinema_control.devices.oppo.control_api_client import OppoControlApiClient
 from home_cinema_control.devices.oppo.playback_status_client import (
-    OppoPlaybackStatusClient,
+    create_oppo_playback_status_client,
+)
+from home_cinema_control.devices.oppo.remote_control import (
+    send_power_off,
+    send_stop_playback,
 )
 from home_cinema_control.devices.oppo.svm_mode import OppoSVMModeClient
 from home_cinema_control.playback.state import BridgePlaybackState
@@ -24,18 +28,16 @@ def stop_active_player_playback_before_replacement(
     *,
     control_client_factory=OppoControlApiClient.from_config,
 ) -> None:
-    command = "STP"
     filename = (
         state.active_session.playback_file_name
         if state.active_session is not None
         else ""
     )
     logger.info(
-        "Stopping active OPPO playback before replacement | command=%s | filename=%s",
-        command,
+        "Stopping active OPPO playback before replacement | filename=%s",
         filename,
     )
-    control_client_factory(config).send_remote_key(command)
+    send_stop_playback(config, control_client_factory=control_client_factory)
 
 
 def ensure_oppo_control_api_available(
@@ -93,7 +95,7 @@ def power_down_after_playback_if_configured(
         av_receiver_factory(config).power_off()
 
     if config["oppo"]["always_on"] is False:
-        control_client_factory(config).send_remote_key("POF")
+        send_power_off(config, control_client_factory=control_client_factory)
 
 
 def log_oppo_qpl_state(config: dict[str, Any], label: str) -> None:
@@ -107,7 +109,7 @@ def log_oppo_qpl_state(config: dict[str, Any], label: str) -> None:
             logger.debug("QPL:%s skipped | oppo.ip is not configured", label)
             return
 
-        client = OppoPlaybackStatusClient(
+        client = create_oppo_playback_status_client(
             host=oppo_ip,
             port=int(config.get("OPPO_Port", OPPO_TELNET_PORT)),
             timeout=float(oppo.get("connection_timeout_seconds", 3)),
@@ -115,11 +117,11 @@ def log_oppo_qpl_state(config: dict[str, Any], label: str) -> None:
 
         result = client.query_playback_state()
         logger.debug(
-            "QPL:%s | raw=%r | status=%s | category=%s | ok=%s",
+            "QPL:%s | raw=%r | status=%s | lifecycle_phase=%s | ok=%s",
             label,
             result.raw_response,
             result.status,
-            result.category.value,
+            result.lifecycle_phase.value,
             result.ok,
         )
     except Exception as exc:

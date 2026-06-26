@@ -8,9 +8,10 @@ from home_cinema_control.devices.oppo.observed_events import (
     translate_oppo_verbose_event,
 )
 from home_cinema_control.devices.oppo.verbose_events import OppoVerboseEvent
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.during.models import (
     PlaybackMonitoringRequest,
@@ -27,7 +28,6 @@ from home_cinema_control.playback.observed_events import (
 )
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
-    OppoPlaybackState,
 )
 
 logger = logging.getLogger(__name__)
@@ -165,8 +165,8 @@ class VerbosePlaybackObservationStrategy:
             seconds_since_progress=0.0,
         )
         final_player_state = _player_state(
-            OppoPlaybackStatus.UNKNOWN,
-            OppoPlaybackCategory.UNKNOWN,
+            PlayerPlaybackStatus.UNKNOWN,
+            PlayerPlaybackLifecyclePhase.UNKNOWN,
             raw_response="@SVM3 PLAYBACK MONITORING STARTED",
         )
         stop_reason = PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED
@@ -181,8 +181,8 @@ class VerbosePlaybackObservationStrategy:
             if _is_stop_event(observed_event):
                 state.pending_stop_event = observed_event
                 final_player_state = _player_state(
-                    OppoPlaybackStatus.STOP,
-                    OppoPlaybackCategory.TRANSITION,
+                    PlayerPlaybackStatus.STOP,
+                    PlayerPlaybackLifecyclePhase.TRANSITION,
                     raw_response=event.raw,
                 )
                 continue
@@ -198,8 +198,8 @@ class VerbosePlaybackObservationStrategy:
                     state.pending_stop_event = None
                     state.is_paused = False
                     final_player_state = _player_state(
-                        OppoPlaybackStatus.PLAY,
-                        OppoPlaybackCategory.ACTIVE,
+                        PlayerPlaybackStatus.PLAY,
+                        PlayerPlaybackLifecyclePhase.ACTIVE,
                         raw_response=event.raw,
                     )
                     continue
@@ -232,8 +232,8 @@ class VerbosePlaybackObservationStrategy:
                 if self._reached_oppo_end_of_content(state, request):
                     stop_reason = PlaybackMonitoringStopReason.NATURAL_END
                     final_player_state = _player_state(
-                        OppoPlaybackStatus.PLAY,
-                        OppoPlaybackCategory.ACTIVE,
+                        PlayerPlaybackStatus.PLAY,
+                        PlayerPlaybackLifecyclePhase.ACTIVE,
                         raw_response=event.raw,
                     )
                     logger.info(
@@ -306,8 +306,8 @@ class VerbosePlaybackObservationStrategy:
         if state.pending_stop_event is not None:
             stop_reason = PlaybackMonitoringStopReason.PLAYER_IDLE
             final_player_state = _player_state(
-                OppoPlaybackStatus.STOP,
-                OppoPlaybackCategory.TRANSITION,
+                PlayerPlaybackStatus.STOP,
+                PlayerPlaybackLifecyclePhase.TRANSITION,
                 raw_response=state.pending_stop_event.raw,
             )
 
@@ -410,29 +410,29 @@ class _MonitoringState:
 def _state_from_observed_event(
     event: ObservedPlaybackEvent,
     *,
-    fallback: OppoPlaybackState,
-) -> OppoPlaybackState:
+    fallback: PlayerPlaybackState,
+) -> PlayerPlaybackState:
     if event.event_type != ObservedPlaybackEventType.PLAYBACK_STATE_CHANGED:
         return fallback
 
     if event.playback_state == ObservedPlaybackState.PLAYING:
         return _player_state(
-            OppoPlaybackStatus.PLAY,
-            OppoPlaybackCategory.ACTIVE,
+            PlayerPlaybackStatus.PLAY,
+            PlayerPlaybackLifecyclePhase.ACTIVE,
             raw_response=event.raw,
         )
 
     if event.playback_state == ObservedPlaybackState.PAUSED:
         return _player_state(
-            OppoPlaybackStatus.PAUSE,
-            OppoPlaybackCategory.ACTIVE,
+            PlayerPlaybackStatus.PAUSE,
+            PlayerPlaybackLifecyclePhase.ACTIVE,
             raw_response=event.raw,
         )
 
     if event.playback_state == ObservedPlaybackState.STOPPED:
         return _player_state(
-            OppoPlaybackStatus.STOP,
-            OppoPlaybackCategory.TRANSITION,
+            PlayerPlaybackStatus.STOP,
+            PlayerPlaybackLifecyclePhase.TRANSITION,
             raw_response=event.raw,
         )
 
@@ -440,14 +440,14 @@ def _state_from_observed_event(
 
 
 def _player_state(
-    status: OppoPlaybackStatus,
-    category: OppoPlaybackCategory,
+    status: PlayerPlaybackStatus,
+    lifecycle_phase: PlayerPlaybackLifecyclePhase,
     *,
     raw_response: str,
-) -> OppoPlaybackState:
-    return OppoPlaybackState(
+) -> PlayerPlaybackState:
+    return PlayerPlaybackState(
         status=status,
-        category=category,
+        lifecycle_phase=lifecycle_phase,
         raw_response=raw_response,
         ok=True,
     )
@@ -492,14 +492,14 @@ def _is_terminal_idle_event(event: OppoVerboseEvent) -> bool:
     }
 
 
-def _terminal_idle_state(event: OppoVerboseEvent) -> OppoPlaybackState:
+def _terminal_idle_state(event: OppoVerboseEvent) -> PlayerPlaybackState:
     status = (
-        OppoPlaybackStatus.MEDIA_CENTER
+        PlayerPlaybackStatus.MEDIA_CENTER
         if event.payload.strip().upper() == "MCTR"
-        else OppoPlaybackStatus.HOME_MENU
+        else PlayerPlaybackStatus.HOME_MENU
     )
     return _player_state(
         status,
-        OppoPlaybackCategory.IDLE,
+        PlayerPlaybackLifecyclePhase.IDLE,
         raw_response=event.raw,
     )

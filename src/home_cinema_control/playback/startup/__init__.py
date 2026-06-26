@@ -1,10 +1,12 @@
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackPosition,
+    PlayerPlaybackStartResult,
+    PlayerPlaybackState,
+)
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
-    OppoPlaybackPosition,
-    OppoPlaybackStartRequest,
-    OppoPlaybackStartResult,
-    OppoPlaybackState,
+    MediaPlayerStartRequest,
     PlaybackStartupRequest,
     PlaybackStartupResult,
     PlaybackOutputSwitchRequest,
@@ -14,10 +16,10 @@ from home_cinema_control.playback.startup.models import (
 __all__ = [
     "DeviceCommandResult",
     "DeviceCommandStatus",
-    "OppoPlaybackPosition",
-    "OppoPlaybackStartRequest",
-    "OppoPlaybackStartResult",
-    "OppoPlaybackState",
+    "PlayerPlaybackPosition",
+    "MediaPlayerStartRequest",
+    "PlayerPlaybackStartResult",
+    "PlayerPlaybackState",
     "PlaybackStartupRequest",
     "PlaybackStartupResult",
     "PlaybackOutputSwitchRequest",

@@ -9,11 +9,11 @@ from home_cinema_control.devices.oppo.network_mount_service import (
     OppoNetworkFolderProtocol,
 )
 from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.startup.models import (
-    OppoPlaybackStartRequest,
+    MediaPlayerStartRequest,
     PlayerMediaFileLocation,
 )
 from home_cinema_control.devices.oppo.models import OppoCommandResponse
@@ -173,7 +173,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         result = playback.start_playback(
-            OppoPlaybackStartRequest(
+            MediaPlayerStartRequest(
                 media_location=PlayerMediaFileLocation(
                     content_server="NAS",
                     content_directory="Movies",
@@ -222,7 +222,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         result = playback.start_playback(
-            OppoPlaybackStartRequest(
+            MediaPlayerStartRequest(
                 media_location=PlayerMediaFileLocation(
                     content_server="NAS",
                     content_directory="Movies",
@@ -258,7 +258,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         result = playback.start_playback(
-            OppoPlaybackStartRequest(
+            MediaPlayerStartRequest(
                 media_location=PlayerMediaFileLocation(
                     content_server="NAS",
                     content_directory="Movies",
@@ -292,7 +292,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         result = playback.start_playback(
-            OppoPlaybackStartRequest(
+            MediaPlayerStartRequest(
                 network_protocol="cifs",
                 media_location=PlayerMediaFileLocation(
                     content_server="NAS",
@@ -328,7 +328,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         result = playback.start_playback(
-            OppoPlaybackStartRequest(
+            MediaPlayerStartRequest(
                 media_location=PlayerMediaFileLocation(
                     content_server="NAS",
                     content_directory="Movies",
@@ -361,7 +361,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         result = playback.start_playback(
-            OppoPlaybackStartRequest(
+            MediaPlayerStartRequest(
                 media_location=PlayerMediaFileLocation(
                     content_server="NAS",
                     content_directory="Movies",
@@ -396,7 +396,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         result = playback.start_playback(
-            OppoPlaybackStartRequest(
+            MediaPlayerStartRequest(
                 media_location=PlayerMediaFileLocation(
                     content_server="NAS",
                     content_directory="Movies",
@@ -698,8 +698,8 @@ def _started_playback(**kwargs):
         started=True,
         attempts=1,
         elapsed_seconds=0.1,
-        status=OppoPlaybackStatus.PLAY,
-        category=OppoPlaybackCategory.ACTIVE,
+        status=PlayerPlaybackStatus.PLAY,
+        lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
         raw_response="@OK PLAY",
     )
 

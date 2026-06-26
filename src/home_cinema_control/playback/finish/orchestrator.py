@@ -5,9 +5,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.finish.models import (
     PlaybackFinishRequest,
@@ -15,13 +15,13 @@ from home_cinema_control.playback.finish.models import (
 )
 from home_cinema_control.playback.ports import (
     AvReceiverOutputPort,
-    OppoPlaybackPort,
+    MediaPlayerPort,
     TelevisionOutputPort,
 )
+from home_cinema_control.playback.player_state import PlayerPlaybackState
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
-    OppoPlaybackState,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,13 +48,13 @@ class FinishPlaybackOrchestrator:
         stopped_reporter: PlaybackStoppedReporter,
             television: TelevisionOutputPort | None,
         av_receiver: AvReceiverOutputPort | None,
-        oppo_playback: OppoPlaybackPort | None = None,
+        media_player: MediaPlayerPort | None = None,
         sleep=time.sleep,
     ) -> None:
         self._stopped_reporter = stopped_reporter
         self._television = television
         self._av_receiver = av_receiver
-        self._oppo_playback = oppo_playback
+        self._media_player = media_player
         self._sleep = sleep
 
     def finish(self, request: PlaybackFinishRequest) -> PlaybackFinishResult:
@@ -103,7 +103,7 @@ class FinishPlaybackOrchestrator:
     def _close_and_confirm_player_state(
         self,
         request: PlaybackFinishRequest,
-    ) -> tuple[OppoPlaybackState, DeviceCommandResult]:
+    ) -> tuple[PlayerPlaybackState, DeviceCommandResult]:
         close_result = self._close_player_after_natural_end(request)
         if close_result.status == DeviceCommandStatus.FAILED:
             return request.final_player_state, close_result
@@ -123,35 +123,35 @@ class FinishPlaybackOrchestrator:
         if not request.media_ended:
             return DeviceCommandResult.skipped("Playback did not end by media position.")
 
-        if request.final_player_state.category == OppoPlaybackCategory.IDLE:
+        if request.final_player_state.lifecycle_phase == PlayerPlaybackLifecyclePhase.IDLE:
             return DeviceCommandResult.skipped("Player is already idle after media end.")
 
-        if self._oppo_playback is None:
+        if self._media_player is None:
             return DeviceCommandResult.skipped(
                 "No OPPO playback adapter configured for media-end close."
             )
 
         logger.info(
-            "Closing OPPO playback after natural media end | state=%s | category=%s",
+            "Closing OPPO playback after natural media end | state=%s | lifecycle_phase=%s",
             request.final_player_state.status.value,
-            request.final_player_state.category.value,
+            request.final_player_state.lifecycle_phase.value,
         )
-        return self._oppo_playback.stop_playback()
+        return self._media_player.stop()
 
     def _confirm_idle_state(
         self,
         request: PlaybackFinishRequest,
-    ) -> tuple[OppoPlaybackState, DeviceCommandResult]:
+    ) -> tuple[PlayerPlaybackState, DeviceCommandResult]:
         state = request.final_player_state
-        if state.category == OppoPlaybackCategory.IDLE:
+        if state.lifecycle_phase == PlayerPlaybackLifecyclePhase.IDLE:
             return state, DeviceCommandResult.success("OPPO already idle.")
 
-        if self._oppo_playback is None:
+        if self._media_player is None:
             logger.info(
                 "Skipping OPPO idle confirmation; no player port is available | "
-                "state=%s | category=%s",
+                "state=%s | lifecycle_phase=%s",
                 state.status.value,
-                state.category.value,
+                state.lifecycle_phase.value,
             )
             return state, DeviceCommandResult.skipped(
                 "No OPPO playback adapter configured for idle confirmation."
@@ -160,35 +160,35 @@ class FinishPlaybackOrchestrator:
         for poll_number in range(1, request.max_idle_confirmation_polls + 1):
             self._sleep(request.idle_confirmation_poll_interval_seconds)
             try:
-                state = self._oppo_playback.get_playback_state()
+                state = self._media_player.get_playback_state()
             except Exception as exc:
                 logger.exception(
                     "Unable to confirm OPPO idle state during playback finish; "
-                    "continuing with last known state | state=%s | category=%s",
+                    "continuing with last known state | state=%s | lifecycle_phase=%s",
                     state.status.value,
-                    state.category.value,
+                    state.lifecycle_phase.value,
                 )
                 return state, DeviceCommandResult.failed(
                     f"OPPO idle confirmation failed: {type(exc).__name__}: {exc}"
                 )
 
             logger.info(
-                "OPPO finish idle confirmation | poll=%s | state=%s | category=%s",
+                "OPPO finish idle confirmation | poll=%s | state=%s | lifecycle_phase=%s",
                 poll_number,
                 state.status.value,
-                state.category.value,
+                state.lifecycle_phase.value,
             )
 
-            if state.category == OppoPlaybackCategory.IDLE:
+            if state.lifecycle_phase == PlayerPlaybackLifecyclePhase.IDLE:
                 return state, DeviceCommandResult.success(
                     "OPPO idle state confirmed."
                 )
 
         logger.warning(
             "OPPO did not report idle before finish continuation | state=%s | "
-            "category=%s",
+            "lifecycle_phase=%s",
             state.status.value,
-            state.category.value,
+            state.lifecycle_phase.value,
         )
         return state, DeviceCommandResult.failed(
             "OPPO did not report idle before finish continuation."
@@ -198,10 +198,10 @@ class FinishPlaybackOrchestrator:
         self,
         player_idle_result: DeviceCommandResult,
     ) -> DeviceCommandResult:
-        if self._oppo_playback is None:
+        if self._media_player is None:
             return player_idle_result
 
-        cleanup = getattr(self._oppo_playback, "cleanup_after_playback_finish", None)
+        cleanup = getattr(self._media_player, "cleanup_after_playback_finish", None)
         if cleanup is None:
             return player_idle_result
 
@@ -298,4 +298,4 @@ def _player_is_in_screen_saver(request: PlaybackFinishRequest) -> bool:
     # while monitoring gave up, not that the user actually stopped. Restoring
     # the room here would interrupt a session that is, in practice, still
     # paused. See the screen-saver carve-out in polling_observation_strategy.py.
-    return request.final_player_state.status == OppoPlaybackStatus.SCREEN_SAVER
+    return request.final_player_state.status == PlayerPlaybackStatus.SCREEN_SAVER

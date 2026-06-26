@@ -3,10 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
-)
+from home_cinema_control.playback.player_state import PlayerPlaybackStartResult
 from home_cinema_control.devices.tv.models import TvInputTarget
 
 
@@ -73,7 +70,7 @@ class PlayerMediaFileLocation:
 
 
 @dataclass(frozen=True)
-class OppoPlaybackStartRequest:
+class MediaPlayerStartRequest:
     media_location: PlayerMediaFileLocation
     network_protocol: str | None = None
     assume_player_already_on: bool = True
@@ -84,60 +81,17 @@ class OppoPlaybackStartRequest:
 @dataclass(frozen=True)
 class PlaybackStartupRequest:
     output_switch_request: PlaybackOutputSwitchRequest
-    oppo_start_request: OppoPlaybackStartRequest
-
-
-@dataclass(frozen=True)
-class OppoPlaybackState:
-    status: OppoPlaybackStatus
-    category: OppoPlaybackCategory
-    raw_response: str
-    ok: bool
-
-    @property
-    def is_paused(self) -> bool:
-        return self.status == OppoPlaybackStatus.PAUSE
-
-    @property
-    def is_playing(self) -> bool:
-        return self.status == OppoPlaybackStatus.PLAY
-
-
-@dataclass(frozen=True)
-class OppoPlaybackStartResult:
-    media_mounted: bool
-    playback_command_accepted: bool
-    playback_started_on_device: bool
-    detail: str | None = None
-    mounted_path: str | None = None
-    playback_state: OppoPlaybackState | None = None
-    mount_protocol: str | None = None
-
-    @property
-    def successful(self) -> bool:
-        return (
-            self.media_mounted
-            and self.playback_command_accepted
-            and self.playback_started_on_device
-        )
+    media_player_start_request: MediaPlayerStartRequest
 
 
 @dataclass(frozen=True)
 class PlaybackStartupResult:
     output_switch_result: PlaybackOutputSwitchResult
-    oppo_start_result: OppoPlaybackStartResult
+    media_player_start_result: PlayerPlaybackStartResult
 
     @property
     def successful(self) -> bool:
-        return self.output_switch_result.successful and self.oppo_start_result.successful
-
-
-@dataclass(frozen=True)
-class OppoPlaybackPosition:
-    current_seconds: int
-    total_seconds: int
-    raw_response: str | None = None
-
-    @property
-    def has_valid_position(self) -> bool:
-        return self.total_seconds > 0 and self.current_seconds > 0
+        return (
+            self.output_switch_result.successful
+            and self.media_player_start_result.successful
+        )

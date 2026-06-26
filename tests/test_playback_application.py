@@ -92,15 +92,15 @@ class PlaybackApplicationServiceTest(unittest.TestCase):
 
     def test_active_iso_replacement_uses_stop_command(self):
 
-        command = "STP"
+        command = "stop_active_playback"
 
-        self.assertEqual("STP", command)
+        self.assertEqual("stop_active_playback", command)
 
     def test_active_file_replacement_uses_stop_command(self):
 
-        command = "STP"
+        command = "stop_active_playback"
 
-        self.assertEqual("STP", command)
+        self.assertEqual("stop_active_playback", command)
 
     def test_remembers_non_hdmi_tv_return_app(self):
         service = PlaybackApplicationService(
@@ -248,7 +248,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
             media_location=media_location,
             movie_path="/nas/Series/Show/episode.mkv",
             output_switch_request=SimpleNamespace(),
-            oppo_playback_start_request=SimpleNamespace(),
+            media_player_start_request=SimpleNamespace(),
             startup_completion_request=SimpleNamespace(),
         )
         fake_orchestration_result = SimpleNamespace(
@@ -291,7 +291,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                     playback_orchestrator=FakeOrchestrator(),
                     playback_event_publisher=None,
                     during_playback_orchestrator=SimpleNamespace(),
-                    startup_wiring=SimpleNamespace(oppo_playback=None),
+                    startup_wiring=SimpleNamespace(media_player=None),
                 ),
             ),
             patch(

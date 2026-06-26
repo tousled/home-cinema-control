@@ -7,7 +7,7 @@ from home_cinema_control.devices.av.factory import create_av_receiver_or_none
 from home_cinema_control.devices.tv.factory import create_tv_controller_or_none
 from home_cinema_control.playback.ports import (
     AvReceiverOutputPort,
-    OppoPlaybackPort,
+    MediaPlayerPort,
     TelevisionOutputPort,
 )
 from home_cinema_control.playback.startup.models import (
@@ -50,11 +50,11 @@ class PlaybackErrorHandler:
         *,
             television: TelevisionOutputPort | None,
         av_receiver: AvReceiverOutputPort | None,
-        oppo_playback: OppoPlaybackPort | None = None,
+        media_player: MediaPlayerPort | None = None,
     ) -> None:
         self._television = television
         self._av_receiver = av_receiver
-        self._oppo_playback = oppo_playback
+        self._media_player = media_player
 
     def recover(self, request: PlaybackErrorRecoveryRequest) -> PlaybackErrorRecoveryResult:
         logger.warning(
@@ -90,12 +90,12 @@ class PlaybackErrorHandler:
         return result
 
     def _stop_player_playback(self) -> DeviceCommandResult:
-        if self._oppo_playback is None:
+        if self._media_player is None:
             return DeviceCommandResult.skipped("No OPPO playback adapter configured.")
 
         logger.info("Stopping OPPO playback during error recovery.")
         try:
-            stop_result = self._oppo_playback.stop_playback()
+            stop_result = self._media_player.stop()
         except Exception as exc:
             logger.exception("Unable to stop OPPO playback during error recovery.")
             stop_result = DeviceCommandResult.failed(
@@ -108,10 +108,10 @@ class PlaybackErrorHandler:
         self,
         player_stop_result: DeviceCommandResult,
     ) -> DeviceCommandResult:
-        if self._oppo_playback is None:
+        if self._media_player is None:
             return player_stop_result
 
-        cleanup = getattr(self._oppo_playback, "cleanup_after_playback_finish", None)
+        cleanup = getattr(self._media_player, "cleanup_after_playback_finish", None)
         if cleanup is None:
             return player_stop_result
 
@@ -176,10 +176,10 @@ class PlaybackErrorHandler:
 def create_playback_error_handler(
     config: dict,
     *,
-    oppo_playback: OppoPlaybackPort | None = None,
+    media_player: MediaPlayerPort | None = None,
 ) -> PlaybackErrorHandler:
     return PlaybackErrorHandler(
         television=create_tv_controller_or_none(config),
         av_receiver=create_av_receiver_or_none(config),
-        oppo_playback=oppo_playback,
+        media_player=media_player,
     )

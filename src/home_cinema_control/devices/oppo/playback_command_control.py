@@ -4,10 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from home_cinema_control.playback.startup.models import (
-    DeviceCommandResult,
-    OppoPlaybackState,
-)
+from home_cinema_control.playback.player_state import PlayerPlaybackState
+from home_cinema_control.playback.startup.models import DeviceCommandResult
 from home_cinema_control.devices.oppo.control_api_client import OppoControlApiClient
 from home_cinema_control.devices.oppo.playback_status_client import (
     OppoPlaybackStatusClient,
@@ -41,7 +39,25 @@ class OppoPlaybackCommandControl:
     config: dict[str, Any]
     client: OppoControlApiClient | None = None
 
-    def send_remote_key(self, key: str) -> DeviceCommandResult:
+    def pause(self) -> DeviceCommandResult:
+        return self._send_remote_key("PAU")
+
+    def resume(self) -> DeviceCommandResult:
+        return self._send_remote_key("PLA")
+
+    def toggle_play_pause(self) -> DeviceCommandResult:
+        return self._send_remote_key("PAU")
+
+    def stop(self) -> DeviceCommandResult:
+        return self._send_remote_key("STP")
+
+    def next_track(self) -> DeviceCommandResult:
+        return self._send_remote_key("NXT")
+
+    def previous_track(self) -> DeviceCommandResult:
+        return self._send_remote_key("PRE")
+
+    def _send_remote_key(self, key: str) -> DeviceCommandResult:
         try:
             response = self._client().send_remote_key(key)
             return DeviceCommandResult.success(f"OPPO remote key sent: {response}")
@@ -63,11 +79,11 @@ class OppoPlaybackCommandControl:
         position = self._playback().get_playback_position()
         return seconds_to_ticks(position.current_seconds)
 
-    def get_playback_state(self) -> OppoPlaybackState:
+    def get_playback_state(self) -> PlayerPlaybackState:
         result = self._playback_status_client().query_playback_state()
-        return OppoPlaybackState(
+        return PlayerPlaybackState(
             status=result.status,
-            category=result.category,
+            lifecycle_phase=result.lifecycle_phase,
             raw_response=result.raw_response,
             ok=result.ok,
         )

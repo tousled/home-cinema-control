@@ -5,19 +5,19 @@ from home_cinema_control.playback.finish.orchestrator import FinishPlaybackOrche
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
-    OppoPlaybackState,
 )
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.finish.models import PlaybackFinishRequest
 
 
 def _idle_state():
-    return OppoPlaybackState(
-        status=OppoPlaybackStatus.HOME_MENU,
-        category=OppoPlaybackCategory.IDLE,
+    return PlayerPlaybackState(
+        status=PlayerPlaybackStatus.HOME_MENU,
+        lifecycle_phase=PlayerPlaybackLifecyclePhase.IDLE,
         raw_response="@OK HMN",
         ok=True,
     )

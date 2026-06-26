@@ -3,9 +3,9 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.devices.oppo.playback_status_client import OppoCommandResult, OppoPlaybackStatusClient
 
@@ -15,8 +15,8 @@ class PlaybackStartupWaitResult:
     started: bool
     attempts: int
     elapsed_seconds: float
-    status: OppoPlaybackStatus
-    category: OppoPlaybackCategory
+    status: PlayerPlaybackStatus
+    lifecycle_phase: PlayerPlaybackLifecyclePhase
     raw_response: str
 
 
@@ -51,14 +51,14 @@ def wait_until_oppo_reports_active_playback(
             last_result = query_state()
 
             logging.debug(
-                "QPL playback startup wait | attempt=%s | status=%s | category=%s | raw=%r",
+                "QPL playback startup wait | attempt=%s | status=%s | lifecycle_phase=%s | raw=%r",
                 attempts,
                 last_result.status,
-                last_result.category.value,
+                last_result.lifecycle_phase.value,
                 last_result.raw_response,
             )
 
-            if last_result.ok and last_result.category == OppoPlaybackCategory.ACTIVE:
+            if last_result.ok and last_result.lifecycle_phase == PlayerPlaybackLifecyclePhase.ACTIVE:
                 return _build_wait_result(
                     started=True,
                     attempts=attempts,
@@ -110,7 +110,7 @@ def _build_wait_result(
         attempts=attempts,
         elapsed_seconds=time.monotonic() - started_at,
         status=result.status,
-        category=result.category,
+        lifecycle_phase=result.lifecycle_phase,
         raw_response=result.raw_response,
     )
 
@@ -120,6 +120,6 @@ def _unknown_result() -> OppoCommandResult:
         command="QPL",
         raw_response="",
         ok=False,
-        status=OppoPlaybackStatus.UNKNOWN,
-        category=OppoPlaybackCategory.UNKNOWN,
+        status=PlayerPlaybackStatus.UNKNOWN,
+        lifecycle_phase=PlayerPlaybackLifecyclePhase.UNKNOWN,
     )

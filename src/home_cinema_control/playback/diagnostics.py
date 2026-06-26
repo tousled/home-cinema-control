@@ -94,7 +94,7 @@ def diagnose_startup_result(
             details={"detail": output_switch.av_input_result.detail},
         )
 
-    oppo = startup_result.oppo_start_result
+    oppo = startup_result.media_player_start_result
     detail = oppo.detail or ""
 
     if not oppo.media_mounted:

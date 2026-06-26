@@ -1,8 +1,11 @@
 import pytest
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackPosition,
+    PlayerPlaybackStartResult,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.media_servers.common.playback_source import (
@@ -15,9 +18,6 @@ from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.request_preparation import prepare_playback_requests
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
-    OppoPlaybackPosition,
-    OppoPlaybackStartResult,
-    OppoPlaybackState,
     PlaybackStartupRequest,
 )
 from home_cinema_control.playback.startup.orchestrator import PlaybackStartupOrchestrator
@@ -33,9 +33,9 @@ def test_movies_nfs_protocol_reaches_oppo_startup_even_when_smb_exists():
     prepared, result = harness.start_item("/volume1/Video/Movies/Movie.mkv")
 
     assert prepared.media_location.network_protocol == "nfs"
-    assert prepared.oppo_playback_start_request.network_protocol == "nfs"
+    assert prepared.media_player_start_request.network_protocol == "nfs"
     assert harness.oppo.requests[0].network_protocol == "nfs"
-    assert result.oppo_start_result.mount_protocol == "nfs"
+    assert result.media_player_start_result.mount_protocol == "nfs"
     assert result.successful
 
 
@@ -45,16 +45,16 @@ def test_trailers_cifs_protocol_reaches_oppo_startup_when_global_smb_is_off():
     prepared, result = harness.start_item("/volume1/Video/Trailers/Trailer.mkv")
 
     assert prepared.media_location.network_protocol == "cifs"
-    assert prepared.oppo_playback_start_request.network_protocol == "cifs"
+    assert prepared.media_player_start_request.network_protocol == "cifs"
     assert harness.oppo.requests[0].network_protocol == "cifs"
-    assert result.oppo_start_result.mount_protocol == "cifs"
+    assert result.media_player_start_result.mount_protocol == "cifs"
     assert result.successful
 
 
 def test_mount_failure_diagnostic_uses_selected_mapping_protocol():
     harness = ScenarioTestHarness(
         config=_playback_config(oppo_use_smb=False),
-        oppo_result=OppoPlaybackStartResult(
+        oppo_result=PlayerPlaybackStartResult(
             media_mounted=False,
             playback_command_accepted=False,
             playback_started_on_device=False,
@@ -165,7 +165,7 @@ class ScenarioTestHarness:
         self.orchestrator = PlaybackStartupOrchestrator(
             television=self.television,
             av_receiver=self.av_receiver,
-            oppo_playback=self.oppo,
+            media_player=self.oppo,
         )
 
     def start_item(self, path):
@@ -185,7 +185,7 @@ class ScenarioTestHarness:
         result = self.orchestrator.start_playback(
             PlaybackStartupRequest(
                 output_switch_request=prepared.output_switch_request,
-                oppo_start_request=prepared.oppo_playback_start_request,
+                media_player_start_request=prepared.media_player_start_request,
             )
         )
         return prepared, result
@@ -196,31 +196,31 @@ class FakeOppoPlayback:
         self._result = result
         self.requests = []
 
-    def start_playback(self, request, *, on_waiting=None):
+    def start(self, request, *, on_waiting=None):
         self.requests.append(request)
         if self._result is not None:
             return self._result
-        return OppoPlaybackStartResult(
+        return PlayerPlaybackStartResult(
             media_mounted=True,
             playback_command_accepted=True,
             playback_started_on_device=True,
             mount_protocol=request.network_protocol,
             mounted_path=f"/mnt/{request.network_protocol or 'auto'}1",
-            playback_state=OppoPlaybackState(
-                status=OppoPlaybackStatus.PLAY,
-                category=OppoPlaybackCategory.ACTIVE,
+            playback_state=PlayerPlaybackState(
+                status=PlayerPlaybackStatus.PLAY,
+                lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
                 raw_response="PLAY",
                 ok=True,
             ),
         )
 
     def get_playback_position(self):
-        return OppoPlaybackPosition(current_seconds=10, total_seconds=7200)
+        return PlayerPlaybackPosition(current_seconds=10, total_seconds=7200)
 
     def get_playback_state(self):
-        return OppoPlaybackState(
-            status=OppoPlaybackStatus.PLAY,
-            category=OppoPlaybackCategory.ACTIVE,
+        return PlayerPlaybackState(
+            status=PlayerPlaybackStatus.PLAY,
+            lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
             raw_response="PLAY",
             ok=True,
         )

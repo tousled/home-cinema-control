@@ -87,8 +87,12 @@ class PlaybackApplicationService:
         return self._active_context.publisher
 
     @property
+    def active_media_player(self):
+        return self._active_context.media_player
+
+    @property
     def active_oppo_playback(self):
-        return self._active_context.oppo_playback
+        return self.active_media_player
 
     def request_playback_from_intent(
         self,
@@ -261,8 +265,8 @@ class PlaybackApplicationService:
                         output_switch_request=(
                             prepared_requests.output_switch_request
                         ),
-                        oppo_start_request=(
-                            prepared_requests.oppo_playback_start_request
+                        media_player_start_request=(
+                            prepared_requests.media_player_start_request
                         ),
                     ),
                     startup_completion_request=(

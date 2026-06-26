@@ -4,22 +4,24 @@ import logging
 import time
 from typing import Callable
 
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackPosition,
+    PlayerPlaybackStartResult,
+    PlayerPlaybackState,
+)
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
     PlaybackOutputSwitchRequest,
     PlaybackOutputSwitchResult,
-    OppoPlaybackPosition,
     PlaybackStartupRequest,
     PlaybackStartupResult,
-    OppoPlaybackState,
-    OppoPlaybackStartRequest,
-    OppoPlaybackStartResult,
+    MediaPlayerStartRequest,
 )
 from home_cinema_control.playback.ports import (
     AvReceiverOutputPort,
+    MediaPlayerPort,
     TelevisionOutputPort,
-    OppoPlaybackPort,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,11 +33,11 @@ class PlaybackStartupOrchestrator:
         *,
             television: TelevisionOutputPort | None,
             av_receiver: AvReceiverOutputPort | None,
-        oppo_playback: OppoPlaybackPort,
+        media_player: MediaPlayerPort,
     ) -> None:
         self._television = television
         self._av_receiver = av_receiver
-        self._oppo_playback = oppo_playback
+        self._media_player = media_player
 
     def start_playback(
         self,
@@ -55,14 +57,14 @@ class PlaybackStartupOrchestrator:
             output_switch_result.av_input_result.status.value,
         )
 
-        oppo_start_result = self.start_oppo_playback(
-            request=request.oppo_start_request,
+        media_player_start_result = self.start_oppo_playback(
+            request=request.media_player_start_request,
             on_waiting=on_waiting,
         )
 
         return PlaybackStartupResult(
             output_switch_result=output_switch_result,
-            oppo_start_result=oppo_start_result,
+            media_player_start_result=media_player_start_result,
         )
 
     def switch_playback_output_to_oppo(
@@ -110,28 +112,28 @@ class PlaybackStartupOrchestrator:
     def start_oppo_playback(
         self,
         *,
-        request: OppoPlaybackStartRequest,
+        request: MediaPlayerStartRequest,
         on_waiting: Callable[[int], None] | None = None,
-    ) -> OppoPlaybackStartResult:
-        return self._oppo_playback.start_playback(
+    ) -> PlayerPlaybackStartResult:
+        return self._media_player.start(
             request,
             on_waiting=on_waiting,
         )
 
-    def get_oppo_playback_position(self) -> OppoPlaybackPosition:
-        return self._oppo_playback.get_playback_position()
+    def get_oppo_playback_position(self) -> PlayerPlaybackPosition:
+        return self._media_player.get_playback_position()
 
-    def get_oppo_playback_state(self) -> OppoPlaybackState:
-        return self._oppo_playback.get_playback_state()
+    def get_oppo_playback_state(self) -> PlayerPlaybackState:
+        return self._media_player.get_playback_state()
 
     def seek_oppo_to(self, position_ticks: int) -> DeviceCommandResult:
-        return self._oppo_playback.seek_to(position_ticks)
+        return self._media_player.seek_to(position_ticks)
 
     def select_oppo_audio_track(self, audio_index: int) -> DeviceCommandResult:
-        return self._oppo_playback.select_audio_track(audio_index)
+        return self._media_player.select_audio_track(audio_index)
 
     def select_oppo_subtitle_track(self, subtitle_index: int) -> DeviceCommandResult:
-        return self._oppo_playback.select_subtitle_track(subtitle_index)
+        return self._media_player.select_subtitle_track(subtitle_index)
 
     def _get_current_tv_app_id(self) -> str | None:
         if self._television is None:

@@ -1,8 +1,9 @@
 import unittest
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.media_servers.common.playback_command_handler import (
     command_from_general_command_message,
@@ -13,7 +14,6 @@ from home_cinema_control.media_servers.emby.playback_command_handler import (
 )
 from home_cinema_control.playback.intent import PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
-from home_cinema_control.playback.startup.models import OppoPlaybackState
 
 
 def _playstate(handler, data):
@@ -125,7 +125,41 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         config = {"name": "new"}
         _playstate(handler, {"Command": "Stop"})
 
-        self.assertEqual([("remote_key", "new", "STP")], controls)
+        self.assertEqual([("stop", "new")], controls)
+
+    def test_next_track_command_uses_domain_media_player_operation(self):
+        controls = []
+        handler = EmbyPlaybackCommandHandler(
+            emby_session=RecordingEmbySession(),
+            playback_state=BridgePlaybackState(),
+            config_provider=lambda: {"name": "config"},
+            playback_intent_dispatcher_factory=lambda: RecordingDispatcher(),
+            active_publisher_provider=lambda: None,
+            oppo_control_factory=lambda current_config: RecordingOppoControl(
+                current_config, controls
+            ),
+        )
+
+        _playstate(handler, {"Command": "NextTrack"})
+
+        self.assertEqual([("next_track", "config")], controls)
+
+    def test_previous_track_command_uses_domain_media_player_operation(self):
+        controls = []
+        handler = EmbyPlaybackCommandHandler(
+            emby_session=RecordingEmbySession(),
+            playback_state=BridgePlaybackState(),
+            config_provider=lambda: {"name": "config"},
+            playback_intent_dispatcher_factory=lambda: RecordingDispatcher(),
+            active_publisher_provider=lambda: None,
+            oppo_control_factory=lambda current_config: RecordingOppoControl(
+                current_config, controls
+            ),
+        )
+
+        _playstate(handler, {"Command": "PreviousTrack"})
+
+        self.assertEqual([("previous_track", "config")], controls)
 
     def test_pause_does_not_toggle_oppo_when_already_paused(self):
         controls = []
@@ -141,7 +175,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
                 current_config,
                 controls,
                 playback_states=[
-                    _state(OppoPlaybackStatus.PAUSE),
+                    _state(PlayerPlaybackStatus.PAUSE),
                 ],
             ),
             active_publisher_provider=lambda: publisher,
@@ -149,7 +183,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
 
         _playstate(handler, {"Command": "Pause"})
 
-        self.assertNotIn(("remote_key", "config", "PAU"), controls)
+        self.assertNotIn(("pause", "config"), controls)
         self.assertEqual("Paused", state.playstate)
         self.assertEqual("Pause", publisher.events[-1]["event_name"])
         self.assertTrue(publisher.events[-1]["is_paused"])
@@ -168,7 +202,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
                 current_config,
                 controls,
                 playback_states=[
-                    _state(OppoPlaybackStatus.PLAY),
+                    _state(PlayerPlaybackStatus.PLAY),
                 ],
             ),
             active_publisher_provider=lambda: publisher,
@@ -176,7 +210,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
 
         _playstate(handler, {"Command": "Unpause"})
 
-        self.assertNotIn(("remote_key", "config", "PLA"), controls)
+        self.assertNotIn(("resume", "config"), controls)
         self.assertEqual("Playing", state.playstate)
         self.assertEqual("Unpause", publisher.events[-1]["event_name"])
         self.assertFalse(publisher.events[-1]["is_paused"])
@@ -195,7 +229,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
                 current_config,
                 controls,
                 playback_states=[
-                    _state(OppoPlaybackStatus.PAUSE),
+                    _state(PlayerPlaybackStatus.PAUSE),
                 ],
             ),
             active_publisher_provider=lambda: publisher,
@@ -203,7 +237,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
 
         _playstate(handler, {"Command": "PlayPause"})
 
-        self.assertIn(("remote_key", "config", "PAU"), controls)
+        self.assertIn(("toggle_play_pause", "config"), controls)
         self.assertEqual("Paused", state.playstate)
         self.assertEqual("Pause", publisher.events[-1]["event_name"])
         self.assertTrue(publisher.events[-1]["is_paused"])
@@ -230,7 +264,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         _playstate(handler, {"Command": "PlayPause"})
 
         self.assertEqual([], state_reads)
-        self.assertIn(("remote_key", "config", "PAU"), controls)
+        self.assertIn(("toggle_play_pause", "config"), controls)
         self.assertEqual("Paused", state.playstate)
         self.assertEqual("Pause", publisher.events[-1]["event_name"])
         self.assertTrue(publisher.events[-1]["is_paused"])
@@ -571,11 +605,31 @@ class RecordingOppoControl:
         self._config = config
         self._calls = calls
         self._current_position_ticks = current_position_ticks
-        self._playback_states = list(playback_states or [_state(OppoPlaybackStatus.PLAY)])
+        self._playback_states = list(playback_states or [_state(PlayerPlaybackStatus.PLAY)])
         self._on_get_state = on_get_state
 
-    def send_remote_key(self, key):
-        self._calls.append(("remote_key", self._config["name"], key))
+    def pause(self):
+        self._calls.append(("pause", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def resume(self):
+        self._calls.append(("resume", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def toggle_play_pause(self):
+        self._calls.append(("toggle_play_pause", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def stop(self):
+        self._calls.append(("stop", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def next_track(self):
+        self._calls.append(("next_track", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def previous_track(self):
+        self._calls.append(("previous_track", self._config["name"]))
         return RecordingCommandResult(successful=True)
 
     def select_audio_track(self, audio_index):
@@ -610,9 +664,9 @@ class RecordingCommandResult:
 
 
 def _state(status):
-    return OppoPlaybackState(
+    return PlayerPlaybackState(
         status=status,
-        category=OppoPlaybackCategory.ACTIVE,
+        lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
         raw_response=f"@OK {status.value}",
         ok=True,
     )

@@ -9,7 +9,7 @@ from home_cinema_control.media_servers.common.models import (
     MediaServerCommandKind,
 )
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
-from home_cinema_control.playback.ports import MediaPlayerPort
+from home_cinema_control.playback.ports import MediaPlayerCommandPort
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 
@@ -37,7 +37,7 @@ class MediaServerPlaybackCommandHandler:
         config_provider: Callable[[], dict[str, Any]],
         playback_intent_dispatcher_factory: Callable,
         active_publisher_provider: Callable[[], Any],
-        oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerPort],
+        oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerCommandPort],
         play_command_parser: Callable[[dict[str, Any]], PlaybackIntent],
     ) -> None:
         self._provider_name = provider_name
@@ -102,8 +102,8 @@ class MediaServerPlaybackCommandHandler:
             self._handle_subtitle_track_change(command.track_index or 0)
             return
 
-        remote_key = _remote_key_for_kind(kind)
-        if remote_key is None:
+        operation = _media_player_command_for_kind(kind)
+        if operation is None:
             logging.debug(
                 "Ignoring unsupported %s command | name=%s",
                 self._provider_name,
@@ -111,10 +111,10 @@ class MediaServerPlaybackCommandHandler:
             )
             return
 
-        result = self._oppo_control.send_remote_key(remote_key)
+        result = operation(self._oppo_control)
         if not result.successful:
             logging.error(
-                "OPPO playstate command failed | name=%s | result=%s",
+                "Media-player playstate command failed | name=%s | result=%s",
                 command.raw_name,
                 result,
             )
@@ -183,8 +183,8 @@ class MediaServerPlaybackCommandHandler:
             self._report_playstate_interaction_from_current_state(kind)
             return
 
-        remote_key = _remote_key_for_kind(kind)
-        if remote_key is None:
+        operation = _media_player_command_for_kind(kind)
+        if operation is None:
             return
 
         previous_playstate = self._state.playstate
@@ -197,10 +197,10 @@ class MediaServerPlaybackCommandHandler:
                 "Playing" if self._state.playstate == "Paused" else "Paused"
             )
 
-        result = self._oppo_control.send_remote_key(remote_key)
+        result = operation(self._oppo_control)
         if not result.successful:
             logging.error(
-                "OPPO play/pause command failed | command=%s | result=%s",
+                "Media-player play/pause command failed | command=%s | result=%s",
                 kind.value,
                 result,
             )
@@ -368,7 +368,7 @@ class MediaServerPlaybackCommandHandler:
         return self._active_publisher_provider()
 
     @property
-    def _oppo_control(self) -> MediaPlayerPort:
+    def _oppo_control(self) -> MediaPlayerCommandPort:
         return self._oppo_control_factory(self._config)
 
 
@@ -455,14 +455,16 @@ def command_from_general_command_message(data: dict[str, Any]) -> MediaServerCom
     return MediaServerCommand(kind=_Kind.UNSUPPORTED, raw_name=str(name or ""))
 
 
-def _remote_key_for_kind(kind: MediaServerCommandKind) -> str | None:
+def _media_player_command_for_kind(
+    kind: MediaServerCommandKind,
+) -> Callable[[MediaPlayerCommandPort], Any] | None:
     return {
-        _Kind.STOP: "STP",
-        _Kind.PAUSE: "PAU",
-        _Kind.UNPAUSE: "PLA",
-        _Kind.NEXT_TRACK: "NXT",
-        _Kind.PREVIOUS_TRACK: "PRE",
-        _Kind.PLAY_PAUSE: "PAU",
+        _Kind.STOP: lambda player: player.stop(),
+        _Kind.PAUSE: lambda player: player.pause(),
+        _Kind.UNPAUSE: lambda player: player.resume(),
+        _Kind.NEXT_TRACK: lambda player: player.next_track(),
+        _Kind.PREVIOUS_TRACK: lambda player: player.previous_track(),
+        _Kind.PLAY_PAUSE: lambda player: player.toggle_play_pause(),
     }.get(kind)
 
 

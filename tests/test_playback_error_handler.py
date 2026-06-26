@@ -53,7 +53,7 @@ class RecordingOppoPlayback:
         )
         self.stop_exception = stop_exception
 
-    def stop_playback(self):
+    def stop(self):
         self.calls.append("stop_playback")
         if self.stop_exception is not None:
             raise self.stop_exception
@@ -72,7 +72,7 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         handler = PlaybackErrorHandler(
             television=television,
             av_receiver=av_receiver,
-            oppo_playback=oppo,
+            media_player=oppo,
         )
 
         result = handler.recover(
@@ -96,7 +96,7 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         handler = PlaybackErrorHandler(
             television=television,
             av_receiver=av_receiver,
-            oppo_playback=oppo,
+            media_player=oppo,
         )
 
         result = handler.recover(
@@ -120,7 +120,7 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         handler = PlaybackErrorHandler(
             television=RecordingTelevisionOutput(),
             av_receiver=RecordingAvReceiverOutput(),
-            oppo_playback=oppo,
+            media_player=oppo,
         )
 
         result = handler.recover(
@@ -142,7 +142,7 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         handler = PlaybackErrorHandler(
             television=RecordingTelevisionOutput(),
             av_receiver=RecordingAvReceiverOutput(),
-            oppo_playback=oppo,
+            media_player=oppo,
         )
 
         result = handler.recover(
@@ -166,7 +166,7 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         handler = PlaybackErrorHandler(
             television=RecordingTelevisionOutput(),
             av_receiver=RecordingAvReceiverOutput(),
-            oppo_playback=oppo,
+            media_player=oppo,
         )
 
         result = handler.recover(
@@ -187,7 +187,7 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         handler = PlaybackErrorHandler(
             television=RecordingTelevisionOutput(),
             av_receiver=RecordingAvReceiverOutput(),
-            oppo_playback=oppo,
+            media_player=oppo,
         )
 
         with self.assertLogs(
@@ -208,7 +208,7 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         handler = PlaybackErrorHandler(
             television=RecordingTelevisionOutput(),
             av_receiver=RecordingAvReceiverOutput(),
-            oppo_playback=RecordingOppoPlayback(),
+            media_player=RecordingOppoPlayback(),
         )
 
         with self.assertLogs(

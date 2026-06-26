@@ -2,32 +2,32 @@ import unittest
 from unittest.mock import patch
 
 from home_cinema_control.devices.oppo.playback_adapters import (
-    OppoStableMediaControlPlaybackAdapter,
+    OppoMediaPlayerAdapter,
     create_oppo_playback_adapter,
 )
 from home_cinema_control.playback.startup.models import (
     DeviceCommandStatus,
-    OppoPlaybackStartResult,
+    PlayerPlaybackStartResult,
 )
 
 
 class OppoPlaybackAdaptersTest(unittest.TestCase):
-    def test_creates_stable_adapter_by_default(self):
+    def test_creates_media_player_adapter_by_default(self):
         adapter = create_oppo_playback_adapter(_config())
 
-        self.assertIsInstance(adapter, OppoStableMediaControlPlaybackAdapter)
+        self.assertIsInstance(adapter, OppoMediaPlayerAdapter)
 
-    def test_creates_stable_adapter_even_for_legacy_verbose_config(self):
+    def test_creates_media_player_adapter_even_for_legacy_verbose_config(self):
         adapter = create_oppo_playback_adapter(
             _config(observation_mode="oppo_verbose")
         )
 
-        self.assertIsInstance(adapter, OppoStableMediaControlPlaybackAdapter)
+        self.assertIsInstance(adapter, OppoMediaPlayerAdapter)
 
 
 class OppoAutoscriptCleanupTest(unittest.TestCase):
     def test_skips_cleanup_when_autoscript_disabled(self):
-        adapter = OppoStableMediaControlPlaybackAdapter(_config())
+        adapter = OppoMediaPlayerAdapter(_config())
         adapter._last_mounted_path = "/mnt/nfs1"
 
         with patch(
@@ -39,7 +39,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
         mock_unmount.assert_not_called()
 
     def test_skips_cleanup_when_autoscript_enabled_but_nothing_was_mounted(self):
-        adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
+        adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
 
         with patch(
             "home_cinema_control.devices.oppo.playback_adapters.unmount_oppo_path"
@@ -50,7 +50,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
         mock_unmount.assert_not_called()
 
     def test_unmounts_recorded_share_when_autoscript_enabled(self):
-        adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
+        adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
         adapter._last_mounted_path = "/mnt/cifs1"
 
         with patch(
@@ -68,7 +68,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
         # Autoscript-unmount was only ever designed/validated for CIFS/SMB
         # (see the legacy Xnoppo project this was ported from); NFS mounts
         # are left in place rather than attempting an unverified telnet path.
-        adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
+        adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
         adapter._last_mounted_path = "/mnt/nfs1"
 
         with patch(
@@ -80,7 +80,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
         mock_unmount.assert_not_called()
 
     def test_reports_failure_when_unmount_returns_false(self):
-        adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
+        adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
         adapter._last_mounted_path = "/mnt/cifs1"
 
         with patch(
@@ -92,7 +92,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
         self.assertEqual(DeviceCommandStatus.FAILED, result.status)
 
     def test_reports_failure_when_unmount_raises(self):
-        adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
+        adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
         adapter._last_mounted_path = "/mnt/cifs1"
 
         with patch(
@@ -103,10 +103,10 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
 
         self.assertEqual(DeviceCommandStatus.FAILED, result.status)
 
-    def test_start_playback_records_mounted_path_for_later_cleanup(self):
-        adapter = OppoStableMediaControlPlaybackAdapter(_config(autoscript=True))
+    def test_start_records_mounted_path_for_later_cleanup(self):
+        adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
         adapter._playback.start_playback = lambda request, on_waiting=None: (
-            OppoPlaybackStartResult(
+            PlayerPlaybackStartResult(
                 media_mounted=True,
                 playback_command_accepted=True,
                 playback_started_on_device=True,
@@ -114,7 +114,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
             )
         )
 
-        adapter.start_playback(request=None)
+        adapter.start(request=None)
 
         self.assertEqual("/mnt/nfs1", adapter._last_mounted_path)
 

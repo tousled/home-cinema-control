@@ -87,7 +87,7 @@ class PlaybackDuringFactoryTest(unittest.TestCase):
     def test_auto_mode_uses_observation_fallback_orchestrator(self):
         orchestrator = create_during_playback_orchestrator(
             config=_config("auto"),
-            oppo_playback=object(),
+            media_player=object(),
             progress_reporter=RecordingProgressReporter(),
         )
 
@@ -96,7 +96,7 @@ class PlaybackDuringFactoryTest(unittest.TestCase):
     def test_polling_mode_uses_existing_polling_orchestrator(self):
         orchestrator = create_during_playback_orchestrator(
             config=_config("polling"),
-            oppo_playback=object(),
+            media_player=object(),
             progress_reporter=RecordingProgressReporter(),
         )
 

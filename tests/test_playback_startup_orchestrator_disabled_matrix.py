@@ -24,7 +24,7 @@ def _orchestrator(*, television, av_receiver):
     return PlaybackStartupOrchestrator(
         television=television,
         av_receiver=av_receiver,
-        oppo_playback=_UnusedOppoPlayback(),
+        media_player=_UnusedOppoPlayback(),
     )
 
 

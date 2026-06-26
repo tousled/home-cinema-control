@@ -75,7 +75,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
         self.assertTrue(output_request.av_enabled)
         self.assertEqual("com.emby.app", output_request.previous_tv_app_id_override)
 
-        oppo_request = prepared.oppo_playback_start_request
+        oppo_request = prepared.media_player_start_request
         self.assertFalse(oppo_request.assume_player_already_on)
         self.assertEqual("nfs", oppo_request.network_protocol)
         self.assertEqual(42, oppo_request.startup_timeout_seconds)

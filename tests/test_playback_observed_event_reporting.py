@@ -19,7 +19,7 @@ class PlaybackObservedEventReportingTest(unittest.TestCase):
         )
 
         self.assertTrue(configured)
-        self.assertIsNone(wiring.startup_wiring.oppo_playback.reporter)
+        self.assertIsNone(wiring.startup_wiring.media_player.reporter)
         self.assertIsNotNone(wiring.during_playback_orchestrator.reporter)
 
     def test_observed_playback_sink_updates_playstate(self):
@@ -42,7 +42,7 @@ class PlaybackObservedEventReportingTest(unittest.TestCase):
 
 class FakePlaybackWiring:
     def __init__(self):
-        self.startup_wiring = SimpleNamespace(oppo_playback=FakeOppoPlayback())
+        self.startup_wiring = SimpleNamespace(media_player=FakeOppoPlayback())
         self.playback_event_publisher = RecordingPublisher()
         self.during_playback_orchestrator = FakeDuringPlaybackOrchestrator()
 

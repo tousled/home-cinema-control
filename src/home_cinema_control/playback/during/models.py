@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
-from home_cinema_control.playback.startup.models import OppoPlaybackState
+from home_cinema_control.playback.player_state import PlayerPlaybackState
 
 
 class PlaybackMonitoringStopReason(Enum):
@@ -30,14 +30,14 @@ class PlaybackMonitoringRequest:
     report_progress: bool = True
     is_paused: bool = False
     is_muted: bool = False
-    last_active_state: OppoPlaybackState | None = None
+    last_active_state: PlayerPlaybackState | None = None
 
 
 @dataclass(frozen=True)
 class PlaybackMonitoringResult:
     position_seconds: int
     duration_seconds: int
-    final_state: OppoPlaybackState
+    final_state: PlayerPlaybackState
     stop_reason: PlaybackMonitoringStopReason = PlaybackMonitoringStopReason.PLAYER_IDLE
 
 

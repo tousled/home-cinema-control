@@ -1,8 +1,8 @@
 import unittest
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.devices.oppo.verbose_events import parse_verbose_event
 from home_cinema_control.playback.during import (
@@ -35,8 +35,8 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
 
         self.assertEqual(20, result.position_seconds)
         self.assertEqual(0, result.duration_seconds)
-        self.assertEqual(OppoPlaybackStatus.STOP, result.final_state.status)
-        self.assertEqual(OppoPlaybackCategory.TRANSITION, result.final_state.category)
+        self.assertEqual(PlayerPlaybackStatus.STOP, result.final_state.status)
+        self.assertEqual(PlayerPlaybackLifecyclePhase.TRANSITION, result.final_state.lifecycle_phase)
         self.assertEqual(PlaybackMonitoringStopReason.PLAYER_IDLE, result.stop_reason)
         self.assertEqual(3, source.listen_kwargs["verbose_mode"])
         self.assertFalse(source.listen_kwargs["restore_verbose_mode"])
@@ -68,7 +68,7 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
 
         self.assertEqual(3, result.position_seconds)
         self.assertEqual(PlaybackMonitoringStopReason.PLAYER_IDLE, result.stop_reason)
-        self.assertEqual(OppoPlaybackStatus.STOP, result.final_state.status)
+        self.assertEqual(PlayerPlaybackStatus.STOP, result.final_state.status)
 
     def test_finishes_when_live_position_reaches_oppo_total(self):
         source = RecordingEventSource(
@@ -93,7 +93,7 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
             PlaybackMonitoringStopReason.NATURAL_END,
             result.stop_reason,
         )
-        self.assertEqual(OppoPlaybackStatus.PLAY, result.final_state.status)
+        self.assertEqual(PlayerPlaybackStatus.PLAY, result.final_state.status)
         self.assertNotIn("stopped", reporter.playback_states)
         self.assertEqual(
             [ObservedPlaybackEventType.POSITION_UPDATED],
@@ -164,7 +164,7 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
 
         self.assertEqual(6, result.position_seconds)
         self.assertEqual(PlaybackMonitoringStopReason.PLAYER_IDLE, result.stop_reason)
-        self.assertEqual(OppoPlaybackStatus.MEDIA_CENTER, result.final_state.status)
+        self.assertEqual(PlayerPlaybackStatus.MEDIA_CENTER, result.final_state.status)
         self.assertNotIn("stopped", reporter.playback_states)
 
     def test_reports_progress_when_no_observed_event_reporter_is_configured(self):
@@ -259,8 +259,8 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
             PlaybackMonitoringStopReason.EVENT_WATCHDOG_EXPIRED,
             result.stop_reason,
         )
-        self.assertEqual(OppoPlaybackStatus.UNKNOWN, result.final_state.status)
-        self.assertEqual(OppoPlaybackCategory.UNKNOWN, result.final_state.category)
+        self.assertEqual(PlayerPlaybackStatus.UNKNOWN, result.final_state.status)
+        self.assertEqual(PlayerPlaybackLifecyclePhase.UNKNOWN, result.final_state.lifecycle_phase)
 
 
 class DeferredAudioSelectorTest(unittest.TestCase):
