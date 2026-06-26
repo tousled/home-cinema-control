@@ -8,6 +8,7 @@ from home_cinema_control.playback.player_state import (
     PlayerPlaybackStatus,
 )
 from home_cinema_control.devices.tv.models import TvInputTarget
+from home_cinema_control.media_servers.common.models import MediaServerItemPlaybackInfo
 from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
 )
@@ -271,12 +272,8 @@ class FakeEmbySession:
     def __init__(self, *, library_membership):
         self._library_membership = library_membership
 
-    def get_item_info(self, user_id, item_id):
-        return {
-            "Id": item_id,
-            "UserData": {"Played": False, "PlayCount": 0},
-            "MediaSources": [],
-        }
+    def get_item_playback_info(self, user_id, item_id, media_source_id):
+        return MediaServerItemPlaybackInfo(played=False, play_count=0)
 
     def is_item_path_in_library(self, library_id, item_path):
         return self._library_membership.get(library_id, False)

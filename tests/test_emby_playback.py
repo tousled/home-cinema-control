@@ -3,7 +3,7 @@ import unittest
 from home_cinema_control.media_servers.common.playback_event_publisher import (
     MediaServerPlaybackContext,
 )
-from home_cinema_control.media_servers.common.playback_source import (
+from home_cinema_control.media_servers.emby.item_mapper import (
     media_server_playback_source_from_item,
 )
 from home_cinema_control.playback.content_kind import MediaContentKind

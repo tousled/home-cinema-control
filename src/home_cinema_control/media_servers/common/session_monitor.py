@@ -66,11 +66,10 @@ class MediaServerSessionMonitor:
 
         if session is not None and session.now_playing is not None:
             try:
-                item_info = self._session.get_item_info(
-                    session.user_id, session.now_playing.item_id
-                )
-                item_playback_info = MediaServerItemPlaybackInfo.from_item_response(
-                    item_info, media_source_id=session.media_source_id
+                item_playback_info = self._session.get_item_playback_info(
+                    session.user_id,
+                    session.now_playing.item_id,
+                    session.media_source_id,
                 )
                 logging.info(
                     "%s monitored item detected | device=%s | title=%s | "

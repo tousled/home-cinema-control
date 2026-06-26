@@ -222,11 +222,6 @@ def find_stale_playback_session_ids(
 class MediaServerItemPlaybackInfo(BaseModel):
     """Saved userdata and selected media-source detail for an item, mapped to HCC
     domain.
-
-    Providers fetch the raw item response (``get_item_info``) and map it here,
-    at the edge, before it reaches shared session-monitor policy. Emby and
-    Jellyfin share this Item-API response shape (Jellyfin forked it from Emby),
-    the same precedent already accepted for ``track_mapping``.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -237,47 +232,6 @@ class MediaServerItemPlaybackInfo(BaseModel):
     playback_percentage: float | None = None
     media_source_container: str | None = None
     media_source_video_type: str | None = None
-
-    @classmethod
-    def from_item_response(
-        cls,
-        item_info: dict | None,
-        *,
-        media_source_id: str | None,
-    ) -> "MediaServerItemPlaybackInfo":
-        item_info = item_info or {}
-        user_data = item_info.get("UserData") or {}
-        media_source = _selected_media_source(
-            item_info.get("MediaSources") or [],
-            media_source_id,
-        )
-        saved_position_ticks = user_data.get("PlaybackPositionTicks")
-
-        return cls(
-            saved_position_ticks=(
-                int(saved_position_ticks) if saved_position_ticks is not None else None
-            ),
-            played=user_data.get("Played"),
-            play_count=user_data.get("PlayCount"),
-            playback_percentage=user_data.get("PlayedPercentage"),
-            media_source_container=(media_source or {}).get("Container"),
-            media_source_video_type=(media_source or {}).get("VideoType"),
-        )
-
-
-def _selected_media_source(
-    media_sources: list[dict],
-    media_source_id: str | None,
-) -> dict | None:
-    if media_source_id:
-        for media_source in media_sources:
-            if media_source.get("Id") == media_source_id:
-                return media_source
-
-    if media_sources:
-        return media_sources[0]
-
-    return None
 
 
 class LibraryPath(BaseModel):

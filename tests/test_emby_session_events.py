@@ -1,7 +1,6 @@
 import unittest
 
 from home_cinema_control.media_servers.common.models import (
-    MediaServerItemPlaybackInfo,
     MediaServerNowPlaying,
     MediaServerSession,
 )
@@ -13,6 +12,9 @@ from home_cinema_control.media_servers.emby.session_events import (
     find_monitored_session,
     is_same_media_item_request,
     playback_request_media_item_id,
+)
+from home_cinema_control.media_servers.emby.item_mapper import (
+    media_server_item_playback_info_from_item,
 )
 
 
@@ -125,7 +127,7 @@ class EmbySessionEventsTest(unittest.TestCase):
             subtitle_stream_index=-1,
         )
 
-        item_playback_info = MediaServerItemPlaybackInfo.from_item_response(
+        item_playback_info = media_server_item_playback_info_from_item(
             {
                 "UserData": {
                     "PlaybackPositionTicks": 420_000_000,
@@ -157,49 +159,6 @@ class EmbySessionEventsTest(unittest.TestCase):
         self.assertEqual(0, source["session_position_ticks"])
         self.assertEqual(420_000_000, source["saved_position_ticks"])
         self.assertFalse(source["played"])
-
-
-class MediaServerItemPlaybackInfoTest(unittest.TestCase):
-    def test_maps_item_response_to_domain(self):
-        info = MediaServerItemPlaybackInfo.from_item_response(
-            {
-                "UserData": {
-                    "PlaybackPositionTicks": 420_000_000,
-                    "Played": True,
-                    "PlayCount": 3,
-                    "PlayedPercentage": 91.5,
-                },
-                "MediaSources": [
-                    {"Id": "other-source", "Container": "mp4"},
-                    {"Id": "source-1", "Container": "mkv", "VideoType": "BluRay"},
-                ],
-            },
-            media_source_id="source-1",
-        )
-
-        self.assertEqual(420_000_000, info.saved_position_ticks)
-        self.assertTrue(info.played)
-        self.assertEqual(3, info.play_count)
-        self.assertEqual(91.5, info.playback_percentage)
-        self.assertEqual("mkv", info.media_source_container)
-        self.assertEqual("BluRay", info.media_source_video_type)
-
-    def test_falls_back_to_first_media_source_when_id_unmatched(self):
-        info = MediaServerItemPlaybackInfo.from_item_response(
-            {"MediaSources": [{"Id": "other-source", "Container": "mp4"}]},
-            media_source_id="missing-source",
-        )
-
-        self.assertEqual("mp4", info.media_source_container)
-
-    def test_missing_response_maps_to_empty_domain(self):
-        info = MediaServerItemPlaybackInfo.from_item_response(
-            None, media_source_id="source-1"
-        )
-
-        self.assertIsNone(info.saved_position_ticks)
-        self.assertIsNone(info.played)
-        self.assertIsNone(info.media_source_container)
 
 
 if __name__ == "__main__":
