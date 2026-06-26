@@ -11,8 +11,9 @@ from home_cinema_control.playback.startup.models import (
 
 
 class RecordingTelevisionOutput:
-    def __init__(self):
+    def __init__(self, *, launch_exception=None):
         self.calls = []
+        self.launch_exception = launch_exception
 
     def get_current_app_id(self):
         self.calls.append("get_current_app_id")
@@ -24,12 +25,15 @@ class RecordingTelevisionOutput:
 
     def launch_app(self, app_id=None):
         self.calls.append(("launch_app", app_id))
+        if self.launch_exception is not None:
+            raise self.launch_exception
         return DeviceCommandResult.success("tv app restored")
 
 
 class RecordingAvReceiverOutput:
-    def __init__(self):
+    def __init__(self, *, restore_exception=None):
         self.calls = []
+        self.restore_exception = restore_exception
 
     def power_on(self):
         self.calls.append("power_on")
@@ -41,6 +45,8 @@ class RecordingAvReceiverOutput:
 
     def restore_tv_audio(self):
         self.calls.append("restore_tv_audio")
+        if self.restore_exception is not None:
+            raise self.restore_exception
         return DeviceCommandResult.success("tv audio restored")
 
 
@@ -179,6 +185,52 @@ class PlaybackErrorHandlerTest(unittest.TestCase):
         self.assertFalse(result.successful)
         self.assertEqual(DeviceCommandStatus.FAILED, result.player_stop_result.status)
         self.assertEqual("svm restore failed", result.player_stop_result.detail)
+
+    def test_recovery_converts_tv_restore_exception_to_failed_result(self):
+        handler = PlaybackErrorHandler(
+            television=RecordingTelevisionOutput(
+                launch_exception=RuntimeError("tv failed")
+            ),
+            av_receiver=RecordingAvReceiverOutput(),
+            media_player=RecordingOppoPlayback(),
+        )
+
+        result = handler.recover(
+            PlaybackErrorRecoveryRequest(
+                reason="oppo_startup_failed",
+                previous_tv_app_id="com.emby.app",
+            )
+        )
+
+        self.assertFalse(result.successful)
+        self.assertEqual(DeviceCommandStatus.FAILED, result.tv_app_result.status)
+        self.assertEqual(
+            "TV app restore failed: RuntimeError: tv failed",
+            result.tv_app_result.detail,
+        )
+
+    def test_recovery_converts_av_restore_exception_to_failed_result(self):
+        handler = PlaybackErrorHandler(
+            television=RecordingTelevisionOutput(),
+            av_receiver=RecordingAvReceiverOutput(
+                restore_exception=RuntimeError("av failed")
+            ),
+            media_player=RecordingOppoPlayback(),
+        )
+
+        result = handler.recover(
+            PlaybackErrorRecoveryRequest(
+                reason="oppo_startup_failed",
+                previous_tv_app_id="com.emby.app",
+            )
+        )
+
+        self.assertFalse(result.successful)
+        self.assertEqual(DeviceCommandStatus.FAILED, result.av_audio_result.status)
+        self.assertEqual(
+            "AV TV audio restore failed: RuntimeError: av failed",
+            result.av_audio_result.detail,
+        )
 
     def test_logs_recovery_result_at_error_level_when_recovery_fails(self):
         oppo = RecordingOppoPlayback(

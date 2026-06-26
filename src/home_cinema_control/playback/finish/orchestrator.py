@@ -7,7 +7,6 @@ from typing import Protocol
 
 from home_cinema_control.playback.player_state import (
     PlayerPlaybackLifecyclePhase,
-    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.finish.models import (
     PlaybackFinishRequest,
@@ -19,6 +18,10 @@ from home_cinema_control.playback.ports import (
     TelevisionOutputPort,
 )
 from home_cinema_control.playback.player_state import PlayerPlaybackState
+from home_cinema_control.playback.restoration import (
+    PlaybackOutputRestorationRequest,
+    PlaybackRestorationService,
+)
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
@@ -55,6 +58,11 @@ class FinishPlaybackOrchestrator:
         self._television = television
         self._av_receiver = av_receiver
         self._media_player = media_player
+        self._restoration = PlaybackRestorationService(
+            television=television,
+            av_receiver=av_receiver,
+            media_player=media_player,
+        )
         self._sleep = sleep
 
     def finish(self, request: PlaybackFinishRequest) -> PlaybackFinishResult:
@@ -67,7 +75,8 @@ class FinishPlaybackOrchestrator:
         # unmount attempt never delays the user-facing stop notification.
         with ThreadPoolExecutor(max_workers=1) as executor:
             cleanup_future = executor.submit(
-                self._cleanup_player_after_finish, player_idle_result
+                self._restoration.cleanup_after_confirmed_player_state,
+                player_idle_result,
             )
 
             media_server_stop_result = self._stopped_reporter.stopped(
@@ -89,14 +98,21 @@ class FinishPlaybackOrchestrator:
             request.played,
         )
 
-        tv_app_result = self._return_tv_to_app(request)
-        av_audio_result = self._restore_av_tv_audio(request)
+        output_restoration_result = self._restoration.restore_outputs(
+            PlaybackOutputRestorationRequest(
+                previous_tv_app_id=request.previous_tv_app_id,
+                tv_enabled=request.tv_enabled,
+                av_enabled=request.av_enabled,
+                final_player_state=final_player_state,
+                log_context="playback finish",
+            )
+        )
 
         return PlaybackFinishResult(
             media_server_stop_result=media_server_stop_result,
             player_idle_result=player_idle_result,
-            tv_app_result=tv_app_result,
-            av_audio_result=av_audio_result,
+            tv_app_result=output_restoration_result.tv_app_result,
+            av_audio_result=output_restoration_result.av_audio_result,
             final_player_state=final_player_state,
         )
 
@@ -193,109 +209,3 @@ class FinishPlaybackOrchestrator:
         return state, DeviceCommandResult.failed(
             "OPPO did not report idle before finish continuation."
         )
-
-    def _cleanup_player_after_finish(
-        self,
-        player_idle_result: DeviceCommandResult,
-    ) -> DeviceCommandResult:
-        if self._media_player is None:
-            return player_idle_result
-
-        cleanup = getattr(self._media_player, "cleanup_after_playback_finish", None)
-        if cleanup is None:
-            return player_idle_result
-
-        try:
-            cleanup_result = cleanup()
-        except Exception as exc:
-            logger.exception("Unable to run OPPO playback finish cleanup")
-            cleanup_result = DeviceCommandResult.failed(
-                f"OPPO playback finish cleanup failed: {type(exc).__name__}: {exc}"
-            )
-
-        logger.info(
-            "OPPO playback finish cleanup | status=%s | detail=%s",
-            cleanup_result.status.value,
-            cleanup_result.detail,
-        )
-
-        if player_idle_result.status == DeviceCommandStatus.FAILED:
-            return player_idle_result
-        if cleanup_result.status == DeviceCommandStatus.FAILED:
-            return cleanup_result
-        if cleanup_result.status == DeviceCommandStatus.SKIPPED:
-            return player_idle_result
-
-        return DeviceCommandResult.success(
-            f"{player_idle_result.detail}; {cleanup_result.detail}"
-        )
-
-    def _return_tv_to_app(
-        self,
-        request: PlaybackFinishRequest,
-    ) -> DeviceCommandResult:
-        if not request.tv_enabled:
-            logger.info("Skipping TV app restore after playback finish: TV control is disabled.")
-            return DeviceCommandResult.skipped("TV app restore is disabled.")
-
-        if _player_is_in_screen_saver(request):
-            logger.info(
-                "Skipping TV app restore after playback finish: OPPO is in screen "
-                "saver, the player is likely still paused rather than finished."
-            )
-            return DeviceCommandResult.skipped(
-                "OPPO is in screen saver; treating as still paused."
-            )
-
-        if self._television is None:
-            logger.info("Skipping TV app restore after playback finish: no TV adapter configured.")
-            return DeviceCommandResult.skipped("TV adapter not configured.")
-
-        logger.info(
-            "Returning TV after playback finish | app_id=%s",
-            request.previous_tv_app_id,
-        )
-        try:
-            return self._television.launch_app(request.previous_tv_app_id)
-        except Exception as exc:
-            logger.exception("Unable to return TV after playback finish")
-            return DeviceCommandResult.failed(
-                f"TV app restore failed: {type(exc).__name__}: {exc}"
-            )
-
-    def _restore_av_tv_audio(
-        self,
-        request: PlaybackFinishRequest,
-    ) -> DeviceCommandResult:
-        if not request.av_enabled:
-            logger.info("Skipping AV audio restore after playback finish: AV control is disabled.")
-            return DeviceCommandResult.skipped("AV TV audio restore is disabled.")
-
-        if _player_is_in_screen_saver(request):
-            logger.info(
-                "Skipping AV audio restore after playback finish: OPPO is in "
-                "screen saver, the player is likely still paused rather than finished."
-            )
-            return DeviceCommandResult.skipped(
-                "OPPO is in screen saver; treating as still paused."
-            )
-
-        if self._av_receiver is None:
-            return DeviceCommandResult.skipped("No AV receiver adapter configured.")
-
-        logger.info("Restoring AV receiver after playback finish.")
-        try:
-            return self._av_receiver.restore_tv_audio()
-        except Exception as exc:
-            logger.exception("Unable to restore AV receiver after playback finish")
-            return DeviceCommandResult.failed(
-                f"AV TV audio restore failed: {type(exc).__name__}: {exc}"
-            )
-
-
-def _player_is_in_screen_saver(request: PlaybackFinishRequest) -> bool:
-    # Defense in depth: a SCREEN_SAVER final state means the OPPO went idle
-    # while monitoring gave up, not that the user actually stopped. Restoring
-    # the room here would interrupt a session that is, in practice, still
-    # paused. See the screen-saver carve-out in polling_observation_strategy.py.
-    return request.final_player_state.status == PlayerPlaybackStatus.SCREEN_SAVER
