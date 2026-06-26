@@ -6,6 +6,8 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-26
+
 ### Added
 
 * Path mappings, detected libraries, the library-filter preference, and the monitored device now persist
