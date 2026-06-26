@@ -104,13 +104,13 @@ def create_playback_orchestrator_wiring(
 
     during_playback_orchestrator = create_during_playback_orchestrator(
         config=config,
-        oppo_playback=startup_wiring.oppo_playback,
+        media_player=startup_wiring.media_player,
         progress_reporter=progress_reporter,
     )
     finish_playback_orchestrator = create_finish_playback_orchestrator(
         config,
         playback_event_publisher,
-        oppo_playback=startup_wiring.oppo_playback,
+        media_player=startup_wiring.media_player,
     )
     startup_completion_service = PlaybackStartupCompletionService(
         started_reporter=playback_event_publisher,
@@ -125,7 +125,7 @@ def create_playback_orchestrator_wiring(
         finish_playback_orchestrator=finish_playback_orchestrator,
         error_handler=create_playback_error_handler(
             config,
-            oppo_playback=startup_wiring.oppo_playback,
+            media_player=startup_wiring.media_player,
         ),
     )
 
@@ -140,11 +140,11 @@ def create_playback_orchestrator_wiring(
 def create_during_playback_orchestrator(
     *,
     config: dict[str, Any],
-    oppo_playback,
+    media_player,
     progress_reporter,
 ) -> DuringPlaybackOrchestrator:
     polling_orchestrator = PollingPlaybackObservationStrategy(
-        oppo_playback=oppo_playback,
+        media_player=media_player,
         progress_reporter=progress_reporter,
     )
 

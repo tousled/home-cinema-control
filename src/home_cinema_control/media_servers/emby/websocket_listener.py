@@ -9,6 +9,10 @@ from home_cinema_control.media_servers.emby.playback_command_handler import (
 )
 from home_cinema_control.media_servers.emby.session import EmbySession
 from home_cinema_control.media_servers.emby.session_monitor import EmbySessionMonitor
+from home_cinema_control.media_servers.emby.websocket_event_mapper import (
+    EmbyWebsocketEventMapper,
+    emby_sessions_start_message,
+)
 
 
 class EmbyWebsocket(MediaServerWebsocketListener):
@@ -32,6 +36,10 @@ class EmbyWebsocket(MediaServerWebsocketListener):
                 emby_session=session,
                 **kwargs,
             ),
+            websocket_event_mapper_factory=lambda session: EmbyWebsocketEventMapper(
+                emby_session=session,
+            ),
+            session_subscription_message=emby_sessions_start_message(),
             websocket_app_factory=lambda *args, **kwargs: WebSocketApp(*args, **kwargs),
             websocket_uri_factory=emby_websocket_uri,
             config=config,

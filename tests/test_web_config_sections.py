@@ -1,6 +1,12 @@
 import unittest
 
-from home_cinema_control.web.config_sections import apply_config_section
+from home_cinema_control.web.config_sections import (
+    apply_config_section,
+    apply_media_server_section,
+    apply_network_access_section,
+    apply_path_mappings_section,
+    apply_playback_libraries_section,
+)
 
 
 class ConfigSectionSaveTest(unittest.TestCase):
@@ -245,6 +251,133 @@ class ConfigSectionSaveTest(unittest.TestCase):
     def test_rejects_unknown_section(self):
         with self.assertRaises(ValueError):
             apply_config_section({}, "unknown", {})
+
+
+class ConfigSectionHandlerTest(unittest.TestCase):
+    """The per-section handlers called directly, with no section-string seam."""
+
+    def test_media_server_handler_accepts_flat_bare_body(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {"emby": {"server_url": "http://old"}},
+            },
+        }
+
+        updated = apply_media_server_section(
+            config, {"type": "jellyfin", "server_url": "http://jf"}
+        )
+
+        self.assertEqual("jellyfin", updated["media_servers"]["active"])
+        self.assertEqual(
+            "http://jf", updated["media_servers"]["providers"]["jellyfin"]["server_url"]
+        )
+
+    def test_media_server_handler_accepts_wrapped_body(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {"emby": {"server_url": "http://old"}},
+            },
+        }
+
+        updated = apply_media_server_section(
+            config, {"media_server": {"server_url": "http://new"}}
+        )
+
+        self.assertEqual("http://new", updated["media_servers"]["providers"]["emby"]["server_url"])
+
+    def test_media_server_handler_omitted_field_does_not_blank_stored_value(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"server_url": "http://keep", "display_name": "Casa"}
+                },
+            },
+        }
+
+        # Only display_name sent — server_url must survive untouched.
+        updated = apply_media_server_section(
+            config, {"media_server": {"display_name": "Salon"}}
+        )
+
+        emby = updated["media_servers"]["providers"]["emby"]
+        self.assertEqual("http://keep", emby["server_url"])
+        self.assertEqual("Salon", emby["display_name"])
+
+    def test_media_server_handler_never_writes_auth_fields(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {"emby": {"access_token": "secret", "user_id": "u1"}},
+            },
+        }
+
+        updated = apply_media_server_section(
+            config, {"media_server": {"server_url": "http://new", "access_token": "HACK"}}
+        )
+
+        emby = updated["media_servers"]["providers"]["emby"]
+        self.assertEqual("secret", emby["access_token"])
+        self.assertEqual("u1", emby["user_id"])
+
+    def test_libraries_handler_leaves_path_mappings_untouched(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {"playback": {"path_mappings": [{"name": "Movies"}]}}
+                },
+            },
+        }
+
+        updated = apply_playback_libraries_section(
+            config, {"libraries": [{"name": "Series", "active": True}], "use_all_libraries": False}
+        )
+
+        playback = updated["media_servers"]["providers"]["emby"]["playback"]
+        self.assertEqual([{"id": "", "name": "Series", "active": True}], playback["libraries"])
+        self.assertFalse(playback["use_all_libraries"])
+        self.assertEqual(1, len(playback["path_mappings"]))
+
+    def test_path_mappings_handler_leaves_libraries_untouched(self):
+        config = {
+            "media_servers": {
+                "active": "emby",
+                "providers": {
+                    "emby": {
+                        "playback": {"libraries": [{"id": "1", "name": "Movies", "active": True}]}
+                    }
+                },
+            },
+        }
+
+        updated = apply_path_mappings_section(
+            config, {"path_mappings": [{"name": "Movies", "source_path": "/m"}]}
+        )
+
+        playback = updated["media_servers"]["providers"]["emby"]["playback"]
+        self.assertEqual([{"id": "1", "name": "Movies", "active": True}], playback["libraries"])
+        self.assertEqual("/m", playback["path_mappings"][0]["source_path"])
+
+    def test_network_access_handler_without_path_mappings_skips_playback(self):
+        config = {
+            "oppo": {"pre_mount_smb": False},
+            "smb": {"username": "old"},
+            "media_servers": {
+                "active": "emby",
+                "providers": {"emby": {"playback": {"path_mappings": [{"name": "Movies"}]}}},
+            },
+        }
+
+        updated = apply_network_access_section(config, {"oppo": {"pre_mount_smb": True}})
+
+        self.assertTrue(updated["oppo"]["pre_mount_smb"])
+        self.assertEqual(
+            config["media_servers"]["providers"]["emby"]["playback"]["path_mappings"],
+            updated["media_servers"]["providers"]["emby"]["playback"]["path_mappings"],
+        )
 
 
 if __name__ == "__main__":

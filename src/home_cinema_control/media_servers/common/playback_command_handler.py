@@ -9,11 +9,8 @@ from home_cinema_control.media_servers.common.models import (
     MediaServerCommandKind,
 )
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
-from home_cinema_control.playback.ports import MediaPlayerPort
+from home_cinema_control.playback.ports import MediaPlayerCommandPort
 from home_cinema_control.playback.state import BridgePlaybackState
-from home_cinema_control.playback.time_units import TICKS_PER_SECOND
-
-DEFAULT_REMOTE_SKIP_SECONDS = 10
 
 _Kind = MediaServerCommandKind
 
@@ -21,11 +18,9 @@ _Kind = MediaServerCommandKind
 class MediaServerPlaybackCommandHandler:
     """Translate media-server playback commands into bridge playback actions.
 
-    The handler operates on :class:`MediaServerCommand` domain objects. Wire
-    messages are mapped to commands at the websocket edge
-    (:func:`command_from_playstate_message`,
-    :func:`command_from_general_command_message`); the handler never reads
-    provider wire shape.
+    The handler operates on :class:`MediaServerCommand` and
+    :class:`PlaybackIntent` domain objects. Provider websocket mappers own
+    external wire payloads.
     """
 
     def __init__(
@@ -37,8 +32,7 @@ class MediaServerPlaybackCommandHandler:
         config_provider: Callable[[], dict[str, Any]],
         playback_intent_dispatcher_factory: Callable,
         active_publisher_provider: Callable[[], Any],
-        oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerPort],
-        play_command_parser: Callable[[dict[str, Any]], PlaybackIntent],
+        oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerCommandPort],
     ) -> None:
         self._provider_name = provider_name
         self._session = media_server_session
@@ -47,22 +41,8 @@ class MediaServerPlaybackCommandHandler:
         self._playback_intent_dispatcher_factory = playback_intent_dispatcher_factory
         self._oppo_control_factory = oppo_control_factory
         self._active_publisher_provider = active_publisher_provider
-        self._play_command_parser = play_command_parser
 
-    def handle_play(self, data: dict) -> None:
-        # ``data`` is opaque here: the provider's play-command parser is the
-        # inbound mapper (wire -> domain). It returns None for anything that is
-        # not an actionable PlayNow, so the handler never reads wire shape.
-        intent = self._play_command_parser(data)
-        if intent is None:
-            return
-
-        self._dispatch_play_intent(intent)
-
-    def _dispatch_play_intent(self, intent: PlaybackIntent) -> None:
-        # Split out from handle_play so a provider whose wire format needs
-        # extra intent resolution (e.g. Emby's controlling-session-id lookup)
-        # can override handle_play and still reuse this logging/dispatch tail.
+    def handle_playback_intent(self, intent: PlaybackIntent) -> None:
         logging.info(
             "%s play command -> handoff | item_id=%s | media_source_id=%s | "
             "device=%s | start_seconds=%s | audio=%s | subtitle=%s",
@@ -102,8 +82,8 @@ class MediaServerPlaybackCommandHandler:
             self._handle_subtitle_track_change(command.track_index or 0)
             return
 
-        remote_key = _remote_key_for_kind(kind)
-        if remote_key is None:
+        operation = _media_player_command_for_kind(kind)
+        if operation is None:
             logging.debug(
                 "Ignoring unsupported %s command | name=%s",
                 self._provider_name,
@@ -111,10 +91,10 @@ class MediaServerPlaybackCommandHandler:
             )
             return
 
-        result = self._oppo_control.send_remote_key(remote_key)
+        result = operation(self._oppo_control)
         if not result.successful:
             logging.error(
-                "OPPO playstate command failed | name=%s | result=%s",
+                "Media-player playstate command failed | name=%s | result=%s",
                 command.raw_name,
                 result,
             )
@@ -183,8 +163,8 @@ class MediaServerPlaybackCommandHandler:
             self._report_playstate_interaction_from_current_state(kind)
             return
 
-        remote_key = _remote_key_for_kind(kind)
-        if remote_key is None:
+        operation = _media_player_command_for_kind(kind)
+        if operation is None:
             return
 
         previous_playstate = self._state.playstate
@@ -197,10 +177,10 @@ class MediaServerPlaybackCommandHandler:
                 "Playing" if self._state.playstate == "Paused" else "Paused"
             )
 
-        result = self._oppo_control.send_remote_key(remote_key)
+        result = operation(self._oppo_control)
         if not result.successful:
             logging.error(
-                "OPPO play/pause command failed | command=%s | result=%s",
+                "Media-player play/pause command failed | command=%s | result=%s",
                 kind.value,
                 result,
             )
@@ -368,101 +348,20 @@ class MediaServerPlaybackCommandHandler:
         return self._active_publisher_provider()
 
     @property
-    def _oppo_control(self) -> MediaPlayerPort:
+    def _oppo_control(self) -> MediaPlayerCommandPort:
         return self._oppo_control_factory(self._config)
 
 
-def command_from_playstate_message(data: dict[str, Any]) -> MediaServerCommand:
-    """Inbound mapper: a ``Playstate`` websocket message -> domain command.
-
-    Fast-forward/rewind defaults and relative-seek offsets are resolved here, at
-    the edge, so the handler only applies an explicit ``offset_ticks``.
-    """
-    command = data.get("Command")
-
-    if command == "Seek":
-        return MediaServerCommand(
-            kind=_Kind.SEEK,
-            position_ticks=int(data["SeekPositionTicks"]),
-            raw_name=command,
-        )
-
-    if command == "SeekRelative":
-        return MediaServerCommand(
-            kind=_Kind.SEEK_RELATIVE,
-            offset_ticks=int(data.get("SeekPositionTicks", 0)),
-            raw_name=command,
-        )
-
-    if command == "FastForward":
-        return MediaServerCommand(
-            kind=_Kind.SEEK_RELATIVE,
-            offset_ticks=int(
-                data.get(
-                    "SeekPositionTicks",
-                    DEFAULT_REMOTE_SKIP_SECONDS * TICKS_PER_SECOND,
-                )
-            ),
-            raw_name=command,
-        )
-
-    if command == "Rewind":
-        return MediaServerCommand(
-            kind=_Kind.SEEK_RELATIVE,
-            offset_ticks=int(
-                data.get(
-                    "SeekPositionTicks",
-                    -DEFAULT_REMOTE_SKIP_SECONDS * TICKS_PER_SECOND,
-                )
-            ),
-            raw_name=command,
-        )
-
-    kind = {
-        "Pause": _Kind.PAUSE,
-        "Unpause": _Kind.UNPAUSE,
-        "PlayPause": _Kind.PLAY_PAUSE,
-        "Stop": _Kind.STOP,
-        "NextTrack": _Kind.NEXT_TRACK,
-        "PreviousTrack": _Kind.PREVIOUS_TRACK,
-    }.get(command)
-
-    if kind is None:
-        return MediaServerCommand(kind=_Kind.UNSUPPORTED, raw_name=str(command or ""))
-
-    return MediaServerCommand(kind=kind, raw_name=command)
-
-
-def command_from_general_command_message(data: dict[str, Any]) -> MediaServerCommand:
-    """Inbound mapper: a ``GeneralCommand`` websocket message -> domain command."""
-    name = data.get("Name")
-    args = data.get("Arguments") or {}
-
-    if name == "SetAudioStreamIndex":
-        return MediaServerCommand(
-            kind=_Kind.SET_AUDIO_TRACK,
-            track_index=int(args["Index"]),
-            raw_name=name,
-        )
-
-    if name == "SetSubtitleStreamIndex":
-        return MediaServerCommand(
-            kind=_Kind.SET_SUBTITLE_TRACK,
-            track_index=int(args["Index"]),
-            raw_name=name,
-        )
-
-    return MediaServerCommand(kind=_Kind.UNSUPPORTED, raw_name=str(name or ""))
-
-
-def _remote_key_for_kind(kind: MediaServerCommandKind) -> str | None:
+def _media_player_command_for_kind(
+    kind: MediaServerCommandKind,
+) -> Callable[[MediaPlayerCommandPort], Any] | None:
     return {
-        _Kind.STOP: "STP",
-        _Kind.PAUSE: "PAU",
-        _Kind.UNPAUSE: "PLA",
-        _Kind.NEXT_TRACK: "NXT",
-        _Kind.PREVIOUS_TRACK: "PRE",
-        _Kind.PLAY_PAUSE: "PAU",
+        _Kind.STOP: lambda player: player.stop(),
+        _Kind.PAUSE: lambda player: player.pause(),
+        _Kind.UNPAUSE: lambda player: player.resume(),
+        _Kind.NEXT_TRACK: lambda player: player.next_track(),
+        _Kind.PREVIOUS_TRACK: lambda player: player.previous_track(),
+        _Kind.PLAY_PAUSE: lambda player: player.toggle_play_pause(),
     }.get(kind)
 
 

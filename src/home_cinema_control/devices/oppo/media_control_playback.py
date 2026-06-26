@@ -5,12 +5,14 @@ import time
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackPosition,
+    PlayerPlaybackStartResult,
+    PlayerPlaybackState,
+)
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
-    OppoPlaybackPosition,
-    OppoPlaybackStartRequest,
-    OppoPlaybackStartResult,
-    OppoPlaybackState,
+    MediaPlayerStartRequest,
     PlayerMediaFileLocation,
 )
 from home_cinema_control.devices.oppo.control_api_client import OppoControlApiClient
@@ -71,10 +73,10 @@ class OppoMediaControlPlayback:
 
     def start_playback(
         self,
-        request: OppoPlaybackStartRequest,
+        request: MediaPlayerStartRequest,
         *,
         on_waiting: Callable[[int], None] | None = None,
-    ) -> OppoPlaybackStartResult:
+    ) -> PlayerPlaybackStartResult:
         try:
             location = request.media_location
             network_folder = OppoNetworkFolder(
@@ -97,7 +99,7 @@ class OppoMediaControlPlayback:
                 if mount_reconciliation is not None:
                     return mount_reconciliation
 
-                return OppoPlaybackStartResult(
+                return PlayerPlaybackStartResult(
                     media_mounted=False,
                     playback_command_accepted=False,
                     playback_started_on_device=False,
@@ -118,7 +120,7 @@ class OppoMediaControlPlayback:
             )
 
             if not playback_response.is_successful:
-                return OppoPlaybackStartResult(
+                return PlayerPlaybackStartResult(
                     media_mounted=True,
                     playback_command_accepted=False,
                     playback_started_on_device=False,
@@ -136,14 +138,14 @@ class OppoMediaControlPlayback:
                 ),
             )
 
-            playback_state = OppoPlaybackState(
+            playback_state = PlayerPlaybackState(
                 status=startup_result.status,
-                category=startup_result.category,
+                lifecycle_phase=startup_result.lifecycle_phase,
                 raw_response=startup_result.raw_response,
                 ok=startup_result.raw_response.startswith("@OK"),
             )
 
-            return OppoPlaybackStartResult(
+            return PlayerPlaybackStartResult(
                 media_mounted=True,
                 playback_command_accepted=True,
                 playback_started_on_device=startup_result.started,
@@ -155,7 +157,7 @@ class OppoMediaControlPlayback:
             )
         except Exception as exc:
             logger.exception("OPPO MediaControl playback startup failed.")
-            return OppoPlaybackStartResult(
+            return PlayerPlaybackStartResult(
                 media_mounted=False,
                 playback_command_accepted=False,
                 playback_started_on_device=False,
@@ -165,10 +167,10 @@ class OppoMediaControlPlayback:
                 ),
             )
 
-    def get_playback_position(self) -> OppoPlaybackPosition:
+    def get_playback_position(self) -> PlayerPlaybackPosition:
         response = self._client.get_playing_time()
 
-        return OppoPlaybackPosition(
+        return PlayerPlaybackPosition(
             current_seconds=int(response.payload.get("cur_time", 0)),
             total_seconds=int(response.payload.get("total_time", 0)),
             raw_response=response.raw_text,
@@ -534,10 +536,10 @@ class OppoMediaControlPlayback:
     def _reconcile_optical_mount_failure(
         self,
         *,
-        request: OppoPlaybackStartRequest,
+        request: MediaPlayerStartRequest,
             failure_detail: str,
         on_waiting: Callable[[int], None] | None,
-    ) -> OppoPlaybackStartResult | None:
+    ) -> PlayerPlaybackStartResult | None:
         if not _is_optical_image_location(request.media_location):
             return None
 
@@ -561,9 +563,9 @@ class OppoMediaControlPlayback:
             ),
         )
 
-        playback_state = OppoPlaybackState(
+        playback_state = PlayerPlaybackState(
             status=startup_result.status,
-            category=startup_result.category,
+            lifecycle_phase=startup_result.lifecycle_phase,
             raw_response=startup_result.raw_response,
             ok=startup_result.raw_response.startswith("@OK"),
         )
@@ -571,22 +573,22 @@ class OppoMediaControlPlayback:
         if not startup_result.started:
             logger.warning(
                 "OPPO did not report active playback after optical mount failure | "
-                "status=%s | category=%s | raw=%r",
+                "status=%s | lifecycle_phase=%s | raw=%r",
                 startup_result.status.value,
-                startup_result.category.value,
+                startup_result.lifecycle_phase.value,
                 startup_result.raw_response,
             )
             return None
 
         logger.warning(
             "OPPO reported active playback after optical mount failure; treating "
-            "startup as accepted by the player | status=%s | category=%s | raw=%r",
+            "startup as accepted by the player | status=%s | lifecycle_phase=%s | raw=%r",
             startup_result.status.value,
-            startup_result.category.value,
+            startup_result.lifecycle_phase.value,
             startup_result.raw_response,
         )
 
-        return OppoPlaybackStartResult(
+        return PlayerPlaybackStartResult(
             media_mounted=True,
             playback_command_accepted=True,
             playback_started_on_device=True,

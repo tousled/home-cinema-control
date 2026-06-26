@@ -1,7 +1,10 @@
 import unittest
 from unittest.mock import MagicMock
 
-from home_cinema_control.media_servers.common.models import MediaServerLibrary
+from home_cinema_control.media_servers.common.models import (
+    MediaServerItemPlaybackInfo,
+    MediaServerLibrary,
+)
 from home_cinema_control.media_servers.jellyfin.session_monitor import (
     JellyfinSessionMonitor,
 )
@@ -40,12 +43,12 @@ def _make_session(
     }
 
 
-def _make_item_info(item_id="42", user_data=None):
-    return {
-        "Id": item_id,
-        "UserData": user_data or {"Played": False, "PlayCount": 0},
-        "MediaSources": [{"Id": "source-1", "Container": "mkv"}],
-    }
+def _make_item_playback_info():
+    return MediaServerItemPlaybackInfo(
+        played=False,
+        play_count=0,
+        media_source_container="mkv",
+    )
 
 
 def _config(
@@ -127,7 +130,9 @@ class MediaServerLibraryLegacyCasingTest(unittest.TestCase):
 class JellyfinSessionMonitorTest(unittest.TestCase):
     def setUp(self):
         self.jellyfin_session = MagicMock()
-        self.jellyfin_session.get_item_info.return_value = _make_item_info()
+        self.jellyfin_session.get_item_playback_info.return_value = (
+            _make_item_playback_info()
+        )
         self.jellyfin_session.is_item_path_in_library.return_value = True
         self.playback_state = BridgePlaybackState()
         self.dispatcher = MagicMock()

@@ -12,7 +12,7 @@ from home_cinema_control.playback.media_location import resolve_player_media_fil
 from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.playback.startup.completion import PlayMediaItemRequest
 from home_cinema_control.playback.startup.models import (
-    OppoPlaybackStartRequest,
+    MediaPlayerStartRequest,
     PlaybackOutputSwitchRequest,
     PlayerMediaFileLocation,
 )
@@ -33,7 +33,7 @@ class PreparedPlaybackRequests:
     media_location: PlayerMediaFileLocation
     movie_path: str
     output_switch_request: PlaybackOutputSwitchRequest
-    oppo_playback_start_request: OppoPlaybackStartRequest
+    media_player_start_request: MediaPlayerStartRequest
     startup_completion_request: PlayMediaItemRequest
 
 
@@ -55,7 +55,7 @@ def prepare_playback_requests(
         config,
         previous_tv_app_id_override=previous_tv_app_id_override,
     )
-    oppo_playback_start_request = _oppo_playback_start_request(
+    media_player_start_request = _media_player_start_request(
         config,
         media_location=media_location,
     )
@@ -72,7 +72,7 @@ def prepare_playback_requests(
         media_location=media_location,
         movie_path=item_info.path,
         output_switch_request=output_switch_request,
-        oppo_playback_start_request=oppo_playback_start_request,
+        media_player_start_request=media_player_start_request,
         startup_completion_request=startup_completion_request,
     )
 
@@ -112,14 +112,14 @@ def _resolve_tv_input_target(tv: dict) -> TvInputTarget:
     )
 
 
-def _oppo_playback_start_request(
+def _media_player_start_request(
     config: dict[str, Any],
     *,
     media_location: PlayerMediaFileLocation,
-) -> OppoPlaybackStartRequest:
+) -> MediaPlayerStartRequest:
     oppo = config["oppo"]
 
-    return OppoPlaybackStartRequest(
+    return MediaPlayerStartRequest(
         media_location=media_location,
         network_protocol=media_location.network_protocol,
         assume_player_already_on=oppo["always_on"] is True,

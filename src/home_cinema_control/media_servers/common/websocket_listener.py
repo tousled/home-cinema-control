@@ -1,6 +1,9 @@
-import json
 import logging
+import threading
+import time
 from collections.abc import Callable
+
+from websocket import WebSocketConnectionClosedException
 
 from home_cinema_control.config.manager import (
     active_media_server_config,
@@ -10,9 +13,8 @@ from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_playback_command_control,
 )
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
-from home_cinema_control.media_servers.common.playback_command_handler import (
-    command_from_general_command_message,
-    command_from_playstate_message,
+from home_cinema_control.media_servers.common.websocket_events import (
+    MediaServerWebsocketEventKind,
 )
 from home_cinema_control.playback.application import PlaybackApplicationService
 from home_cinema_control.playback.dispatch import PlaybackIntentDispatcher
@@ -28,6 +30,8 @@ class MediaServerWebsocketListener:
         session_factory: Callable,
         command_handler_factory: Callable,
         session_monitor_factory: Callable,
+        websocket_event_mapper_factory: Callable,
+        session_subscription_message: str,
         websocket_app_factory: Callable,
         websocket_uri_factory: Callable[[str, str], str],
         config=None,
@@ -40,6 +44,8 @@ class MediaServerWebsocketListener:
         self._session_factory = session_factory
         self._command_handler_factory = command_handler_factory
         self._session_monitor_factory = session_monitor_factory
+        self._websocket_event_mapper_factory = websocket_event_mapper_factory
+        self._session_subscription_message = session_subscription_message
         self._websocket_app_factory = websocket_app_factory
         self._websocket_uri_factory = websocket_uri_factory
 
@@ -54,6 +60,12 @@ class MediaServerWebsocketListener:
         self.playback_application_service = None
         self.playback_command_handler = None
         self._session_monitor = None
+        self._websocket_event_mapper = None
+        # After a full media-server restart the websocket reconnects before the
+        # REST API finishes loading (503 "server is loading"), so capability
+        # registration must retry off the websocket read thread until it sticks.
+        self._capability_retry_delays = (2, 5, 10, 20, 30)
+        self._sleep = time.sleep
         logging.info("%s websocket init", self._provider_name)
 
     def stop(self):
@@ -72,48 +84,61 @@ class MediaServerWebsocketListener:
         if self.media_server_session:
             self.media_server_session.config = config
 
-    def _play(self, data):
-        self.playback_command_handler.handle_play(data)
-
     def play_from_command(self, data):
-        self._play(data)
+        event = self._websocket_event_mapper.map_play_payload(data)
+        if event.kind != MediaServerWebsocketEventKind.PLAYBACK_INTENT:
+            logging.debug(
+                "%s direct play command ignored | type=%s",
+                self._provider_name,
+                event.raw_type,
+            )
+            return
+        self.playback_command_handler.handle_playback_intent(event.playback_intent)
 
     def on_message(self, _ws, msg):
-        msg_json = json.loads(msg)
-        msg_type = msg_json.get("MessageType")
-        data = msg_json.get("Data")
+        event = self._websocket_event_mapper.map(msg)
 
-        if msg_type == "Sessions" and isinstance(data, list):
+        if event.kind == MediaServerWebsocketEventKind.SESSIONS_UPDATE:
             logging.info(
                 "%s websocket message: Sessions | playstate=%s | sessions=%s",
                 self._provider_name,
                 self.playback_state.playstate,
-                len(data),
+                len(event.sessions or []),
             )
         else:
             logging.info(
                 "%s websocket message: %s | playstate=%s",
                 self._provider_name,
-                msg_type,
+                event.raw_type,
                 self.playback_state.playstate,
             )
 
-        if msg_type == "Play":
-            self._play(data)
-        elif msg_type == "Playstate":
-            self.playback_command_handler.handle_command(
-                command_from_playstate_message(data)
+        if event.kind == MediaServerWebsocketEventKind.PLAYBACK_INTENT:
+            if event.playback_intent is None:
+                return
+            self.playback_command_handler.handle_playback_intent(
+                event.playback_intent
             )
-        elif msg_type == "GeneralCommand":
-            self.playback_command_handler.handle_command(
-                command_from_general_command_message(data)
-            )
-        elif msg_type == "Sessions":
-            self._session_monitor.on_sessions_update(data)
+        elif event.kind == MediaServerWebsocketEventKind.PLAYBACK_COMMAND:
+            if event.command is None:
+                return
+            self.playback_command_handler.handle_command(event.command)
+        elif event.kind == MediaServerWebsocketEventKind.SESSIONS_UPDATE:
+            self._session_monitor.on_sessions_update(event.sessions or [])
         else:
-            logging.debug("%s websocket message type: %s", self._provider_name, msg_type)
+            logging.debug(
+                "%s websocket message type: %s",
+                self._provider_name,
+                event.raw_type,
+            )
 
     def on_error(self, _ws, error):
+        if isinstance(error, WebSocketConnectionClosedException):
+            logging.info(
+                "%s WebSocket connection lost; will reconnect",
+                self._provider_name,
+            )
+            return
         logging.warning("%s WebSocket error", self._provider_name, exc_info=error)
 
     def on_close(self, _ws, close_status_code=None, close_msg=None):
@@ -129,7 +154,60 @@ class MediaServerWebsocketListener:
     def on_open(self, ws):
         logging.info("%s WebSocket connection opened", self._provider_name)
         self._session_monitor.reset()
-        ws.send('{"MessageType":"SessionsStart", "Data": "0,1500"}')
+        ws.send(self._session_subscription_message)
+        self._start_capability_registration()
+
+    def _start_capability_registration(self) -> None:
+        thread = threading.Thread(
+            target=self._register_capabilities_with_retry,
+            name=f"{self._provider_name}-capability-registration",
+            daemon=True,
+        )
+        thread.start()
+
+    def _register_capabilities_with_retry(self) -> None:
+        """Re-register media-control capabilities, retrying while the server loads.
+
+        Runs off the websocket read thread because the connection reopens before
+        the media server's REST API is ready after a full restart; retrying here
+        is the only chance to register, since the now-open websocket will not
+        fire on_open again to trigger another attempt.
+        """
+        session = self.media_server_session
+        if session is None:
+            return
+        total_attempts = 1 + len(self._capability_retry_delays)
+        for attempt in range(1, total_attempts + 1):
+            try:
+                session.set_capabilities()
+                if attempt > 1:
+                    logging.info(
+                        "%s media-control capabilities registered on attempt %s",
+                        self._provider_name,
+                        attempt,
+                    )
+                return
+            except Exception:
+                if attempt < total_attempts:
+                    delay = self._capability_retry_delays[attempt - 1]
+                    logging.info(
+                        "%s capability registration not ready (attempt %s/%s); "
+                        "retrying in %ss",
+                        self._provider_name,
+                        attempt,
+                        total_attempts,
+                        delay,
+                    )
+                    self._sleep(delay)
+                else:
+                    logging.warning(
+                        "%s failed to register media-control capabilities after "
+                        "%s attempts; remote-control UI may not appear until the "
+                        "next reconnect",
+                        self._provider_name,
+                        total_attempts,
+                        exc_info=True,
+                    )
 
     def run(self):
         self._setup_services()
@@ -142,7 +220,9 @@ class MediaServerWebsocketListener:
         self.playback_state = BridgePlaybackState()
         session = self._session_factory(self.config, self.playback_state)
         session.lang = self.language
-        session.set_capabilities()
+        # Capability registration is owned by on_open so it re-runs on every
+        # reconnect, not just cold start (see spec
+        # 2026-06-26-websocket-reconnect-capability-reregistration).
         self.media_server_session = session
         setattr(self, self._session_attribute_name, session)
 
@@ -178,6 +258,7 @@ class MediaServerWebsocketListener:
             config_provider=lambda: self.config,
             dispatcher=dispatcher,
         )
+        self._websocket_event_mapper = self._websocket_event_mapper_factory(session)
 
     def _connect(self):
         media_server = active_media_server_config(self.config)

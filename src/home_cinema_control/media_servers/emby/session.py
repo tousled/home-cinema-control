@@ -1,19 +1,24 @@
 import logging
 
 from home_cinema_control.media_servers.common.models import (
+    MediaServerItemPlaybackInfo,
     find_controlling_session_id as resolve_controlling_session_id,
+)
+from home_cinema_control.media_servers.common.media_tracks import MediaTrack
+from home_cinema_control.media_servers.common.playback_source import (
+    MediaServerPlaybackSource,
 )
 from home_cinema_control.media_servers.common.track_mapping import (
     source_audio_to_player_index,
     source_subtitle_to_player_index,
 )
-
-from home_cinema_control.media_servers.common.playback_source import (
-    MediaServerPlaybackSource,
-    media_server_playback_source_from_item,
-)
 from home_cinema_control.media_servers.emby.client import EmbyClient
 from home_cinema_control.media_servers.emby.constants import DEVICE_ID
+from home_cinema_control.media_servers.emby.item_mapper import (
+    media_server_item_playback_info_from_item,
+    media_server_playback_source_from_item,
+    media_tracks_from_item,
+)
 from home_cinema_control.media_servers.emby.session_events import session_from_payload
 from home_cinema_control.playback.state import BridgePlaybackState
 
@@ -115,6 +120,22 @@ class EmbySession:
         item_data = self.client.get_item_info(user_id, item_id)
         return media_server_playback_source_from_item(item_data, mediasource_id)
 
+    def get_item_playback_info(
+        self,
+        user_id,
+        item_id,
+        media_source_id,
+    ) -> MediaServerItemPlaybackInfo:
+        item_data = self.client.get_item_info(user_id, item_id)
+        return media_server_item_playback_info_from_item(
+            item_data,
+            media_source_id=media_source_id,
+        )
+
+    def get_item_tracks(self, user_id, item_id) -> list[MediaTrack]:
+        item_data = self.client.get_item_info(user_id, item_id)
+        return media_tracks_from_item(item_data)
+
     def is_item_path_in_library(self, view_id, item_path):
         media_folders = self.client.get_selectable_media_folders()
 
@@ -127,13 +148,13 @@ class EmbySession:
         return False
 
     def resolve_audio_track_index(self, user_id, item_id, index):
-        response = self.get_item_info(user_id, item_id)
-        return source_audio_to_player_index(response["MediaStreams"], index)
+        return source_audio_to_player_index(self.get_item_tracks(user_id, item_id), index)
 
     def resolve_subtitle_track_index(self, user_id, item_id, index):
-        response = self.get_item_info(user_id, item_id)
-        logging.debug("MediaStreams: %s", response["MediaStreams"])
-        return source_subtitle_to_player_index(response["MediaStreams"], index)
+        return source_subtitle_to_player_index(
+            self.get_item_tracks(user_id, item_id),
+            index,
+        )
 
     def _session_info(self):
         session_info = (self.user_info or {}).get("SessionInfo")

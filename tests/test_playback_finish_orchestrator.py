@@ -1,8 +1,9 @@
 import unittest
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.playback.finish import (
     FinishPlaybackOrchestrator,
@@ -11,7 +12,6 @@ from home_cinema_control.playback.finish import (
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
-    OppoPlaybackState,
 )
 
 
@@ -62,7 +62,7 @@ class RecordingOppoPlayback:
             raise next_state
         return next_state
 
-    def stop_playback(self):
+    def stop(self):
         self.stop_calls += 1
         return self.stop_result
 
@@ -78,15 +78,15 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
         av_receiver = RecordingAvReceiver()
         oppo = RecordingOppoPlayback(
             [
-                _state(OppoPlaybackStatus.OPEN, OppoPlaybackCategory.TRANSITION),
-                _state(OppoPlaybackStatus.MEDIA_CENTER, OppoPlaybackCategory.IDLE),
+                _state(PlayerPlaybackStatus.OPEN, PlayerPlaybackLifecyclePhase.TRANSITION),
+                _state(PlayerPlaybackStatus.MEDIA_CENTER, PlayerPlaybackLifecyclePhase.IDLE),
             ]
         )
         orchestrator = FinishPlaybackOrchestrator(
             stopped_reporter=stop_reporter,
             television=television,
             av_receiver=av_receiver,
-            oppo_playback=oppo,
+            media_player=oppo,
             sleep=lambda seconds: None,
         )
 
@@ -95,8 +95,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=53,
                 duration_seconds=120,
                 final_player_state=_state(
-                    OppoPlaybackStatus.STOP,
-                    OppoPlaybackCategory.TRANSITION,
+                    PlayerPlaybackStatus.STOP,
+                    PlayerPlaybackLifecyclePhase.TRANSITION,
                 ),
                 previous_tv_app_id="com.emby.app",
             )
@@ -106,7 +106,7 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
         self.assertEqual(DeviceCommandStatus.SUCCESS, result.player_idle_result.status)
         self.assertEqual(2, oppo.state_calls)
         self.assertEqual(
-            OppoPlaybackStatus.MEDIA_CENTER,
+            PlayerPlaybackStatus.MEDIA_CENTER,
             result.final_player_state.status,
         )
         self.assertEqual(
@@ -129,7 +129,7 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
             stopped_reporter=stop_reporter,
             television=RecordingTelevision(),
             av_receiver=RecordingAvReceiver(),
-            oppo_playback=oppo,
+            media_player=oppo,
             sleep=lambda seconds: None,
         )
 
@@ -138,8 +138,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=10,
                 duration_seconds=100,
                 final_player_state=_state(
-                    OppoPlaybackStatus.HOME_MENU,
-                    OppoPlaybackCategory.IDLE,
+                    PlayerPlaybackStatus.HOME_MENU,
+                    PlayerPlaybackLifecyclePhase.IDLE,
                 ),
                 previous_tv_app_id="com.emby.app",
             )
@@ -154,14 +154,14 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
         stop_reporter = RecordingStopReporter()
         oppo = RecordingOppoPlayback(
             [
-                _state(OppoPlaybackStatus.HOME_MENU, OppoPlaybackCategory.IDLE),
+                _state(PlayerPlaybackStatus.HOME_MENU, PlayerPlaybackLifecyclePhase.IDLE),
             ],
         )
         orchestrator = FinishPlaybackOrchestrator(
             stopped_reporter=stop_reporter,
             television=RecordingTelevision(),
             av_receiver=RecordingAvReceiver(),
-            oppo_playback=oppo,
+            media_player=oppo,
             sleep=lambda seconds: None,
         )
 
@@ -170,8 +170,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=7751,
                 duration_seconds=7756,
                 final_player_state=_state(
-                    OppoPlaybackStatus.STOP,
-                    OppoPlaybackCategory.TRANSITION,
+                    PlayerPlaybackStatus.STOP,
+                    PlayerPlaybackLifecyclePhase.TRANSITION,
                 ),
                 previous_tv_app_id="com.emby.app",
                 media_ended=True,
@@ -192,7 +192,7 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
             stopped_reporter=stop_reporter,
             television=RecordingTelevision(),
             av_receiver=RecordingAvReceiver(),
-            oppo_playback=oppo,
+            media_player=oppo,
             sleep=lambda seconds: None,
         )
 
@@ -201,8 +201,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=10,
                 duration_seconds=100,
                 final_player_state=_state(
-                    OppoPlaybackStatus.HOME_MENU,
-                    OppoPlaybackCategory.IDLE,
+                    PlayerPlaybackStatus.HOME_MENU,
+                    PlayerPlaybackLifecyclePhase.IDLE,
                 ),
                 previous_tv_app_id="com.emby.app",
             )
@@ -222,7 +222,7 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
             stopped_reporter=stop_reporter,
             television=RecordingTelevision(),
             av_receiver=RecordingAvReceiver(),
-            oppo_playback=oppo,
+            media_player=oppo,
             sleep=lambda seconds: None,
         )
 
@@ -231,8 +231,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=10,
                 duration_seconds=100,
                 final_player_state=_state(
-                    OppoPlaybackStatus.HOME_MENU,
-                    OppoPlaybackCategory.IDLE,
+                    PlayerPlaybackStatus.HOME_MENU,
+                    PlayerPlaybackLifecyclePhase.IDLE,
                 ),
                 previous_tv_app_id="com.emby.app",
             )
@@ -255,7 +255,7 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
             stopped_reporter=stop_reporter,
             television=television,
             av_receiver=av_receiver,
-            oppo_playback=RecordingOppoPlayback([]),
+            media_player=RecordingOppoPlayback([]),
             sleep=lambda seconds: None,
         )
 
@@ -264,8 +264,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=53,
                 duration_seconds=120,
                 final_player_state=_state(
-                    OppoPlaybackStatus.SCREEN_SAVER,
-                    OppoPlaybackCategory.IDLE,
+                    PlayerPlaybackStatus.SCREEN_SAVER,
+                    PlayerPlaybackLifecyclePhase.IDLE,
                 ),
                 previous_tv_app_id="com.emby.app",
             )
@@ -292,8 +292,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=10,
                 duration_seconds=100,
                 final_player_state=_state(
-                    OppoPlaybackStatus.HOME_MENU,
-                    OppoPlaybackCategory.IDLE,
+                    PlayerPlaybackStatus.HOME_MENU,
+                    PlayerPlaybackLifecyclePhase.IDLE,
                 ),
                 previous_tv_app_id="com.emby.app",
                 tv_enabled=False,
@@ -314,7 +314,7 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
             stopped_reporter=stop_reporter,
             television=television,
             av_receiver=RecordingAvReceiver(),
-            oppo_playback=RecordingOppoPlayback([TimeoutError("qpl timeout")]),
+            media_player=RecordingOppoPlayback([TimeoutError("qpl timeout")]),
             sleep=lambda seconds: None,
         )
 
@@ -323,8 +323,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=10,
                 duration_seconds=100,
                 final_player_state=_state(
-                    OppoPlaybackStatus.OPEN,
-                    OppoPlaybackCategory.TRANSITION,
+                    PlayerPlaybackStatus.OPEN,
+                    PlayerPlaybackLifecyclePhase.TRANSITION,
                 ),
                 previous_tv_app_id="com.emby.app",
             )
@@ -341,10 +341,10 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
             stopped_reporter=stop_reporter,
             television=RecordingTelevision(),
             av_receiver=RecordingAvReceiver(),
-            oppo_playback=RecordingOppoPlayback(
+            media_player=RecordingOppoPlayback(
                 [
-                    _state(OppoPlaybackStatus.OPEN, OppoPlaybackCategory.TRANSITION),
-                    _state(OppoPlaybackStatus.OPEN, OppoPlaybackCategory.TRANSITION),
+                    _state(PlayerPlaybackStatus.OPEN, PlayerPlaybackLifecyclePhase.TRANSITION),
+                    _state(PlayerPlaybackStatus.OPEN, PlayerPlaybackLifecyclePhase.TRANSITION),
                 ]
             ),
             sleep=lambda seconds: None,
@@ -355,8 +355,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=10,
                 duration_seconds=100,
                 final_player_state=_state(
-                    OppoPlaybackStatus.OPEN,
-                    OppoPlaybackCategory.TRANSITION,
+                    PlayerPlaybackStatus.OPEN,
+                    PlayerPlaybackLifecyclePhase.TRANSITION,
                 ),
                 previous_tv_app_id="com.emby.app",
                 max_idle_confirmation_polls=2,
@@ -370,13 +370,13 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
     def test_closes_active_player_after_natural_media_end_before_idle_confirmation(self):
         stop_reporter = RecordingStopReporter()
         oppo = RecordingOppoPlayback(
-            [_state(OppoPlaybackStatus.HOME_MENU, OppoPlaybackCategory.IDLE)]
+            [_state(PlayerPlaybackStatus.HOME_MENU, PlayerPlaybackLifecyclePhase.IDLE)]
         )
         orchestrator = FinishPlaybackOrchestrator(
             stopped_reporter=stop_reporter,
             television=RecordingTelevision(),
             av_receiver=RecordingAvReceiver(),
-            oppo_playback=oppo,
+            media_player=oppo,
             sleep=lambda seconds: None,
         )
 
@@ -385,8 +385,8 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
                 position_seconds=3529,
                 duration_seconds=3529,
                 final_player_state=_state(
-                    OppoPlaybackStatus.PLAY,
-                    OppoPlaybackCategory.ACTIVE,
+                    PlayerPlaybackStatus.PLAY,
+                    PlayerPlaybackLifecyclePhase.ACTIVE,
                 ),
                 previous_tv_app_id="com.emby.app",
                 media_ended=True,
@@ -397,15 +397,15 @@ class FinishPlaybackOrchestratorTest(unittest.TestCase):
         self.assertTrue(result.successful)
         self.assertEqual(1, oppo.stop_calls)
         self.assertEqual(1, oppo.state_calls)
-        self.assertEqual(OppoPlaybackStatus.HOME_MENU, result.final_player_state.status)
+        self.assertEqual(PlayerPlaybackStatus.HOME_MENU, result.final_player_state.status)
         self.assertEqual(3529, stop_reporter.calls[0]["position_seconds"])
         self.assertTrue(stop_reporter.calls[0]["played"])
 
 
-def _state(status, category):
-    return OppoPlaybackState(
+def _state(status, lifecycle_phase):
+    return PlayerPlaybackState(
         status=status,
-        category=category,
+        lifecycle_phase=lifecycle_phase,
         raw_response=f"@OK {status.value}",
         ok=True,
     )

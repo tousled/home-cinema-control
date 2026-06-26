@@ -15,7 +15,7 @@ from home_cinema_control.playback.finish.models import PlaybackFinishResult
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
-    OppoPlaybackStartResult,
+    PlayerPlaybackStartResult,
     PlaybackOutputSwitchResult,
     PlaybackStartupResult,
 )
@@ -41,7 +41,7 @@ def _make_startup_result(
         av_power_result=DeviceCommandResult(status=av_power_status, detail=av_power_detail),
         av_input_result=DeviceCommandResult(status=av_input_status, detail=av_input_detail),
     )
-    oppo = OppoPlaybackStartResult(
+    oppo = PlayerPlaybackStartResult(
         media_mounted=media_mounted,
         playback_command_accepted=playback_command_accepted,
         playback_started_on_device=playback_started_on_device,
@@ -50,7 +50,7 @@ def _make_startup_result(
     )
     return PlaybackStartupResult(
         output_switch_result=output_switch,
-        oppo_start_result=oppo,
+        media_player_start_result=oppo,
     )
 
 

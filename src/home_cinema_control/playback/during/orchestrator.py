@@ -9,7 +9,7 @@ from home_cinema_control.devices.oppo.constants import OPPO_TELNET_PORT
 from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_total_seconds_reader,
 )
-from home_cinema_control.devices.oppo.playback_state import OppoPlaybackCategory
+from home_cinema_control.playback.player_state import PlayerPlaybackLifecyclePhase
 from home_cinema_control.devices.oppo.svm_mode import OppoSVMModeClient
 from home_cinema_control.devices.oppo.svm3_runtime import OppoSVM3PlaybackRuntime
 from home_cinema_control.devices.oppo.verbose_events import OppoVerboseEventListener
@@ -198,7 +198,7 @@ def _request_from_result(
 ) -> PlaybackMonitoringRequest:
     last_active_state = (
         result.final_state
-        if result.final_state.category == OppoPlaybackCategory.ACTIVE
+        if result.final_state.lifecycle_phase == PlayerPlaybackLifecyclePhase.ACTIVE
         else request.last_active_state
     )
     return replace(

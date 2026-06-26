@@ -1,31 +1,31 @@
 import unittest
 
-from home_cinema_control.devices.oppo.playback_state import (
-    OppoPlaybackCategory,
-    OppoPlaybackStatus,
-)
-from home_cinema_control.media_servers.common.playback_command_handler import (
-    command_from_general_command_message,
-    command_from_playstate_message,
+from home_cinema_control.playback.player_state import (
+    PlayerPlaybackLifecyclePhase,
+    PlayerPlaybackState,
+    PlayerPlaybackStatus,
 )
 from home_cinema_control.media_servers.emby.playback_command_handler import (
     EmbyPlaybackCommandHandler,
 )
-from home_cinema_control.playback.intent import PlaybackOrigin
+from home_cinema_control.media_servers.emby.websocket_event_mapper import (
+    command_from_emby_general_command_message,
+    command_from_emby_playstate_message,
+)
+from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
-from home_cinema_control.playback.startup.models import OppoPlaybackState
 
 
 def _playstate(handler, data):
-    handler.handle_command(command_from_playstate_message(data))
+    handler.handle_command(command_from_emby_playstate_message(data))
 
 
 def _general(handler, data):
-    handler.handle_command(command_from_general_command_message(data))
+    handler.handle_command(command_from_emby_general_command_message(data))
 
 
 class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
-    def test_play_now_goes_to_parent_playback_flow(self):
+    def test_playback_intent_goes_to_parent_playback_flow(self):
         dispatcher = RecordingDispatcher()
         handler = EmbyPlaybackCommandHandler(
             emby_session=RecordingEmbySession(),
@@ -35,78 +35,13 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
             active_publisher_provider=lambda: None,
             oppo_control_factory=lambda config: RecordingOppoControl(config, []),
         )
-        payload = {"PlayCommand": "PlayNow", "ItemIds": ["1234"]}
 
-        handler.handle_play(payload)
+        handler.handle_playback_intent(_playback_intent(media_item_id="1234"))
 
         self.assertEqual(1, len(dispatcher.dispatched_intents))
         dispatched_intent, dispatched_origin = dispatcher.dispatched_intents[0]
         self.assertEqual("1234", dispatched_intent.media_item_id)
         self.assertEqual(PlaybackOrigin.REMOTE_CONTROL_COMMAND, dispatched_origin)
-
-    def test_non_play_now_command_is_ignored(self):
-        dispatcher = RecordingDispatcher()
-        handler = EmbyPlaybackCommandHandler(
-            emby_session=RecordingEmbySession(),
-            playback_state=BridgePlaybackState(),
-            config_provider=lambda: {},
-            playback_intent_dispatcher_factory=lambda: dispatcher,
-            active_publisher_provider=lambda: None,
-            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
-        )
-
-        handler.handle_play({"PlayCommand": "PlayLast", "ItemIds": ["1234"]})
-
-        self.assertEqual([], dispatcher.dispatched_intents)
-
-    def test_resolves_controlling_session_when_emby_omits_session_id(self):
-        # Emby's "Play" message never carries the controller's own session id
-        # (see playback_request.py) — the handler is responsible for resolving
-        # it via the user's other active sessions.
-        dispatcher = RecordingDispatcher()
-        handler = EmbyPlaybackCommandHandler(
-            emby_session=RecordingEmbySession(
-                controlling_session_id="resolved-session"
-            ),
-            playback_state=BridgePlaybackState(),
-            config_provider=lambda: {},
-            playback_intent_dispatcher_factory=lambda: dispatcher,
-            active_publisher_provider=lambda: None,
-            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
-        )
-        payload = {
-            "PlayCommand": "PlayNow",
-            "ItemIds": ["1234"],
-            "ControllingUserId": "user-1",
-        }
-
-        handler.handle_play(payload)
-
-        dispatched_intent, _ = dispatcher.dispatched_intents[0]
-        self.assertEqual("resolved-session", dispatched_intent.source_client_session_id)
-
-    def test_does_not_resolve_controlling_session_when_emby_provides_one(self):
-        emby_session = RecordingEmbySession(controlling_session_id="should-not-be-used")
-        dispatcher = RecordingDispatcher()
-        handler = EmbyPlaybackCommandHandler(
-            emby_session=emby_session,
-            playback_state=BridgePlaybackState(),
-            config_provider=lambda: {},
-            playback_intent_dispatcher_factory=lambda: dispatcher,
-            active_publisher_provider=lambda: None,
-            oppo_control_factory=lambda config: RecordingOppoControl(config, []),
-        )
-        payload = {
-            "PlayCommand": "PlayNow",
-            "ItemIds": ["1234"],
-            "SessionID": "real-session",
-        }
-
-        handler.handle_play(payload)
-
-        dispatched_intent, _ = dispatcher.dispatched_intents[0]
-        self.assertEqual("real-session", dispatched_intent.source_client_session_id)
-        self.assertEqual([], emby_session.resolve_calls)
 
     def test_playstate_command_uses_latest_config(self):
         controls = []
@@ -125,7 +60,41 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         config = {"name": "new"}
         _playstate(handler, {"Command": "Stop"})
 
-        self.assertEqual([("remote_key", "new", "STP")], controls)
+        self.assertEqual([("stop", "new")], controls)
+
+    def test_next_track_command_uses_domain_media_player_operation(self):
+        controls = []
+        handler = EmbyPlaybackCommandHandler(
+            emby_session=RecordingEmbySession(),
+            playback_state=BridgePlaybackState(),
+            config_provider=lambda: {"name": "config"},
+            playback_intent_dispatcher_factory=lambda: RecordingDispatcher(),
+            active_publisher_provider=lambda: None,
+            oppo_control_factory=lambda current_config: RecordingOppoControl(
+                current_config, controls
+            ),
+        )
+
+        _playstate(handler, {"Command": "NextTrack"})
+
+        self.assertEqual([("next_track", "config")], controls)
+
+    def test_previous_track_command_uses_domain_media_player_operation(self):
+        controls = []
+        handler = EmbyPlaybackCommandHandler(
+            emby_session=RecordingEmbySession(),
+            playback_state=BridgePlaybackState(),
+            config_provider=lambda: {"name": "config"},
+            playback_intent_dispatcher_factory=lambda: RecordingDispatcher(),
+            active_publisher_provider=lambda: None,
+            oppo_control_factory=lambda current_config: RecordingOppoControl(
+                current_config, controls
+            ),
+        )
+
+        _playstate(handler, {"Command": "PreviousTrack"})
+
+        self.assertEqual([("previous_track", "config")], controls)
 
     def test_pause_does_not_toggle_oppo_when_already_paused(self):
         controls = []
@@ -141,7 +110,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
                 current_config,
                 controls,
                 playback_states=[
-                    _state(OppoPlaybackStatus.PAUSE),
+                    _state(PlayerPlaybackStatus.PAUSE),
                 ],
             ),
             active_publisher_provider=lambda: publisher,
@@ -149,7 +118,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
 
         _playstate(handler, {"Command": "Pause"})
 
-        self.assertNotIn(("remote_key", "config", "PAU"), controls)
+        self.assertNotIn(("pause", "config"), controls)
         self.assertEqual("Paused", state.playstate)
         self.assertEqual("Pause", publisher.events[-1]["event_name"])
         self.assertTrue(publisher.events[-1]["is_paused"])
@@ -168,7 +137,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
                 current_config,
                 controls,
                 playback_states=[
-                    _state(OppoPlaybackStatus.PLAY),
+                    _state(PlayerPlaybackStatus.PLAY),
                 ],
             ),
             active_publisher_provider=lambda: publisher,
@@ -176,7 +145,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
 
         _playstate(handler, {"Command": "Unpause"})
 
-        self.assertNotIn(("remote_key", "config", "PLA"), controls)
+        self.assertNotIn(("resume", "config"), controls)
         self.assertEqual("Playing", state.playstate)
         self.assertEqual("Unpause", publisher.events[-1]["event_name"])
         self.assertFalse(publisher.events[-1]["is_paused"])
@@ -195,7 +164,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
                 current_config,
                 controls,
                 playback_states=[
-                    _state(OppoPlaybackStatus.PAUSE),
+                    _state(PlayerPlaybackStatus.PAUSE),
                 ],
             ),
             active_publisher_provider=lambda: publisher,
@@ -203,7 +172,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
 
         _playstate(handler, {"Command": "PlayPause"})
 
-        self.assertIn(("remote_key", "config", "PAU"), controls)
+        self.assertIn(("toggle_play_pause", "config"), controls)
         self.assertEqual("Paused", state.playstate)
         self.assertEqual("Pause", publisher.events[-1]["event_name"])
         self.assertTrue(publisher.events[-1]["is_paused"])
@@ -230,7 +199,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         _playstate(handler, {"Command": "PlayPause"})
 
         self.assertEqual([], state_reads)
-        self.assertIn(("remote_key", "config", "PAU"), controls)
+        self.assertIn(("toggle_play_pause", "config"), controls)
         self.assertEqual("Paused", state.playstate)
         self.assertEqual("Pause", publisher.events[-1]["event_name"])
         self.assertTrue(publisher.events[-1]["is_paused"])
@@ -571,11 +540,31 @@ class RecordingOppoControl:
         self._config = config
         self._calls = calls
         self._current_position_ticks = current_position_ticks
-        self._playback_states = list(playback_states or [_state(OppoPlaybackStatus.PLAY)])
+        self._playback_states = list(playback_states or [_state(PlayerPlaybackStatus.PLAY)])
         self._on_get_state = on_get_state
 
-    def send_remote_key(self, key):
-        self._calls.append(("remote_key", self._config["name"], key))
+    def pause(self):
+        self._calls.append(("pause", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def resume(self):
+        self._calls.append(("resume", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def toggle_play_pause(self):
+        self._calls.append(("toggle_play_pause", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def stop(self):
+        self._calls.append(("stop", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def next_track(self):
+        self._calls.append(("next_track", self._config["name"]))
+        return RecordingCommandResult(successful=True)
+
+    def previous_track(self):
+        self._calls.append(("previous_track", self._config["name"]))
         return RecordingCommandResult(successful=True)
 
     def select_audio_track(self, audio_index):
@@ -608,11 +597,24 @@ class RecordingCommandResult:
         self.successful = successful
 
 
+def _playback_intent(*, media_item_id="item-1"):
+    return PlaybackIntent(
+        media_item_id=media_item_id,
+        media_source_id="source-1",
+        source_user_id="user-1",
+        source_client_session_id="session-1",
+        source_device_id="device-1",
+        source_device_name="TV",
+        start_position_seconds=0,
+        selected_audio_track_id=1,
+        selected_subtitle_track_id=-1,
+    )
+
 
 def _state(status):
-    return OppoPlaybackState(
+    return PlayerPlaybackState(
         status=status,
-        category=OppoPlaybackCategory.ACTIVE,
+        lifecycle_phase=PlayerPlaybackLifecyclePhase.ACTIVE,
         raw_response=f"@OK {status.value}",
         ok=True,
     )

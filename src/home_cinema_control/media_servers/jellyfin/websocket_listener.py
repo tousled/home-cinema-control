@@ -11,6 +11,10 @@ from home_cinema_control.media_servers.jellyfin.session import JellyfinSession
 from home_cinema_control.media_servers.jellyfin.session_monitor import (
     JellyfinSessionMonitor,
 )
+from home_cinema_control.media_servers.jellyfin.websocket_event_mapper import (
+    JellyfinWebsocketEventMapper,
+    jellyfin_sessions_start_message,
+)
 
 
 class JellyfinWebsocket(MediaServerWebsocketListener):
@@ -34,6 +38,10 @@ class JellyfinWebsocket(MediaServerWebsocketListener):
                 jellyfin_session=session,
                 **kwargs,
             ),
+            websocket_event_mapper_factory=lambda session: JellyfinWebsocketEventMapper(
+                jellyfin_session=session,
+            ),
+            session_subscription_message=jellyfin_sessions_start_message(),
             websocket_app_factory=lambda *args, **kwargs: WebSocketApp(*args, **kwargs),
             websocket_uri_factory=jellyfin_websocket_uri,
             config=config,
