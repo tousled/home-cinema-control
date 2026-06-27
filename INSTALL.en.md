@@ -384,6 +384,10 @@ The Logs screen renders structured logs with severity and filtering.
   <img src="assets/screenshots/install/07-logs.png" alt="HCC structured logs" width="860"/>
 </p>
 
+The console shows the latest 100 visible lines by default. You can switch to larger ranges or the full log, filter by
+severity, and copy exactly the shown lines to the clipboard, which is useful when sharing support details from a phone.
+Downloads still include the full log.
+
 This makes support easier than sharing raw unfiltered logs.
 
 ## 11. First Playback Validation

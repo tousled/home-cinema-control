@@ -11,6 +11,8 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 * Release tag pushes now create a GitHub Release automatically after the Docker image publishes, with release notes
   extracted from the matching `CHANGELOG.md` section and release-candidate tags falling back to their base version
   section when there is no exact RC changelog heading.
+* Added mobile-friendly log sharing controls to the Logs screen: the console now defaults to the latest 100 visible
+  lines, offers larger preset ranges, and can copy the currently filtered/shown lines directly to the clipboard.
 
 ### Fixed
 
@@ -25,6 +27,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   by `setuptools_scm` are now shown in Docker tag form (`1.1.1-rc.1`, not `1.1.1rc1`), update-triggered rollback stores
   that tag form, and installs whose config only contains the build fallback (`0.0.0.dev0`) derive a rollback target from
   GitHub releases/tags instead of showing the fallback as a real image version.
+* Fixed version checks so the "include pre-release versions" toggle selects the expected release channel: disabled shows
+  the latest stable release, enabled shows the latest release candidate/pre-release when one exists.
+* Fixed rollback target selection for release candidates so `1.1.1-rc.2` rolls back to `1.1.1-rc.1`, while
+  `1.1.1-rc.1` prefers the same-base stable `1.1.1` over older release candidates such as `1.1.0-rc.5`.
+* Updated the Docker Hub overview to mention Jellyfin support and the current log copy/download support flow.
 
 ## [1.1.0] - 2026-06-26
 

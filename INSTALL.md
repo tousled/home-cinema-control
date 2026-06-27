@@ -449,6 +449,10 @@ La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtr
   <img src="assets/screenshots/install/07-logs.png" alt="Logs estructurados y filtrables de Home Cinema Control" width="860"/>
 </p>
 
+La consola muestra por defecto las últimas 100 líneas visibles. Puedes cambiar el rango a más líneas o al log completo,
+filtrar por severidad y copiar al portapapeles exactamente las líneas mostradas, algo útil cuando compartes información
+desde el móvil. La descarga sigue generando el log completo.
+
 Esto sustituye el patrón de revisar logs crudos sin contexto. Los errores y avisos quedan marcados visualmente para que
 sea más fácil compartir información útil en soporte.
 
