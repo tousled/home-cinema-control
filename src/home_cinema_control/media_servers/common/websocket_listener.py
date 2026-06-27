@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 from websocket import WebSocketConnectionClosedException
 
+from home_cinema_control import __version__
 from home_cinema_control.config.manager import (
     active_media_server_config,
     load_effective_config,
@@ -34,6 +35,7 @@ class MediaServerWebsocketListener:
         session_subscription_message: str,
         websocket_app_factory: Callable,
         websocket_uri_factory: Callable[[str, str], str],
+        websocket_headers_factory: Callable[[str], dict] | None = None,
         config=None,
         config_file: str = "",
         language=None,
@@ -48,6 +50,7 @@ class MediaServerWebsocketListener:
         self._session_subscription_message = session_subscription_message
         self._websocket_app_factory = websocket_app_factory
         self._websocket_uri_factory = websocket_uri_factory
+        self._websocket_headers_factory = websocket_headers_factory
 
         self.config = config
         self.media_server_session = None
@@ -286,6 +289,11 @@ class MediaServerWebsocketListener:
             )
 
         uri = self._websocket_uri_factory(server_url, access_token)
+        headers = (
+            self._websocket_headers_factory(access_token)
+            if self._websocket_headers_factory
+            else None
+        )
         logging.debug(
             "%s WebSocket URI: %s",
             self._provider_name,
@@ -298,6 +306,7 @@ class MediaServerWebsocketListener:
             on_message=self.on_message,
             on_error=self.on_error,
             on_close=self.on_close,
+            header=headers,
         )
 
         logging.info("%s WebSocket client initialized", self._provider_name)
@@ -312,4 +321,23 @@ def emby_websocket_uri(server_url: str, access_token: str) -> str:
 
 def jellyfin_websocket_uri(server_url: str, access_token: str) -> str:
     uri = server_url.replace("http://", "ws://").replace("https://", "wss://")
-    return f"{uri}/socket?api_key={access_token}&deviceId={DEVICE_ID}"
+    return (
+        f"{uri}/socket?ApiKey={access_token}"
+        f"&api_key={access_token}&deviceId={DEVICE_ID}"
+    )
+
+
+def jellyfin_websocket_headers(access_token: str) -> dict:
+    auth_string = (
+        'MediaBrowser Client="Home Cinema Control",'
+        'Device="Home Cinema Control",'
+        f'DeviceId="{DEVICE_ID}",'
+        f'Version="{__version__}",'
+        f'Token="{access_token}"'
+    )
+    return {
+        "Authorization": auth_string,
+        "X-Emby-Authorization": auth_string,
+        "X-Emby-Token": access_token,
+        "X-MediaBrowser-Token": access_token,
+    }

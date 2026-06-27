@@ -524,6 +524,10 @@ muestra el comando para ejecutarlo manualmente.
   dispositivos (`/Devices`) y la de carpetas de biblioteca (`/Library/VirtualFolders`) para cuentas con privilegios
   elevados — una cuenta normal recibe un error 403 al cargarlas, aunque el login en sí (autorizar, reproducir,
   reportar progreso) funcione con normalidad.
+- En Jellyfin 12.0 RC1 y versiones posteriores, HCC usa la autorización moderna de Jellyfin. Si ves `401` en
+  `/Devices`, `/Library/VirtualFolders` o `/Sessions/Capabilities/Full`, junto con `403 Forbidden` en el WebSocket,
+  actualiza HCC a una versión que incluya esta corrección y vuelve a autorizar Jellyfin desde la pantalla
+  **Media Server** si el token guardado quedó invalidado durante la actualización.
 - Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
   usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 

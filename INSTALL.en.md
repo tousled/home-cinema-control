@@ -457,6 +457,10 @@ If configured, the Status screen can call a redeploy webhook. Otherwise it shows
   (`/Devices`) and the library/virtual-folder list (`/Library/VirtualFolders`) to elevated accounts — a regular
   account gets a 403 error loading them, even though login itself (authorizing, playing, reporting progress) works
   normally.
+- On Jellyfin 12.0 RC1 and later, HCC uses Jellyfin's modern authorization format. If you see `401` from `/Devices`,
+  `/Library/VirtualFolders`, or `/Sessions/Capabilities/Full`, together with `403 Forbidden` on the WebSocket,
+  update HCC to a version that includes this fix and re-authorize Jellyfin from **Media Server** if the stored token
+  was invalidated during the upgrade.
 - If you only have one Jellyfin user, it's almost certainly already the administrator and there's nothing to change.
   If HCC uses a secondary account, grant it administrator rights from the Jellyfin dashboard.
 

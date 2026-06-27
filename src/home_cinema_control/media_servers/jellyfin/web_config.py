@@ -242,12 +242,12 @@ def _authenticate_with_temporary_password(
             "Pw": password,
         },
         headers={
-            "X-Emby-Authorization": (
+            "Authorization": (
                 f'MediaBrowser Client="Home Cinema Control",'
                 f'Device="Home Cinema Control",'
                 f'DeviceId="{DEVICE_ID}",'
                 f'Version="{__version__}"'
-            )
+            ),
         },
     )
 
