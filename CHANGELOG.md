@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [1.1.2] - 2026-06-27
+
+### Fixed
+
+* Fixed the Logs and Diagnostics copy buttons for browsers that block or hide the Clipboard API. Copying the visible
+  log lines and the support summary now falls back to the browser's legacy copy path instead of showing errors such as
+  `Cannot read properties of undefined (reading 'writeText')` or failing when clipboard permission changes.
+
 ## [1.1.1] - 2026-06-27
 
 ### Added
