@@ -16,6 +16,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   `403 Forbidden` during WebSocket handshake and `401` from `/Devices`, `/Library/VirtualFolders`, or
   `/Sessions/Capabilities/Full` without breaking Jellyfin 10.x WebSocket authentication.
 
+### Fixed
+
+* Fixed Jellyfin 12.0 RC1 compatibility after Jellyfin's `20260531160000_DisableLegacyAuthorization` migration disables
+  legacy authorization. HCC now sends Jellyfin REST credentials through the modern
+  `Authorization: MediaBrowser ... Token=...`
+  header and opens the Jellyfin WebSocket with modern `Authorization` plus legacy token headers, and both modern
+  `ApiKey` and legacy `api_key` query parameters. This addresses Jellyfin 12 startup failures that showed
+  `403 Forbidden` during WebSocket handshake and `401` from `/Devices`, `/Library/VirtualFolders`, or
+  `/Sessions/Capabilities/Full` without breaking Jellyfin 10.x WebSocket authentication.
+
 ## [1.1.0] - 2026-06-26
 
 ### Added
