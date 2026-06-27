@@ -433,6 +433,11 @@ La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y 
 - comprobar actualizaciones;
 - reiniciar el servicio si tu despliegue lo permite.
 
+El bloque de versión muestra la versión instalada con el mismo formato que las etiquetas Docker (`1.1.1-rc.1`, por
+ejemplo). Si configuras un webhook de actualización, HCC guarda la versión actual antes de pedir el redeploy; si esa
+información no existe en una instalación antigua, intenta derivar una versión de rollback desde las releases/tags de
+GitHub en vez de mostrar el fallback interno de build.
+
 El objetivo es que un fallo no sea simplemente “no reproduce”, sino una pista concreta: servidor no accesible, ruta sin
 verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
 

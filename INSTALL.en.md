@@ -372,6 +372,9 @@ The Status screen shows readiness, playback state, latest failure, version statu
 </p>
 
 Use it to understand whether the issue is Emby, path mapping, OPPO mount, optional room control, or deployment/update.
+The version panel shows the installed version in Docker tag form, such as `1.1.1-rc.1`. When an update webhook is
+configured, HCC records the current version before asking the deployment platform to redeploy; older installs without
+that stored value derive rollback guidance from GitHub releases/tags instead of showing the internal build fallback.
 
 ## 10. Readable Logs
 
