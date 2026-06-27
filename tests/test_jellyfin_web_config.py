@@ -11,6 +11,7 @@ from home_cinema_control.media_servers.common.models import (
     MediaServerLoginCredentials,
 )
 from home_cinema_control.media_servers.jellyfin.web_config import (
+    _authenticate_with_temporary_password,
     build_control_device_config,
     build_library_config,
     build_virtual_folder_servers,
@@ -19,6 +20,27 @@ from home_cinema_control.media_servers.jellyfin.web_config import (
     load_libraries,
     load_selectable_folders,
 )
+
+
+class FakeAuthResponse:
+    def __init__(self):
+        self.status_checked = False
+
+    def raise_for_status(self):
+        self.status_checked = True
+
+    def json(self):
+        return {"AccessToken": "token", "User": {"Id": "user-1"}}
+
+
+class RecordingAuthSession:
+    def __init__(self):
+        self.calls = []
+        self.response = FakeAuthResponse()
+
+    def post(self, url, *, json=None, headers=None):
+        self.calls.append(("post", url, json, headers))
+        return self.response
 
 
 class JellyfinWebConfigTest(unittest.TestCase):
@@ -117,6 +139,32 @@ class ConfigureJellyfinTokenTest(unittest.TestCase):
         self.assertTrue(public_provider["access_token_configured"])
         self.assertNotIn("access_token", public_provider)
         self.assertNotIn("user_id", public_provider)
+
+    @patch("home_cinema_control.media_servers.jellyfin.web_config.get_http_session")
+    def test_temporary_password_auth_uses_modern_authorization_header(
+        self, mock_session_factory
+    ):
+        session = RecordingAuthSession()
+        mock_session_factory.return_value = session
+
+        response = _authenticate_with_temporary_password(
+            server_url="http://jellyfin.local:8096",
+            user_name="pedro",
+            password="secret",
+        )
+
+        self.assertEqual("token", response["AccessToken"])
+        self.assertTrue(session.response.status_checked)
+        method, url, json_payload, headers = session.calls[0]
+        self.assertEqual("post", method)
+        self.assertEqual(
+            "http://jellyfin.local:8096/Users/AuthenticateByName",
+            url,
+        )
+        self.assertEqual({"Username": "pedro", "Pw": "secret"}, json_payload)
+        self.assertIn("Authorization", headers)
+        self.assertTrue(headers["Authorization"].startswith("MediaBrowser "))
+        self.assertNotIn("X-Emby-Authorization", headers)
 
 
 class LoadLibrariesTest(unittest.TestCase):

@@ -372,6 +372,9 @@ The Status screen shows readiness, playback state, latest failure, version statu
 </p>
 
 Use it to understand whether the issue is Emby, path mapping, OPPO mount, optional room control, or deployment/update.
+The version panel shows the installed version in Docker tag form, such as `1.1.1-rc.1`. When an update webhook is
+configured, HCC records the current version before asking the deployment platform to redeploy; older installs without
+that stored value derive rollback guidance from GitHub releases/tags instead of showing the internal build fallback.
 
 ## 10. Readable Logs
 
@@ -380,6 +383,10 @@ The Logs screen renders structured logs with severity and filtering.
 <p align="center">
   <img src="assets/screenshots/install/07-logs.png" alt="HCC structured logs" width="860"/>
 </p>
+
+The console shows the latest 100 visible lines by default. You can switch to larger ranges or the full log, filter by
+severity, and copy exactly the shown lines to the clipboard, which is useful when sharing support details from a phone.
+Downloads still include the full log.
 
 This makes support easier than sharing raw unfiltered logs.
 
@@ -457,6 +464,10 @@ If configured, the Status screen can call a redeploy webhook. Otherwise it shows
   (`/Devices`) and the library/virtual-folder list (`/Library/VirtualFolders`) to elevated accounts — a regular
   account gets a 403 error loading them, even though login itself (authorizing, playing, reporting progress) works
   normally.
+- On Jellyfin 12.0 RC1 and later, HCC uses Jellyfin's modern authorization format. If you see `401` from `/Devices`,
+  `/Library/VirtualFolders`, or `/Sessions/Capabilities/Full`, together with `403 Forbidden` on the WebSocket,
+  update HCC to a version that includes this fix and re-authorize Jellyfin from **Media Server** if the stored token
+  was invalidated during the upgrade.
 - If you only have one Jellyfin user, it's almost certainly already the administrator and there's nothing to change.
   If HCC uses a secondary account, grant it administrator rights from the Jellyfin dashboard.
 

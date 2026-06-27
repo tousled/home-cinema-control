@@ -68,14 +68,15 @@ def check_application_version(config, current_version, http_client=requests):
     if release is None:
         return _current_version_info(current_version)
 
-    latest_version = normalize_version(release["tag"])
+    latest_version = display_version(release["tag"])
+    current_display_version = display_version(current_version)
     return VersionInfo(
-        current_version=current_version,
+        current_version=current_display_version,
         latest_version=latest_version,
         latest_tag=release["tag"],
         release_url=release["url"],
         asset_url=release["asset_url"],
-        new_version=is_newer_version(latest_version, current_version),
+        new_version=is_newer_version(latest_version, current_display_version),
     )
 
 
@@ -99,8 +100,12 @@ def trigger_configured_update(config, current_version, http_client=requests):
         return {"success": False, "webhook_configured": True, "error": str(exc)}
 
 
-def get_rollback_info(config):
-    previous = (config.get("app") or {}).get("previous_version", "").strip()
+def get_rollback_info(config, current_version="", http_client=requests):
+    previous = display_version((config.get("app") or {}).get("previous_version", ""))
+    if is_fallback_version(previous):
+        previous = ""
+    if not previous and current_version:
+        previous = find_previous_version(config, current_version, http_client=http_client)
     if not previous:
         return {"available": False}
     return {
@@ -129,16 +134,9 @@ def find_latest_release(
     response.raise_for_status()
 
     releases = response.json()
-    for release in releases:
-        if release.get("draft"):
-            continue
-        if release.get("prerelease") and not include_prereleases:
-            continue
-
+    release = find_release_for_channel(releases, include_prereleases)
+    if release is not None:
         tag = release.get("tag_name", "")
-        if not tag:
-            continue
-
         assets = release.get("assets", [])
         asset_url = assets[0].get("browser_download_url", "") if assets else ""
         return {
@@ -155,11 +153,86 @@ def find_latest_release(
     )
 
 
+def find_previous_version(config, current_version, http_client=requests):
+    app = config.get("app") or {}
+    repository = app.get("release_repository", DEFAULT_RELEASE_REPOSITORY)
+    include_prereleases = bool(app.get("include_prerelease", False))
+    timeout = app.get("version_check_timeout_seconds", 10)
+    current_display = display_version(current_version)
+
+    try:
+        candidates = list_release_candidates(
+            repository,
+            include_prereleases=include_prereleases,
+            timeout=timeout,
+            http_client=http_client,
+        )
+    except Exception:
+        return ""
+
+    previous_candidates = [
+        candidate
+        for candidate in candidates
+        if is_newer_version(current_display, candidate) and not is_fallback_version(candidate)
+    ]
+    prerelease_previous = find_previous_for_prerelease(current_display, candidates)
+    if prerelease_previous:
+        return prerelease_previous
+    if not previous_candidates:
+        return ""
+    return max(previous_candidates, key=parse_version)
+
+
+def list_release_candidates(
+        repository,
+        *,
+        include_prereleases,
+        timeout,
+        http_client=requests,
+):
+    releases_url = f"https://api.github.com/repos/{repository}/releases"
+    response = http_client.get(
+        releases_url,
+        headers={"Accept": "application/vnd.github+json"},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    candidates = []
+    for release in response.json():
+        if release.get("draft"):
+            continue
+        tag = release.get("tag_name", "")
+        if tag and should_include_history_version_tag(tag, include_prereleases):
+            candidates.append(display_version(tag))
+
+    tags_url = f"https://api.github.com/repos/{repository}/tags"
+    response = http_client.get(
+        tags_url,
+        headers={"Accept": "application/vnd.github+json"},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    seen = set(candidates)
+    for entry in response.json():
+        tag = display_version(entry.get("name", ""))
+        if not tag or tag in seen:
+            continue
+        if not should_include_history_version_tag(tag, include_prereleases):
+            continue
+        candidates.append(tag)
+        seen.add(tag)
+
+    return candidates
+
+
 def _current_version_info(current_version, *, error=""):
+    current_display_version = display_version(current_version)
     return VersionInfo(
-        current_version=current_version,
-        latest_version=current_version,
-        latest_tag=current_version,
+        current_version=current_display_version,
+        latest_version=current_display_version,
+        latest_tag=current_display_version,
         release_url="",
         asset_url="",
         new_version=False,
@@ -176,13 +249,9 @@ def find_latest_tag(repository, *, include_prereleases, timeout, http_client=req
     )
     response.raise_for_status()
 
-    for entry in response.json():
-        tag = entry.get("name", "")
-        if not tag:
-            continue
-        if is_prerelease_tag(tag) and not include_prereleases:
-            continue
-
+    tags = [entry.get("name", "") for entry in response.json()]
+    tag = find_tag_for_channel(tags, include_prereleases)
+    if tag:
         return {
             "tag": tag,
             "url": f"https://github.com/{repository}/releases/tag/{tag}",
@@ -192,19 +261,139 @@ def find_latest_tag(repository, *, include_prereleases, timeout, http_client=req
     return None
 
 
+def find_release_for_channel(releases, include_prereleases):
+    release = first_matching_release(releases, include_prereleases=include_prereleases)
+    if release is None and include_prereleases:
+        release = first_matching_release(releases, include_prereleases=False)
+    return release
+
+
+def first_matching_release(releases, *, include_prereleases):
+    for release in releases:
+        if release.get("draft"):
+            continue
+        tag = release.get("tag_name", "")
+        if not tag:
+            continue
+        if should_include_available_version_tag(tag, include_prereleases):
+            return release
+    return None
+
+
+def find_tag_for_channel(tags, include_prereleases):
+    tag = first_matching_tag(tags, include_prereleases=include_prereleases)
+    if not tag and include_prereleases:
+        tag = first_matching_tag(tags, include_prereleases=False)
+    return tag
+
+
+def first_matching_tag(tags, *, include_prereleases):
+    for tag in tags:
+        if not tag:
+            continue
+        if should_include_available_version_tag(tag, include_prereleases):
+            return tag
+    return None
+
+
 def is_prerelease_tag(tag):
-    return "-" in normalize_version(tag)
+    return parse_version(tag)[3] < _STABLE_RANK
+
+
+def should_include_available_version_tag(tag, include_prereleases):
+    return is_prerelease_tag(tag) if include_prereleases else not is_prerelease_tag(tag)
+
+
+def should_include_history_version_tag(tag, include_prereleases):
+    return include_prereleases or not is_prerelease_tag(tag)
 
 
 def is_newer_version(candidate, current):
     return parse_version(candidate) > parse_version(current)
 
 
+def find_previous_for_prerelease(current_version, candidates):
+    current_parsed = parse_version(current_version)
+    current_base = current_parsed[:3]
+    current_rank = current_parsed[3]
+    current_number = current_parsed[4]
+    if current_rank >= _STABLE_RANK:
+        return ""
+
+    same_line_prereleases = [
+        candidate
+        for candidate in candidates
+        if parse_version(candidate)[:3] == current_base
+           and parse_version(candidate)[3] == current_rank
+           and parse_version(candidate)[4] < current_number
+           and not is_fallback_version(candidate)
+    ]
+    if same_line_prereleases:
+        return max(same_line_prereleases, key=parse_version)
+
+    same_line_stable = [
+        candidate
+        for candidate in candidates
+        if parse_version(candidate)[:3] == current_base
+           and parse_version(candidate)[3] == _STABLE_RANK
+           and not is_fallback_version(candidate)
+    ]
+    if same_line_stable:
+        return max(same_line_stable, key=parse_version)
+
+    return ""
+
+
 def normalize_version(version):
     return str(version).strip().removeprefix("v").removeprefix("V")
 
 
-def parse_version(version):
+def display_version(version):
     normalized = normalize_version(version)
+    replacements = (
+        (r"^(\d+\.\d+\.\d+)rc(\d+)$", r"\1-rc.\2"),
+        (r"^(\d+\.\d+\.\d+)b(\d+)$", r"\1-beta.\2"),
+        (r"^(\d+\.\d+\.\d+)a(\d+)$", r"\1-alpha.\2"),
+        (r"^(\d+\.\d+\.\d+)\.dev(\d+)$", r"\1-dev.\2"),
+    )
+    for pattern, replacement in replacements:
+        normalized = re.sub(pattern, replacement, normalized)
+    return normalized
+
+
+def is_fallback_version(version):
+    normalized = display_version(version)
+    return normalized in {"dev", "0.0.0-dev.0", "0.0.0dev.0", "0.0.0.dev0"}
+
+
+_PRERELEASE_RANKS = {
+    "dev": 0,
+    "alpha": 1,
+    "a": 1,
+    "beta": 2,
+    "b": 2,
+    "rc": 3,
+}
+_STABLE_RANK = 4
+
+
+def parse_version(version):
+    normalized = display_version(version)
+    match = re.match(
+        r"^(\d+)\.(\d+)\.(\d+)(?:[-.]?([A-Za-z]+)\.?(\d+)?)?$",
+        normalized,
+    )
+    if match:
+        major, minor, patch, label, prerelease_number = match.groups()
+        rank = _STABLE_RANK if label is None else _PRERELEASE_RANKS.get(label.lower(), 0)
+        return (
+            int(major),
+            int(minor),
+            int(patch),
+            rank,
+            int(prerelease_number or 0),
+        )
+
     numbers = [int(part) for part in re.findall(r"\d+", normalized)]
-    return tuple(numbers or [0])
+    padded_numbers = [*numbers[:3], 0, 0, 0][:3]
+    return (*padded_numbers, _STABLE_RANK, 0)

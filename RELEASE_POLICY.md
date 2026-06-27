@@ -41,6 +41,9 @@ This document defines how Home Cinema Control is versioned, released, and upgrad
     - stable tag: `ghcr.io/tousled/home-cinema-control:<version>` and `:latest` (primary)
     - stable tag: `tousled/home-cinema-control:<version>` and `:latest` (Docker Hub mirror)
     - release candidate tag: `:<version>` and `:rc`, never `:latest`
+- The workflow also creates or updates the GitHub Release for the pushed tag. Release notes are extracted from the
+  matching `CHANGELOG.md` section; release-candidate tags fall back to the base version section when there is no exact
+  RC section.
 - Both are multi-arch (`linux/amd64`, `linux/arm64`).
 - `compose.yaml` pins the image via `${HCC_VERSION:-latest}` so a deployment can stay on a known-good tag instead of
   always tracking `latest`.
@@ -80,6 +83,8 @@ Manual Docker Hub branding checklist:
 - The Python package version is dynamic through `setuptools_scm`.
 - The Docker release workflow passes `SETUPTOOLS_SCM_PRETEND_VERSION=<tag>` during image build, so the runtime version
   shown by the app matches the pushed tag even though `.git` is excluded from Docker context.
+- The app normalizes `setuptools_scm`'s PEP 440 runtime value back into the Docker tag form for update/rollback UI
+  display, so `1.1.1rc1` is shown as `1.1.1-rc.1`.
 - The README version badge is a dynamic `img.shields.io/github/v/tag/...` badge that reads the latest tag directly
   from GitHub (sorted by semver) — it updates itself on tag push and needs no commit.
 - `HCC_VERSION` in `compose.yaml` defaults to `latest`. To pin a deployment to a known-good tag, create a local
@@ -137,6 +142,8 @@ The Status view's **Update** button is informational/trigger-only, never a direc
   further UI changes.
 - **Rollback** is symmetric: the previous version is recorded in `app.previous_version` before an update, and the Status
   view shows the exact `HCC_VERSION=<previous> docker compose pull && ... up -d` command to revert.
+- If `app.previous_version` is missing or contains the build fallback (`0.0.0.dev0`), HCC derives a rollback target from
+  GitHub releases/tags instead of showing the fallback as if it were a real Docker image tag.
 
 ## License & contribution status — source-available
 

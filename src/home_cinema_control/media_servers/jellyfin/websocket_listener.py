@@ -2,6 +2,7 @@ from websocket import WebSocketApp
 
 from home_cinema_control.media_servers.common.websocket_listener import (
     MediaServerWebsocketListener,
+    jellyfin_websocket_headers,
     jellyfin_websocket_uri,
 )
 from home_cinema_control.media_servers.jellyfin.playback_command_handler import (
@@ -43,6 +44,7 @@ class JellyfinWebsocket(MediaServerWebsocketListener):
             ),
             session_subscription_message=jellyfin_sessions_start_message(),
             websocket_app_factory=lambda *args, **kwargs: WebSocketApp(*args, **kwargs),
+            websocket_headers_factory=jellyfin_websocket_headers,
             websocket_uri_factory=jellyfin_websocket_uri,
             config=config,
             config_file=config_file,

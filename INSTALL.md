@@ -433,6 +433,11 @@ La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y 
 - comprobar actualizaciones;
 - reiniciar el servicio si tu despliegue lo permite.
 
+El bloque de versión muestra la versión instalada con el mismo formato que las etiquetas Docker (`1.1.1-rc.1`, por
+ejemplo). Si configuras un webhook de actualización, HCC guarda la versión actual antes de pedir el redeploy; si esa
+información no existe en una instalación antigua, intenta derivar una versión de rollback desde las releases/tags de
+GitHub en vez de mostrar el fallback interno de build.
+
 El objetivo es que un fallo no sea simplemente “no reproduce”, sino una pista concreta: servidor no accesible, ruta sin
 verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
 
@@ -443,6 +448,10 @@ La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtr
 <p align="center">
   <img src="assets/screenshots/install/07-logs.png" alt="Logs estructurados y filtrables de Home Cinema Control" width="860"/>
 </p>
+
+La consola muestra por defecto las últimas 100 líneas visibles. Puedes cambiar el rango a más líneas o al log completo,
+filtrar por severidad y copiar al portapapeles exactamente las líneas mostradas, algo útil cuando compartes información
+desde el móvil. La descarga sigue generando el log completo.
 
 Esto sustituye el patrón de revisar logs crudos sin contexto. Los errores y avisos quedan marcados visualmente para que
 sea más fácil compartir información útil en soporte.
@@ -524,6 +533,10 @@ muestra el comando para ejecutarlo manualmente.
   dispositivos (`/Devices`) y la de carpetas de biblioteca (`/Library/VirtualFolders`) para cuentas con privilegios
   elevados — una cuenta normal recibe un error 403 al cargarlas, aunque el login en sí (autorizar, reproducir,
   reportar progreso) funcione con normalidad.
+- En Jellyfin 12.0 RC1 y versiones posteriores, HCC usa la autorización moderna de Jellyfin. Si ves `401` en
+  `/Devices`, `/Library/VirtualFolders` o `/Sessions/Capabilities/Full`, junto con `403 Forbidden` en el WebSocket,
+  actualiza HCC a una versión que incluya esta corrección y vuelve a autorizar Jellyfin desde la pantalla
+  **Media Server** si el token guardado quedó invalidado durante la actualización.
 - Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
   usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 

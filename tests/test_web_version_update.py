@@ -3,8 +3,11 @@ import unittest
 import home_cinema_control.web.version_update as version_update_module
 from home_cinema_control.web.version_update import (
     check_application_version,
+    display_version,
+    find_previous_version,
     get_cached_version_info,
     get_rollback_info,
+    is_fallback_version,
     is_newer_version,
     trigger_configured_update,
 )
@@ -53,6 +56,18 @@ class WebVersionUpdateTest(unittest.TestCase):
         self.assertTrue(is_newer_version("0.5.10", "0.5.2"))
         self.assertFalse(is_newer_version("0.5.1", "0.5.1"))
         self.assertTrue(is_newer_version("v0.6.0", "0.5.1"))
+        self.assertTrue(is_newer_version("1.1.1", "1.1.1-rc.1"))
+        self.assertTrue(is_newer_version("1.1.1-rc.2", "1.1.1-rc.1"))
+        self.assertFalse(is_newer_version("1.1.1-rc.1", "1.1.1"))
+
+    def test_display_version_formats_pep440_release_candidates_as_docker_tags(self):
+        self.assertEqual("1.1.1-rc.1", display_version("1.1.1rc1"))
+        self.assertEqual("0.0.0-dev.0", display_version("0.0.0.dev0"))
+
+    def test_fallback_versions_are_not_real_rollback_targets(self):
+        self.assertTrue(is_fallback_version("0.0.0.dev0"))
+        self.assertTrue(is_fallback_version("0.0.0-dev.0"))
+        self.assertFalse(is_fallback_version("1.1.0"))
 
     def test_check_version_uses_latest_non_prerelease_release_by_default(self):
         http = FakeHttpClient(
@@ -114,6 +129,64 @@ class WebVersionUpdateTest(unittest.TestCase):
         self.assertEqual("0.6.0-beta.1", result.latest_version)
         self.assertEqual("https://github/beta", result.release_url)
 
+    def test_check_version_prerelease_toggle_selects_the_active_channel(self):
+        releases = [
+            {
+                "tag_name": "1.1.0-rc.2",
+                "prerelease": True,
+                "draft": False,
+                "html_url": "https://github/rc",
+                "assets": [],
+            },
+            {
+                "tag_name": "1.1.0",
+                "prerelease": False,
+                "draft": False,
+                "html_url": "https://github/stable",
+                "assets": [],
+            },
+        ]
+
+        stable_result = check_application_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": False}},
+            "1.1.1",
+            FakeHttpClient(releases=releases),
+        )
+        prerelease_result = check_application_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.1.1",
+            FakeHttpClient(releases=releases),
+        )
+
+        self.assertEqual("1.1.0", stable_result.latest_version)
+        self.assertEqual("https://github/stable", stable_result.release_url)
+        self.assertFalse(stable_result.new_version)
+        self.assertEqual("1.1.0-rc.2", prerelease_result.latest_version)
+        self.assertEqual("https://github/rc", prerelease_result.release_url)
+        self.assertFalse(prerelease_result.new_version)
+
+    def test_check_version_prerelease_channel_falls_back_to_stable_when_no_rc_exists(self):
+        http = FakeHttpClient(
+            releases=[
+                {
+                    "tag_name": "1.1.0",
+                    "prerelease": False,
+                    "draft": False,
+                    "html_url": "https://github/stable",
+                    "assets": [],
+                },
+            ]
+        )
+
+        result = check_application_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.0.9",
+            http,
+        )
+
+        self.assertEqual("1.1.0", result.latest_version)
+        self.assertTrue(result.new_version)
+
     def test_check_version_falls_back_to_tags_when_no_release_matches(self):
         http = FakeHttpClient(
             releases=[{"tag_name": "v0.6.0-beta.1", "prerelease": True}],
@@ -165,6 +238,34 @@ class WebVersionUpdateTest(unittest.TestCase):
 
         self.assertEqual("1.1.0-rc.1", result.latest_version)
         self.assertTrue(result.new_version)
+
+    def test_check_version_prerelease_tag_channel_skips_stable_tags(self):
+        http = FakeHttpClient(
+            releases=[],
+            tags=[{"name": "1.1.0"}, {"name": "1.1.0-rc.2"}, {"name": "1.0.9"}],
+        )
+
+        result = check_application_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.1.1",
+            http,
+        )
+
+        self.assertEqual("1.1.0-rc.2", result.latest_version)
+        self.assertFalse(result.new_version)
+
+    def test_check_version_formats_current_pep440_version_for_display(self):
+        http = FakeHttpClient(releases=[], tags=[{"name": "1.1.1-rc.1"}])
+
+        result = check_application_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.1.1rc1",
+            http,
+        )
+
+        self.assertEqual("1.1.1-rc.1", result.current_version)
+        self.assertEqual("1.1.1-rc.1", result.latest_version)
+        self.assertFalse(result.new_version)
 
     def test_check_version_reports_errors_without_breaking_web_response(self):
         result = check_application_version(
@@ -245,6 +346,111 @@ class WebVersionUpdateTest(unittest.TestCase):
         self.assertIn("HCC_VERSION=0.8.0", result["instructions"])
         self.assertIn("docker compose pull", result["instructions"])
         self.assertIn("docker compose up -d", result["instructions"])
+
+    def test_rollback_info_formats_stored_pep440_previous_version(self):
+        result = get_rollback_info({"app": {"previous_version": "1.1.1rc1"}})
+
+        self.assertTrue(result["available"])
+        self.assertEqual("1.1.1-rc.1", result["previous_version"])
+        self.assertIn("HCC_VERSION=1.1.1-rc.1", result["instructions"])
+
+    def test_rollback_info_derives_previous_stable_version_when_config_has_fallback(self):
+        http = FakeHttpClient(
+            releases=[
+                {"tag_name": "1.1.1-rc.1", "prerelease": True, "draft": False},
+                {"tag_name": "1.1.0", "prerelease": False, "draft": False},
+            ],
+            tags=[{"name": "1.1.1-rc.1"}, {"name": "1.1.0"}, {"name": "1.0.9"}],
+        )
+
+        result = get_rollback_info(
+            {
+                "app": {
+                    "previous_version": "0.0.0.dev0",
+                    "release_repository": "owner/repo",
+                    "include_prerelease": False,
+                }
+            },
+            "1.1.1rc1",
+            http,
+        )
+
+        self.assertTrue(result["available"])
+        self.assertEqual("1.1.0", result["previous_version"])
+
+    def test_find_previous_version_can_include_prerelease_tags(self):
+        http = FakeHttpClient(
+            releases=[],
+            tags=[
+                {"name": "1.1.1-rc.1"},
+                {"name": "1.1.0"},
+                {"name": "1.1.0-rc.5"},
+                {"name": "1.1.0-rc.4"},
+            ],
+        )
+
+        result = find_previous_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.1.1rc1",
+            http,
+        )
+
+        self.assertEqual("1.1.0", result)
+
+    def test_find_previous_version_uses_latest_prerelease_when_no_stable_exists(self):
+        http = FakeHttpClient(
+            releases=[],
+            tags=[
+                {"name": "1.1.1-rc.1"},
+                {"name": "1.1.0-rc.5"},
+                {"name": "1.1.0-rc.4"},
+            ],
+        )
+
+        result = find_previous_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.1.1rc1",
+            http,
+        )
+
+        self.assertEqual("1.1.0-rc.5", result)
+
+    def test_find_previous_version_prefers_previous_rc_in_same_version_line(self):
+        http = FakeHttpClient(
+            releases=[],
+            tags=[
+                {"name": "1.1.1-rc.2"},
+                {"name": "1.1.1-rc.1"},
+                {"name": "1.1.1"},
+                {"name": "1.1.0-rc.5"},
+            ],
+        )
+
+        result = find_previous_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.1.1-rc.2",
+            http,
+        )
+
+        self.assertEqual("1.1.1-rc.1", result)
+
+    def test_find_previous_version_uses_same_base_stable_before_older_rc(self):
+        http = FakeHttpClient(
+            releases=[],
+            tags=[
+                {"name": "1.1.1-rc.1"},
+                {"name": "1.1.1"},
+                {"name": "1.1.0-rc.5"},
+            ],
+        )
+
+        result = find_previous_version(
+            {"app": {"release_repository": "owner/repo", "include_prerelease": True}},
+            "1.1.1-rc.1",
+            http,
+        )
+
+        self.assertEqual("1.1.1", result)
 
 
 if __name__ == "__main__":
