@@ -4,18 +4,19 @@
   <img src="https://raw.githubusercontent.com/tousled/home-cinema-control/main/assets/brand/hcc-logo.png" alt="Home Cinema Control" width="720">
 </p>
 
-Home Cinema Control (HCC) turns playback in Emby into a complete home-cinema flow for OPPO and Chinoppo players:
+Home Cinema Control (HCC) turns playback in Emby or Jellyfin into a complete home-cinema flow for OPPO and Chinoppo
+players:
 verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics, logs, and Docker-first updates.
 
 ## What it does
 
-- Watches Emby playback sessions.
-- Resolves the Emby media path to the path visible from the OPPO or Chinoppo player.
+- Watches Emby or Jellyfin playback sessions.
+- Resolves the media-server path to the path visible from the OPPO or Chinoppo player.
 - Mounts NFS or SMB/CIFS shares per library mapping.
 - Starts playback on OPPO UDP-203/205 and compatible Chinoppo players.
 - Optionally switches TV and AV receiver inputs.
 - Reports playback progress and state back to Emby when supported by the device flow.
-- Exposes diagnostics, structured logs, version checks, update hooks, and rollback guidance.
+- Exposes diagnostics, structured logs with copy/download support, version checks, update hooks, and rollback guidance.
 
 ## Quick start
 
@@ -87,7 +88,7 @@ Images are published for `linux/amd64` and `linux/arm64`.
 ## Requirements
 
 - Docker host with host networking support.
-- Emby server reachable from the HCC host.
+- Emby or Jellyfin server reachable from the HCC host.
 - OPPO UDP-203/205 or compatible Chinoppo player exposing the OPPO-compatible control API.
 - NAS or shared media folders reachable by both Emby and the player.
 - NFS or SMB/CIFS shares mapped per media library.

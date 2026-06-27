@@ -42,19 +42,41 @@
           </div>
 
           <div class="logs-filter-row">
-            <div class="form-label label-with-help mb-2">
-              <label for="logs-severity-filter">{{ $t('x-logs-filter-label') }}</label>
+            <div class="logs-control">
+              <div class="form-label label-with-help mb-2">
+                <label for="logs-severity-filter">{{ $t('x-logs-filter-label') }}</label>
+              </div>
+              <FormSelect
+                  id="logs-severity-filter"
+                  v-model="minSeverity"
+                  :options="severityOptions"
+                  style="max-width:280px"
+              />
             </div>
-            <FormSelect
-                id="logs-severity-filter"
-                v-model="minSeverity"
-                :options="severityOptions"
-                style="max-width:280px"
+
+            <div class="logs-control">
+              <div class="form-label label-with-help mb-2">
+                <label for="logs-line-limit">{{ $t('x-logs-line-limit-label') }}</label>
+              </div>
+              <FormSelect
+                  id="logs-line-limit"
+                  v-model="lineLimit"
+                  :options="lineLimitOptions"
+                  style="max-width:220px"
+              />
+            </div>
+
+            <IconActionButton
+                :disabled="!copyableLogText"
+                :label="$t('x-logs-copy-visible')"
+                class="logs-copy-button"
+                icon="copy"
+                @click="copyVisibleLogs"
             />
           </div>
 
           <div v-if="entries.length" class="log-output">
-            <div v-for="(entry, index) in filteredEntries" :key="index" class="log-line">
+            <div v-for="(entry, index) in displayedEntries" :key="index" class="log-line">
               <span class="log-timestamp">{{ entry.timestamp }}</span>
               <span :class="['log-level-chip', levelChipClass(entry.level)]">{{ levelLabel(entry.level) }}</span>
               <span class="log-message">{{ entry.message }}</span>
@@ -88,6 +110,7 @@ const loading = ref(true)
 const rawText = ref('')
 const entries = ref([])
 const minSeverity = ref(0)
+const lineLimit = ref(100)
 
 const fullConfig = ref({})
 const logLevel = ref(0)
@@ -98,6 +121,14 @@ const severityOptions = computed(() => [
   {value: SEVERITY_RANK.INFO, label: t('x-logs-filter-info')},
   {value: SEVERITY_RANK.WARNING, label: t('x-logs-filter-warning')},
   {value: SEVERITY_RANK.ERROR, label: t('x-logs-filter-error')},
+])
+
+const lineLimitOptions = computed(() => [
+  {value: 100, label: t('x-logs-line-limit-count', {count: 100})},
+  {value: 200, label: t('x-logs-line-limit-count', {count: 200})},
+  {value: 500, label: t('x-logs-line-limit-count', {count: 500})},
+  {value: 1000, label: t('x-logs-line-limit-count', {count: 1000})},
+  {value: 'all', label: t('x-logs-line-limit-all')},
 ])
 
 const backendLevelOptions = computed(() => [
@@ -136,6 +167,15 @@ const filteredEntries = computed(() =>
     entries.value.filter((entry) => (SEVERITY_RANK[entry.level] ?? 1) >= minSeverity.value)
 )
 
+const displayedEntries = computed(() => limitLines(filteredEntries.value))
+
+const copyableLogText = computed(() => {
+  if (entries.value.length) {
+    return displayedEntries.value.map(entry => entry.rawLine).join('\n')
+  }
+  return limitRawText(rawText.value)
+})
+
 const downloadHref = computed(() => {
   const blob = new Blob([rawText.value], {type: 'text/plain'})
   return URL.createObjectURL(blob)
@@ -163,21 +203,41 @@ function parseLines(text) {
           timestamp: record.timestamp || '',
           level: (record.level || 'INFO').toUpperCase(),
           message: record.message,
+          rawLine: line,
         })
         continue
       }
     } catch {
       // not a structured line (legacy plain-text log, or a non-JSON entry) — fall through
     }
-    parsed.push({timestamp: '', level: 'INFO', message: line})
+    parsed.push({timestamp: '', level: 'INFO', message: line, rawLine: line})
   }
   return parsed
+}
+
+function limitLines(lines) {
+  if (lineLimit.value === 'all') return lines
+  return lines.slice(-lineLimit.value)
+}
+
+function limitRawText(text) {
+  const lines = text.split('\n').filter(line => line.trim())
+  return limitLines(lines).join('\n')
+}
+
+async function copyVisibleLogs() {
+  try {
+    await navigator.clipboard.writeText(copyableLogText.value)
+    toast.success(t('x-logs-copy-success'))
+  } catch (e) {
+    toast.error(e.message || t('x-logs-copy-error'))
+  }
 }
 
 async function loadLogs() {
   loading.value = true
   try {
-    rawText.value = await api.getLogs()
+    rawText.value = String(await api.getLogs())
     entries.value = parseLines(rawText.value)
   } catch (e) {
     rawText.value = t('x-logs-load-error', {error: e.message})
@@ -294,7 +354,19 @@ onMounted(() => {
 }
 
 .logs-filter-row {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
   min-width: 0;
+}
+
+.logs-control {
+  min-width: min(100%, 220px);
+}
+
+.logs-copy-button {
+  margin-left: auto;
 }
 
 .logs-levels {
@@ -375,6 +447,16 @@ onMounted(() => {
 }
 
 @media (max-width: 760px) {
+  .logs-filter-row {
+    align-items: stretch;
+  }
+
+  .logs-control,
+  .logs-copy-button {
+    width: 100%;
+    margin-left: 0;
+  }
+
   .log-line {
     flex-wrap: wrap;
   }

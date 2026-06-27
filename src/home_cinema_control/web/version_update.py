@@ -134,16 +134,9 @@ def find_latest_release(
     response.raise_for_status()
 
     releases = response.json()
-    for release in releases:
-        if release.get("draft"):
-            continue
-        if release.get("prerelease") and not include_prereleases:
-            continue
-
+    release = find_release_for_channel(releases, include_prereleases)
+    if release is not None:
         tag = release.get("tag_name", "")
-        if not tag:
-            continue
-
         assets = release.get("assets", [])
         asset_url = assets[0].get("browser_download_url", "") if assets else ""
         return {
@@ -182,6 +175,9 @@ def find_previous_version(config, current_version, http_client=requests):
         for candidate in candidates
         if is_newer_version(current_display, candidate) and not is_fallback_version(candidate)
     ]
+    prerelease_previous = find_previous_for_prerelease(current_display, candidates)
+    if prerelease_previous:
+        return prerelease_previous
     if not previous_candidates:
         return ""
     return max(previous_candidates, key=parse_version)
@@ -206,10 +202,8 @@ def list_release_candidates(
     for release in response.json():
         if release.get("draft"):
             continue
-        if release.get("prerelease") and not include_prereleases:
-            continue
         tag = release.get("tag_name", "")
-        if tag:
+        if tag and should_include_history_version_tag(tag, include_prereleases):
             candidates.append(display_version(tag))
 
     tags_url = f"https://api.github.com/repos/{repository}/tags"
@@ -225,7 +219,7 @@ def list_release_candidates(
         tag = display_version(entry.get("name", ""))
         if not tag or tag in seen:
             continue
-        if is_prerelease_tag(tag) and not include_prereleases:
+        if not should_include_history_version_tag(tag, include_prereleases):
             continue
         candidates.append(tag)
         seen.add(tag)
@@ -255,13 +249,9 @@ def find_latest_tag(repository, *, include_prereleases, timeout, http_client=req
     )
     response.raise_for_status()
 
-    for entry in response.json():
-        tag = entry.get("name", "")
-        if not tag:
-            continue
-        if is_prerelease_tag(tag) and not include_prereleases:
-            continue
-
+    tags = [entry.get("name", "") for entry in response.json()]
+    tag = find_tag_for_channel(tags, include_prereleases)
+    if tag:
         return {
             "tag": tag,
             "url": f"https://github.com/{repository}/releases/tag/{tag}",
@@ -271,12 +261,87 @@ def find_latest_tag(repository, *, include_prereleases, timeout, http_client=req
     return None
 
 
+def find_release_for_channel(releases, include_prereleases):
+    release = first_matching_release(releases, include_prereleases=include_prereleases)
+    if release is None and include_prereleases:
+        release = first_matching_release(releases, include_prereleases=False)
+    return release
+
+
+def first_matching_release(releases, *, include_prereleases):
+    for release in releases:
+        if release.get("draft"):
+            continue
+        tag = release.get("tag_name", "")
+        if not tag:
+            continue
+        if should_include_available_version_tag(tag, include_prereleases):
+            return release
+    return None
+
+
+def find_tag_for_channel(tags, include_prereleases):
+    tag = first_matching_tag(tags, include_prereleases=include_prereleases)
+    if not tag and include_prereleases:
+        tag = first_matching_tag(tags, include_prereleases=False)
+    return tag
+
+
+def first_matching_tag(tags, *, include_prereleases):
+    for tag in tags:
+        if not tag:
+            continue
+        if should_include_available_version_tag(tag, include_prereleases):
+            return tag
+    return None
+
+
 def is_prerelease_tag(tag):
     return parse_version(tag)[3] < _STABLE_RANK
 
 
+def should_include_available_version_tag(tag, include_prereleases):
+    return is_prerelease_tag(tag) if include_prereleases else not is_prerelease_tag(tag)
+
+
+def should_include_history_version_tag(tag, include_prereleases):
+    return include_prereleases or not is_prerelease_tag(tag)
+
+
 def is_newer_version(candidate, current):
     return parse_version(candidate) > parse_version(current)
+
+
+def find_previous_for_prerelease(current_version, candidates):
+    current_parsed = parse_version(current_version)
+    current_base = current_parsed[:3]
+    current_rank = current_parsed[3]
+    current_number = current_parsed[4]
+    if current_rank >= _STABLE_RANK:
+        return ""
+
+    same_line_prereleases = [
+        candidate
+        for candidate in candidates
+        if parse_version(candidate)[:3] == current_base
+           and parse_version(candidate)[3] == current_rank
+           and parse_version(candidate)[4] < current_number
+           and not is_fallback_version(candidate)
+    ]
+    if same_line_prereleases:
+        return max(same_line_prereleases, key=parse_version)
+
+    same_line_stable = [
+        candidate
+        for candidate in candidates
+        if parse_version(candidate)[:3] == current_base
+           and parse_version(candidate)[3] == _STABLE_RANK
+           and not is_fallback_version(candidate)
+    ]
+    if same_line_stable:
+        return max(same_line_stable, key=parse_version)
+
+    return ""
 
 
 def normalize_version(version):
