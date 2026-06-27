@@ -95,6 +95,7 @@ import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {api} from '../api/index.js'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
+import {writeTextToClipboard} from '../composables/useClipboard.js'
 import {useToast} from '../composables/useToast.js'
 import heroBg from '../assets/backgrounds/bg-status.png'
 import IconActionButton from '../components/IconActionButton.vue'
@@ -227,7 +228,7 @@ function limitRawText(text) {
 
 async function copyVisibleLogs() {
   try {
-    await navigator.clipboard.writeText(copyableLogText.value)
+    await writeTextToClipboard(copyableLogText.value)
     toast.success(t('x-logs-copy-success'))
   } catch (e) {
     toast.error(e.message || t('x-logs-copy-error'))

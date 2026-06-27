@@ -294,6 +294,7 @@ import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-status.png'
 import {useToast} from '../composables/useToast.js'
 import {usePoll} from '../composables/usePoll.js'
+import {writeTextToClipboard} from '../composables/useClipboard.js'
 import HelpTooltip from '../components/HelpTooltip.vue'
 import IconActionButton from '../components/IconActionButton.vue'
 import {useVersionStore} from '../stores/version.js'
@@ -405,7 +406,7 @@ async function copySupportSummary() {
   try {
     const summary = await api.getSupportSummary()
     const text = JSON.stringify(summary, null, 2)
-    await navigator.clipboard.writeText(text)
+    await writeTextToClipboard(text)
     toast.success(t('x-diag-summary-copied'))
   } catch (e) {
     toast.error(e.message || t('x-diag-summary-copy-error'))
