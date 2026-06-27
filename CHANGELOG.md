@@ -6,15 +6,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [1.1.1] - 2026-06-27
 
-### Fixed
+### Added
 
-* Fixed Jellyfin 12.0 RC1 compatibility after Jellyfin's `20260531160000_DisableLegacyAuthorization` migration disables
-  legacy authorization. HCC now sends Jellyfin REST credentials through the modern
-  `Authorization: MediaBrowser ... Token=...`
-  header and opens the Jellyfin WebSocket with modern `Authorization` plus legacy token headers, and both modern
-  `ApiKey` and legacy `api_key` query parameters. This addresses Jellyfin 12 startup failures that showed
-  `403 Forbidden` during WebSocket handshake and `401` from `/Devices`, `/Library/VirtualFolders`, or
-  `/Sessions/Capabilities/Full` without breaking Jellyfin 10.x WebSocket authentication.
+* Release tag pushes now create a GitHub Release automatically after the Docker image publishes, with release notes
+  extracted from the matching `CHANGELOG.md` section and release-candidate tags falling back to their base version
+  section when there is no exact RC changelog heading.
 
 ### Fixed
 
@@ -25,6 +21,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   `ApiKey` and legacy `api_key` query parameters. This addresses Jellyfin 12 startup failures that showed
   `403 Forbidden` during WebSocket handshake and `401` from `/Devices`, `/Library/VirtualFolders`, or
   `/Sessions/Capabilities/Full` without breaking Jellyfin 10.x WebSocket authentication.
+* Fixed Diagnostics version display and rollback guidance for release-candidate Docker tags. Runtime versions produced
+  by `setuptools_scm` are now shown in Docker tag form (`1.1.1-rc.1`, not `1.1.1rc1`), update-triggered rollback stores
+  that tag form, and installs whose config only contains the build fallback (`0.0.0.dev0`) derive a rollback target from
+  GitHub releases/tags instead of showing the fallback as a real image version.
 
 ## [1.1.0] - 2026-06-26
 

@@ -13,5 +13,5 @@ def update_version_response(config, current_version):
     return trigger_configured_update(config, current_version)
 
 
-def rollback_version_response(config):
-    return get_rollback_info(config)
+def rollback_version_response(config, current_version=""):
+    return get_rollback_info(config, current_version)

@@ -14,7 +14,7 @@ jobs:
     name: Build and push Docker image
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -97,6 +97,43 @@ jobs:
             SETUPTOOLS_SCM_PRETEND_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Prepare GitHub release notes
+        id: github-release
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          CHANGELOG_VERSION="$VERSION"
+          if ! grep -Fq "## [$CHANGELOG_VERSION]" CHANGELOG.md && [[ "$VERSION" == *-* ]]; then
+            CHANGELOG_VERSION="${VERSION%%-*}"
+          fi
+
+          awk -v version="$CHANGELOG_VERSION" '
+            $0 == "## [" version "]" || index($0, "## [" version "] - ") == 1 { in_section = 1; next }
+            in_section && index($0, "## [") == 1 { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [[ ! -s release-notes.md ]]; then
+            {
+              echo "Docker images published for ${VERSION}."
+              echo
+              echo "See CHANGELOG.md for the full project history."
+            } > release-notes.md
+          fi
+
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.version }}
+          name: Home Cinema Control ${{ steps.meta.outputs.version }}
+          body_path: release-notes.md
+          prerelease: ${{ steps.github-release.outputs.prerelease }}
 
       - name: Update Docker Hub overview
         uses: peter-evans/dockerhub-description@v5

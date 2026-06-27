@@ -7,6 +7,7 @@ from home_cinema_control.web.version_responses import (
     rollback_version_response,
     update_version_response,
 )
+from home_cinema_control.web.version_update import display_version
 
 
 def build_version_router(api_runtime: WebApiRuntime) -> APIRouter:
@@ -29,7 +30,7 @@ def build_version_router(api_runtime: WebApiRuntime) -> APIRouter:
     def version_update():
         config = api_runtime.config_service.load_config()
         updated = api_runtime.config_service.with_app_updates(
-            config, previous_version=__version__
+            config, previous_version=display_version(__version__)
         )
         api_runtime.config_service.save_config(updated)
         return update_version_response(config, __version__)
@@ -37,6 +38,6 @@ def build_version_router(api_runtime: WebApiRuntime) -> APIRouter:
     @router.get("/rollback")
     def version_rollback():
         config = api_runtime.config_service.load_config()
-        return rollback_version_response(config)
+        return rollback_version_response(config, __version__)
 
     return router
