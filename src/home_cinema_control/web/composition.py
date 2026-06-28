@@ -29,12 +29,18 @@ def build_web_runtime_composition(
     runtime_paths = build_runtime_paths(base_dir, config_file)
     runtime = HomeCinemaControlRuntime(paths=runtime_paths, version=version)
     config_service = WebConfigService(runtime=runtime, config_file=runtime_paths.config_file)
+    telemetry = TelemetryService(
+        config_file=runtime_paths.config_file,
+        load_config=runtime.load_config,
+        save_config=runtime.save_config,
+    )
     api_runtime = WebApiRuntime(
         runtime=runtime,
         config_service=config_service,
         config_file=runtime_paths.config_file,
         log_file=runtime_paths.log_file,
         frontend_dist_dir=runtime_paths.base_dir / "frontend" / "dist",
+        telemetry=telemetry,
     )
     return WebRuntimeComposition(runtime=runtime, api_runtime=api_runtime, paths=runtime_paths)
 
@@ -42,13 +48,7 @@ def build_web_runtime_composition(
 def prepare_runtime_for_web(composition: WebRuntimeComposition) -> None:
     config = composition.runtime.load_config()
     configure_logging(config, composition.paths.log_file)
-    telemetry = TelemetryService(
-        config_file=composition.paths.config_file,
-        load_config=composition.runtime.load_config,
-        save_config=composition.runtime.save_config,
-    )
-    telemetry.emit("app_started", config=config)
-    telemetry.emit_heartbeat_if_due()
+    composition.api_runtime.telemetry.emit("app_started", config=config)
     composition.runtime.start_playback_listener_if_configured()
 
 

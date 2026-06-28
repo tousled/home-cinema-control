@@ -147,10 +147,7 @@ class TestTelemetryConfig(unittest.TestCase):
         telemetry = TelemetryConfig()
         self.assertFalse(telemetry.enabled)
         self.assertEqual("", telemetry.installation_id)
-        self.assertEqual(
-            "https://telemetry.homecinemacontrol.app/v1/events",
-            telemetry.endpoint_url,
-        )
+        self.assertEqual("", telemetry.endpoint_url)
         self.assertEqual(1, telemetry.schema_version)
         self.assertEqual("", telemetry.last_heartbeat_at)
         self.assertEqual(100, telemetry.queue_max_events)

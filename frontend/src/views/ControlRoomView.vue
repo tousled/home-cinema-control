@@ -80,6 +80,11 @@
         </div>
       </div>
 
+        <div v-if="versionStore.newVersionAvailable" class="cr-update-notice" @click="router.push('/status')">
+          <span>{{ $t('x-control-room-update-available') }}</span>
+          <span class="cr-update-link">{{ $t('x-control-room-update-link') }}</span>
+        </div>
+
         <div class="room-idle-meta">
           <span>{{ $t('x-control-room-resources') }}</span>
           <strong>CPU {{ state.cpu_perc ?? '—' }}%</strong>
@@ -101,9 +106,11 @@ import idleSceneBg from '../assets/backgrounds/bg-control-room-idle.png'
 import {usePoll} from '../composables/usePoll.js'
 import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
 import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
+import {useVersionStore} from '../stores/version.js'
 
 const {t} = useI18n()
 const router = useRouter()
+const versionStore = useVersionStore()
 
 const loading = ref(true)
 const state = ref({})
@@ -242,6 +249,30 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.cr-update-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: rgba(245, 165, 36, 0.08);
+  border: 1px solid rgba(245, 165, 36, 0.2);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--status-warning);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.cr-update-notice:hover {
+  background: rgba(245, 165, 36, 0.14);
+}
+
+.cr-update-link {
+  margin-left: auto;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
 /* ─── ACTIVE ROOM STAGE ──────────────────────────────────────────────── */
 .control-room-body {
   position: relative;

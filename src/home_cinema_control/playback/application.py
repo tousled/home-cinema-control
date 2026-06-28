@@ -200,8 +200,9 @@ class PlaybackApplicationService:
             )
 
         if not control_api_available:
-            self._record_diagnostic(diagnose_oppo_unavailable())
-            self._emit_telemetry("playback_failed", {"component": "oppo"})
+            _diag = diagnose_oppo_unavailable()
+            self._record_diagnostic(_diag)
+            self._emit_telemetry("playback_failed", {"component": "oppo", "code": _diag.code})
             send_playback_message(
                 playback_session,
                 origin,
@@ -248,8 +249,9 @@ class PlaybackApplicationService:
                 movie = prepared_requests.movie_path
         except PlayerMediaFileLocationError as exc:
             logger.warning("Media path resolution failed: %s", exc)
-            self._record_diagnostic(diagnose_path_error(exc))
-            self._emit_telemetry("playback_failed", {"component": "path"})
+            _diag = diagnose_path_error(exc)
+            self._record_diagnostic(_diag)
+            self._emit_telemetry("playback_failed", {"component": "path", "code": _diag.code})
             _reset_bridge_playback_state(self._state, movie)
             return
 
@@ -317,7 +319,10 @@ class PlaybackApplicationService:
             self._record_diagnostic(diagnostic)
             self._emit_telemetry(
                 "playback_failed",
-                {"component": _telemetry_component(getattr(diagnostic, "component", ""))},
+                {
+                    "component": _telemetry_component(getattr(diagnostic, "component", "")),
+                    "code": diagnostic.code,
+                },
             )
         else:
             self._emit_telemetry("playback_finished")

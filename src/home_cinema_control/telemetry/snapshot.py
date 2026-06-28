@@ -119,7 +119,11 @@ def _normalize_event(event_name: str, event: dict[str, Any]) -> dict[str, Any]:
         component = str(event.get("component") or "system")
         if component not in _FAILURE_COMPONENTS:
             component = "system"
-        return {"result": "failed", "component": component}
+        result: dict[str, Any] = {"result": "failed", "component": component}
+        code = str(event.get("code") or "").strip().upper()
+        if code:
+            result["error_code"] = code
+        return result
     if event_name == "roadmap_interest_submitted":
         submitted = event.get("interests") or []
         interests = []

@@ -1,4 +1,5 @@
 import logging
+import threading
 
 from fastapi import APIRouter, BackgroundTasks, Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +60,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             updated = apply_config_section(config, section, body)
             updated = api_runtime.config_service.prepare_submitted_config(updated)
             api_runtime.config_service.save_config(updated)
+            _emit_telemetry_async(api_runtime)
             if section == "app":
                 # Logging is configured once at startup; re-apply it here so a
                 # log-level change from the web takes effect live, not only after
@@ -194,3 +196,13 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         return Response("Frontend not built. Run: cd frontend && npm run build", status_code=503)
 
     return app
+
+
+def _emit_telemetry_async(api_runtime: WebApiRuntime) -> None:
+    if api_runtime.telemetry is None:
+        return
+    threading.Thread(
+        target=api_runtime.telemetry.emit,
+        args=("heartbeat",),
+        daemon=True,
+    ).start()

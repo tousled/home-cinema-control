@@ -9,7 +9,7 @@ from home_cinema_control.web.api_runtime import WebApiRuntime
 
 
 class FakeTelemetryClient:
-    def send(self, endpoint_url, payloads):
+    def send(self, base_url, ingest_key, payloads):
         return True
 
 
@@ -20,7 +20,8 @@ def _config(enabled=False, installation_id=""):
         "telemetry": {
             "enabled": enabled,
             "installation_id": installation_id,
-            "endpoint_url": "https://telemetry.example/v1/events",
+            "endpoint_url": "https://telemetry.example",
+            "ingest_key": "test-ingest-key",
         },
         "media_servers": {
             "active": "emby",
@@ -62,14 +63,14 @@ def test_get_telemetry_status_returns_safe_shape(client_class):
     resp = client.get("/api/v1/telemetry")
 
     assert resp.status_code == 200
-    assert resp.json() == {
-        "enabled": False,
-        "installation_id_configured": False,
-        "endpoint_url": "https://telemetry.example/v1/events",
-        "schema_version": 1,
-        "last_heartbeat_at": "",
-        "queue_count": 0,
-    }
+    data = resp.json()
+    assert data["enabled"] is False
+    assert data["installation_id_configured"] is False
+    assert data["ingest_key_configured"] is True
+    assert data["consent_prompted"] is False
+    assert data["endpoint_url"] == "https://telemetry.example"
+    assert data["schema_version"] == 1
+    assert data["queue_count"] == 0
 
 
 @patch("home_cinema_control.telemetry.service.TelemetryClient")

@@ -98,7 +98,9 @@ class TelemetryConfig(BaseModel):
 
     enabled: bool = False
     installation_id: str = ""
-    endpoint_url: str = "https://telemetry.homecinemacontrol.app/v1/events"
+    endpoint_url: str = ""
+    ingest_key: str = ""
+    consent_prompted: bool = False
     schema_version: int = 1
     last_heartbeat_at: str = ""
     queue_max_events: int = 100

@@ -117,8 +117,9 @@ export const api = {
         request('POST', '/telemetry/disable', {reset_identity: resetIdentity}),
     clearTelemetryQueue: () => request('POST', '/telemetry/clear-queue'),
     resetTelemetryInstallationId: () => request('POST', '/telemetry/reset-installation-id'),
-    submitRoadmapInterest: (interests) =>
-        request('POST', '/telemetry/roadmap-interest', {interests}),
+    submitRoadmapInterest: (interests, comment) =>
+        request('POST', '/telemetry/roadmap-interest', {interests, comment: comment || ''}),
+    dismissTelemetryPrompt: () => request('POST', '/telemetry/dismiss-prompt'),
 
     // tv
     testTvConnection: (config) => request('POST', '/tv/test-connection', config),

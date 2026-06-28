@@ -32,12 +32,15 @@ TelemetryFailureComponent = Literal[
 RoadmapInterest = Literal[
     "plex",
     "android_google_tv",
-    "sony_philips_tv",
+    "sony_tv",
+    "philips_tv",
+    "samsung_tv",
     "home_assistant",
     "hue_ambilight",
     "kodi_zdmc",
     "zidoo_dune",
     "oppo_chinoppo_xnoppo",
+    "trinnov_altitude",
 ]
 
 

@@ -1,4 +1,5 @@
 import logging
+import threading
 
 import requests as _requests
 from fastapi import APIRouter, HTTPException
@@ -81,6 +82,7 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
         """
         api_runtime.config_service.save_config(config_dict)
         api_runtime.runtime.restart_playback_listener()
+        _emit_telemetry_async(api_runtime)
         return api_runtime.config_service.sanitize(config_dict)
 
     def _save_media_server_draft(config_dict: dict, provider_type: str) -> dict:
@@ -109,6 +111,7 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
             updated = apply_media_server_section(config, body)
             updated = api_runtime.config_service.prepare_submitted_config(updated)
             api_runtime.config_service.save_config(updated)
+            _emit_telemetry_async(api_runtime)
             return api_runtime.config_service.sanitize(updated)
 
         merged = apply_media_server_section(config, body)
@@ -326,3 +329,13 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
         return _proxy_now_playing_image("Primary", {"maxHeight": "600", "maxWidth": "400", "quality": "90"})
 
     return router
+
+
+def _emit_telemetry_async(api_runtime: WebApiRuntime) -> None:
+    if api_runtime.telemetry is None:
+        return
+    threading.Thread(
+        target=api_runtime.telemetry.emit,
+        args=("heartbeat",),
+        daemon=True,
+    ).start()

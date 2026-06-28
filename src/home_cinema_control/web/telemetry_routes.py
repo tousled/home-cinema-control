@@ -16,6 +16,7 @@ class TelemetryDisableBody(BaseModel):
 
 class RoadmapInterestBody(BaseModel):
     interests: list[RoadmapInterest] = Field(default_factory=list)
+    comment: str = ""
 
 
 def build_telemetry_router(api_runtime: WebApiRuntime) -> APIRouter:
@@ -66,13 +67,20 @@ def build_telemetry_router(api_runtime: WebApiRuntime) -> APIRouter:
     def telemetry_roadmap_interest(body: RoadmapInterestBody):
         try:
             telemetry_service = service()
+            event: dict = {"interests": body.interests}
+            if body.comment:
+                event["comment"] = body.comment[:200].strip()
             telemetry_service.emit(
                 "roadmap_interest_submitted",
-                event={"interests": body.interests},
+                event=event,
             )
             return telemetry_service.status()
         except Exception as exc:
             logging.exception("telemetry_roadmap_interest failed")
             raise HTTPException(status_code=400, detail=str(exc))
+
+    @router.post("/dismiss-prompt")
+    def telemetry_dismiss_prompt():
+        return service().dismiss_prompt()
 
     return router

@@ -127,6 +127,15 @@
         </div>
       </nav>
 
+      <!-- Version available banner -->
+      <div v-if="versionStore.newVersionAvailable && !versionBannerDismissed" class="version-banner">
+        <span class="version-banner-text">{{ $t('x-version-banner-text', {version: latestVersion}) }}</span>
+        <RouterLink class="version-banner-link" to="/status">{{ $t('x-version-banner-link') }}</RouterLink>
+        <button :aria-label="$t('x-version-banner-dismiss')" class="version-banner-dismiss"
+                @click="versionBannerDismissed = true">×
+        </button>
+      </div>
+
       <!-- Footer: language picker -->
       <div class="sidebar-footer">
         <button
@@ -179,6 +188,24 @@
       </div>
     </div>
 
+    <!-- Telemetry opt-in modal (shown once if never decided) -->
+    <div v-if="showTelemetryModal && !showMigration && !showLegacyImport" aria-labelledby="telemetry-modal-title"
+         aria-modal="true" class="modal-backdrop" role="dialog">
+      <div class="modal-box">
+        <h2 id="telemetry-modal-title" class="modal-title">{{ $t('x-telemetry-modal-title') }}</h2>
+        <p class="modal-body">{{ $t('x-telemetry-modal-copy') }}</p>
+        <div class="modal-actions">
+          <button :disabled="telemetryModalSaving" class="btn-ghost" @click="dismissTelemetryModal">
+            {{ $t('x-telemetry-modal-skip') }}
+          </button>
+          <button ref="telemetryAcceptBtn" :disabled="telemetryModalSaving" class="btn-primary"
+                  @click="acceptTelemetry">
+            {{ telemetryModalSaving ? $t('x-common-loading') : $t('x-telemetry-modal-enable') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Legacy XNOPPO import modal (fresh install only) -->
     <div v-if="showLegacyImport" aria-labelledby="legacy-import-title" aria-modal="true" class="modal-backdrop"
          role="dialog">
@@ -213,14 +240,21 @@ import ToastContainer from './components/ToastContainer.vue'
 import {useSetupReadiness} from './composables/useSetupReadiness.js'
 import {useConfigSectionSave} from './composables/useConfigSectionSave.js'
 import {useVersionStore} from './stores/version.js'
+import {useToast} from './composables/useToast.js'
 import brandMark from './assets/branding/hcc-mark.png'
 
 const {t} = useI18n()
 const {readiness, refreshReadiness} = useSetupReadiness()
 const {saveSection} = useConfigSectionSave()
 const versionStore = useVersionStore()
+const toast = useToast()
 const route = useRoute()
 const mobileNavOpen = ref(false)
+
+const showTelemetryModal = ref(false)
+const telemetryModalSaving = ref(false)
+const versionBannerDismissed = ref(false)
+const latestVersion = ref('')
 
 function stepDotColor(status) {
   if (status === 'verified') return 'var(--status-success)'
@@ -297,6 +331,36 @@ async function setLang(l) {
   }
 }
 
+async function _checkVersionOnMount() {
+  try {
+    const vInfo = await api.checkVersion()
+    versionStore.setVersionInfo(vInfo)
+    if (vInfo?.new_version) {
+      latestVersion.value = vInfo.version || ''
+    }
+    const currentVersion = vInfo?.current_version
+    if (currentVersion) {
+      const lastSeen = localStorage.getItem('hcc_last_seen_version')
+      if (lastSeen && lastSeen !== currentVersion) {
+        toast.show('success', t('x-whats-new-title', {version: currentVersion}), 6000)
+      }
+      localStorage.setItem('hcc_last_seen_version', currentVersion)
+    }
+  } catch { /* non-fatal */
+  }
+}
+
+async function _checkTelemetryOnMount(migrationAvailable) {
+  if (migrationAvailable) return
+  try {
+    const status = await api.getTelemetryStatus()
+    if (!status.consent_prompted) {
+      showTelemetryModal.value = true
+    }
+  } catch { /* non-fatal */
+  }
+}
+
 onMounted(async () => {
   let migrationAvailable = false
   try {
@@ -318,6 +382,9 @@ onMounted(async () => {
     await refreshReadiness()
     showLegacyImport.value = looksLikeFreshInstall.value
   }
+
+  _checkVersionOnMount()
+  _checkTelemetryOnMount(migrationAvailable)
 })
 
 async function applyMigration() {
@@ -381,6 +448,25 @@ async function onLegacyFileSelected(event) {
     legacyImportError.value = e.message || t('x-legacy-import-invalid-file')
   } finally {
     legacyImporting.value = false
+  }
+}
+
+async function acceptTelemetry() {
+  telemetryModalSaving.value = true
+  try {
+    await api.enableTelemetry()
+    showTelemetryModal.value = false
+  } catch { /* ignore */
+  } finally {
+    telemetryModalSaving.value = false
+  }
+}
+
+async function dismissTelemetryModal() {
+  showTelemetryModal.value = false
+  try {
+    await api.dismissTelemetryPrompt()
+  } catch { /* ignore */
   }
 }
 </script>
@@ -587,6 +673,46 @@ async function onLegacyFileSelected(event) {
 }
 
 /* ─── SIDEBAR FOOTER / LANG PICKER ──────────────────────────────────── */
+.version-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 8px;
+  padding: 8px 10px;
+  background: rgba(245, 165, 36, 0.1);
+  border: 1px solid rgba(245, 165, 36, 0.25);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--status-warning);
+}
+
+.version-banner-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-banner-link {
+  flex-shrink: 0;
+  color: var(--status-warning);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+.version-banner-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
 .sidebar-footer {
   padding: 12px 10px;
   border-top: 1px solid rgba(176, 190, 190, 0.08);

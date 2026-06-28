@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -35,7 +36,9 @@ class TelemetryService:
         return {
             "enabled": config.telemetry.enabled,
             "installation_id_configured": bool(config.telemetry.installation_id),
-            "endpoint_url": config.telemetry.endpoint_url,
+            "ingest_key_configured": bool(_effective_ingest_key(config.telemetry)),
+            "consent_prompted": config.telemetry.consent_prompted,
+            "endpoint_url": _effective_endpoint_url(config.telemetry),
             "schema_version": config.telemetry.schema_version,
             "last_heartbeat_at": config.telemetry.last_heartbeat_at,
             "queue_count": queue.count(),
@@ -48,12 +51,28 @@ class TelemetryService:
         updated = config.model_copy(
             update={
                 "telemetry": telemetry.model_copy(
-                    update={"enabled": True, "installation_id": installation_id}
+                    update={
+                        "enabled": True,
+                        "installation_id": installation_id,
+                        "consent_prompted": True,
+                    }
                 )
             }
         )
         self._save_config(updated.model_dump())
         self.emit("install_opt_in", config=updated)
+        return self.status()
+
+    def dismiss_prompt(self) -> dict[str, Any]:
+        config = HccConfig.model_validate(self._load_config())
+        updated = config.model_copy(
+            update={
+                "telemetry": config.telemetry.model_copy(
+                    update={"consent_prompted": True}
+                )
+            }
+        )
+        self._save_config(updated.model_dump())
         return self.status()
 
     def disable(self, *, reset_identity: bool = False) -> dict[str, Any]:
@@ -98,7 +117,9 @@ class TelemetryService:
         payload = build_telemetry_payload(validated, event_name, event=event)
         queue = self._queue(validated.telemetry)
         self._flush_queue(validated, queue)
-        if self._client.send(validated.telemetry.endpoint_url, [payload]):
+        endpoint_url = _effective_endpoint_url(validated.telemetry)
+        ingest_key = _effective_ingest_key(validated.telemetry)
+        if self._client.send(endpoint_url, ingest_key, [payload]):
             return True
         queue.enqueue(payload)
         return False
@@ -126,7 +147,9 @@ class TelemetryService:
         queued = queue.load()
         if not queued:
             return True
-        if self._client.send(config.telemetry.endpoint_url, queued):
+        endpoint_url = _effective_endpoint_url(config.telemetry)
+        ingest_key = _effective_ingest_key(config.telemetry)
+        if self._client.send(endpoint_url, ingest_key, queued):
             queue.clear()
             return True
         queue.replace(queued)
@@ -161,3 +184,11 @@ def _heartbeat_due(last_heartbeat_at: str) -> bool:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _effective_endpoint_url(telemetry: TelemetryConfig) -> str:
+    return os.environ.get("HCC_TELEMETRY_ENDPOINT_URL") or telemetry.endpoint_url
+
+
+def _effective_ingest_key(telemetry: TelemetryConfig) -> str:
+    return os.environ.get("HCC_TELEMETRY_INGEST_KEY") or telemetry.ingest_key

@@ -8,8 +8,8 @@ class FakeTelemetryClient:
         self.result = result
         self.calls = []
 
-    def send(self, endpoint_url, payloads):
-        self.calls.append((endpoint_url, list(payloads)))
+    def send(self, base_url, ingest_key, payloads):
+        self.calls.append((base_url, ingest_key, list(payloads)))
         return self.result
 
 
@@ -20,7 +20,8 @@ def _config(enabled=False, installation_id="", last_heartbeat_at=""):
         "telemetry": {
             "enabled": enabled,
             "installation_id": installation_id,
-            "endpoint_url": "https://telemetry.example/v1/events",
+            "endpoint_url": "https://telemetry.example",
+            "ingest_key": "test-ingest-key",
             "last_heartbeat_at": last_heartbeat_at,
         },
         "media_servers": {
@@ -83,7 +84,7 @@ def test_enable_generates_installation_id_and_sends_opt_in(tmp_path):
     assert status["installation_id_configured"] is True
     assert state["config"]["telemetry"]["enabled"] is True
     assert state["config"]["telemetry"]["installation_id"]
-    assert client.calls[0][1][0].event_name == "install_opt_in"
+    assert client.calls[0][2][0].event_name == "install_opt_in"
 
 
 def test_failed_send_is_queued_without_raising(tmp_path):
@@ -119,8 +120,8 @@ def test_successful_emit_flushes_existing_queue(tmp_path):
     assert service.emit("app_started") is True
     assert service.status()["queue_count"] == 0
     assert len(successful_client.calls) == 2
-    assert successful_client.calls[0][1][0].event_name == "heartbeat"
-    assert successful_client.calls[1][1][0].event_name == "app_started"
+    assert successful_client.calls[0][2][0].event_name == "heartbeat"
+    assert successful_client.calls[1][2][0].event_name == "app_started"
 
 
 def test_disable_clears_pending_queue(tmp_path):
