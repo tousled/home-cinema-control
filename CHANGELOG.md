@@ -13,6 +13,9 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   exactly what is sent and why. HCC never sends media titles, libraries, paths, URLs, IPs, tokens, logs, scripts, or
   custom commands in telemetry payloads.
 
+* Added a new poll for user feedback on the Diagnostics screen. Next features can be voted on in the poll.
+  The most qualified features will be implemented first.
+
 ## [1.1.2] - 2026-06-27
 
 ### Fixed
