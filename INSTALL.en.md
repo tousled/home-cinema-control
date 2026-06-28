@@ -376,6 +376,12 @@ The version panel shows the installed version in Docker tag form, such as `1.1.1
 configured, HCC records the current version before asking the deployment platform to redeploy; older installs without
 that stored value derive rollback guidance from GitHub releases/tags instead of showing the internal build fallback.
 
+Telemetry is optional and disabled by default. If enabled, HCC sends minimal anonymous data to understand adoption and
+prioritize development: active installation, version, language, Emby/Jellyfin provider, OPPO/TV/AV usage, NFS/SMB, and
+playback started/finished/failed events. If the telemetry backend is unavailable, HCC temporarily stores those
+anonymous events in `/config/telemetry_queue.json` and retries later. It does not send paths, IPs, tokens, URLs, server
+names, libraries, titles, logs, scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
+
 ## 10. Readable Logs
 
 The Logs screen renders structured logs with severity and filtering.

@@ -11,6 +11,7 @@ from home_cinema_control.config.models import (
     OppoConfig,
     PathMappingConfig,
     ProviderPlaybackConfig,
+    TelemetryConfig,
     TvConfig,
 )
 
@@ -24,6 +25,7 @@ class TestHccConfig(unittest.TestCase):
         self.assertEqual(3, config.oppo.api_retry_attempts)
         self.assertEqual("emby", config.media_servers.active)
         self.assertEqual({}, config.media_servers.providers)
+        self.assertFalse(config.telemetry.enabled)
         self.assertNotIn("media_server", HccConfig.model_fields)
         self.assertNotIn("playback", HccConfig.model_fields)
 
@@ -138,6 +140,21 @@ class TestOppoConfig(unittest.TestCase):
     def test_api_retry_attempts_rejects_float(self):
         with self.assertRaises(ValidationError):
             OppoConfig(api_retry_attempts=2.5)
+
+
+class TestTelemetryConfig(unittest.TestCase):
+    def test_defaults(self):
+        telemetry = TelemetryConfig()
+        self.assertFalse(telemetry.enabled)
+        self.assertEqual("", telemetry.installation_id)
+        self.assertEqual(
+            "https://telemetry.homecinemacontrol.app/v1/events",
+            telemetry.endpoint_url,
+        )
+        self.assertEqual(1, telemetry.schema_version)
+        self.assertEqual("", telemetry.last_heartbeat_at)
+        self.assertEqual(100, telemetry.queue_max_events)
+        self.assertEqual(7, telemetry.queue_max_age_days)
 
 
 class TestMediaServerProviderConfig(unittest.TestCase):

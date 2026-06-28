@@ -270,6 +270,95 @@
           </template>
         </div>
       </div>
+
+          <!-- Telemetry -->
+          <div :class="telemetryAccentClass" class="panel mb-3">
+            <div class="panel-head">
+              <h2 class="panel-title">
+                <Activity :size="13" :stroke-width="2.3"/>
+                {{ $t('x-status-telemetry-title') }}
+              </h2>
+            </div>
+            <div class="panel-body">
+              <p class="caption mb-3">{{ $t('x-status-telemetry-copy') }}</p>
+
+              <dl class="space-y-1 mb-3" style="font-size:12px;color:var(--text-muted)">
+                <div class="flex gap-2">
+                  <dt style="color:var(--text-subtle)">{{ $t('x-status-telemetry-state') }}</dt>
+                  <dd>{{ telemetryStatus?.enabled ? $t('x-common-enabled') : $t('x-common-disabled') }}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt style="color:var(--text-subtle)">{{ $t('x-status-telemetry-endpoint') }}</dt>
+                  <dd class="mono" style="overflow-wrap:anywhere">{{ telemetryStatus?.endpoint_url || '—' }}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt style="color:var(--text-subtle)">{{ $t('x-status-telemetry-queue') }}</dt>
+                  <dd class="mono">{{ telemetryStatus?.queue_count ?? 0 }}</dd>
+                </div>
+              </dl>
+
+              <div class="telemetry-table mb-3">
+                <div v-for="row in telemetryRows" :key="row.key" class="telemetry-row">
+                  <span>{{ row.label }}</span>
+                  <span>{{ row.purpose }}</span>
+                </div>
+              </div>
+
+              <p class="caption mb-2">{{ $t('x-status-telemetry-never-title') }}</p>
+              <p class="caption mb-3">{{ $t('x-status-telemetry-never-copy') }}</p>
+
+              <div class="icon-action-row mb-3" style="margin-top:0">
+                <button
+                    v-if="!telemetryStatus?.enabled"
+                    :disabled="telemetrySaving"
+                    class="btn-service-action"
+                    @click="enableTelemetry"
+                >
+                  {{ telemetrySaving ? $t('x-common-loading') : $t('x-status-telemetry-enable') }}
+                </button>
+                <button
+                    v-else
+                    :disabled="telemetrySaving"
+                    class="btn-ghost"
+                    @click="disableTelemetry(false)"
+                >
+                  {{ telemetrySaving ? $t('x-common-loading') : $t('x-status-telemetry-disable') }}
+                </button>
+                <button
+                    :disabled="telemetrySaving || !telemetryStatus?.installation_id_configured"
+                    class="btn-ghost"
+                    @click="resetTelemetryIdentity"
+                >
+                  {{ $t('x-status-telemetry-reset-id') }}
+                </button>
+                <button
+                    :disabled="telemetrySaving || !telemetryStatus?.queue_count"
+                    class="btn-ghost"
+                    @click="clearTelemetryQueue"
+                >
+                  {{ $t('x-status-telemetry-clear-queue') }}
+                </button>
+              </div>
+
+              <div class="telemetry-roadmap">
+                <p class="caption mb-2">{{ $t('x-status-roadmap-copy') }}</p>
+                <div class="roadmap-options">
+                  <label v-for="option in roadmapOptions" :key="option.id" class="roadmap-option">
+                    <input v-model="roadmapSelection" :value="option.id" type="checkbox"/>
+                    <span>{{ option.label }}</span>
+                  </label>
+                </div>
+                <button
+                    :disabled="roadmapSaving || roadmapSelection.length === 0"
+                    class="btn-ghost"
+                    style="margin-top:10px"
+                    @click="submitRoadmapInterest"
+                >
+                  {{ roadmapSaving ? $t('x-common-loading') : $t('x-status-roadmap-submit') }}
+                </button>
+              </div>
+            </div>
+          </div>
         </div><!-- /right column -->
       </div><!-- /status-grid -->
 
@@ -319,6 +408,10 @@ const updateResult = ref(null)
 const webhookUrl = ref('')
 const webhookSaving = ref(false)
 const fullConfig = ref({})
+const telemetryStatus = ref(null)
+const telemetrySaving = ref(false)
+const roadmapSaving = ref(false)
+const roadmapSelection = ref([])
 const posterSrc = computed(() => {
   const itemId = state.value.ActiveSession?.media_item_id
   if (!itemId) {
@@ -387,6 +480,45 @@ const versionAccentClass = computed(() => {
   if (versionInfo.value?.new_version) return 'panel-accent-warn'
   return 'panel-accent-ok'
 })
+
+const telemetryAccentClass = computed(() => {
+  if (telemetryStatus.value?.enabled) return 'panel-accent-ok'
+  return 'panel-accent-dim'
+})
+
+const telemetryRows = computed(() => [
+  {
+    key: 'installation',
+    label: t('x-status-telemetry-row-installation'),
+    purpose: t('x-status-telemetry-row-installation-purpose'),
+  },
+  {
+    key: 'provider',
+    label: t('x-status-telemetry-row-provider'),
+    purpose: t('x-status-telemetry-row-provider-purpose'),
+  },
+  {
+    key: 'room',
+    label: t('x-status-telemetry-row-room'),
+    purpose: t('x-status-telemetry-row-room-purpose'),
+  },
+  {
+    key: 'playback',
+    label: t('x-status-telemetry-row-playback'),
+    purpose: t('x-status-telemetry-row-playback-purpose'),
+  },
+])
+
+const roadmapOptions = computed(() => [
+  {id: 'plex', label: t('x-status-roadmap-plex')},
+  {id: 'android_google_tv', label: t('x-status-roadmap-android')},
+  {id: 'sony_philips_tv', label: t('x-status-roadmap-sony-philips')},
+  {id: 'home_assistant', label: t('x-status-roadmap-ha')},
+  {id: 'hue_ambilight', label: t('x-status-roadmap-hue')},
+  {id: 'kodi_zdmc', label: t('x-status-roadmap-kodi')},
+  {id: 'zidoo_dune', label: t('x-status-roadmap-zidoo')},
+  {id: 'oppo_chinoppo_xnoppo', label: t('x-status-roadmap-oppo')},
+])
 
 function diagBg(severity) {
   if (severity === 'error') return 'rgba(255,92,122,0.06)'
@@ -495,6 +627,74 @@ async function sendKey(key) {
   }
 }
 
+async function loadTelemetryStatus() {
+  try {
+    telemetryStatus.value = await api.getTelemetryStatus()
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function enableTelemetry() {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.enableTelemetry()
+    toast.success(t('x-status-telemetry-enabled'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function disableTelemetry(resetIdentity) {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.disableTelemetry(resetIdentity)
+    toast.success(t('x-status-telemetry-disabled'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function resetTelemetryIdentity() {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.resetTelemetryInstallationId()
+    toast.success(t('x-status-telemetry-id-reset'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function clearTelemetryQueue() {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.clearTelemetryQueue()
+    toast.success(t('x-status-telemetry-queue-cleared'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function submitRoadmapInterest() {
+  roadmapSaving.value = true
+  try {
+    telemetryStatus.value = await api.submitRoadmapInterest(roadmapSelection.value)
+    toast.success(t('x-status-roadmap-sent'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    roadmapSaving.value = false
+  }
+}
+
 onMounted(async () => {
   loading.value = true
   try {
@@ -507,6 +707,7 @@ onMounted(async () => {
     } catch { /* non-fatal */
     }
     await checkVersion()
+    await loadTelemetryStatus()
     await versionStore.loadRollbackInfo()
   } finally {
     loading.value = false
@@ -619,6 +820,50 @@ onMounted(async () => {
   border-radius: 6px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
   display: block;
+}
+
+.telemetry-table {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.telemetry-row {
+  display: grid;
+  grid-template-columns: minmax(95px, 0.7fr) minmax(0, 1.3fr);
+  gap: 10px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.telemetry-row span:first-child {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.telemetry-roadmap {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+}
+
+.roadmap-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.roadmap-option {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 @media (max-width: 640px) {

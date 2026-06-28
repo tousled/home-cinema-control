@@ -10,6 +10,7 @@ from home_cinema_control.runtime import (
 )
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.config_service import WebConfigService
+from home_cinema_control.telemetry.service import TelemetryService
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,13 @@ def build_web_runtime_composition(
 def prepare_runtime_for_web(composition: WebRuntimeComposition) -> None:
     config = composition.runtime.load_config()
     configure_logging(config, composition.paths.log_file)
+    telemetry = TelemetryService(
+        config_file=composition.paths.config_file,
+        load_config=composition.runtime.load_config,
+        save_config=composition.runtime.save_config,
+    )
+    telemetry.emit("app_started", config=config)
+    telemetry.emit_heartbeat_if_due()
     composition.runtime.start_playback_listener_if_configured()
 
 

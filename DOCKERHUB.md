@@ -17,6 +17,8 @@ verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics,
 - Optionally switches TV and AV receiver inputs.
 - Reports playback progress and state back to Emby when supported by the device flow.
 - Exposes diagnostics, structured logs with copy/download support, version checks, update hooks, and rollback guidance.
+- Offers opt-in anonymous telemetry and roadmap feedback; disabled by default and never sending paths, IPs, tokens,
+  server names, titles, logs, scripts, or custom commands.
 
 ## Quick start
 

@@ -85,6 +85,11 @@ Con esta pantalla el usuario puede distinguir entre un problema de Emby, una rut
 el OPPO, un dispositivo de sala desactivado o un error de actualización. La intención es reducir el “prueba otra vez” y
 convertir cada fallo en una pista accionable.
 
+También incluye una sección de telemetría opcional, desactivada por defecto, para ayudar a decidir el roadmap de HCC:
+instalaciones activas, proveedor usado, uso de TV/AV y eventos básicos de reproducción. La telemetría usa un
+identificador anónimo aleatorio por instalación y no envía rutas, IPs, tokens, servidores, bibliotecas, títulos, logs,
+scripts ni comandos personalizados. Ver [docs/telemetry.md](docs/telemetry.md).
+
 ## Sala opcional, pero bien integrada
 
 No todas las salas tienen la misma complejidad. Algunas solo necesitan Emby y el OPPO. Otras quieren que la TV cambie de
@@ -125,6 +130,7 @@ más seria.
 | TV LG WebOS                      | Cambio de entrada y retorno a la app, si se configura.                      |
 | Receptores AV                    | Denon, Marantz, Yamaha, NAD, Onkyo y scripts personalizados.                |
 | Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.          |
+| Telemetría                       | Opt-in, anónima, documentada y orientada a priorizar roadmap.               |
 | Docker                           | Despliegue principal con red host y configuración persistente en `/config`. |
 
 ## Qué define la 1.0.0

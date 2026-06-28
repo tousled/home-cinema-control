@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [Unreleased]
+
+### Added
+
+* Added opt-in product telemetry and roadmap feedback controls on the Diagnostics screen. Telemetry is disabled by
+  default, uses a random anonymous installation ID, retries failed sends through a bounded local queue, and documents
+  exactly what is sent and why. HCC never sends media titles, libraries, paths, URLs, IPs, tokens, logs, scripts, or
+  custom commands in telemetry payloads.
+
 ## [1.1.2] - 2026-06-27
 
 ### Fixed

@@ -93,6 +93,18 @@ class SmbConfig(BaseModel):
     password: str = ""
 
 
+class TelemetryConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    enabled: bool = False
+    installation_id: str = ""
+    endpoint_url: str = "https://telemetry.homecinemacontrol.app/v1/events"
+    schema_version: int = 1
+    last_heartbeat_at: str = ""
+    queue_max_events: int = 100
+    queue_max_age_days: int = 7
+
+
 class ProviderPlaybackConfig(BaseModel):
     """What HCC needs to detect and translate playback from one provider.
 
@@ -162,3 +174,4 @@ class HccConfig(BaseModel):
     oppo: OppoConfig = Field(default_factory=OppoConfig)
     media_servers: MediaServersConfig = Field(default_factory=MediaServersConfig)
     smb: SmbConfig = Field(default_factory=SmbConfig)
+    telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)

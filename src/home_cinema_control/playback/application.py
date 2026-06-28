@@ -61,6 +61,7 @@ class PlaybackApplicationService:
         playback_state: BridgePlaybackState,
         reload_config,
             media_server_playback_services: MediaServerPlaybackServices | None = None,
+            telemetry_service=None,
         stop_active_playback=None,
         sleep=time.sleep,
     ) -> None:
@@ -68,6 +69,7 @@ class PlaybackApplicationService:
         self._state = playback_state
         self._reload_config = reload_config
         self._media_server_playback_services = media_server_playback_services
+        self._telemetry_service = telemetry_service
         self._stop_active_playback = stop_active_playback or (
             lambda: stop_active_player_playback_before_replacement(
                 self._state, self._playback_session.config
@@ -199,6 +201,7 @@ class PlaybackApplicationService:
 
         if not control_api_available:
             self._record_diagnostic(diagnose_oppo_unavailable())
+            self._emit_telemetry("playback_failed", {"component": "oppo"})
             send_playback_message(
                 playback_session,
                 origin,
@@ -246,6 +249,7 @@ class PlaybackApplicationService:
         except PlayerMediaFileLocationError as exc:
             logger.warning("Media path resolution failed: %s", exc)
             self._record_diagnostic(diagnose_path_error(exc))
+            self._emit_telemetry("playback_failed", {"component": "path"})
             _reset_bridge_playback_state(self._state, movie)
             return
 
@@ -311,6 +315,12 @@ class PlaybackApplicationService:
         )
         if diagnostic is not None:
             self._record_diagnostic(diagnostic)
+            self._emit_telemetry(
+                "playback_failed",
+                {"component": _telemetry_component(getattr(diagnostic, "component", ""))},
+            )
+        else:
+            self._emit_telemetry("playback_finished")
         self._remember_playback_return_tv_app_id(playback_orchestration_result)
         self._clear_playback_return_tv_app_id_after_final_finish(
             playback_orchestration_result
@@ -365,11 +375,24 @@ class PlaybackApplicationService:
                 playback_state=self._state,
             ),
         )
+        self._emit_telemetry("playback_started")
 
         # Sent for every origin and regardless of TV-switching config: this is
         # the one notification that reaches whichever client started playback
         # (e.g. the Emby phone app), independent of whether HCC also drives a TV.
         messaging.action(content_kind)
+
+    def _emit_telemetry(self, event_name: str, event: dict | None = None) -> None:
+        if self._telemetry_service is None:
+            return
+        try:
+            self._telemetry_service.emit(
+                event_name,
+                event=event,
+                config=self._playback_session.config,
+            )
+        except Exception:
+            logger.debug("Playback telemetry emission failed", exc_info=True)
 
     def _remember_playback_return_tv_app_id(self, playback_orchestration_result) -> None:
         startup_result = playback_orchestration_result.startup_result
@@ -412,3 +435,11 @@ def _should_stop_source_client_before_handoff(origin: PlaybackOrigin) -> bool:
 def _reset_bridge_playback_state(state: BridgePlaybackState, movie: str) -> None:
     state.finish()
     logger.info("Fin PlaybackApplicationService.start %s", movie)
+
+
+def _telemetry_component(component: str) -> str:
+    if component in {"oppo", "tv", "av", "path", "cleanup", "system"}:
+        return component
+    if component in {"emby", "jellyfin", "media_server"}:
+        return "media_server"
+    return "system"
