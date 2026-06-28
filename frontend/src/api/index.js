@@ -25,6 +25,10 @@ function shouldNotifyConfigChanged(method, path) {
         || path === '/migration/apply'
         || path === '/migration/skip'
         || path === '/migration/import-legacy'
+        || path === '/telemetry/enable'
+        || path === '/telemetry/disable'
+        || path === '/telemetry/clear-queue'
+        || path === '/telemetry/reset-installation-id'
 }
 
 function notifyConfigChanged(method, path) {
@@ -105,6 +109,17 @@ export const api = {
 
     // network
     discoverDevices: () => request('GET', '/network/devices'),
+
+    // telemetry
+    getTelemetryStatus: () => request('GET', '/telemetry'),
+    enableTelemetry: () => request('POST', '/telemetry/enable'),
+    disableTelemetry: (resetIdentity = false) =>
+        request('POST', '/telemetry/disable', {reset_identity: resetIdentity}),
+    clearTelemetryQueue: () => request('POST', '/telemetry/clear-queue'),
+    resetTelemetryInstallationId: () => request('POST', '/telemetry/reset-installation-id'),
+    submitRoadmapInterest: (interests, comment) =>
+        request('POST', '/telemetry/roadmap-interest', {interests, comment: comment || ''}),
+    dismissTelemetryPrompt: () => request('POST', '/telemetry/dismiss-prompt'),
 
     // tv
     testTvConnection: (config) => request('POST', '/tv/test-connection', config),

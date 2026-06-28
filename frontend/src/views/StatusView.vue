@@ -122,6 +122,61 @@
           </div>
         </div>
       </div>
+          <!-- Telemetry — moved to left column -->
+          <div :class="telemetryAccentClass" class="panel mb-3">
+            <div class="panel-head">
+              <h2 class="panel-title">
+                <Activity :size="13" :stroke-width="2.3"/>
+                {{ $t('x-status-telemetry-title') }}
+              </h2>
+              <span :class="telemetryStatus?.enabled ? 'tag-ok' : 'tag-dim'" class="tag">
+                {{ telemetryStatus?.enabled ? $t('x-common-enabled') : $t('x-common-disabled') }}
+              </span>
+            </div>
+            <div class="panel-body">
+              <p class="caption mb-3">{{ $t('x-status-telemetry-short-copy') }}</p>
+
+              <p v-if="telemetryStatus?.queue_count > 0" class="telemetry-queue-note mb-3">
+                {{ $tc('x-telemetry-pending', telemetryStatus.queue_count, {n: telemetryStatus.queue_count}) }}
+              </p>
+
+              <p class="caption mb-3">
+                <button class="telemetry-what-data-link" @click="showDataModal = true">
+                  {{ $t('x-telemetry-what-data') }}
+                </button>
+              </p>
+
+              <div class="icon-action-row mb-2" style="margin-top:0">
+                <button
+                    v-if="!telemetryStatus?.enabled"
+                    :disabled="telemetrySaving"
+                    class="btn-service-action"
+                    @click="enableTelemetry"
+                >
+                  {{ telemetrySaving ? $t('x-common-loading') : $t('x-status-telemetry-enable') }}
+                </button>
+                <button
+                    v-else
+                    :disabled="telemetrySaving"
+                    class="btn-ghost"
+                    @click="disableTelemetry(false)"
+                >
+                  {{ telemetrySaving ? $t('x-common-loading') : $t('x-status-telemetry-disable') }}
+                </button>
+              </div>
+
+              <div class="telemetry-secondary-actions">
+                <button
+                    v-if="telemetryStatus?.queue_count > 0"
+                    :disabled="telemetrySaving"
+                    class="btn-text-muted"
+                    @click="clearTelemetryQueue"
+                >
+                  {{ $t('x-status-telemetry-clear-queue') }}
+                </button>
+              </div>
+            </div>
+          </div>
         </div><!-- /left column -->
 
         <!-- Right column -->
@@ -270,7 +325,56 @@
           </template>
         </div>
       </div>
+
         </div><!-- /right column -->
+
+        <!-- Roadmap — full width below both columns -->
+        <div class="panel panel-accent-dim roadmap-full-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">
+              <Activity :size="13" :stroke-width="2.3"/>
+              {{ $t('x-status-roadmap-title') }}
+            </h2>
+          </div>
+          <div class="panel-body">
+            <p class="caption mb-3">{{ $t('x-status-roadmap-full-copy') }}</p>
+            <div v-if="showTelemetryPrompt && !telemetryStatus?.enabled" class="roadmap-consent-prompt mb-3">
+              <p class="roadmap-consent-copy">{{ $t('x-status-roadmap-consent-copy') }}</p>
+              <div class="roadmap-consent-actions">
+                <button :disabled="roadmapSaving" class="btn-service-action" @click="enableTelemetryAndSubmit">
+                  {{ roadmapSaving ? $t('x-common-loading') : $t('x-status-roadmap-consent-enable') }}
+                </button>
+                <button class="btn-text-muted" @click="showTelemetryPrompt = false">
+                  {{ $t('x-status-roadmap-consent-cancel') }}
+                </button>
+              </div>
+            </div>
+            <div class="roadmap-options mb-3">
+              <label v-for="option in roadmapOptions" :key="option.id" class="roadmap-option">
+                <input v-model="roadmapSelection" :value="option.id" type="checkbox"/>
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+            <div class="roadmap-comment-row mb-3">
+              <textarea
+                  v-model="roadmapComment"
+                  :placeholder="$t('x-status-roadmap-comment-placeholder')"
+                  class="roadmap-comment"
+                  maxlength="200"
+                  rows="2"
+              ></textarea>
+              <span class="roadmap-comment-count">{{ roadmapComment.length }}/200</span>
+            </div>
+            <button
+                v-if="!showTelemetryPrompt || telemetryStatus?.enabled"
+                :disabled="roadmapSaving || roadmapSelection.length === 0"
+                class="btn-service-action"
+                @click="submitRoadmapInterest"
+            >
+              {{ roadmapSaving ? $t('x-common-loading') : $t('x-status-roadmap-submit-btn') }}
+            </button>
+          </div>
+        </div>
       </div><!-- /status-grid -->
 
       <!-- Actions -->
@@ -282,6 +386,35 @@
       </div>
 
     </template>
+    </div>
+
+    <!-- What data modal -->
+    <div v-if="showDataModal" aria-labelledby="data-modal-title" aria-modal="true" class="data-modal-backdrop"
+         role="dialog" @click.self="showDataModal = false">
+      <div class="data-modal-box">
+        <h2 id="data-modal-title" class="data-modal-title">{{ $t('x-telemetry-data-modal-title') }}</h2>
+        <p class="data-modal-intro">{{ $t('x-telemetry-data-modal-intro') }}</p>
+
+        <div class="telemetry-table mb-4">
+          <div v-for="row in telemetryRows" :key="row.key" class="telemetry-row">
+            <span>{{ row.label }}</span>
+            <span>{{ row.purpose }}</span>
+          </div>
+        </div>
+
+        <p class="data-modal-never-title">{{ $t('x-telemetry-data-modal-never-title') }}</p>
+        <ul class="data-modal-never-list">
+          <li v-for="item in telemetryNeverItems" :key="item">{{ item }}</li>
+        </ul>
+
+        <p class="data-modal-source">{{ $t('x-telemetry-data-modal-source') }}</p>
+
+        <div class="data-modal-actions">
+          <button class="btn-service-action" @click="showDataModal = false">
+            {{ $t('x-telemetry-data-modal-close') }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -319,6 +452,13 @@ const updateResult = ref(null)
 const webhookUrl = ref('')
 const webhookSaving = ref(false)
 const fullConfig = ref({})
+const telemetryStatus = ref(null)
+const telemetrySaving = ref(false)
+const roadmapSaving = ref(false)
+const roadmapSelection = ref([])
+const roadmapComment = ref('')
+const showDataModal = ref(false)
+const showTelemetryPrompt = ref(false)
 const posterSrc = computed(() => {
   const itemId = state.value.ActiveSession?.media_item_id
   if (!itemId) {
@@ -387,6 +527,50 @@ const versionAccentClass = computed(() => {
   if (versionInfo.value?.new_version) return 'panel-accent-warn'
   return 'panel-accent-ok'
 })
+
+const telemetryAccentClass = computed(() => {
+  if (telemetryStatus.value?.enabled) return 'panel-accent-ok'
+  return 'panel-accent-dim'
+})
+
+const telemetryRows = computed(() => [
+  {
+    key: 'installation',
+    label: t('x-status-telemetry-row-installation'),
+    purpose: t('x-status-telemetry-row-installation-purpose'),
+  },
+  {
+    key: 'provider',
+    label: t('x-status-telemetry-row-provider'),
+    purpose: t('x-status-telemetry-row-provider-purpose'),
+  },
+  {
+    key: 'room',
+    label: t('x-status-telemetry-row-room'),
+    purpose: t('x-status-telemetry-row-room-purpose'),
+  },
+  {
+    key: 'playback',
+    label: t('x-status-telemetry-row-playback'),
+    purpose: t('x-status-telemetry-row-playback-purpose'),
+  },
+])
+
+const telemetryNeverItems = computed(() => t('x-telemetry-data-modal-never-items').split('|').map(s => s.trim()).filter(Boolean))
+
+const roadmapOptions = computed(() => [
+  {id: 'plex', label: t('x-status-roadmap-plex')},
+  {id: 'android_google_tv', label: t('x-status-roadmap-android')},
+  {id: 'sony_tv', label: t('x-status-roadmap-sony')},
+  {id: 'philips_tv', label: t('x-status-roadmap-philips')},
+  {id: 'samsung_tv', label: t('x-status-roadmap-samsung')},
+  {id: 'home_assistant', label: t('x-status-roadmap-ha')},
+  {id: 'hue_ambilight', label: t('x-status-roadmap-hue')},
+  {id: 'kodi_zdmc', label: t('x-status-roadmap-kodi')},
+  {id: 'zidoo_dune', label: t('x-status-roadmap-zidoo')},
+  {id: 'oppo_chinoppo_xnoppo', label: t('x-status-roadmap-oppo')},
+  {id: 'trinnov_altitude', label: t('x-status-roadmap-trinnov')},
+])
 
 function diagBg(severity) {
   if (severity === 'error') return 'rgba(255,92,122,0.06)'
@@ -495,6 +679,94 @@ async function sendKey(key) {
   }
 }
 
+async function loadTelemetryStatus() {
+  try {
+    telemetryStatus.value = await api.getTelemetryStatus()
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function enableTelemetry() {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.enableTelemetry()
+    toast.success(t('x-status-telemetry-enabled'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function disableTelemetry(resetIdentity) {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.disableTelemetry(resetIdentity)
+    toast.success(t('x-status-telemetry-disabled'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function resetTelemetryIdentity() {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.resetTelemetryInstallationId()
+    toast.success(t('x-status-telemetry-id-reset'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function clearTelemetryQueue() {
+  telemetrySaving.value = true
+  try {
+    telemetryStatus.value = await api.clearTelemetryQueue()
+    toast.success(t('x-status-telemetry-queue-cleared'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    telemetrySaving.value = false
+  }
+}
+
+async function submitRoadmapInterest() {
+  if (!telemetryStatus.value?.enabled) {
+    showTelemetryPrompt.value = true
+    return
+  }
+  roadmapSaving.value = true
+  try {
+    telemetryStatus.value = await api.submitRoadmapInterest(roadmapSelection.value, roadmapComment.value)
+    toast.success(t('x-status-roadmap-sent'))
+    showTelemetryPrompt.value = false
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    roadmapSaving.value = false
+  }
+}
+
+async function enableTelemetryAndSubmit() {
+  roadmapSaving.value = true
+  try {
+    telemetryStatus.value = await api.enableTelemetry()
+    toast.success(t('x-status-telemetry-enabled'))
+    showTelemetryPrompt.value = false
+    telemetryStatus.value = await api.submitRoadmapInterest(roadmapSelection.value, roadmapComment.value)
+    toast.success(t('x-status-roadmap-sent'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    roadmapSaving.value = false
+  }
+}
+
 onMounted(async () => {
   loading.value = true
   try {
@@ -507,6 +779,7 @@ onMounted(async () => {
     } catch { /* non-fatal */
     }
     await checkVersion()
+    await loadTelemetryStatus()
     await versionStore.loadRollbackInfo()
   } finally {
     loading.value = false
@@ -619,6 +892,108 @@ onMounted(async () => {
   border-radius: 6px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
   display: block;
+}
+
+.telemetry-table {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.telemetry-row {
+  display: grid;
+  grid-template-columns: minmax(95px, 0.7fr) minmax(0, 1.3fr);
+  gap: 10px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.telemetry-row span:first-child {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.telemetry-roadmap {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+}
+
+.roadmap-full-panel {
+  grid-column: 1 / -1;
+}
+
+.roadmap-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.roadmap-option {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.roadmap-comment-row {
+  position: relative;
+}
+
+.roadmap-comment {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 12px;
+  padding: 8px 10px;
+  resize: none;
+  box-sizing: border-box;
+}
+
+.roadmap-comment:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.roadmap-comment::placeholder {
+  color: var(--text-subtle);
+}
+
+.roadmap-comment-count {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.roadmap-consent-prompt {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(245, 165, 36, 0.06);
+  border: 1px solid rgba(245, 165, 36, 0.2);
+}
+
+.roadmap-consent-copy {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.roadmap-consent-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 @media (max-width: 640px) {
@@ -774,5 +1149,125 @@ onMounted(async () => {
   color: var(--accent-secondary);
   word-break: break-all;
   margin-top: 4px;
+}
+
+/* ─── TELEMETRY PANEL ─────────────────────────────────────────────────── */
+.telemetry-what-data-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-primary);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.telemetry-what-data-link:hover {
+  opacity: 0.8;
+}
+
+.telemetry-queue-note {
+  font-size: 11px;
+  color: var(--status-warning);
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: rgba(245, 165, 36, 0.07);
+  border: 1px solid rgba(245, 165, 36, 0.18);
+}
+
+.telemetry-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.btn-text-muted {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-subtle);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn-text-muted:hover:not(:disabled) {
+  color: var(--text-muted);
+}
+
+.btn-text-muted:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ─── DATA MODAL ──────────────────────────────────────────────────────── */
+.data-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 11, 15, 0.72);
+  backdrop-filter: blur(6px);
+  padding: 20px;
+}
+
+.data-modal-box {
+  background: var(--surface-2, #111b20);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 28px 28px 24px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.55);
+}
+
+.data-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 6px;
+}
+
+.data-modal-intro {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+.data-modal-never-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-subtle);
+  margin: 0 0 8px;
+}
+
+.data-modal-never-list {
+  margin: 0 0 14px;
+  padding: 0 0 0 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.data-modal-source {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin: 0 0 20px;
+}
+
+.data-modal-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
