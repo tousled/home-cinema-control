@@ -18,7 +18,7 @@ class TestCreateTvControllerOrNone(unittest.TestCase):
         self.assertIsNone(create_tv_controller_or_none({}))
 
     def test_raises_for_unsupported_model_when_enabled(self):
-        config = {"tv": {"enabled": True, "model": "SAMSUNG"}}
+        config = {"tv": {"enabled": True, "model": "PANASONIC"}}
         with self.assertRaises(ValueError):
             create_tv_controller_or_none(config)
 

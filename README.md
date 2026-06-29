@@ -128,6 +128,7 @@ más seria.
 | Chinoppo M9702/M9201/M9203/M9205 | Soportado si expone la API compatible con OPPO.                             |
 | Rutas por biblioteca             | NFS o SMB/CIFS por mapeo, con verificación.                                 |
 | TV LG WebOS                      | Cambio de entrada y retorno a la app, si se configura.                      |
+| TV Samsung Tizen (2016+)         | Cambio de entrada y retorno a la app. Validado por usuario colaborador.     |
 | Receptores AV                    | Denon, Marantz, Yamaha, NAD, Onkyo y scripts personalizados.                |
 | Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.          |
 | Telemetría                       | Opt-in, anónima, documentada y orientada a priorizar roadmap.               |
@@ -153,12 +154,12 @@ punto donde configuración, soporte y actualización quedan tratados como parte 
 Después de 1.0.0, la arquitectura está pensada para crecer sin mezclar futuras integraciones en el núcleo de
 reproducción.
 
-| Futuro           | Intención                                                                                    |
-|------------------|----------------------------------------------------------------------------------------------|
-| Plex             | Explorar viabilidad después de estabilizar la frontera de proveedores.                       |
-| Más marcas de TV | Investigar Samsung, Android TV/Sony y otros ecosistemas cuando exista hardware para validar. |
-| Multiroom        | Estudiar varias salas/reproductores sin romper el modelo actual de una sala fiable.          |
-| Luces y escenas  | Posible integración futura como automatización de sala, no como requisito para reproducir.   |
+| Futuro           | Intención                                                                                  |
+|------------------|--------------------------------------------------------------------------------------------|
+| Plex             | Explorar viabilidad después de estabilizar la frontera de proveedores.                     |
+| Más marcas de TV | Android TV/Sony y otros ecosistemas cuando exista hardware para validar.                   |
+| Multiroom        | Estudiar varias salas/reproductores sin romper el modelo actual de una sala fiable.        |
+| Luces y escenas  | Posible integración futura como automatización de sala, no como requisito para reproducir. |
 
 Estas líneas son roadmap, no promesas de la versión actual. HCC prefiere declarar claramente qué está implementado y qué
 está en exploración antes que vender compatibilidad no validada.
