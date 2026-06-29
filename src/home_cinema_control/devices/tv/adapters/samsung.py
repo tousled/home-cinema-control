@@ -34,6 +34,10 @@ _STATIC_HDMI_INPUTS = [
     {"index": 3, "id": "KEY_HDMI4", "nombre": "HDMI 4"},
 ]
 
+# Cached per IP within the process lifetime — the port doesn't change unless
+# the TV firmware changes, so probing once per process is sufficient.
+_port_cache: dict[str, int] = {}
+
 
 class SamsungTvController(BaseTvController):
     def test_connection(self) -> DeviceCommandResult:
@@ -78,6 +82,7 @@ class SamsungTvController(BaseTvController):
             return DeviceCommandResult.failed(f"TV configuration error: {exc}")
         rest = SamsungTVWS(host=ip, port=SAMSUNG_PORT_PLAIN, timeout=SAMSUNG_CONNECT_TIMEOUT_SECONDS)
         try:
+            logging.info("Launching Samsung TV app: %s", app_id)
             rest.rest_app_run(app_id)
             return DeviceCommandResult.success()
         except Exception:
@@ -106,7 +111,21 @@ class SamsungTvController(BaseTvController):
                     return app_id
             except Exception:
                 continue
-        return None
+        # Nothing visible — fall back to the configured media server so the
+        # orchestrator has something to restore to after playback.
+        provider_type = (self.config.get("media_servers") or {}).get("active")
+        fallback = self.media_server_app_id(str(provider_type)) if provider_type else None
+        if fallback:
+            logging.info(
+                "Samsung TV: no visible app detected; falling back to configured provider %s → %s",
+                provider_type,
+                fallback,
+            )
+        else:
+            logging.warning(
+                "Samsung TV: no visible app and no configured provider fallback; get_current_app_id returns None"
+            )
+        return fallback
 
     def media_server_app_id(self, provider_type: str) -> str | None:
         return _MEDIA_SERVER_APP_IDS.get(provider_type)
@@ -171,14 +190,35 @@ class SamsungTvController(BaseTvController):
         )
 
     def _detect_port(self, ip: str) -> int:
+        if ip in _port_cache:
+            logging.debug("Samsung TV port from cache: %d for %s", _port_cache[ip], ip)
+            return _port_cache[ip]
         for port in (SAMSUNG_PORT_SSL, SAMSUNG_PORT_PLAIN):
             try:
-                client = SamsungTVWS(host=ip, port=port, timeout=SAMSUNG_PORT_DETECT_TIMEOUT_SECONDS)
+                client = SamsungTVWS(
+                    host=ip,
+                    port=port,
+                    token_file=SAMSUNG_TOKEN_FILE_PATH,
+                    timeout=SAMSUNG_PORT_DETECT_TIMEOUT_SECONDS,
+                )
                 client.open()
                 client.close()
+                _port_cache[ip] = port
+                logging.info(
+                    "Samsung TV port detected: %d for %s (%s)",
+                    port,
+                    ip,
+                    "SSL/token" if port == SAMSUNG_PORT_SSL else "plain/no-token",
+                )
                 return port
             except Exception:
                 continue
+        _port_cache[ip] = SAMSUNG_PORT_SSL
+        logging.warning(
+            "Samsung TV port detection failed for %s; defaulting to %d",
+            ip,
+            SAMSUNG_PORT_SSL,
+        )
         return SAMSUNG_PORT_SSL
 
     def _get_ip(self) -> str:
