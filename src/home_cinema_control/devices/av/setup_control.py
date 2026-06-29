@@ -1,3 +1,5 @@
+from home_cinema_control.config.models import AvInputSource
+
 from .factory import create_av_receiver
 
 
@@ -9,7 +11,7 @@ def power_on_av_receiver(config):
     return _result_to_status(create_av_receiver(config).power_on())
 
 
-def list_av_hdmi_inputs(config):
+def list_av_hdmi_inputs(config) -> list[AvInputSource]:
     return create_av_receiver(config).list_hdmi_inputs()
 
 

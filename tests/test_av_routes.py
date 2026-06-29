@@ -31,15 +31,21 @@ def _make_client(*, config=None, sanitized=None):
 
 class AvSourcesRouteTest(unittest.TestCase):
     @patch("home_cinema_control.web.av_routes.list_av_hdmi_inputs")
-    def test_av_sources_returns_detected_config_without_saving(self, mock_sources):
-        mock_sources.return_value = [{"Name": "Blu-ray", "Param": "BD"}]
-        client, _, config_service = _make_client()
+    def test_av_sources_saves_and_returns_detected_inputs(self, mock_sources):
+        from home_cinema_control.config.models import AvInputSource
+        mock_sources.return_value = [
+            AvInputSource(id=1, name="BD", param="SIBD\n"),
+        ]
+        client, _, config_service = _make_client(config={"av": {"enabled": True, "model": "Denon"}})
 
-        resp = client.post("/api/v1/av/sources", json={"av": {"enabled": True, "model": "Denon"}})
+        resp = client.get("/api/v1/av/sources")
 
         self.assertEqual(200, resp.status_code)
-        self.assertEqual([{"Name": "Blu-ray", "Param": "BD"}], resp.json()["av"]["available_hdmi_inputs"])
-        config_service.save_config.assert_not_called()
+        inputs = resp.json()["av"]["available_hdmi_inputs"]
+        self.assertEqual(1, len(inputs))
+        self.assertEqual("BD", inputs[0]["name"])
+        self.assertEqual("SIBD\n", inputs[0]["param"])
+        config_service.save_config.assert_called_once()
 
 
 if __name__ == "__main__":

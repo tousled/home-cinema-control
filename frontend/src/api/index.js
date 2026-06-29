@@ -128,7 +128,7 @@ export const api = {
     tvRestoreInput: (config) => request('POST', '/tv/restore-input', config),
 
     // av
-    getAvSources: (config) => request('POST', '/av/sources', config),
+    getAvSources: () => request('GET', '/av/sources'),
     avPowerOn: (config) => request('POST', '/av/power-on', config),
     avPowerOff: (config) => request('POST', '/av/power-off', config),
     avSwitchInput: (config) => request('POST', '/av/switch-input', config),
