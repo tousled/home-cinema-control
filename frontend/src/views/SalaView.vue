@@ -124,6 +124,66 @@
                   </div>
                 </template>
 
+              <template v-if="tv.model === 'SAMSUNG'">
+                <p class="section-hint mb-4">{{ $t('x-tv-samsung-hint') }}</p>
+
+                <label class="form-label" for="tv-ip-samsung">{{ $t('x-tv-ip') }}</label>
+                <IpInput id="tv-ip-samsung" v-model="tv.ip" :devices="devices" class="mb-4"/>
+
+                <button :disabled="tvTestLoading" class="btn-ghost mb-4" @click="testTvConnection">
+                  {{ tvTestLoading ? $t('x-common-testing') : $t('x-tv-test-connection') }}
+                </button>
+
+                <label class="form-label" for="tv-mac-samsung">{{ $t('x-tv-mac') }}</label>
+                <input id="tv-mac-samsung" v-model="tv.mac" :disabled="arpAvailable" class="form-input mb-1"
+                       type="text"/>
+                <p class="section-hint">{{ tv.mac ? $t('x-tv-mac-detected') : $t('x-tv-mac-pending') }}</p>
+                <p v-if="!arpAvailable" class="section-hint" style="color:var(--status-warning)">
+                  {{ $t('x-tv-mac-linux-only') }}</p>
+
+                <div class="form-label label-with-help">
+                  <label for="tv-hdmi-input-samsung">{{ $t('x-tv-hdmi-input') }}</label>
+                  <HelpTooltip :text="$t('x-tv-tooltip-hdmi-input')"/>
+                </div>
+                <FormSelect
+                    id="tv-hdmi-input-samsung"
+                    v-model="selectedTvSourceIndex"
+                    :options="tv.available_hdmi_inputs.map((src, i) => ({ value: i, label: src.nombre || src.name || src.id }))"
+                    class="mb-3"
+                />
+
+                <div class="icon-action-row">
+                  <HelpTooltip :text="$t('x-tv-action-detect-inputs-tooltip')">
+                    <IconActionButton
+                        :label="$t('x-tv-action-detect-inputs')"
+                        :loading="tvSourcesLoading"
+                        :loading-label="$t('x-tv-detecting-inputs')"
+                        icon="scan"
+                        @click="getTvSources"
+                    />
+                  </HelpTooltip>
+                  <HelpTooltip :text="$t('x-tv-action-switch-player-tooltip')">
+                    <IconActionButton
+                        :label="$t('x-tv-action-switch-player')"
+                        icon="player"
+                        @click="tvSwitchInput"
+                    />
+                  </HelpTooltip>
+                  <HelpTooltip
+                      :text="mediaServerConfigured
+                          ? $t('x-tv-action-restore-media-server-tooltip', {server: mediaServerBrand.label})
+                          : $t('x-tv-action-restore-media-server-not-configured-tooltip')">
+                    <IconActionButton
+                        :brand="mediaServerBrand.brand"
+                        :disabled="!mediaServerConfigured"
+                        :label="$t('x-tv-action-restore-media-server', {server: mediaServerBrand.label})"
+                        icon="server"
+                        @click="tvRestoreInput"
+                      />
+                    </HelpTooltip>
+                  </div>
+                </template>
+
                 <template v-if="tv.model === 'SCRIPTS'">
                   <label class="form-label" for="tv-startup-script">{{ $t('x-tv-startup-script') }}</label>
                   <input id="tv-startup-script" v-model="tv.startup_script" class="form-input mb-3" type="text"/>
@@ -332,6 +392,7 @@ const mediaServerConfigured = computed(() => Boolean(mediaServerProvider.value.s
 
 /* TV state */
 const tv = ref({})
+const savedTv = ref({})
 const tvModels = ref([])
 const selectedTvSourceIndex = ref(0)
 const tvTestLoading = ref(false)
@@ -341,7 +402,7 @@ const tvTested = ref(false)
 const tvState = computed(() => {
   if (!tv.value.enabled) return 'disabled'
   if (!tv.value.model) return 'incomplete'
-  if (tv.value.model === 'LG' && !tv.value.ip) return 'incomplete'
+  if ((tv.value.model === 'LG' || tv.value.model === 'SAMSUNG') && !tv.value.ip) return 'incomplete'
   if (tv.value.model === 'SCRIPTS' && !tv.value.startup_script) return 'incomplete'
   return tvTested.value ? 'tested' : 'configured'
 })
@@ -354,6 +415,28 @@ watch(
     () => [tv.value.enabled, tv.value.model, tv.value.ip, tv.value.startup_script].join('|'),
     () => {
       tvTested.value = false
+    },
+)
+
+watch(
+    () => tv.value.model,
+    (newModel) => {
+      if (newModel === savedTv.value.model) {
+        tv.value = {...savedTv.value}
+        selectedTvSourceIndex.value = savedTv.value.player_hdmi_input_id || 0
+      } else {
+        tv.value = {
+          enabled: tv.value.enabled,
+          model: newModel,
+          ip: '',
+          mac: '',
+          available_hdmi_inputs: [],
+          player_hdmi_input_id: 0,
+          startup_script: '',
+          shutdown_script: '',
+        }
+        selectedTvSourceIndex.value = 0
+      }
     },
 )
 
@@ -446,7 +529,8 @@ async function tvRestoreInput() {
 
 async function saveTv() {
   try {
-    await saveConfigSection('tv', tv.value)
+    const savedConfig = await saveConfigSection('tv', tv.value)
+    savedTv.value = {...(savedConfig.tv || tv.value)}
     toast.success(t('x-common-saved'))
   } catch (e) {
     toast.error(e.message)
@@ -556,6 +640,7 @@ onMounted(async () => {
     const data = await api.getConfig()
     fullConfig.value = data
     tv.value = {...(data.tv || {})}
+    savedTv.value = {...(data.tv || {})}
     av.value = {...(data.av || {})}
     tvModels.value = data.tv_dirs || ['LG', 'SCRIPTS']
     avModels.value = data.av_dirs || []

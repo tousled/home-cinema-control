@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+[Unreleased]
+
+* Added Samsung Smart TV (Tizen, 2016+) adapter. HCC can now switch HDMI inputs and
+  restore the Emby or Jellyfin app on Samsung TVs using the `samsungtvws` WebSocket
+  API. The correct port (8002 SSL for 2017+ or 8001 plain for 2016 K-series) is
+  detected automatically. Token pairing works the same way as LG: a one-time dialog
+  appears on the TV on first connection and the token is stored for subsequent use.
+  HDMI inputs are a static HDMI 1–4 list (Samsung does not expose an input-discovery
+  API). Emby and Jellyfin app IDs are hardcoded with an automatic fallback for the
+  two known Emby package variants.
+
 ## [1.1.3] - 2026-06-29
 
 ### Added

@@ -1,8 +1,10 @@
 from home_cinema_control.devices.tv.adapters.lg import LgTvController
+from home_cinema_control.devices.tv.adapters.samsung import SamsungTvController
 from home_cinema_control.devices.tv.adapters.scripts import ScriptsTvController
 
 TV_CONTROLLERS = {
     "LG": LgTvController,
+    "SAMSUNG": SamsungTvController,
     "SCRIPTS": ScriptsTvController,
 }
 
