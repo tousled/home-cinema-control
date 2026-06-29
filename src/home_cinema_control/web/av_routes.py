@@ -16,15 +16,13 @@ from home_cinema_control.web.setup_actions import (
 def build_av_router(api_runtime: WebApiRuntime) -> APIRouter:
     router = APIRouter(prefix="/api/v1/av")
 
-    @router.post("/sources")
-    def av_get_sources(body: dict):
-        result = list_av_hdmi_inputs(body)
-        if result is not None:
-            body.setdefault("av", {})["available_hdmi_inputs"] = result
-            return api_runtime.config_service.sanitize(
-                api_runtime.config_service.prepare_submitted_config(body)
-            )
-        raise HTTPException(status_code=400, detail="Could not retrieve AV sources")
+    @router.get("/sources")
+    def av_get_sources():
+        config = api_runtime.config_service.load_config()
+        result = list_av_hdmi_inputs(config)
+        config.setdefault("av", {})["available_hdmi_inputs"] = [src.model_dump() for src in result]
+        api_runtime.config_service.save_config(config)
+        return api_runtime.config_service.sanitize(config)
 
     @router.post("/power-on")
     def av_power_on(body: dict):

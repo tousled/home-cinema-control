@@ -1,4 +1,5 @@
 import logging
+import threading
 
 from fastapi import APIRouter, BackgroundTasks, Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +22,7 @@ from home_cinema_control.web.config_readiness import compute_config_readiness
 from home_cinema_control.web.oppo_routes import build_oppo_router
 from home_cinema_control.web.paths_routes import build_paths_router
 from home_cinema_control.web.static_assets import read_binary_asset
+from home_cinema_control.web.telemetry_routes import build_telemetry_router
 from home_cinema_control.web.tv_routes import build_tv_router
 from home_cinema_control.web.version_routes import build_version_router
 
@@ -58,6 +60,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
             updated = apply_config_section(config, section, body)
             updated = api_runtime.config_service.prepare_submitted_config(updated)
             api_runtime.config_service.save_config(updated)
+            _emit_telemetry_async(api_runtime)
             if section == "app":
                 # Logging is configured once at startup; re-apply it here so a
                 # log-level change from the web takes effect live, not only after
@@ -178,6 +181,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     app.include_router(build_oppo_router(api_runtime))
     app.include_router(build_paths_router(api_runtime, media_server_provider_factory))
     app.include_router(build_version_router(api_runtime))
+    app.include_router(build_telemetry_router(api_runtime))
 
     # --- SPA static files ---
     dist_dir = api_runtime.frontend_dist_dir
@@ -192,3 +196,13 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         return Response("Frontend not built. Run: cd frontend && npm run build", status_code=503)
 
     return app
+
+
+def _emit_telemetry_async(api_runtime: WebApiRuntime) -> None:
+    if api_runtime.telemetry is None:
+        return
+    threading.Thread(
+        target=api_runtime.telemetry.emit,
+        args=("heartbeat",),
+        daemon=True,
+    ).start()

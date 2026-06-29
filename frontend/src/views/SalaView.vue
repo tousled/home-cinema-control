@@ -227,7 +227,7 @@
                   <FormSelect
                       id="av-hdmi-input"
                       v-model="selectedAvSource"
-                      :options="av.available_hdmi_inputs.map(src => ({ value: src.Param, label: src.Name }))"
+                      :options="av.available_hdmi_inputs.map(src => ({ value: src.param, label: src.name }))"
                       class="mb-3"
                       @change="onAvSourceChange"
                   />
@@ -516,7 +516,7 @@ async function testAvPowerOff() {
 async function getAvSources() {
   avSourcesLoading.value = true
   try {
-    const updated = await api.getAvSources(await configWithSection('av', av.value))
+    const updated = await api.getAvSources()
     av.value = {...(updated.av || {})}
     fullConfig.value = updated
     selectedAvSource.value = av.value.player_hdmi_input || ''

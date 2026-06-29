@@ -25,6 +25,10 @@ function shouldNotifyConfigChanged(method, path) {
         || path === '/migration/apply'
         || path === '/migration/skip'
         || path === '/migration/import-legacy'
+        || path === '/telemetry/enable'
+        || path === '/telemetry/disable'
+        || path === '/telemetry/clear-queue'
+        || path === '/telemetry/reset-installation-id'
 }
 
 function notifyConfigChanged(method, path) {
@@ -106,6 +110,17 @@ export const api = {
     // network
     discoverDevices: () => request('GET', '/network/devices'),
 
+    // telemetry
+    getTelemetryStatus: () => request('GET', '/telemetry'),
+    enableTelemetry: () => request('POST', '/telemetry/enable'),
+    disableTelemetry: (resetIdentity = false) =>
+        request('POST', '/telemetry/disable', {reset_identity: resetIdentity}),
+    clearTelemetryQueue: () => request('POST', '/telemetry/clear-queue'),
+    resetTelemetryInstallationId: () => request('POST', '/telemetry/reset-installation-id'),
+    submitRoadmapInterest: (interests, comment) =>
+        request('POST', '/telemetry/roadmap-interest', {interests, comment: comment || ''}),
+    dismissTelemetryPrompt: () => request('POST', '/telemetry/dismiss-prompt'),
+
     // tv
     testTvConnection: (config) => request('POST', '/tv/test-connection', config),
     getTvSources: (config) => request('POST', '/tv/sources', config),
@@ -113,7 +128,7 @@ export const api = {
     tvRestoreInput: (config) => request('POST', '/tv/restore-input', config),
 
     // av
-    getAvSources: (config) => request('POST', '/av/sources', config),
+    getAvSources: () => request('GET', '/av/sources'),
     avPowerOn: (config) => request('POST', '/av/power-on', config),
     avPowerOff: (config) => request('POST', '/av/power-off', config),
     avSwitchInput: (config) => request('POST', '/av/switch-input', config),

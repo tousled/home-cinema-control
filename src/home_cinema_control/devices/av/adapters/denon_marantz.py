@@ -1,5 +1,7 @@
 import logging
+from abc import abstractmethod
 
+from home_cinema_control.config.models import AvInputSource
 from home_cinema_control.devices.av.base import BaseAvReceiver
 from home_cinema_control.devices.av.input_retrier import (
     AVInputRetrier,
@@ -21,15 +23,62 @@ POWER_QUERY_TIMEOUT_SECONDS = 2.0
 POWER_RESPONSE_PREFIX = "PW"
 STANDBY_RESPONSE = "PWSTANDBY"
 
+SOURCES_QUERY_COMMAND = "SSSOD ?\r\n"
+SOURCES_END_MARKER = "SSSOD END"
+SOURCES_QUERY_TIMEOUT_SECONDS = 3.0
+
+
+def _parse_sssod_response(raw: str | None) -> list[AvInputSource]:
+    if not raw:
+        return []
+    inputs = []
+    for i, line in enumerate(raw.replace("\r", "\n").splitlines()):
+        line = line.strip()
+        if not line.startswith("SSSOD ") or line == "SSSOD END":
+            continue
+        parts = line.split()
+        if len(parts) == 3 and parts[2] == "USE":
+            code = parts[1]
+            inputs.append(AvInputSource(id=i, name=code, param=f"SI{code}\n"))
+    return inputs
+
 
 class BaseDenonMarantzAvReceiver(BaseAvReceiver, TcpCommandSender):
     """Denon and Marantz share the same D+M Group serial/IP command set
     (SI?/PW?/ZMON/ZMOFF) — confirmed identical, not just similar, so the
     seam sits here rather than in two copies. Subclasses only set
-    receiver_name and their own list_hdmi_inputs().
+    receiver_name and _fallback_inputs().
     """
 
     uses_observed_input_recovery = True
+
+    def list_hdmi_inputs(self) -> list[AvInputSource]:
+        try:
+            return self._discover_inputs_via_sssod()
+        except Exception:
+            logging.warning(
+                "%s SSSOD discovery failed; using hardcoded fallback",
+                self.receiver_name,
+            )
+            return self._fallback_inputs()
+
+    def _discover_inputs_via_sssod(self) -> list[AvInputSource]:
+        ip = self.config["av"]["ip"]
+        if not ip:
+            raise ValueError("av.ip is not configured")
+        raw = self.query_command(
+            SOURCES_QUERY_COMMAND,
+            timeout=SOURCES_QUERY_TIMEOUT_SECONDS,
+            expected_prefix=SOURCES_END_MARKER,
+        )
+        result = _parse_sssod_response(raw)
+        if not result:
+            raise ValueError("SSSOD returned no usable inputs")
+        return result
+
+    @abstractmethod
+    def _fallback_inputs(self) -> list[AvInputSource]:
+        pass
 
     def power_on(self) -> DeviceCommandResult:
         return self._execute_av_operation(

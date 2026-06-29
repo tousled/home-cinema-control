@@ -95,6 +95,8 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
             SETUPTOOLS_SCM_PRETEND_VERSION=${{ steps.meta.outputs.version }}
+            HCC_TELEMETRY_ENDPOINT_URL=${{ secrets.HCC_TELEMETRY_ENDPOINT_URL }}
+            HCC_TELEMETRY_INGEST_KEY=${{ secrets.HCC_TELEMETRY_INGEST_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

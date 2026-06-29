@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager, suppress
 
 from bscpylgtv import WebOsClient
 from bscpylgtv.storage_sqlitedict import StorageSqliteDict
-from wakeonlan import send_magic_packet
+from wakeonlan import wake
 
 from home_cinema_control.devices.tv.base import BaseTvController
 from home_cinema_control.devices.tv.models import TvInputTarget
@@ -213,7 +213,7 @@ class LgTvController(BaseTvController):
 
         try:
             logging.info("Sending Wake-on-LAN packet to LG TV: %s", mac)
-            send_magic_packet(mac)
+            wake(mac)
 
         except (OSError, ValueError) as exc:
             raise OSError(f"Unable to send Wake-on-LAN packet to LG TV: {exc}") from exc

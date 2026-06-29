@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [1.1.3] - 2026-06-29
+
+### Added
+
+* Added opt-in product telemetry and roadmap feedback controls on the Diagnostics screen. Telemetry is disabled by
+  default, uses a random anonymous installation ID, retries failed sends through a bounded local queue, and documents
+  exactly what is sent and why. HCC never sends media titles, libraries, paths, URLs, IPs, tokens, logs, scripts, or
+  custom commands in telemetry payloads.
+
+* Added a new poll for user feedback on the Diagnostics screen. Next features can be voted on in the poll.
+  The most qualified features will be implemented first.
+
+### Fixed
+
+* Denon and Marantz AV receivers now query their available inputs dynamically via the `SSSOD ?` TCP command instead
+  of returning a fixed hardcoded list. Only inputs the receiver reports as enabled (`USE`) are shown. If the receiver
+  is unreachable during detection, HCC falls back to a built-in catalog that now includes AUX 1 and AUX 2 — the two
+  entries previously missing that prevented users with an OPPO connected to those inputs from selecting the correct
+  source. A fixed bug in the Denon fallback list sent `GAME\n` instead of `SIGAME\n`, which would have silently
+  ignored the command.
+
 ## [1.1.2] - 2026-06-27
 
 ### Fixed

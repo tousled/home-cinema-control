@@ -78,6 +78,11 @@ information.
 The purpose is to turn “try again” into actionable information: Emby issue, unverified route, OPPO mount failure,
 disabled room device, or deployment/update problem.
 
+It also includes an optional telemetry section, disabled by default, to help decide HCC's roadmap: active
+installations, selected provider, TV/AV usage, and basic playback events. Telemetry uses a random anonymous
+installation ID and never sends paths, IPs, tokens, servers, libraries, titles, logs, scripts, or custom commands. See
+[docs/telemetry.md](docs/telemetry.md).
+
 ## Optional Room Control
 
 Some rooms only need Emby and the player. Others need TV input switching, AV receiver power/input control, ARC/CEC
@@ -116,6 +121,7 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 | LG WebOS TV                      | Input switching and app restore when configured.                       |
 | AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, and custom scripts.                |
 | Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.    |
+| Telemetry                        | Opt-in, anonymous, documented, and used to prioritize roadmap work.    |
 | Docker                           | Primary deployment path with host networking and persistent `/config`. |
 
 ## What Defines 1.0.0
