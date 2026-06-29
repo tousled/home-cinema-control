@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from home_cinema_control.media_servers.common.models import (
     MediaServerLibrary,
@@ -31,6 +31,12 @@ class AppConfig(BaseModel):
     log_level: int = 0
 
 
+class AvInputSource(BaseModel):
+    id: int
+    name: str
+    param: str
+
+
 class AvConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -43,11 +49,26 @@ class AvConfig(BaseModel):
     power_on_command: str = ""
     hdmi_input_command: str = ""
     power_off_command: str = ""
-    available_hdmi_inputs: list = Field(default_factory=list)
+    available_hdmi_inputs: list[AvInputSource] = Field(default_factory=list)
     player_hdmi_input: str = ""
     connection_timeout_seconds: float = 5.0
     command_timeout_seconds: float = 1.0
     tv_connected_input: str = ""
+
+    @field_validator("available_hdmi_inputs", mode="before")
+    @classmethod
+    def _coerce_av_inputs(cls, v):
+        result = []
+        for i, item in enumerate(v or []):
+            if isinstance(item, dict) and "Id" in item:
+                result.append({
+                    "id": item.get("Id", i),
+                    "name": item.get("Name", ""),
+                    "param": item.get("Param", ""),
+                })
+            else:
+                result.append(item)
+        return result
 
 
 class TvConfig(BaseModel):
