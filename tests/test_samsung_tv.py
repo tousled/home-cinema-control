@@ -1,9 +1,11 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import home_cinema_control.devices.tv.adapters.samsung as samsung_mod
 from home_cinema_control.devices.tv.adapters.samsung import (
     EMBY_APP_IDS,
     JELLYFIN_APP_ID,
+    SAMSUNG_TOKEN_FILE_PATH,
     SamsungTvController,
     _STATIC_HDMI_INPUTS,
 )
@@ -105,6 +107,65 @@ class SamsungLaunchAppTest(unittest.TestCase):
 
         self.assertFalse(result.successful)
         mock_instance.rest_app_run.assert_called_once_with(JELLYFIN_APP_ID)
+
+
+class SamsungConnectedClientTokenTest(unittest.TestCase):
+    """_connected_client must pass token_file so the token is persisted after first pairing."""
+
+    def setUp(self):
+        samsung_mod._port_cache["192.168.1.50"] = samsung_mod.SAMSUNG_PORT_SSL
+
+    def tearDown(self):
+        samsung_mod._port_cache.clear()
+
+    def test_connected_client_passes_token_file(self):
+        with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
+            mock_instance = MagicMock()
+            mock_cls.return_value = mock_instance
+            controller = SamsungTvController({"tv": {"ip": "192.168.1.50"}})
+            with controller._connected_client():
+                pass
+        _, kwargs = mock_cls.call_args
+        self.assertEqual(SAMSUNG_TOKEN_FILE_PATH, kwargs.get("token_file"))
+
+
+class SamsungPortDetectTokenTest(unittest.TestCase):
+    """_detect_port must pass token_file so the TV doesn't show a pairing dialog every time."""
+
+    def setUp(self):
+        samsung_mod._port_cache.clear()
+
+    def tearDown(self):
+        samsung_mod._port_cache.clear()
+
+    def test_detect_port_passes_token_file(self):
+        with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
+            mock_instance = MagicMock()
+            mock_cls.return_value = mock_instance
+            controller = SamsungTvController({"tv": {"ip": "192.168.1.50"}})
+            controller._detect_port("192.168.1.50")
+        _, kwargs = mock_cls.call_args
+        self.assertEqual(SAMSUNG_TOKEN_FILE_PATH, kwargs.get("token_file"))
+
+    def test_detect_port_caches_result(self):
+        with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
+            mock_instance = MagicMock()
+            mock_cls.return_value = mock_instance
+            controller = SamsungTvController({"tv": {"ip": "192.168.1.50"}})
+            controller._detect_port("192.168.1.50")
+            controller._detect_port("192.168.1.50")
+        # SamsungTVWS should only be instantiated once despite two calls
+        self.assertEqual(1, mock_cls.call_count)
+
+    def test_detect_port_falls_back_when_both_fail(self):
+        with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.open.side_effect = OSError("refused")
+            mock_cls.return_value = mock_instance
+            controller = SamsungTvController({"tv": {"ip": "192.168.1.50"}})
+            port = controller._detect_port("192.168.1.50")
+        from home_cinema_control.devices.tv.adapters.samsung import SAMSUNG_PORT_SSL
+        self.assertEqual(SAMSUNG_PORT_SSL, port)
 
 
 class SamsungMissingIpTest(unittest.TestCase):
