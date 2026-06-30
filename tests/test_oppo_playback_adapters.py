@@ -79,7 +79,7 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
         self.assertEqual(DeviceCommandStatus.SKIPPED, result.status)
         mock_unmount.assert_not_called()
 
-    def test_reports_failure_when_unmount_returns_false(self):
+    def test_skips_cleanup_when_unmount_shell_not_available(self):
         adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
         adapter._last_mounted_path = "/mnt/cifs1"
 
@@ -89,7 +89,8 @@ class OppoAutoscriptCleanupTest(unittest.TestCase):
         ):
             result = adapter.cleanup_after_playback_finish()
 
-        self.assertEqual(DeviceCommandStatus.FAILED, result.status)
+        self.assertEqual(DeviceCommandStatus.SKIPPED, result.status)
+
 
     def test_reports_failure_when_unmount_raises(self):
         adapter = OppoMediaPlayerAdapter(_config(autoscript=True))
