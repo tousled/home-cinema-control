@@ -3,8 +3,10 @@ from unittest.mock import Mock, patch
 
 from home_cinema_control.devices.tv.adapters.smartthings_client import (
     SMARTTHINGS_API_BASE,
+    SMARTTHINGS_DEVICES_URL,
     SMARTTHINGS_REQUEST_TIMEOUT,
     SmartThingsInputClient,
+    _MEDIA_INPUT_CAPABILITY,
 )
 
 TOKEN = "test-bearer-token"
@@ -12,7 +14,7 @@ DEVICE_ID = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 
 def _client() -> SmartThingsInputClient:
-    return SmartThingsInputClient(token=TOKEN, device_id=DEVICE_ID)
+    return SmartThingsInputClient(token_provider=lambda: TOKEN, device_id=DEVICE_ID)
 
 
 def _ok_response() -> Mock:
@@ -138,6 +140,76 @@ class SmartThingsInputClientGetSupportedInputsTest(unittest.TestCase):
         ):
             with self.assertRaises(req_lib.exceptions.HTTPError):
                 _client().get_supported_inputs()
+
+
+class SmartThingsInputClientListDevicesTest(unittest.TestCase):
+    def _call_list_devices(self, items: list[dict]) -> tuple[Mock, list[dict]]:
+        mock_resp = _ok_response()
+        mock_resp.json.return_value = {"items": items}
+        with patch(
+            "home_cinema_control.devices.tv.adapters.smartthings_client.requests.get"
+        ) as mock_get:
+            mock_get.return_value = mock_resp
+            result = _client().list_devices()
+        return mock_get, result
+
+    def test_gets_from_devices_url(self):
+        mock_get, _ = self._call_list_devices([])
+        self.assertEqual(SMARTTHINGS_DEVICES_URL, mock_get.call_args.args[0])
+
+    def test_sends_capability_filter(self):
+        mock_get, _ = self._call_list_devices([])
+        params = mock_get.call_args.kwargs["params"]
+        self.assertEqual(_MEDIA_INPUT_CAPABILITY, params["capability"])
+
+    def test_sends_bearer_auth_header(self):
+        mock_get, _ = self._call_list_devices([])
+        headers = mock_get.call_args.kwargs["headers"]
+        self.assertEqual(f"Bearer {TOKEN}", headers["Authorization"])
+
+    def test_returns_id_and_label(self):
+        _, result = self._call_list_devices([
+            {"deviceId": "aaa", "label": "Samsung QN90B"},
+        ])
+        self.assertEqual([{"id": "aaa", "label": "Samsung QN90B"}], result)
+
+    def test_falls_back_to_name_when_label_absent(self):
+        _, result = self._call_list_devices([
+            {"deviceId": "bbb", "name": "Samsung TV"},
+        ])
+        self.assertEqual([{"id": "bbb", "label": "Samsung TV"}], result)
+
+    def test_returns_sorted_by_label(self):
+        _, result = self._call_list_devices([
+            {"deviceId": "z", "label": "Zed TV"},
+            {"deviceId": "a", "label": "Alpha TV"},
+        ])
+        self.assertEqual(["Alpha TV", "Zed TV"], [d["label"] for d in result])
+
+    def test_returns_empty_when_no_items(self):
+        mock_resp = _ok_response()
+        mock_resp.json.return_value = {}
+        with patch(
+            "home_cinema_control.devices.tv.adapters.smartthings_client.requests.get",
+            return_value=mock_resp,
+        ):
+            result = _client().list_devices()
+        self.assertEqual([], result)
+
+    def test_propagates_http_error_on_401(self):
+        import requests as req_lib
+        mock_resp = Mock()
+        mock_resp.raise_for_status.side_effect = req_lib.exceptions.HTTPError("401 Unauthorized")
+        with patch(
+            "home_cinema_control.devices.tv.adapters.smartthings_client.requests.get",
+            return_value=mock_resp,
+        ):
+            with self.assertRaises(req_lib.exceptions.HTTPError):
+                _client().list_devices()
+
+    def test_passes_correct_timeout(self):
+        mock_get, _ = self._call_list_devices([])
+        self.assertEqual(SMARTTHINGS_REQUEST_TIMEOUT, mock_get.call_args.kwargs["timeout"])
 
 
 if __name__ == "__main__":

@@ -195,39 +195,13 @@ class SamsungMissingIpTest(unittest.TestCase):
         self.assertFalse(result.successful)
 
 
-def _controller_with_smartthings(ip="192.168.1.50"):
-    return SamsungTvController({
-        "tv": {
-            "ip": ip,
-            "smartthings_token": "test-token-abc",
-            "smartthings_device_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        }
-    })
-
-_ST_PATCH = "home_cinema_control.devices.tv.adapters.samsung.SmartThingsInputClient"
-
-
-class SamsungSmartThingsClientCreationTest(unittest.TestCase):
-    def test_returns_client_when_both_fields_present(self):
-        client = _controller_with_smartthings()._make_smartthings_client()
-        self.assertIsNotNone(client)
-
-    def test_returns_none_when_token_missing(self):
-        controller = SamsungTvController({"tv": {"ip": "192.168.1.50", "smartthings_device_id": "abc"}})
-        self.assertIsNone(controller._make_smartthings_client())
-
-    def test_returns_none_when_device_id_missing(self):
-        controller = SamsungTvController({"tv": {"ip": "192.168.1.50", "smartthings_token": "tok"}})
-        self.assertIsNone(controller._make_smartthings_client())
-
-    def test_returns_none_when_both_missing(self):
-        self.assertIsNone(_controller()._make_smartthings_client())
-
-    def test_returns_none_when_fields_are_empty_strings(self):
-        controller = SamsungTvController({
-            "tv": {"ip": "192.168.1.50", "smartthings_token": "", "smartthings_device_id": ""}
-        })
-        self.assertIsNone(controller._make_smartthings_client())
+def _controller_with_smartthings(ip="192.168.1.50", mock_client=None):
+    if mock_client is None:
+        mock_client = MagicMock()
+    return SamsungTvController(
+        {"tv": {"ip": ip, "smartthings_device_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}},
+        smartthings_client=mock_client,
+    )
 
 
 class SamsungSmartThingsSwitchTest(unittest.TestCase):
@@ -239,11 +213,9 @@ class SamsungSmartThingsSwitchTest(unittest.TestCase):
 
     def test_calls_set_input_on_client_when_configured(self):
         from home_cinema_control.devices.tv.models import TvInputTarget
-        controller = _controller_with_smartthings()
-        with patch(_ST_PATCH) as mock_cls:
-            mock_client = MagicMock()
-            mock_cls.return_value = mock_client
-            result = controller.switch_to_input(TvInputTarget(input_id="HDMI2"))
+        mock_client = MagicMock()
+        controller = _controller_with_smartthings(mock_client=mock_client)
+        result = controller.switch_to_input(TvInputTarget(input_id="HDMI2"))
         self.assertTrue(result.successful)
         mock_client.set_input.assert_called_once_with("HDMI2")
 
@@ -271,12 +243,10 @@ class SamsungSmartThingsSwitchTest(unittest.TestCase):
     def test_smartthings_error_is_caught_within_smartthings_strategy(self):
         """SmartThings failures do not fall through to the WebSocket strategy."""
         from home_cinema_control.devices.tv.models import TvInputTarget
-        controller = _controller_with_smartthings()
-        with patch(_ST_PATCH) as mock_cls, \
-                patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as ws_cls:
-            mock_client = MagicMock()
-            mock_client.set_input.side_effect = OSError("refused")
-            mock_cls.return_value = mock_client
+        mock_client = MagicMock()
+        mock_client.set_input.side_effect = OSError("refused")
+        controller = _controller_with_smartthings(mock_client=mock_client)
+        with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as ws_cls:
             result = controller.switch_to_input(TvInputTarget(input_id="HDMI1"))
         self.assertFalse(result.successful)
         ws_cls.assert_not_called()
@@ -295,12 +265,10 @@ class SamsungSmartThingsSwitchTest(unittest.TestCase):
 
 class SamsungSmartThingsRetrieveInputsTest(unittest.TestCase):
     def test_calls_get_supported_inputs_when_configured(self):
-        controller = _controller_with_smartthings()
-        with patch(_ST_PATCH) as mock_cls:
-            mock_client = MagicMock()
-            mock_client.get_supported_inputs.return_value = ["HDMI1", "HDMI2", "HDMI3"]
-            mock_cls.return_value = mock_client
-            result = controller.retrieve_hdmi_inputs()
+        mock_client = MagicMock()
+        mock_client.get_supported_inputs.return_value = ["HDMI1", "HDMI2", "HDMI3"]
+        controller = _controller_with_smartthings(mock_client=mock_client)
+        result = controller.retrieve_hdmi_inputs()
         self.assertTrue(result.successful)
         inputs = controller.config["tv"]["available_hdmi_inputs"]
         self.assertEqual(3, len(inputs))
@@ -308,37 +276,30 @@ class SamsungSmartThingsRetrieveInputsTest(unittest.TestCase):
         self.assertEqual(["HDMI 1", "HDMI 2", "HDMI 3"], [i["nombre"] for i in inputs])
 
     def test_retrieve_returns_smartthings_detail_on_success(self):
-        controller = _controller_with_smartthings()
-        with patch(_ST_PATCH) as mock_cls:
-            mock_client = MagicMock()
-            mock_client.get_supported_inputs.return_value = ["HDMI1"]
-            mock_cls.return_value = mock_client
-            result = controller.retrieve_hdmi_inputs()
+        mock_client = MagicMock()
+        mock_client.get_supported_inputs.return_value = ["HDMI1"]
+        controller = _controller_with_smartthings(mock_client=mock_client)
+        result = controller.retrieve_hdmi_inputs()
         self.assertEqual("smartthings", result.detail)
 
     def test_retrieve_fails_when_smartthings_configured_but_client_raises(self):
-        controller = _controller_with_smartthings()
-        with patch(_ST_PATCH) as mock_cls:
-            mock_client = MagicMock()
-            mock_client.get_supported_inputs.side_effect = OSError("timeout")
-            mock_cls.return_value = mock_client
-            result = controller.retrieve_hdmi_inputs()
+        mock_client = MagicMock()
+        mock_client.get_supported_inputs.side_effect = OSError("timeout")
+        controller = _controller_with_smartthings(mock_client=mock_client)
+        result = controller.retrieve_hdmi_inputs()
         self.assertFalse(result.successful)
         self.assertIn("SmartThings", result.detail)
 
     def test_retrieve_does_not_overwrite_config_when_smartthings_fails(self):
         config = {"tv": {
             "ip": "192.168.1.50",
-            "smartthings_token": "tok",
             "smartthings_device_id": "dev",
             "available_hdmi_inputs": [{"index": 0, "id": "HDMI2", "nombre": "HDMI 2"}],
         }}
-        controller = SamsungTvController(config)
-        with patch(_ST_PATCH) as mock_cls:
-            mock_client = MagicMock()
-            mock_client.get_supported_inputs.side_effect = OSError("timeout")
-            mock_cls.return_value = mock_client
-            controller.retrieve_hdmi_inputs()
+        mock_client = MagicMock()
+        mock_client.get_supported_inputs.side_effect = OSError("timeout")
+        controller = SamsungTvController(config, smartthings_client=mock_client)
+        controller.retrieve_hdmi_inputs()
         self.assertEqual([{"index": 0, "id": "HDMI2", "nombre": "HDMI 2"}],
                          config["tv"]["available_hdmi_inputs"])
 
@@ -355,12 +316,10 @@ class SamsungSmartThingsRetrieveInputsTest(unittest.TestCase):
         self.assertEqual("static", result.detail)
 
     def test_digital_tv_input_formatted_correctly(self):
-        controller = _controller_with_smartthings()
-        with patch(_ST_PATCH) as mock_cls:
-            mock_client = MagicMock()
-            mock_client.get_supported_inputs.return_value = ["HDMI1", "digitalTv"]
-            mock_cls.return_value = mock_client
-            controller.retrieve_hdmi_inputs()
+        mock_client = MagicMock()
+        mock_client.get_supported_inputs.return_value = ["HDMI1", "digitalTv"]
+        controller = _controller_with_smartthings(mock_client=mock_client)
+        controller.retrieve_hdmi_inputs()
         inputs = controller.config["tv"]["available_hdmi_inputs"]
         self.assertIn("Digital TV", [i["nombre"] for i in inputs])
 

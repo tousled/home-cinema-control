@@ -12,9 +12,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from home_cinema_control.config.manager import load_effective_config
-from home_cinema_control.devices.oppo.constants import OPPO_TELNET_PORT
-from home_cinema_control.devices.oppo.verbose_events import OppoVerboseEventListener
+from home_cinema_control.config.manager import load_effective_config  # noqa: E402
+from home_cinema_control.devices.oppo.constants import OPPO_TELNET_PORT  # noqa: E402
+from home_cinema_control.devices.oppo.verbose_events import OppoVerboseEventListener  # noqa: E402
 
 
 def now() -> str:

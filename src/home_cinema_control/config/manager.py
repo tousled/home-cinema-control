@@ -70,6 +70,10 @@ def sanitize_config_for_web(config: dict) -> dict:
     safe_config = _deep_merge({}, config)
 
     _sanitize_media_server_providers(safe_config, config)
+    safe_config.pop("samsung_smartthings", None)
+    tv = safe_config.get("tv")
+    if isinstance(tv, dict):
+        tv.pop("smartthings_token", None)
 
     password_configured = bool(
         str(_get_nested(config, ("smb", "password"), "")).strip()

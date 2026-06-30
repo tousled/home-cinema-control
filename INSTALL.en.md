@@ -370,34 +370,48 @@ HCC controls Samsung TVs over WebSocket for connection, pairing, and Wake-on-LAN
 requires SmartThings: remote-control key codes (`KEY_HDMI1`…) do not reliably jump to a specific input on most
 Tizen models.
 
-Both fields below are required for HDMI switching to work. For a visual walkthrough with screenshots of every
-step, see
-the [SmartThings API setup guide](https://tavicu.github.io/homebridge-samsung-tizen/configuration/smartthings-api.html)
-(written for Homebridge but the SmartThings screens are identical). The official token reference is at
+HCC uses OAuth 2.0 to connect to SmartThings. You authorise once; HCC refreshes the token automatically on every
+use, so you never need to re-enter credentials during normal operation. Re-authorisation is only needed if HCC stops
+running for more than 29 consecutive days.
+
+For a visual walkthrough of the SmartThings developer portal, see the
+[SmartThings API setup guide](https://tavicu.github.io/homebridge-samsung-tizen/configuration/smartthings-api.html)
+(written for Homebridge but the SmartThings screens are identical). The official OAuth reference is at
 [developer.smartthings.com](https://developer.smartthings.com/docs/getting-started/authorization-and-permissions).
 
-#### How to Get the SmartThings Token
+#### Step 1 — Register a SmartThings App
 
-1. Open [account.smartthings.com/tokens](https://account.smartthings.com/tokens) and log in with your Samsung account.
-2. Click **Generate new token**.
-3. Give it a descriptive name, for example `Home Cinema Control`.
-4. Under **Authorized Scopes**, enable at minimum **Devices**.
-5. Click **Generate token** and copy the value immediately — it will not be shown again.
-6. Paste the token into the **SmartThings Token** field in the Samsung TV section of HCC.
+Each HCC instance needs its own registered SmartThings app to obtain a `client_id` and `client_secret`.
 
-> **Token lifespan:** SmartThings personal access tokens expire after 24 hours. When HDMI switching stops
-> working, return to [account.smartthings.com/tokens](https://account.smartthings.com/tokens), generate a
-> new token, and paste the new value into the **SmartThings Token** field in HCC Settings.
+Install the SmartThings CLI and log in:
 
-#### How to Get the SmartThings Device ID
+```bash
+npm install -g @smartthings/cli
+smartthings login
+smartthings apps:create
+```
 
-1. Open [account.smartthings.com](https://account.smartthings.com) and log in.
-2. In the dashboard, find your TV and click on it.
-3. The device ID appears on the left side of the popup in `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` format.
-4. Copy that value and paste it into the **SmartThings Device ID** field in HCC.
+When prompted, enter:
 
-If the TV does not appear in the dashboard, open the Samsung SmartThings app on your phone and complete device
-registration before returning to this step.
+- **App type:** `API_ONLY`
+- **Redirect URI:** `http://<hcc-host>:8090/api/v1/tv/samsung/oauth/callback`
+  (replace `<hcc-host>` with the IP or hostname you use to access HCC)
+- **Scopes:** `r:devices:*` and `x:devices:*`
+
+The CLI will output a `client_id` and `client_secret`. Save them — you will paste these into HCC.
+
+#### Step 2 — Connect HCC to SmartThings
+
+1. In HCC Settings → Samsung TV, enter the **Application Key** and **Application Password**.
+2. Click **Authorize with SmartThings**.
+3. Your browser opens the SmartThings authorisation page. Log in with your Samsung account and approve access.
+4. SmartThings redirects back to HCC. The status badge changes to **Connected**.
+5. A dropdown appears showing your SmartThings TVs. Select your Samsung TV.
+
+If your TV does not appear in the dropdown, open the Samsung SmartThings app on your phone, confirm the TV is
+visible there, and then reload HCC settings.
+
+HDMI input detection and switching are now active.
 
 ## 9. Diagnostics
 
@@ -554,14 +568,13 @@ libraries work fine, suspect the name length/characters first, before checking t
 
 ### The Samsung TV won't change HDMI input
 
-- Check that both **SmartThings Token** and **SmartThings Device ID** are filled in the Samsung TV settings. Without
-  them, HCC cannot switch inputs.
-- Verify the token was created with the **Devices** scope at account.smartthings.com/tokens. Tokens with only other
-  scopes will be rejected.
-- SmartThings personal access tokens expire after 24 hours. If HDMI switching was working and has stopped,
-  the token has most likely expired — generate a new one
-  at [account.smartthings.com/tokens](https://account.smartthings.com/tokens)
-  and update the **SmartThings Token** field in HCC Settings.
+- Check that **Application Key** and **Application Password** are filled in, the status badge shows **Connected**,
+  and a TV is selected in the SmartThings dropdown. Click **Authorize with SmartThings** if the badge shows
+  **Not connected**.
+- Verify your SmartThings app was registered with the `r:devices:*` and `x:devices:*` scopes. Apps with only other
+  scopes will be rejected with a 403 error.
+- If HDMI switching was working and has stopped after a long HCC outage (more than 29 days), the refresh token has
+  expired — click **Connect with SmartThings** again to re-authorise.
 - Confirm the TV appears in your SmartThings account at account.smartthings.com. If it does not, re-add it via the
   Samsung SmartThings mobile app before trying again.
 - If HCC powers the TV on via Wake-on-LAN, wait a few seconds before the HDMI switch — the TV needs to finish booting

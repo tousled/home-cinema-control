@@ -49,6 +49,14 @@ _port_cache: dict[str, int] = {}
 
 
 class SamsungTvController(BaseTvController):
+    def __init__(
+        self,
+        config: dict,
+        smartthings_client: SmartThingsInputClient | None = None,
+    ) -> None:
+        super().__init__(config)
+        self._smartthings_client = smartthings_client
+
     def test_connection(self) -> DeviceCommandResult:
         try:
             with self._connected_client():
@@ -62,7 +70,7 @@ class SamsungTvController(BaseTvController):
             return DeviceCommandResult.failed(f"TV connection error: {exc}")
 
     def retrieve_hdmi_inputs(self) -> DeviceCommandResult:
-        client = self._make_smartthings_client()
+        client = self._smartthings_client
         if client:
             try:
                 sources = client.get_supported_inputs()
@@ -85,7 +93,7 @@ class SamsungTvController(BaseTvController):
     def switch_to_input(self, target: TvInputTarget) -> DeviceCommandResult:
         if not target.input_id:
             return DeviceCommandResult.failed("TV input_id is not configured.")
-        client = self._make_smartthings_client()
+        client = self._smartthings_client
         if client:
             return self._switch_via_smartthings(target.input_id, client)
         return self._switch_via_websocket(target.input_id)
@@ -181,14 +189,6 @@ class SamsungTvController(BaseTvController):
 
     def media_server_app_id(self, provider_type: str) -> str | None:
         return _MEDIA_SERVER_APP_IDS.get(provider_type)
-
-    def _make_smartthings_client(self) -> SmartThingsInputClient | None:
-        tv = self.config.get("tv") or {}
-        token = tv.get("smartthings_token")
-        device_id = tv.get("smartthings_device_id")
-        if not token or not device_id:
-            return None
-        return SmartThingsInputClient(token=token, device_id=device_id)
 
     @contextmanager
     def _connected_client(self, *, wake_if_unreachable: bool = False):

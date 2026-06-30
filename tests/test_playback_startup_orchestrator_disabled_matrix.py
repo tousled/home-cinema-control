@@ -32,8 +32,6 @@ class TestDisabledMatrix(unittest.TestCase):
     # tv=False, av=False ─────────────────────────────────────────────────────
 
     def test_both_disabled_all_results_are_skipped(self):
-        tv = _RecordingTv()
-        av = _RecordingAv()
         result = _orchestrator(television=None, av_receiver=None).switch_playback_output_to_oppo(
             _request(tv_enabled=False, av_enabled=False)
         )
