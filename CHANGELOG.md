@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [1.1.4] - 2026-06-30
+
+### Fixed
+
+* Fixed OPPO entering an unresponsive state after SMB playback when the autoscript Telnet shell was unavailable
+  during unmount. The unmount failure now resolves as skipped rather than failed, preventing the error recovery
+  loop from issuing repeated forced-stop commands that exhausted the OPPO's network stack and required a power
+  cycle to recover.
+
 ## [1.1.3] - 2026-06-29
 
 ### Added

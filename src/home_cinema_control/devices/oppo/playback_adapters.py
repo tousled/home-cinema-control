@@ -156,11 +156,11 @@ class OppoMediaPlayerAdapter(MediaPlayerPort):
 
         if not unmounted:
             logger.warning(
-                "OPPO autoscript unmount reported failure | mount_path=%s",
+                "OPPO autoscript shell not available; skipping unmount | mount_path=%s",
                 mount_path,
             )
-            return DeviceCommandResult.failed(
-                f"OPPO autoscript unmount failed for {mount_path}."
+            return DeviceCommandResult.skipped(
+                f"OPPO autoscript shell not available; unmount of {mount_path} skipped."
             )
 
         logger.info(
