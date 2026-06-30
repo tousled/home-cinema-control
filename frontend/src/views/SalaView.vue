@@ -142,6 +142,20 @@
                   {{ $t('x-tv-mac-linux-only') }}</p>
 
                 <div class="form-label label-with-help">
+                  <label for="tv-samsung-st-token">{{ $t('x-tv-samsung-smartthings-token') }}</label>
+                  <HelpTooltip :text="$t('x-tv-samsung-smartthings-token-tooltip')"/>
+                </div>
+                <input id="tv-samsung-st-token" v-model="tv.smartthings_token" class="form-input mb-4"
+                       type="password"/>
+
+                <div class="form-label label-with-help">
+                  <label for="tv-samsung-st-device-id">{{ $t('x-tv-samsung-smartthings-device-id') }}</label>
+                  <HelpTooltip :text="$t('x-tv-samsung-smartthings-device-id-tooltip')"/>
+                </div>
+                <input id="tv-samsung-st-device-id" v-model="tv.smartthings_device_id" class="form-input mb-4"
+                       type="text"/>
+
+                <div class="form-label label-with-help">
                   <label for="tv-hdmi-input-samsung">{{ $t('x-tv-hdmi-input') }}</label>
                   <HelpTooltip :text="$t('x-tv-tooltip-hdmi-input')"/>
                 </div>
@@ -434,6 +448,8 @@ watch(
           player_hdmi_input_id: 0,
           startup_script: '',
           shutdown_script: '',
+          smartthings_token: '',
+          smartthings_device_id: '',
         }
         selectedTvSourceIndex.value = 0
       }

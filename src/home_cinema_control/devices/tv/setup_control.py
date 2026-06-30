@@ -16,7 +16,10 @@ def test_tv_connection(config):
 
 
 def detect_tv_sources(config):
-    return _result_to_status(create_tv_controller(config).retrieve_hdmi_inputs())
+    result = create_tv_controller(config).retrieve_hdmi_inputs()
+    if result.successful:
+        return "OK"
+    return result.detail or "FAILURE"
 
 
 def switch_tv_to_player_input(config):

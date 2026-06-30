@@ -360,8 +360,44 @@ The same network scan helps locate the TV and AV receiver when you configure **R
   <img src="assets/screenshots/install/05-room-ip-discovery.png" alt="IP discovery in the Home Cinema Control Room setup screen" width="860"/>
 </p>
 
-If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
-disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
+If TV or AV is disabled, HCC does not include it in the playback flow. For Samsung Tizen TVs (2016+), HCC needs
+SmartThings to switch HDMI inputs — see the next section. If CEC/ARC forces the receiver back to TV Audio, disable
+CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
+
+### 8.1 Samsung TV: SmartThings Setup
+
+HCC controls Samsung TVs over WebSocket for connection, pairing, and Wake-on-LAN. However, switching HDMI inputs
+requires SmartThings: remote-control key codes (`KEY_HDMI1`…) do not reliably jump to a specific input on most
+Tizen models.
+
+Both fields below are required for HDMI switching to work. For a visual walkthrough with screenshots of every
+step, see
+the [SmartThings API setup guide](https://tavicu.github.io/homebridge-samsung-tizen/configuration/smartthings-api.html)
+(written for Homebridge but the SmartThings screens are identical). The official token reference is at
+[developer.smartthings.com](https://developer.smartthings.com/docs/getting-started/authorization-and-permissions).
+
+#### How to Get the SmartThings Token
+
+1. Open [account.smartthings.com/tokens](https://account.smartthings.com/tokens) and log in with your Samsung account.
+2. Click **Generate new token**.
+3. Give it a descriptive name, for example `Home Cinema Control`.
+4. Under **Authorized Scopes**, enable at minimum **Devices**.
+5. Click **Generate token** and copy the value immediately — it will not be shown again.
+6. Paste the token into the **SmartThings Token** field in the Samsung TV section of HCC.
+
+> **Token lifespan:** SmartThings personal access tokens expire after 24 hours. When HDMI switching stops
+> working, return to [account.smartthings.com/tokens](https://account.smartthings.com/tokens), generate a
+> new token, and paste the new value into the **SmartThings Token** field in HCC Settings.
+
+#### How to Get the SmartThings Device ID
+
+1. Open [account.smartthings.com](https://account.smartthings.com) and log in.
+2. In the dashboard, find your TV and click on it.
+3. The device ID appears on the left side of the popup in `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` format.
+4. Copy that value and paste it into the **SmartThings Device ID** field in HCC.
+
+If the TV does not appear in the dashboard, open the Samsung SmartThings app on your phone and complete device
+registration before returning to this step.
 
 ## 9. Diagnostics
 
@@ -515,3 +551,27 @@ libraries work fine, suspect the name length/characters first, before checking t
 - Review CEC/ARC.
 - Disable CEC/ARC on the AVR if it forces TV Audio.
 - Increase HDMI switch delay if the receiver needs more time after standby.
+
+### The Samsung TV won't change HDMI input
+
+- Check that both **SmartThings Token** and **SmartThings Device ID** are filled in the Samsung TV settings. Without
+  them, HCC cannot switch inputs.
+- Verify the token was created with the **Devices** scope at account.smartthings.com/tokens. Tokens with only other
+  scopes will be rejected.
+- SmartThings personal access tokens expire after 24 hours. If HDMI switching was working and has stopped,
+  the token has most likely expired — generate a new one
+  at [account.smartthings.com/tokens](https://account.smartthings.com/tokens)
+  and update the **SmartThings Token** field in HCC Settings.
+- Confirm the TV appears in your SmartThings account at account.smartthings.com. If it does not, re-add it via the
+  Samsung SmartThings mobile app before trying again.
+- If HCC powers the TV on via Wake-on-LAN, wait a few seconds before the HDMI switch — the TV needs to finish booting
+  before SmartThings commands are accepted.
+
+### The Samsung TV keeps asking to confirm access on every connection
+
+The pairing token is stored in `/config/.samsung_tv_token`. If this file is missing or unreadable, the TV will show a
+confirmation dialog on every connection.
+
+- Check that the file exists and is readable by the HCC process.
+- If the file is empty or corrupted, delete it and accept the pairing dialog once — the token will be saved
+  automatically after that.

@@ -30,6 +30,16 @@ def _controller(config=None):
     return SamsungTvController(config or {"tv": {"ip": IP}})
 
 
+def _controller_with_smartthings(config=None):
+    base = config or {}
+    base.setdefault("tv", {}).update({
+        "ip": IP,
+        "smartthings_token": "integration-test-token",
+        "smartthings_device_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    })
+    return SamsungTvController(base)
+
+
 def _config_with_provider(provider: str) -> dict:
     return {
         "tv": {"ip": IP},
@@ -50,35 +60,34 @@ def clear_port_cache():
 
 
 class TestSwitchToInputFlow:
-    def test_send_key_reaches_tv(self):
-        """switch_to_input connects via WS and sends the right key code."""
+    def test_websocket_fallback_sends_key_code(self):
+        """Without SmartThings: switch_to_input connects via WS and derives KEY_HDMIx."""
         with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
             ws = MagicMock()
             mock_cls.return_value = ws
-            result = _controller().switch_to_input(TvInputTarget(input_id="KEY_HDMI2"))
+            result = _controller().switch_to_input(TvInputTarget(input_id="HDMI2"))
 
         assert result.successful
         ws.send_key.assert_called_once_with("KEY_HDMI2")
 
-    def test_each_hdmi_key_code_is_routed_correctly(self):
-        """The four static inputs each produce the matching KEY_HDMIx."""
-        key_codes = ["KEY_HDMI1", "KEY_HDMI2", "KEY_HDMI3", "KEY_HDMI4"]
-        for key in key_codes:
+    def test_each_hdmi_input_derives_correct_key_code(self):
+        """All four SmartThings input IDs map to the correct KEY_HDMIx fallback."""
+        for n in range(1, 5):
             samsung_mod._port_cache.clear()
             with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
                 ws = MagicMock()
                 mock_cls.return_value = ws
-                result = _controller().switch_to_input(TvInputTarget(input_id=key))
+                result = _controller().switch_to_input(TvInputTarget(input_id=f"HDMI{n}"))
 
-            assert result.successful, f"Failed for {key}"
-            ws.send_key.assert_called_once_with(key)
+            assert result.successful, f"Failed for HDMI{n}"
+            ws.send_key.assert_called_once_with(f"KEY_HDMI{n}")
 
     def test_token_file_passed_to_websocket_client(self):
         """The WS client must carry token_file so the pairing token persists."""
         samsung_mod._port_cache[IP] = SAMSUNG_PORT_SSL
         with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
             mock_cls.return_value = MagicMock()
-            _controller().switch_to_input(TvInputTarget(input_id="KEY_HDMI1"))
+            _controller().switch_to_input(TvInputTarget(input_id="HDMI1"))
 
         _, kwargs = mock_cls.call_args
         assert kwargs.get("token_file") == SAMSUNG_TOKEN_FILE_PATH
@@ -103,10 +112,10 @@ class TestPortCacheAcrossOperations:
         with patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_cls:
             mock_cls.return_value = MagicMock()
             controller = _controller()
-            controller.switch_to_input(TvInputTarget(input_id="KEY_HDMI1"))
+            controller.switch_to_input(TvInputTarget(input_id="HDMI1"))
             first_count = mock_cls.call_count  # 2 (probe + actual)
 
-            controller.switch_to_input(TvInputTarget(input_id="KEY_HDMI2"))
+            controller.switch_to_input(TvInputTarget(input_id="HDMI2"))
             second_op_count = mock_cls.call_count - first_count  # 1 (actual only)
 
         assert second_op_count == 1
@@ -197,6 +206,81 @@ class TestGetCurrentAppIdFallback:
             result = _controller().get_current_app_id()
 
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Full restore-app chain (get_current_app_id → launch_app)
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# SmartThings HDMI switch — full flow
+# ---------------------------------------------------------------------------
+
+
+_ST_PATCH = "home_cinema_control.devices.tv.adapters.samsung.SmartThingsInputClient"
+
+
+class TestSwitchToInputSmartThings:
+    def test_calls_set_input_on_client_with_correct_id(self):
+        """Full flow: controller delegates to SmartThingsInputClient.set_input."""
+        controller = _controller_with_smartthings()
+        with patch(_ST_PATCH) as mock_cls:
+            mock_client = MagicMock()
+            mock_cls.return_value = mock_client
+            result = controller.switch_to_input(TvInputTarget(input_id="HDMI1"))
+
+        assert result.successful
+        mock_client.set_input.assert_called_once_with("HDMI1")
+
+    def test_routes_each_hdmi_id_to_client(self):
+        """Each of the four inputs calls set_input with the matching argument."""
+        for n in range(1, 5):
+            controller = _controller_with_smartthings()
+            with patch(_ST_PATCH) as mock_cls:
+                mock_client = MagicMock()
+                mock_cls.return_value = mock_client
+                result = controller.switch_to_input(TvInputTarget(input_id=f"HDMI{n}"))
+            assert result.successful, f"Failed for HDMI{n}"
+            mock_client.set_input.assert_called_once_with(f"HDMI{n}")
+
+    def test_client_error_returns_failed_result(self):
+        """Exception from the client surfaces as a failed DeviceCommandResult."""
+        controller = _controller_with_smartthings()
+        with patch(_ST_PATCH) as mock_cls:
+            mock_client = MagicMock()
+            mock_client.set_input.side_effect = OSError("connection refused")
+            mock_cls.return_value = mock_client
+            result = controller.switch_to_input(TvInputTarget(input_id="HDMI2"))
+
+        assert not result.successful
+
+    def test_smartthings_does_not_open_websocket(self):
+        """SmartThings path must not open a WebSocket connection at all."""
+        controller = _controller_with_smartthings()
+        with patch(_ST_PATCH) as mock_cls, \
+                patch("home_cinema_control.devices.tv.adapters.samsung.SamsungTVWS") as mock_ws:
+            mock_cls.return_value = MagicMock()
+            controller.switch_to_input(TvInputTarget(input_id="HDMI3"))
+
+        mock_ws.assert_not_called()
+
+    def test_retrieve_inputs_uses_smartthings_dynamic_list(self):
+        """With SmartThings configured, retrieve_hdmi_inputs returns the real TV inputs."""
+        controller = _controller_with_smartthings()
+        with patch(_ST_PATCH) as mock_cls:
+            mock_client = MagicMock()
+            mock_client.get_supported_inputs.return_value = ["HDMI1", "HDMI2", "digitalTv"]
+            mock_cls.return_value = mock_client
+            result = controller.retrieve_hdmi_inputs()
+
+        assert result.successful
+        assert result.detail == "smartthings"
+        inputs = controller.config["tv"]["available_hdmi_inputs"]
+        assert len(inputs) == 3
+        assert inputs[0]["id"] == "HDMI1"
+        assert inputs[2]["id"] == "digitalTv"
+        assert inputs[2]["nombre"] == "Digital TV"
 
 
 # ---------------------------------------------------------------------------

@@ -409,7 +409,43 @@ Puntos importantes:
 - Si TV está desactivada, no entra en el flujo de reproducción.
 - Si AV está desactivado, no entra en el flujo de reproducción.
 - En LG WebOS, HCC puede detectar entradas HDMI y restaurar la app del servidor multimedia.
+- En Samsung Tizen (2016+), HCC necesita SmartThings para cambiar de entrada HDMI — ver sección siguiente.
 - En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
+
+### 8.1 Samsung TV: configuración de SmartThings
+
+HCC controla la Samsung TV por WebSocket para la conexión, el emparejamiento y el Wake-on-LAN. Sin embargo, para
+cambiar de entrada HDMI necesita SmartThings: los códigos de mando (`KEY_HDMI1`…) no funcionan de forma fiable en
+la mayoría de modelos Tizen para saltar directamente a un input concreto.
+
+Los dos campos son obligatorios para que el cambio de HDMI funcione. Para seguir el proceso con capturas de
+pantalla paso a paso, consulta
+la [guía de configuración de la API SmartThings](https://tavicu.github.io/homebridge-samsung-tizen/configuration/smartthings-api.html)
+(escrita para Homebridge, pero las pantallas de SmartThings son idénticas). La referencia oficial del token está en
+[developer.smartthings.com](https://developer.smartthings.com/docs/getting-started/authorization-and-permissions).
+
+#### Cómo obtener el SmartThings Token
+
+1. Abre [account.smartthings.com/tokens](https://account.smartthings.com/tokens) e inicia sesión con tu cuenta Samsung.
+2. Pulsa **Generate new token**.
+3. Dale un nombre descriptivo, por ejemplo `Home Cinema Control`.
+4. En **Authorized Scopes**, activa como mínimo **Devices**.
+5. Pulsa **Generate token** y copia el valor inmediatamente — no se vuelve a mostrar.
+6. Pega el token en el campo **SmartThings Token** de la configuración Samsung en HCC.
+
+> **Caducidad del token:** Los tokens de SmartThings caducan a las 24 horas de su creación. Cuando el cambio
+> de HDMI deje de funcionar, vuelve a [account.smartthings.com/tokens](https://account.smartthings.com/tokens),
+> genera uno nuevo y pégalo en el campo **SmartThings Token** de la configuración Samsung en HCC.
+
+#### Cómo obtener el SmartThings Device ID
+
+1. Abre [account.smartthings.com](https://account.smartthings.com) e inicia sesión.
+2. En el panel principal, localiza la TV y haz clic en ella.
+3. El identificador aparece a la izquierda del modal, en formato `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+4. Copia ese valor y pégalo en el campo **SmartThings Device ID** de la configuración Samsung en HCC.
+
+Si la TV no aparece en el panel, ábrela desde la app Samsung SmartThings en tu móvil y completa el registro del
+dispositivo antes de volver a este paso.
 
 Nota sobre CEC/ARC:
 
@@ -579,6 +615,29 @@ revisar red o NAS:
 
 - Cambia esa ruta concreta a NFS si el NAS lo expone (la forma más rápida de seguir viendo ese contenido).
 - O renombra la carpeta/fichero a algo más corto y sin paréntesis/corchetes si quieres seguir usando SMB.
+
+### La TV Samsung no cambia de entrada HDMI
+
+- Comprueba que los campos **SmartThings Token** y **SmartThings Device ID** estén rellenos en la pantalla
+  Sala. Sin ellos, HCC no puede cambiar de entrada HDMI en Samsung —
+  ver [sección 8.1](#81-samsung-tv-configuración-de-smartthings).
+- El token debe tener al menos el permiso **Devices** en SmartThings. Si lo generaste con todos los permisos
+  desmarcados, revócalo y genera uno nuevo con ese permiso activo.
+- Los tokens de SmartThings caducan a las 24 horas. Si el cambio de HDMI dejó de funcionar después de haber
+  funcionado correctamente, lo más probable es que el token haya caducado — genera uno nuevo en
+  [account.smartthings.com/tokens](https://account.smartthings.com/tokens) y actualiza el campo **SmartThings Token** en
+  HCC.
+- Verifica que la TV esté registrada en SmartThings: debe aparecer como dispositivo en
+  [account.smartthings.com](https://account.smartthings.com) y en la app SmartThings del móvil.
+- Si la TV acaba de encenderse o se despertó por Wake-on-LAN, espera unos segundos antes de que SmartThings la
+  detecte disponible y vuelve a intentarlo.
+
+### La TV Samsung pide confirmar el acceso en cada conexión
+
+HCC guarda el token de emparejamiento WebSocket en `/config/.samsung_tv_token`. Si el contenedor no tiene
+permisos de escritura sobre el volumen `/config`, el fichero no puede crearse y la TV mostrará el diálogo
+de emparejamiento en cada operación. Comprueba que el volumen esté montado con permisos de escritura y reinicia
+el contenedor.
 
 ### El AVR cambia solo de entrada
 
