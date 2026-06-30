@@ -5,6 +5,7 @@ from contextlib import contextmanager, suppress
 from samsungtvws import SamsungTVWS
 from wakeonlan import wake
 
+from home_cinema_control.devices.tv.adapters.smartthings_client import SmartThingsInputClient
 from home_cinema_control.devices.tv.base import BaseTvController
 from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.network.arp import find_mac_by_ip
@@ -28,11 +29,19 @@ _MEDIA_SERVER_APP_IDS = {
 }
 
 _STATIC_HDMI_INPUTS = [
-    {"index": 0, "id": "KEY_HDMI1", "nombre": "HDMI 1"},
-    {"index": 1, "id": "KEY_HDMI2", "nombre": "HDMI 2"},
-    {"index": 2, "id": "KEY_HDMI3", "nombre": "HDMI 3"},
-    {"index": 3, "id": "KEY_HDMI4", "nombre": "HDMI 4"},
+    {"index": 0, "id": "HDMI1", "nombre": "HDMI 1"},
+    {"index": 1, "id": "HDMI2", "nombre": "HDMI 2"},
+    {"index": 2, "id": "HDMI3", "nombre": "HDMI 3"},
+    {"index": 3, "id": "HDMI4", "nombre": "HDMI 4"},
 ]
+
+def _format_input_name(src: str) -> str:
+    if src.startswith("HDMI") and len(src) > 4:
+        return f"HDMI {src[4:]}"
+    if src == "digitalTv":
+        return "Digital TV"
+    return src
+
 
 # Cached per IP within the process lifetime — the port doesn't change unless
 # the TV firmware changes, so probing once per process is sufficient.
@@ -40,6 +49,14 @@ _port_cache: dict[str, int] = {}
 
 
 class SamsungTvController(BaseTvController):
+    def __init__(
+        self,
+        config: dict,
+        smartthings_client: SmartThingsInputClient | None = None,
+    ) -> None:
+        super().__init__(config)
+        self._smartthings_client = smartthings_client
+
     def test_connection(self) -> DeviceCommandResult:
         try:
             with self._connected_client():
@@ -53,22 +70,65 @@ class SamsungTvController(BaseTvController):
             return DeviceCommandResult.failed(f"TV connection error: {exc}")
 
     def retrieve_hdmi_inputs(self) -> DeviceCommandResult:
+        client = self._smartthings_client
+        if client:
+            try:
+                sources = client.get_supported_inputs()
+                inputs = [
+                    {"index": i, "id": src, "nombre": _format_input_name(src)}
+                    for i, src in enumerate(sources)
+                ]
+                self.config.setdefault("tv", {})["available_hdmi_inputs"] = inputs
+                logging.info("Samsung TV: retrieved %d inputs from SmartThings", len(inputs))
+                return DeviceCommandResult.success(detail="smartthings")
+            except Exception as exc:
+                logging.warning("Samsung TV: SmartThings input discovery failed: %s", exc)
+                return DeviceCommandResult.failed(
+                    f"SmartThings input discovery failed: {exc}. "
+                    "Check your SmartThings token and device ID in TV settings."
+                )
         self.config.setdefault("tv", {})["available_hdmi_inputs"] = list(_STATIC_HDMI_INPUTS)
-        return DeviceCommandResult.success()
+        return DeviceCommandResult.success(detail="static")
 
     def switch_to_input(self, target: TvInputTarget) -> DeviceCommandResult:
         if not target.input_id:
             return DeviceCommandResult.failed("TV input_id is not configured.")
+        client = self._smartthings_client
+        if client:
+            return self._switch_via_smartthings(target.input_id, client)
+        return self._switch_via_websocket(target.input_id)
+
+    def _switch_via_smartthings(
+        self, input_id: str, client: SmartThingsInputClient
+    ) -> DeviceCommandResult:
         try:
-            with self._connected_client(wake_if_unreachable=True) as tv:
-                logging.info("Changing Samsung TV input to %s", target.input_id)
-                tv.send_key(target.input_id)
+            logging.info("Switching Samsung TV input to %s via SmartThings", input_id)
+            client.set_input(input_id)
             return DeviceCommandResult.success()
         except ValueError as exc:
             logging.error("Samsung TV configuration error while switching input: %s", exc)
             return DeviceCommandResult.failed(f"TV configuration error: {exc}")
         except Exception as exc:
-            logging.warning("Samsung TV error while switching input: %s", exc)
+            logging.warning("Samsung TV error switching input via SmartThings: %s", exc)
+            return DeviceCommandResult.failed(f"TV error switching input: {exc}")
+
+    def _switch_via_websocket(self, input_id: str) -> DeviceCommandResult:
+        logging.warning(
+            "SmartThings not configured; attempting WebSocket key fallback for input %s"
+            " (may not work on all Samsung TV models — configure SmartThings for reliability)",
+            input_id,
+        )
+        try:
+            with self._connected_client(wake_if_unreachable=True) as tv:
+                key = f"KEY_{input_id}"
+                logging.info("Sending WebSocket key to Samsung TV: %s", key)
+                tv.send_key(key)
+            return DeviceCommandResult.success()
+        except ValueError as exc:
+            logging.error("Samsung TV configuration error while switching input: %s", exc)
+            return DeviceCommandResult.failed(f"TV configuration error: {exc}")
+        except Exception as exc:
+            logging.warning("Samsung TV error switching input via WebSocket: %s", exc)
             return DeviceCommandResult.failed(f"TV error switching input: {exc}")
 
     def launch_app(self, app_id: str | None) -> DeviceCommandResult:

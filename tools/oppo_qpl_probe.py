@@ -9,7 +9,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from lib.devices.oppo.playback_status_client import OppoPlaybackStatusClient
+from lib.devices.oppo.playback_status_client import OppoPlaybackStatusClient  # noqa: E402
 
 
 def now() -> str:

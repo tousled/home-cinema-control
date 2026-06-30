@@ -126,6 +126,10 @@ export const api = {
     getTvSources: (config) => request('POST', '/tv/sources', config),
     tvSwitchInput: (config) => request('POST', '/tv/switch-input', config),
     tvRestoreInput: (config) => request('POST', '/tv/restore-input', config),
+    samsungOauthStatus: () => request('GET', '/tv/samsung/oauth/status'),
+    samsungOauthDevices: () => request('GET', '/tv/samsung/oauth/devices'),
+    samsungOauthStart: (body) => request('POST', '/tv/samsung/oauth/start', body),
+    samsungOauthDisconnect: () => request('DELETE', '/tv/samsung/oauth/disconnect'),
 
     // av
     getAvSources: () => request('GET', '/av/sources'),

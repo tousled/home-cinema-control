@@ -142,12 +142,63 @@
                   {{ $t('x-tv-mac-linux-only') }}</p>
 
                 <div class="form-label label-with-help">
+                  <label for="tv-samsung-st-client-id">{{ $t('x-tv-samsung-smartthings-client-id') }}</label>
+                  <HelpTooltip :text="$t('x-tv-samsung-smartthings-client-id-tooltip')"/>
+                </div>
+                <input id="tv-samsung-st-client-id" v-model="stClientId" class="form-input mb-4" type="text"/>
+
+                <div class="form-label label-with-help">
+                  <label for="tv-samsung-st-client-secret">{{ $t('x-tv-samsung-smartthings-client-secret') }}</label>
+                  <HelpTooltip :text="$t('x-tv-samsung-smartthings-client-secret-tooltip')"/>
+                </div>
+                <input id="tv-samsung-st-client-secret" v-model="stClientSecret" class="form-input mb-4"
+                       type="password"/>
+
+                <div v-if="!stStatus.connected" class="flex gap-2 mb-3">
+                  <button
+                      :disabled="!stClientId || !stClientSecret"
+                      class="btn-ghost"
+                      @click="connectSmartThings">
+                    {{ $t('x-tv-samsung-smartthings-connect') }}
+                  </button>
+                </div>
+
+                <div class="flex items-center gap-2 mb-3">
+                  <span :class="stBadgeClass">{{ stBadgeLabel }}</span>
+                  <button
+                      v-if="stStatus.connected"
+                      class="btn-ghost"
+                      style="margin-left:auto"
+                      @click="disconnectSmartThings">
+                    {{ $t('x-tv-samsung-smartthings-disconnect') }}
+                  </button>
+                </div>
+
+                <template v-if="stStatus.connected">
+                  <div class="form-label label-with-help">
+                    <label for="tv-samsung-st-device">{{ $t('x-tv-samsung-smartthings-device-id') }}</label>
+                    <HelpTooltip :text="$t('x-tv-samsung-smartthings-device-id-tooltip')"/>
+                  </div>
+                  <FormSelect
+                      id="tv-samsung-st-device"
+                      v-model="tv.smartthings_device_id"
+                      :options="stDevices.map(d => ({value: d.id, label: d.label}))"
+                      class="mb-4"
+                      @change="onDeviceSelect"
+                  />
+                  <p v-if="stDevices.length === 0" class="section-hint mb-3">
+                    {{ $t('x-tv-samsung-smartthings-no-devices') }}
+                  </p>
+                </template>
+
+                <div class="form-label label-with-help">
                   <label for="tv-hdmi-input-samsung">{{ $t('x-tv-hdmi-input') }}</label>
                   <HelpTooltip :text="$t('x-tv-tooltip-hdmi-input')"/>
                 </div>
                 <FormSelect
                     id="tv-hdmi-input-samsung"
                     v-model="selectedTvSourceIndex"
+                    :disabled="!stSmartThingsReady"
                     :options="tv.available_hdmi_inputs.map((src, i) => ({ value: i, label: src.nombre || src.name || src.id }))"
                     class="mb-3"
                 />
@@ -155,6 +206,7 @@
                 <div class="icon-action-row">
                   <HelpTooltip :text="$t('x-tv-action-detect-inputs-tooltip')">
                     <IconActionButton
+                        :disabled="!stSmartThingsReady"
                         :label="$t('x-tv-action-detect-inputs')"
                         :loading="tvSourcesLoading"
                         :loading-label="$t('x-tv-detecting-inputs')"
@@ -164,6 +216,7 @@
                   </HelpTooltip>
                   <HelpTooltip :text="$t('x-tv-action-switch-player-tooltip')">
                     <IconActionButton
+                        :disabled="!stSmartThingsReady"
                         :label="$t('x-tv-action-switch-player')"
                         icon="player"
                         @click="tvSwitchInput"
@@ -175,7 +228,7 @@
                           : $t('x-tv-action-restore-media-server-not-configured-tooltip')">
                     <IconActionButton
                         :brand="mediaServerBrand.brand"
-                        :disabled="!mediaServerConfigured"
+                        :disabled="!mediaServerConfigured || !stSmartThingsReady"
                         :label="$t('x-tv-action-restore-media-server', {server: mediaServerBrand.label})"
                         icon="server"
                         @click="tvRestoreInput"
@@ -399,6 +452,82 @@ const tvTestLoading = ref(false)
 const tvSourcesLoading = ref(false)
 const tvTested = ref(false)
 
+/* SmartThings OAuth */
+const stClientId = ref('')
+const stClientSecret = ref('')
+const stStatus = ref({connected: false, unauthorized: false})
+const stDevices = ref([])
+
+const stSmartThingsReady = computed(() =>
+    stStatus.value.connected && Boolean(tv.value.smartthings_device_id)
+)
+
+const stBadgeClass = computed(() => {
+  if (stStatus.value.connected) return 'status-badge-ok'
+  if (stStatus.value.unauthorized) return 'status-badge-warn'
+  return 'status-badge-dim'
+})
+
+const stBadgeLabel = computed(() => {
+  if (stStatus.value.connected) return t('x-tv-samsung-smartthings-connected')
+  if (stStatus.value.unauthorized) return t('x-tv-samsung-smartthings-unauthorized')
+  return t('x-tv-samsung-smartthings-not-connected')
+})
+
+async function loadStDevices() {
+  try {
+    stDevices.value = await api.samsungOauthDevices()
+  } catch (err) {
+    if (err.status === 401) {
+      stStatus.value = {connected: false, unauthorized: true}
+    }
+    stDevices.value = []
+  }
+}
+
+async function loadStStatus() {
+  try {
+    const data = await api.samsungOauthStatus()
+    stStatus.value = {connected: data.connected, unauthorized: false}
+    stClientId.value = data.client_id || ''
+    if (data.connected) await loadStDevices()
+  } catch (_) { /* not yet configured */
+  }
+}
+
+async function connectSmartThings() {
+  const redirectUri = `${window.location.origin}/api/v1/tv/samsung/oauth/callback`
+  try {
+    const data = await api.samsungOauthStart({
+      client_id: stClientId.value,
+      client_secret: stClientSecret.value,
+      redirect_uri: redirectUri,
+    })
+    window.location.href = data.auth_url
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function disconnectSmartThings() {
+  try {
+    await api.samsungOauthDisconnect()
+    stStatus.value = {connected: false, unauthorized: false}
+    stDevices.value = []
+    toast.success(t('x-tv-samsung-smartthings-not-connected'))
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function onDeviceSelect(deviceId) {
+  try {
+    await api.saveConfigSection('tv', {smartthings_device_id: deviceId})
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
 const tvState = computed(() => {
   if (!tv.value.enabled) return 'disabled'
   if (!tv.value.model) return 'incomplete'
@@ -434,8 +563,13 @@ watch(
           player_hdmi_input_id: 0,
           startup_script: '',
           shutdown_script: '',
+          smartthings_device_id: '',
         }
         selectedTvSourceIndex.value = 0
+        stClientId.value = ''
+        stClientSecret.value = ''
+        stStatus.value = {connected: false, unauthorized: false}
+        stDevices.value = []
       }
     },
 )
@@ -650,6 +784,9 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  if (tv.value.model === 'SAMSUNG') {
+    await loadStStatus()
+  }
 })
 </script>
 
@@ -853,6 +990,66 @@ onMounted(async () => {
 
 .room-state--disabled {
   color: var(--text-subtle);
+}
+
+.status-badge-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--status-success);
+}
+
+.status-badge-ok::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-success);
+}
+
+.status-badge-dim {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.status-badge-dim::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+}
+
+.status-badge-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--status-warning);
+}
+
+.status-badge-warn::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-warning);
 }
 
 .room-help-column {

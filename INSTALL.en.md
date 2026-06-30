@@ -360,8 +360,58 @@ The same network scan helps locate the TV and AV receiver when you configure **R
   <img src="assets/screenshots/install/05-room-ip-discovery.png" alt="IP discovery in the Home Cinema Control Room setup screen" width="860"/>
 </p>
 
-If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
-disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
+If TV or AV is disabled, HCC does not include it in the playback flow. For Samsung Tizen TVs (2016+), HCC needs
+SmartThings to switch HDMI inputs — see the next section. If CEC/ARC forces the receiver back to TV Audio, disable
+CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
+
+### 8.1 Samsung TV: SmartThings Setup
+
+HCC controls Samsung TVs over WebSocket for connection, pairing, and Wake-on-LAN. However, switching HDMI inputs
+requires SmartThings: remote-control key codes (`KEY_HDMI1`…) do not reliably jump to a specific input on most
+Tizen models.
+
+HCC uses OAuth 2.0 to connect to SmartThings. You authorise once; HCC refreshes the token automatically on every
+use, so you never need to re-enter credentials during normal operation. Re-authorisation is only needed if HCC stops
+running for more than 29 consecutive days.
+
+For a visual walkthrough of the SmartThings developer portal, see the
+[SmartThings API setup guide](https://tavicu.github.io/homebridge-samsung-tizen/configuration/smartthings-api.html)
+(written for Homebridge but the SmartThings screens are identical). The official OAuth reference is at
+[developer.smartthings.com](https://developer.smartthings.com/docs/getting-started/authorization-and-permissions).
+
+#### Step 1 — Register a SmartThings App
+
+Each HCC instance needs its own registered SmartThings app to obtain a `client_id` and `client_secret`.
+
+Install the SmartThings CLI and log in:
+
+```bash
+npm install -g @smartthings/cli
+smartthings login
+smartthings apps:create
+```
+
+When prompted, enter:
+
+- **App type:** `API_ONLY`
+- **Redirect URI:** `http://<hcc-host>:8090/api/v1/tv/samsung/oauth/callback`
+  (replace `<hcc-host>` with the IP or hostname you use to access HCC)
+- **Scopes:** `r:devices:*` and `x:devices:*`
+
+The CLI will output a `client_id` and `client_secret`. Save them — you will paste these into HCC.
+
+#### Step 2 — Connect HCC to SmartThings
+
+1. In HCC Settings → Samsung TV, enter the **Application Key** and **Application Password**.
+2. Click **Authorize with SmartThings**.
+3. Your browser opens the SmartThings authorisation page. Log in with your Samsung account and approve access.
+4. SmartThings redirects back to HCC. The status badge changes to **Connected**.
+5. A dropdown appears showing your SmartThings TVs. Select your Samsung TV.
+
+If your TV does not appear in the dropdown, open the Samsung SmartThings app on your phone, confirm the TV is
+visible there, and then reload HCC settings.
+
+HDMI input detection and switching are now active.
 
 ## 9. Diagnostics
 
@@ -515,3 +565,26 @@ libraries work fine, suspect the name length/characters first, before checking t
 - Review CEC/ARC.
 - Disable CEC/ARC on the AVR if it forces TV Audio.
 - Increase HDMI switch delay if the receiver needs more time after standby.
+
+### The Samsung TV won't change HDMI input
+
+- Check that **Application Key** and **Application Password** are filled in, the status badge shows **Connected**,
+  and a TV is selected in the SmartThings dropdown. Click **Authorize with SmartThings** if the badge shows
+  **Not connected**.
+- Verify your SmartThings app was registered with the `r:devices:*` and `x:devices:*` scopes. Apps with only other
+  scopes will be rejected with a 403 error.
+- If HDMI switching was working and has stopped after a long HCC outage (more than 29 days), the refresh token has
+  expired — click **Connect with SmartThings** again to re-authorise.
+- Confirm the TV appears in your SmartThings account at account.smartthings.com. If it does not, re-add it via the
+  Samsung SmartThings mobile app before trying again.
+- If HCC powers the TV on via Wake-on-LAN, wait a few seconds before the HDMI switch — the TV needs to finish booting
+  before SmartThings commands are accepted.
+
+### The Samsung TV keeps asking to confirm access on every connection
+
+The pairing token is stored in `/config/.samsung_tv_token`. If this file is missing or unreadable, the TV will show a
+confirmation dialog on every connection.
+
+- Check that the file exists and is readable by the HCC process.
+- If the file is empty or corrupted, delete it and accept the pairing dialog once — the token will be saved
+  automatically after that.
