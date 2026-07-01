@@ -22,6 +22,7 @@ from home_cinema_control.web.config_readiness import compute_config_readiness
 from home_cinema_control.web.oppo_routes import build_oppo_router
 from home_cinema_control.web.paths_routes import build_paths_router
 from home_cinema_control.web.static_assets import read_binary_asset
+from home_cinema_control.web.support_report import build_diagnostic_report, clamp_log_lines
 from home_cinema_control.web.telemetry_routes import build_telemetry_router
 from home_cinema_control.web.tv_routes import build_tv_router
 from home_cinema_control.web.version_routes import build_version_router
@@ -108,12 +109,39 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
         api_runtime.runtime.clear_last_diagnostic()
         return {"ok": True}
 
+    def _support_summary_payload(raw_config: dict) -> dict:
+        sanitized_config = api_runtime.config_service.sanitize(raw_config)
+        summary = api_runtime.runtime.get_support_summary()
+        summary["config_readiness"] = compute_config_readiness(sanitized_config)
+        return api_runtime.config_service.sanitize(summary)
+
     @router.get("/support/summary")
     def support_summary():
-        config = api_runtime.config_service.sanitize(api_runtime.config_service.load_config())
-        summary = api_runtime.runtime.get_support_summary()
-        summary["config_readiness"] = compute_config_readiness(config)
-        return api_runtime.config_service.sanitize(summary)
+        return _support_summary_payload(api_runtime.config_service.load_config())
+
+    @router.get("/support/report")
+    def support_report(lines: int | None = None):
+        try:
+            raw_config = api_runtime.config_service.load_config()
+            sanitized_summary = _support_summary_payload(raw_config)
+            try:
+                raw_log_bytes = read_binary_asset(api_runtime.log_file)
+            except FileNotFoundError:
+                raw_log_bytes = b""
+            result = build_diagnostic_report(
+                config=raw_config,
+                sanitized_summary=sanitized_summary,
+                raw_log_text=raw_log_bytes.decode("utf-8", errors="replace"),
+                max_lines=clamp_log_lines(lines),
+            )
+            return {
+                "report": result.report,
+                "redaction_count": result.redaction_count,
+                "log_lines_included": result.log_lines_included,
+            }
+        except Exception as exc:
+            logging.exception("support_report failed")
+            raise HTTPException(status_code=400, detail=str(exc))
 
     @router.post("/restart")
     def restart(background_tasks: BackgroundTasks):

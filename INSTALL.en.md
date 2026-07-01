@@ -383,6 +383,9 @@ The Status screen shows readiness, playback state, latest failure, version statu
 </p>
 
 Use it to understand whether the issue is Emby, path mapping, OPPO mount, optional room control, or deployment/update.
+A "Send diagnostics" button builds an automatically redacted report (no IPs, credentials, or paths), lets you review
+and edit it, then copies it to your clipboard and opens a new GitHub issue for you to paste it into and submit
+yourself — nothing is sent in the background or without you seeing it first.
 The version panel shows the installed version in Docker tag form, such as `1.1.1-rc.1`. When an update webhook is
 configured, HCC records the current version before asking the deployment platform to redeploy; older installs without
 that stored value derive rollback guidance from GitHub releases/tags instead of showing the internal build fallback.

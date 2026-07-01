@@ -8,6 +8,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+* Added a "Send diagnostics" action on the Diagnostics screen for reporting bugs from non-technical installs. It
+  builds a report from the support summary and recent log lines, automatically redacts IPs, MAC addresses,
+  credentials, URLs, and configured folder paths, and shows the result in an editable preview before anything
+  happens. Confirming copies the (possibly edited) text to the clipboard and opens a pre-filled GitHub "new issue"
+  page in a new tab for the user to paste into and submit themselves — there is no backend call to GitHub, no bot
+  account, and no server-side storage of the report.
+
 * Added a Sony BRAVIA TV adapter (2013+ models) using Sony's official local REST API, authenticated with a
   Pre-Shared Key configured directly on the TV — no cloud account required, unlike the SmartThings-dependent
   Samsung path that was explored and set aside. Supports dynamic HDMI input discovery and direct switching,

@@ -69,6 +69,7 @@ export const api = {
     getLogs: () => request('GET', '/logs'),
     clearDiagnostics: () => request('POST', '/diagnostics/clear'),
     getSupportSummary: () => request('GET', '/support/summary'),
+    getSupportReport: (lines) => request('GET', `/support/report${lines ? `?lines=${lines}` : ''}`),
     restart: () => request('POST', '/restart'),
 
     // version

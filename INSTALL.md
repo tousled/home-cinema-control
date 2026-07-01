@@ -449,6 +449,9 @@ La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y 
 
 - comprobar si HCC está conectado;
 - copiar un resumen de soporte;
+- enviar un diagnóstico: genera un informe redactado automáticamente (sin IPs, credenciales ni rutas), te deja
+  revisarlo y editarlo, y luego lo copia al portapapeles y abre un nuevo issue en GitHub para que lo pegues y lo
+  envíes tú mismo — nada se envía en segundo plano ni sin que lo veas antes;
 - ver el último fallo;
 - comprobar actualizaciones;
 - activar o desactivar telemetría anónima y enviar interés de roadmap;

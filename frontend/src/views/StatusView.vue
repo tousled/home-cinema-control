@@ -80,6 +80,12 @@
           <div class="flex gap-2">
             <IconActionButton :label="$t('x-diag-copy-summary')" icon="copy" @click="copySupportSummary"/>
             <IconActionButton
+                :label="$t('x-diag-send-diagnostics')"
+                :loading="diagnosticReportLoading"
+                icon="life-buoy"
+                @click="openDiagnosticReportModal"
+            />
+            <IconActionButton
                 v-if="state.LastDiagnostic"
                 :label="$t('x-diag-clear')"
                 icon="clear"
@@ -137,7 +143,7 @@
               <p class="caption mb-3">{{ $t('x-status-telemetry-short-copy') }}</p>
 
               <p v-if="telemetryStatus?.queue_count > 0" class="telemetry-queue-note mb-3">
-                {{ $tc('x-telemetry-pending', telemetryStatus.queue_count, {n: telemetryStatus.queue_count}) }}
+                {{ $t('x-telemetry-pending', telemetryStatus.queue_count, {n: telemetryStatus.queue_count}) }}
               </p>
 
               <p class="caption mb-3">
@@ -416,6 +422,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Send diagnostics modal -->
+    <div v-if="showDiagnosticReportModal" aria-labelledby="diag-report-modal-title" aria-modal="true"
+         class="data-modal-backdrop" role="dialog" @click.self="showDiagnosticReportModal = false">
+      <div class="data-modal-box diagnostic-report-modal-box">
+        <h2 id="diag-report-modal-title" class="data-modal-title">{{ $t('x-diag-report-modal-title') }}</h2>
+        <p class="data-modal-intro">{{ $t('x-diag-report-modal-intro') }}</p>
+
+        <p v-if="diagnosticRedactionCount > 0" class="diagnostic-report-redaction-note">
+          {{ $t('x-diag-report-redaction-count', diagnosticRedactionCount, {n: diagnosticRedactionCount}) }}
+        </p>
+
+        <textarea v-model="diagnosticReportText" class="diagnostic-report-textarea" rows="16"
+                  spellcheck="false"></textarea>
+
+        <p class="data-modal-source">{{ $t('x-diag-report-modal-hint') }}</p>
+
+        <div class="data-modal-actions" style="justify-content: space-between">
+          <button class="btn-text-muted" @click="showDiagnosticReportModal = false">
+            {{ $t('x-common-cancel') }}
+          </button>
+          <IconActionButton
+              :disabled="diagnosticSending"
+              :label="diagnosticSending ? $t('x-common-loading') : $t('x-diag-report-confirm')"
+              brand="github"
+              @click="confirmSendDiagnostics"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -459,6 +495,11 @@ const roadmapSelection = ref([])
 const roadmapComment = ref('')
 const showDataModal = ref(false)
 const showTelemetryPrompt = ref(false)
+const showDiagnosticReportModal = ref(false)
+const diagnosticReportLoading = ref(false)
+const diagnosticReportText = ref('')
+const diagnosticRedactionCount = ref(0)
+const diagnosticSending = ref(false)
 const posterSrc = computed(() => {
   const itemId = state.value.ActiveSession?.media_item_id
   if (!itemId) {
@@ -594,6 +635,38 @@ async function copySupportSummary() {
     toast.success(t('x-diag-summary-copied'))
   } catch (e) {
     toast.error(e.message || t('x-diag-summary-copy-error'))
+  }
+}
+
+async function openDiagnosticReportModal() {
+  diagnosticReportLoading.value = true
+  try {
+    const result = await api.getSupportReport()
+    diagnosticReportText.value = result.report
+    diagnosticRedactionCount.value = result.redaction_count
+    showDiagnosticReportModal.value = true
+  } catch (e) {
+    toast.error(e.message || t('x-diag-report-fetch-error'))
+  } finally {
+    diagnosticReportLoading.value = false
+  }
+}
+
+async function confirmSendDiagnostics() {
+  diagnosticSending.value = true
+  try {
+    await writeTextToClipboard(diagnosticReportText.value)
+    const repo = fullConfig.value.app?.release_repository || 'tousled/home-cinema-control'
+    const title = t('x-diag-report-issue-title', {version: state.value.Version || '?'})
+    const body = t('x-diag-report-issue-body')
+    const url = `https://github.com/${repo}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+    toast.success(t('x-diag-report-copied'))
+    showDiagnosticReportModal.value = false
+  } catch (e) {
+    toast.error(e.message || t('x-diag-report-copy-error'))
+  } finally {
+    diagnosticSending.value = false
   }
 }
 
@@ -1269,5 +1342,30 @@ onMounted(async () => {
 .data-modal-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.diagnostic-report-modal-box {
+  max-width: 720px;
+}
+
+.diagnostic-report-redaction-note {
+  font-size: 11px;
+  color: var(--status-success);
+  margin: 0 0 10px;
+}
+
+.diagnostic-report-textarea {
+  width: 100%;
+  min-height: 320px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-main);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  resize: vertical;
 }
 </style>

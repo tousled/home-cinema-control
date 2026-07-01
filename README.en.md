@@ -131,14 +131,14 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 optional room control, operational diagnostics, and documented Docker releases. It is not only a visual redesign; it is
 the point where setup, support, and updates become part of the product.
 
-| 1.0.0 area                  | What is covered                                                                                 |
-|-----------------------------|-------------------------------------------------------------------------------------------------|
-| Real playback               | MKV, ISO, Blu-ray/UHD folders, stop, replacement, natural end, and recovery validated.          |
-| Watched/resume state        | Coherent progress when playback stops from OPPO, Emby, or the room flow.                        |
-| Interactive sync            | Pause, play, stop, track state, and player status without coupling Emby to OPPO internals.      |
-| Hardware compatibility      | OPPO/Chinoppo, TV, and AVR support documented with clear validated/untested/out-of-scope lines. |
-| Exportable support evidence | Diagnostics, filterable logs, latest failure, and support summary from the UI.                  |
-| Docker release path         | Versioned images, rollback, update policy, and source-available license clarity.                |
+| 1.0.0 area                  | What is covered                                                                                                |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------|
+| Real playback               | MKV, ISO, Blu-ray/UHD folders, stop, replacement, natural end, and recovery validated.                         |
+| Watched/resume state        | Coherent progress when playback stops from OPPO, Emby, or the room flow.                                       |
+| Interactive sync            | Pause, play, stop, track state, and player status without coupling Emby to OPPO internals.                     |
+| Hardware compatibility      | OPPO/Chinoppo, TV, and AVR support documented with clear validated/untested/out-of-scope lines.                |
+| Exportable support evidence | Diagnostics, filterable logs, latest failure, support summary, and redacted diagnostic reports sent to GitHub. |
+| Docker release path         | Versioned images, rollback, update policy, and source-available license clarity.                               |
 
 ## Roadmap Direction
 

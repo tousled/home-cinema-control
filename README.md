@@ -140,14 +140,14 @@ La 1.0.0 marca el primer corte estable de HCC como producto independiente: flujo
 biblioteca, sala opcional, diagnóstico operativo y release Docker documentada. No es solo un rediseño visual; es el
 punto donde configuración, soporte y actualización quedan tratados como parte del producto.
 
-| Área 1.0.0                 | Qué queda cubierto                                                                                   |
-|----------------------------|------------------------------------------------------------------------------------------------------|
-| Reproducción real          | MKV, ISO, carpetas Blu-ray/UHD, parada, reemplazo, final natural y recuperación validados.           |
-| Estado visto/reanudar      | Progreso coherente cuando se para desde OPPO, Emby o la sala.                                        |
-| Sincronización interactiva | Pausa, reproducción, parada, pistas y estado del reproductor sin acoplar Emby a detalles internos.   |
-| Compatibilidad hardware    | OPPO/Chinoppo, TV y AVR documentados con límites claros entre validado, no probado y fuera de scope. |
-| Soporte exportable         | Diagnóstico, logs filtrables, último fallo y resumen de soporte desde la UI.                         |
-| Release Docker             | Imágenes versionadas, rollback, política de actualización y licencia source-available.               |
+| Área 1.0.0                 | Qué queda cubierto                                                                                        |
+|----------------------------|-----------------------------------------------------------------------------------------------------------|
+| Reproducción real          | MKV, ISO, carpetas Blu-ray/UHD, parada, reemplazo, final natural y recuperación validados.                |
+| Estado visto/reanudar      | Progreso coherente cuando se para desde OPPO, Emby o la sala.                                             |
+| Sincronización interactiva | Pausa, reproducción, parada, pistas y estado del reproductor sin acoplar Emby a detalles internos.        |
+| Compatibilidad hardware    | OPPO/Chinoppo, TV y AVR documentados con límites claros entre validado, no probado y fuera de scope.      |
+| Soporte exportable         | Diagnóstico, logs filtrables, último fallo, resumen de soporte y envío de diagnóstico redactado a GitHub. |
+| Release Docker             | Imágenes versionadas, rollback, política de actualización y licencia source-available.                    |
 
 ## Hacia dónde va
 

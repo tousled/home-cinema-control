@@ -51,6 +51,7 @@ import {
   Download,
   FolderOpen,
   KeyRound,
+  LifeBuoy,
   Pencil,
   Play,
   Plus,
@@ -63,7 +64,7 @@ import {
   Trash2,
   Wifi
 } from '@lucide/vue'
-import {siEmby, siJellyfin, siPlex} from 'simple-icons'
+import {siEmby, siGithub, siJellyfin, siPlex} from 'simple-icons'
 
 const props = defineProps({
   icon: {type: String, default: 'server'},
@@ -99,6 +100,7 @@ const genericIcons = {
   folder: FolderOpen,
   'folder-open': FolderOpen,
   key: KeyRound,
+  'life-buoy': LifeBuoy,
   add: Plus,
   plus: Plus,
   new: Plus,
@@ -118,6 +120,7 @@ const brandIcons = {
   emby: siEmby,
   jellyfin: siJellyfin,
   plex: siPlex,
+  github: siGithub,
 }
 
 const rootTag = computed(() => props.href ? 'a' : 'button')
