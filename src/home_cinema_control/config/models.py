@@ -82,7 +82,6 @@ class TvConfig(BaseModel):
     player_hdmi_input_id: int = 0
     startup_script: str = ""
     shutdown_script: str = ""
-    smartthings_device_id: str = ""
 
 
 class OppoConfig(BaseModel):

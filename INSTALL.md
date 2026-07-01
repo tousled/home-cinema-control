@@ -409,58 +409,46 @@ Puntos importantes:
 - Si TV está desactivada, no entra en el flujo de reproducción.
 - Si AV está desactivado, no entra en el flujo de reproducción.
 - En LG WebOS, HCC puede detectar entradas HDMI y restaurar la app del servidor multimedia.
-- En Samsung Tizen (2016+), HCC necesita SmartThings para cambiar de entrada HDMI — ver sección siguiente.
+- En Samsung Tizen (2016+), el cambio automático de entrada HDMI no está soportado — ver nota más abajo.
 - En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
 
-### 8.1 Samsung TV: configuración de SmartThings
+### 8.1 Samsung TV: por qué no hay cambio automático de entrada HDMI
 
-HCC controla la Samsung TV por WebSocket para la conexión, el emparejamiento y el Wake-on-LAN. Sin embargo, para
-cambiar de entrada HDMI necesita SmartThings: los códigos de mando (`KEY_HDMI1`…) no funcionan de forma fiable en
-la mayoría de modelos Tizen para saltar directamente a un input concreto.
+HCC controla la Samsung TV por WebSocket (biblioteca `samsungtvws`) para la conexión, el emparejamiento y el
+Wake-on-LAN. Sin embargo, el cambio automático de entrada HDMI no es viable por dos razones independientes:
 
-HCC usa OAuth 2.0 para conectarse a SmartThings. Autorizas una sola vez; HCC renueva el token de acceso
-automáticamente en cada uso, por lo que no necesitas volver a introducir credenciales durante el funcionamiento normal.
-Solo tendrás que reautorizar si HCC está apagado más de 29 días consecutivos.
+**Los comandos WebSocket no cambian de entrada de forma fiable**
 
-Para seguir el proceso con capturas de pantalla de los paneles de SmartThings, consulta la
-[guía de configuración de la API SmartThings](https://tavicu.github.io/homebridge-samsung-tizen/configuration/smartthings-api.html)
-(escrita para Homebridge, pero las pantallas son idénticas). La referencia oficial OAuth está en
-[developer.smartthings.com](https://developer.smartthings.com/docs/getting-started/authorization-and-permissions).
+La API local WebSocket de Samsung envía pulsaciones de mando virtual (`KEY_HDMI1`, `KEY_HDMI2`…), no comandos
+de selección directa. En modelos recientes como el S95C (2023), estos comandos simplemente no tienen efecto —
+la TV los ignora. En modelos anteriores el comportamiento es dependiente del estado: si ya estás en HDMI 3 y
+se envía `KEY_HDMI3`, la pulsación no hace nada o cicla a otra entrada.
 
-#### Paso 1 — Registrar una app SmartThings
+**La plataforma SmartThings ya no es viable para uso doméstico**
 
-Cada instancia de HCC necesita su propia app SmartThings registrada para obtener un `client_id` y un `client_secret`.
+SmartThings expone una API REST con un comando `setInputSource` que sí hace selección directa y fiable de
+entrada. Es la única alternativa real al WebSocket. Sin embargo, la plataforma ha acumulado problemas que la
+hacen impracticable, hasta el punto de que el mantenedor del plugin homebridge-samsung-tizen
+[abandonó la integración](https://github.com/tavicu/homebridge-samsung-tizen/issues/714) con estas palabras:
+*"Samsung killed SmartThings integration"*:
 
-Instala la CLI de SmartThings e inicia sesión:
+- **Los Personal Access Tokens (PAT) caducan cada 24 horas** desde el cambio introducido el 30 de diciembre de
+  2024. Cualquier automatización que use PAT requiere que el usuario genere y pegue un token nuevo cada día.
+        El impacto está documentado en la comunidad SmartThings
+        ([hilo oficial](https://community.smartthings.com/t/old-personal-access-token-stopped-working-after-the-expiration-change/293450))
+        y en el repositorio de Home Assistant
+        ([issue #133623](https://github.com/home-assistant/core/issues/133623),
+        [hilo de la comunidad HA](https://community.home-assistant.io/t/smartthings-pat-changes/821584)).
 
-```bash
-npm install -g @smartthings/cli
-smartthings login
-smartthings apps:create
-```
+- **SmartThings pasa a modelo de pago en octubre de 2026.** La API que hoy usan integraciones de terceros
+  requerirá suscripción ($4,99/mes en el plan personal). Detalles en el
+  [blog oficial de SmartThings](https://blog.smartthings.com/smartthings-updates/a-new-enhanced-smartthings-api-experience/).
 
-Cuando se te pida, introduce:
+- **El flujo OAuth de SmartThings está roto a nivel de plataforma.** Los endpoints de autorización devuelven
+  errores internos independientemente de la configuración de la app.
 
-- **Tipo de app:** `API_ONLY`
-- **Redirect URI:** `http://<host-hcc>:8090/api/v1/tv/samsung/oauth/callback`
-  (sustituye `<host-hcc>` por la IP u hostname con que accedes a HCC)
-- **Scopes:** `r:devices:*` y `x:devices:*`
-
-La CLI mostrará un `client_id` y un `client_secret`. Guárdalos — los pegarás en HCC.
-
-#### Paso 2 — Conectar HCC con SmartThings
-
-1. En Configuración HCC → Samsung TV, introduce la **Clave de aplicación** y la **Contraseña de aplicación**.
-2. Pulsa **Autorizar con SmartThings**.
-3. El navegador abrirá la página de autorización de SmartThings. Inicia sesión con tu cuenta Samsung y aprueba el
-   acceso.
-4. SmartThings redirige de vuelta a HCC. El indicador de estado cambia a **Conectado**.
-5. Aparecerá una lista desplegable con tus TVs SmartThings. Selecciona tu Samsung TV.
-
-Si tu TV no aparece en la lista, ábrela desde la app Samsung SmartThings en el móvil, comprueba que es visible
-allí y recarga la configuración de HCC.
-
-La detección y el cambio de entrada HDMI ya están activos.
+Por estas razones, HCC no incluye integración con SmartThings. El cambio de entrada HDMI en Samsung Tizen
+queda fuera del flujo automático de reproducción.
 
 Nota sobre CEC/ARC:
 
@@ -630,21 +618,6 @@ revisar red o NAS:
 
 - Cambia esa ruta concreta a NFS si el NAS lo expone (la forma más rápida de seguir viendo ese contenido).
 - O renombra la carpeta/fichero a algo más corto y sin paréntesis/corchetes si quieres seguir usando SMB.
-
-### La TV Samsung no cambia de entrada HDMI
-
-- Comprueba que **Client ID**, **Client Secret** y **SmartThings Device ID** estén configurados en la pantalla
-  Sala, y que el indicador de estado muestre **Conectado**. Sin conexión OAuth activa, HCC no puede cambiar
-  de entrada HDMI — ver [sección 8.1](#81-samsung-tv-configuración-de-smartthings).
-- Si el estado es **Sin conexión**, pulsa **Autorizar con SmartThings** y completa el flujo de autorización
-  en el navegador.
-- Comprueba que aparezca una TV seleccionada en la lista desplegable SmartThings tras conectar.
-- El token de acceso se renueva automáticamente. Solo es necesario volver a autorizar si HCC ha estado
-  apagado más de 29 días consecutivos — en ese caso, pulsa **Desvincular** y luego **Autorizar** de nuevo.
-- Verifica que la TV esté registrada en SmartThings: debe aparecer como dispositivo en
-  [account.smartthings.com](https://account.smartthings.com) y en la app SmartThings del móvil.
-- Si la TV acaba de encenderse o se despertó por Wake-on-LAN, espera unos segundos antes de que SmartThings la
-  detecte disponible y vuelve a intentarlo.
 
 ### La TV Samsung pide confirmar el acceso en cada conexión
 

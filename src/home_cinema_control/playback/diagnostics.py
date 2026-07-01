@@ -512,37 +512,6 @@ def _looks_like_stale_mount(detail: str) -> bool:
     return any(term in text for term in stale_terms)
 
 
-def diagnose_smartthings_token_rejected() -> PlaybackDiagnostic:
-    return PlaybackDiagnostic(
-        code="SMARTTHINGS_TOKEN_REJECTED",
-        severity="error",
-        component="tv",
-        reason=(
-            "SmartThings rejected the authorization token. "
-            "The token may have expired or been revoked."
-        ),
-        suggestion=(
-            "Go to Samsung TV settings and click 'Autorizar con SmartThings' to reconnect. "
-            "Re-authorization is only needed if HCC was offline for more than 29 days."
-        ),
-    )
-
-
-def diagnose_smartthings_no_devices() -> PlaybackDiagnostic:
-    return PlaybackDiagnostic(
-        code="SMARTTHINGS_NO_DEVICES",
-        severity="warning",
-        component="tv",
-        reason=(
-            "No SmartThings devices with TV input control capability found in this account."
-        ),
-        suggestion=(
-            "Verify that your Samsung TV is visible in the SmartThings app "
-            "and supports input switching. See INSTALL section 8.1."
-        ),
-    )
-
-
 def _contains_any(value: str, terms: list[str]) -> bool:
     text = str(value or "").lower()
     return any(term in text for term in terms)
