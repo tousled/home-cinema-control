@@ -124,6 +124,7 @@ export const api = {
     // tv
     testTvConnection: (config) => request('POST', '/tv/test-connection', config),
     getTvSources: (config) => request('POST', '/tv/sources', config),
+    getTvApps: (config) => request('POST', '/tv/apps', config),
     tvSwitchInput: (config) => request('POST', '/tv/switch-input', config),
     tvRestoreInput: (config) => request('POST', '/tv/restore-input', config),
 

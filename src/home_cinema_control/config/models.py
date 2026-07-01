@@ -84,6 +84,16 @@ class TvConfig(BaseModel):
     shutdown_script: str = ""
 
 
+class SonyTvConfig(TvConfig):
+    """Sony-only fields. LG/Scripts configs stay plain TvConfig and never carry these.
+
+    sony_psk is deliberately not a field here: it is a secret, merged in at runtime
+    via SECRET_PATHS/secrets.json, never part of the persisted config.json schema.
+    """
+
+    sony_app_uris: dict[str, str] = Field(default_factory=dict)
+
+
 class OppoConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 

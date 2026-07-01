@@ -19,6 +19,18 @@ def detect_tv_sources(config):
     return _result_to_status(create_tv_controller(config).retrieve_hdmi_inputs())
 
 
+def detect_tv_apps(config):
+    """Sony-only setup step: get_application_list() is not part of BaseTvController,
+    since only Sony needs per-TV app discovery (LG/Scripts hardcode or skip app ids)."""
+    controller = create_tv_controller(config)
+    get_application_list = getattr(controller, "get_application_list", None)
+
+    if get_application_list is None:
+        return "FAILURE"
+
+    return _result_to_status(get_application_list())
+
+
 def switch_tv_to_player_input(config):
     tv = config.get("tv") or {}
     source_index = int(tv.get("player_hdmi_input_id", 0))

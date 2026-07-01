@@ -120,18 +120,19 @@ más seria.
 
 ## Estado actual
 
-| Área                             | Estado                                                                      |
-|----------------------------------|-----------------------------------------------------------------------------|
-| Emby                             | Implementado como proveedor de media server.                                |
-| Jellyfin                         | Implementado como proveedor de media server, con el mismo flujo que Emby.   |
-| OPPO UDP-203/205                 | Soportado mediante API MediaControl.                                        |
-| Chinoppo M9702/M9201/M9203/M9205 | Soportado si expone la API compatible con OPPO.                             |
-| Rutas por biblioteca             | NFS o SMB/CIFS por mapeo, con verificación.                                 |
-| TV LG WebOS                      | Cambio de entrada y retorno a la app, si se configura.                      |
-| Receptores AV                    | Denon, Marantz, Yamaha, NAD, Onkyo y scripts personalizados.                |
-| Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.          |
-| Telemetría                       | Opt-in, anónima, documentada y orientada a priorizar roadmap.               |
-| Docker                           | Despliegue principal con red host y configuración persistente en `/config`. |
+| Área                             | Estado                                                                                                                  |
+|----------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| Emby                             | Implementado como proveedor de media server.                                                                            |
+| Jellyfin                         | Implementado como proveedor de media server, con el mismo flujo que Emby.                                               |
+| OPPO UDP-203/205                 | Soportado mediante API MediaControl.                                                                                    |
+| Chinoppo M9702/M9201/M9203/M9205 | Soportado si expone la API compatible con OPPO.                                                                         |
+| Rutas por biblioteca             | NFS o SMB/CIFS por mapeo, con verificación.                                                                             |
+| TV LG WebOS                      | Cambio de entrada y retorno a la app, si se configura.                                                                  |
+| TV Sony BRAVIA (2013+)           | Cambio de entrada y app vía REST API local (Pre-Shared Key). Contract-tested, pendiente de validación en hardware real. |
+| Receptores AV                    | Denon, Marantz, Yamaha, NAD, Onkyo y scripts personalizados.                                                            |
+| Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.                                                      |
+| Telemetría                       | Opt-in, anónima, documentada y orientada a priorizar roadmap.                                                           |
+| Docker                           | Despliegue principal con red host y configuración persistente en `/config`.                                             |
 
 ## Qué define la 1.0.0
 
@@ -238,7 +239,7 @@ src/home_cinema_control/
   playback/        Orquestación, diagnóstico, limpieza y recuperación
   devices/
     oppo/          API MediaControl, setup control, estado QPL, observación SVM
-    tv/            LG WebOS y control mediante scripts
+    tv/            LG WebOS, Sony BRAVIA (REST API) y control mediante scripts
     av/            Denon, Marantz, Yamaha, NAD, Onkyo y scripts
   media_servers/
     common/        Contratos de proveedor compartidos, listener y modelos de dominio

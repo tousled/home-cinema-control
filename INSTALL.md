@@ -409,7 +409,27 @@ Puntos importantes:
 - Si TV está desactivada, no entra en el flujo de reproducción.
 - Si AV está desactivado, no entra en el flujo de reproducción.
 - En LG WebOS, HCC puede detectar entradas HDMI y restaurar la app del servidor multimedia.
+- En Sony BRAVIA (2013 o posterior), HCC hace lo mismo vía la API REST oficial de Sony, autenticada con una
+  clave PSK — ver más abajo cómo activarla.
 - En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
+
+### Sony BRAVIA: activar el Pre-Shared Key (PSK)
+
+Antes de configurar la TV Sony en HCC, hay que activar el control por IP directamente en el televisor — a diferencia
+de LG, aquí no hay un diálogo de emparejamiento en pantalla, se configura una vez desde los ajustes:
+
+1. En el mando, ve a **Ajustes → Red y Internet → Configuración de red doméstica → Control IP**.
+2. Activa **Autenticación** y elige **Pre-Shared Key**.
+3. Escribe una clave (cualquier cadena de texto) y guárdala — es la misma clave que introducirás en HCC.
+
+> La ruta exacta del menú varía algo según el año del modelo; el camino general **Red → Configuración de red
+> doméstica → Control IP → Pre-Shared Key** se mantiene desde los modelos de 2014 en adelante.
+
+En la pantalla **Sala** de HCC, introduce la IP de la TV y la misma clave PSK, y pulsa "Probar conexión". Después,
+usa "Detectar apps" para que HCC liste las apps instaladas en esa TV y puedas elegir la de tu servidor multimedia —
+Sony no permite fijar un identificador de antemano como LG, así que este paso hace falta una sola vez por TV.
+
+*(Capturas de pantalla de los ajustes de Sony pendientes de añadir — requieren una TV Sony real.)*
 
 Nota sobre CEC/ARC:
 

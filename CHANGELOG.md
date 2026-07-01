@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [Unreleased]
+
+### Added
+
+* Added a Sony BRAVIA TV adapter (2013+ models) using Sony's official local REST API, authenticated with a
+  Pre-Shared Key configured directly on the TV — no cloud account required, unlike the SmartThings-dependent
+  Samsung path that was explored and set aside. Supports dynamic HDMI input discovery and direct switching,
+  and a "detect installed apps" step in Room Setup so Emby/Jellyfin can be launched from a per-TV discovered
+  app identifier instead of a hardcoded id. Current-app detection falls back to the configured media-server
+  provider when the TV can't report it directly. Contract-tested against a mocked REST API; not yet validated
+  on real Sony hardware.
+
 ## [1.1.4] - 2026-06-30
 
 ### Fixed

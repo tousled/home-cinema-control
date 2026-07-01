@@ -363,6 +363,17 @@ The same network scan helps locate the TV and AV receiver when you configure **R
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
 
+### Sony BRAVIA: enabling the Pre-Shared Key (PSK)
+
+Sony TVs (2013 or later) are controlled over Sony's official local REST API, authenticated with a Pre-Shared Key —
+no cloud account, unlike LG's on-screen pairing dialog there is no popup to accept; you set this once on the TV
+itself: **Settings → Network & Internet → Home Network Setup → IP Control**, turn on **Authentication**, choose
+**Pre-Shared Key**, and enter any string. Use that same key in HCC's Room Setup screen alongside the TV's IP. Sony
+also has no fixed app id to hardcode like LG does, so Room Setup includes a one-time "Detect apps" step that lists
+the TV's installed apps so you can pick your media server's.
+
+*(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
+
 ## 9. Diagnostics
 
 The Status screen shows readiness, playback state, latest failure, version status, and support summary.
