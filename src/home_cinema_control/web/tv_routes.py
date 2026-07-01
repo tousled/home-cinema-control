@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from home_cinema_control.devices.tv.setup_control import (
+    detect_tv_apps,
     detect_tv_sources,
     restore_tv_media_server_app,
     switch_tv_to_player_input,
@@ -54,6 +55,15 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
     @router.post("/sources")
     def tv_get_sources(body: dict):
         result = detect_tv_sources(body)
+        if result == "OK":
+            return api_runtime.config_service.sanitize(
+                api_runtime.config_service.prepare_submitted_config(body)
+            )
+        raise HTTPException(status_code=400, detail=result)
+
+    @router.post("/apps")
+    def tv_get_apps(body: dict):
+        result = detect_tv_apps(body)
         if result == "OK":
             return api_runtime.config_service.sanitize(
                 api_runtime.config_service.prepare_submitted_config(body)

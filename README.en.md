@@ -111,18 +111,19 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 
 ## Current Scope
 
-| Area                             | Status                                                                 |
-|----------------------------------|------------------------------------------------------------------------|
-| Emby                             | Implemented as a media-server provider.                                |
-| Jellyfin                         | Implemented as a media-server provider, same flow as Emby.             |
-| OPPO UDP-203/205                 | Supported through the MediaControl API.                                |
-| Chinoppo M9702/M9201/M9203/M9205 | Supported when the OPPO-compatible API is exposed.                     |
-| Per-library paths                | NFS or SMB/CIFS per mapping, with verification.                        |
-| LG WebOS TV                      | Input switching and app restore when configured.                       |
-| AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, and custom scripts.                |
-| Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.    |
-| Telemetry                        | Opt-in, anonymous, documented, and used to prioritize roadmap work.    |
-| Docker                           | Primary deployment path with host networking and persistent `/config`. |
+| Area                             | Status                                                                                                                 |
+|----------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| Emby                             | Implemented as a media-server provider.                                                                                |
+| Jellyfin                         | Implemented as a media-server provider, same flow as Emby.                                                             |
+| OPPO UDP-203/205                 | Supported through the MediaControl API.                                                                                |
+| Chinoppo M9702/M9201/M9203/M9205 | Supported when the OPPO-compatible API is exposed.                                                                     |
+| Per-library paths                | NFS or SMB/CIFS per mapping, with verification.                                                                        |
+| LG WebOS TV                      | Input switching and app restore when configured.                                                                       |
+| Sony BRAVIA TV (2013+)           | Input switching and app launch via local REST API (Pre-Shared Key). Contract-tested, pending real-hardware validation. |
+| AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, and custom scripts.                                                                |
+| Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.                                                    |
+| Telemetry                        | Opt-in, anonymous, documented, and used to prioritize roadmap work.                                                    |
+| Docker                           | Primary deployment path with host networking and persistent `/config`.                                                 |
 
 ## What Defines 1.0.0
 
@@ -130,14 +131,14 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 optional room control, operational diagnostics, and documented Docker releases. It is not only a visual redesign; it is
 the point where setup, support, and updates become part of the product.
 
-| 1.0.0 area                  | What is covered                                                                                 |
-|-----------------------------|-------------------------------------------------------------------------------------------------|
-| Real playback               | MKV, ISO, Blu-ray/UHD folders, stop, replacement, natural end, and recovery validated.          |
-| Watched/resume state        | Coherent progress when playback stops from OPPO, Emby, or the room flow.                        |
-| Interactive sync            | Pause, play, stop, track state, and player status without coupling Emby to OPPO internals.      |
-| Hardware compatibility      | OPPO/Chinoppo, TV, and AVR support documented with clear validated/untested/out-of-scope lines. |
-| Exportable support evidence | Diagnostics, filterable logs, latest failure, and support summary from the UI.                  |
-| Docker release path         | Versioned images, rollback, update policy, and source-available license clarity.                |
+| 1.0.0 area                  | What is covered                                                                                                |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------|
+| Real playback               | MKV, ISO, Blu-ray/UHD folders, stop, replacement, natural end, and recovery validated.                         |
+| Watched/resume state        | Coherent progress when playback stops from OPPO, Emby, or the room flow.                                       |
+| Interactive sync            | Pause, play, stop, track state, and player status without coupling Emby to OPPO internals.                     |
+| Hardware compatibility      | OPPO/Chinoppo, TV, and AVR support documented with clear validated/untested/out-of-scope lines.                |
+| Exportable support evidence | Diagnostics, filterable logs, latest failure, support summary, and redacted diagnostic reports sent to GitHub. |
+| Docker release path         | Versioned images, rollback, update policy, and source-available license clarity.                               |
 
 ## Roadmap Direction
 

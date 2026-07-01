@@ -184,5 +184,44 @@ class SaveConfigSectionLoggingTest(unittest.TestCase):
         mock_configure.assert_not_called()
 
 
+class SupportReportRouteTest(unittest.TestCase):
+    def test_returns_redacted_report_shape(self):
+        client, runtime, _config_service = _make_client(
+            config={"oppo": {"ip": "192.168.1.10"}}
+        )
+        runtime.get_support_summary.return_value = {
+            "last_diagnostic": {
+                "code": "OPPO_MOUNT_FAILED",
+                "details": {"detail": "could not reach 192.168.1.10"},
+            },
+        }
+
+        resp = client.get("/api/v1/support/report")
+
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertIn("report", body)
+        self.assertIn("redaction_count", body)
+        self.assertIn("log_lines_included", body)
+        self.assertNotIn("192.168.1.10", body["report"])
+        self.assertGreaterEqual(body["redaction_count"], 1)
+
+    def test_lines_query_param_is_forwarded(self):
+        client, runtime, _config_service = _make_client()
+        runtime.get_support_summary.return_value = {}
+
+        resp = client.get("/api/v1/support/report?lines=5000")
+
+        self.assertEqual(200, resp.status_code)
+
+    def test_returns_400_on_unexpected_failure(self):
+        client, runtime, _config_service = _make_client()
+        runtime.get_support_summary.side_effect = RuntimeError("boom")
+
+        resp = client.get("/api/v1/support/report")
+
+        self.assertEqual(400, resp.status_code)
+
+
 if __name__ == "__main__":
     unittest.main()

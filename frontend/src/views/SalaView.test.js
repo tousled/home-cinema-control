@@ -10,6 +10,7 @@ vi.mock('../api/index.js', () => ({
         saveConfigSection: vi.fn(),
         testTvConnection: vi.fn(),
         getTvSources: vi.fn(),
+        getTvApps: vi.fn(),
         tvSwitchInput: vi.fn(),
         tvRestoreInput: vi.fn(),
         getAvSources: vi.fn(),
@@ -107,6 +108,78 @@ describe('SalaView section saves', () => {
             expect.objectContaining({enabled: false}),
         )
         expect(api.saveConfig).toBeUndefined()
+    })
+})
+
+describe('SalaView Sony TV block', () => {
+    beforeEach(async () => {
+        const {api} = await import('../api/index.js')
+        Object.values(api).forEach((mock) => mock.mockReset())
+    })
+
+    it('shows the PSK configured hint but never renders the real secret', async () => {
+        const {api} = await import('../api/index.js')
+        api.getConfig.mockResolvedValueOnce({
+            tv: {
+                enabled: true,
+                model: 'SONY',
+                ip: '192.168.1.40',
+                sony_psk_configured: true,
+                available_hdmi_inputs: [],
+            },
+            av: {enabled: false, model: ''},
+            tv_dirs: ['LG', 'SONY', 'SCRIPTS'],
+            av_dirs: ['DENON', 'SCRIPTS'],
+        })
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const pskInput = wrapper.find('#tv-psk-sony')
+        expect(pskInput.exists()).toBe(true)
+        expect(pskInput.element.value).toBe('')
+        expect(wrapper.text()).toContain('PSK ya configurada')
+    })
+
+    it('detect apps button calls the apps endpoint and merges the response', async () => {
+        const {api} = await import('../api/index.js')
+        api.getConfig.mockResolvedValueOnce({
+            tv: {
+                enabled: true,
+                model: 'SONY',
+                ip: '192.168.1.40',
+                sony_psk: 'secret-psk',
+                available_hdmi_inputs: [],
+            },
+            av: {enabled: false, model: ''},
+            tv_dirs: ['LG', 'SONY', 'SCRIPTS'],
+            av_dirs: ['DENON', 'SCRIPTS'],
+        })
+        api.getConfig.mockResolvedValueOnce({
+            tv: {enabled: true, model: 'SONY', ip: '192.168.1.40'},
+        })
+        api.getTvApps.mockResolvedValueOnce({
+            tv: {
+                enabled: true,
+                model: 'SONY',
+                ip: '192.168.1.40',
+                available_hdmi_inputs: [],
+                sony_available_apps: [{title: 'Emby', uri: 'com.sony.dtv.tv.emby.embyatv.MainActivity'}],
+            },
+        })
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const detectAppsButton = wrapper
+            .findAllComponents({name: 'IconActionButton'})
+            .find((c) => c.props('label') === 'Detectar apps')
+        expect(detectAppsButton).toBeTruthy()
+
+        await detectAppsButton.vm.$emit('click')
+        await flushPromises()
+
+        expect(api.getTvApps).toHaveBeenCalled()
     })
 })
 
