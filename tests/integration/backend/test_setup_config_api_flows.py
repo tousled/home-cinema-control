@@ -112,6 +112,40 @@ def test_detect_sources_returns_detected_tv_data_without_saving(tmp_path, monkey
     assert "available_hdmi_inputs" not in runtime.config["tv"]
 
 
+def test_detect_sources_refills_sony_psk_redacted_by_earlier_test_connection_response(
+    tmp_path, monkeypatch
+):
+    """Reproduces a real report: "TV test connection succeeded" followed by
+    "TV configuration error while refreshing Sony TV inputs: tv.sony_psk is
+    not configured". The setup wizard's test-connection response strips
+    sony_psk from what it hands back (sanitized_submitted_section), and the
+    frontend feeds that stripped tv section straight into the next call
+    (getTvSources). The /sources route must refill the persisted PSK before
+    calling the Sony adapter, the same way /config/network-access refills
+    smb.password."""
+    client, runtime = _client(tmp_path, monkeypatch, config={
+        "tv": {"enabled": True, "model": "SONY", "ip": "192.168.0.17"},
+        "oppo": {"ip": "192.168.1.10"},
+        "playback": {"path_mappings": []},
+    }, secrets={"tv": {"sony_psk": "stored-psk"}})
+
+    seen_psk = {}
+
+    def _mutate_sources(config):
+        seen_psk["value"] = config.get("tv", {}).get("sony_psk")
+        config.setdefault("tv", {})["available_hdmi_inputs"] = [{"id": "HDMI_1"}]
+        return "OK"
+
+    with patch("home_cinema_control.web.tv_routes.detect_tv_sources", side_effect=_mutate_sources):
+        response = client.post("/api/v1/tv/sources", json={
+            "tv": {"enabled": True, "model": "SONY", "ip": "192.168.0.17", "sony_psk": ""}
+        })
+
+    assert response.status_code == 200
+    assert seen_psk["value"] == "stored-psk"
+    assert "sony_psk" not in response.json()["tv"]
+
+
 class MutableRuntime:
     def __init__(self, config):
         self.config = copy.deepcopy(config)

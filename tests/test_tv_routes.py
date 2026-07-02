@@ -45,6 +45,24 @@ class TvSourcesRouteTest(unittest.TestCase):
         self.assertEqual([{"id": "HDMI_1"}], resp.json()["tv"]["available_hdmi_inputs"])
         config_service.save_config.assert_not_called()
 
+    @patch(
+        "home_cinema_control.web.tv_routes.detect_tv_sources",
+        return_value="TV configuration error: tv.sony_psk is not configured",
+    )
+    def test_tv_sources_failure_records_diagnostic(self, mock_sources):
+        """A failed /sources call must surface on the diagnostics page, the
+        same way /test-connection, /switch-input and /restore-input already
+        do — otherwise a user can see an error in the logs with nothing shown
+        in the UI, as happened before this route called set_last_diagnostic."""
+        client, runtime, _ = _make_client()
+
+        resp = client.post("/api/v1/tv/sources", json={"tv": {"enabled": True, "model": "SONY"}})
+
+        self.assertEqual(400, resp.status_code)
+        runtime.set_last_diagnostic.assert_called_once()
+        diagnostic = runtime.set_last_diagnostic.call_args.args[0]
+        self.assertEqual("tv", diagnostic.component)
+
 
 if __name__ == "__main__":
     unittest.main()
