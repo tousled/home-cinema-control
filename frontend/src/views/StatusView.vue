@@ -602,9 +602,7 @@ const telemetryNeverItems = computed(() => t('x-telemetry-data-modal-never-items
 const roadmapOptions = computed(() => [
   {id: 'plex', label: t('x-status-roadmap-plex')},
   {id: 'android_google_tv', label: t('x-status-roadmap-android')},
-  {id: 'sony_tv', label: t('x-status-roadmap-sony')},
   {id: 'philips_tv', label: t('x-status-roadmap-philips')},
-  {id: 'samsung_tv', label: t('x-status-roadmap-samsung')},
   {id: 'home_assistant', label: t('x-status-roadmap-ha')},
   {id: 'hue_ambilight', label: t('x-status-roadmap-hue')},
   {id: 'kodi_zdmc', label: t('x-status-roadmap-kodi')},

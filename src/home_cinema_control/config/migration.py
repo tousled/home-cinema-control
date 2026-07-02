@@ -311,3 +311,13 @@ def _rename_oppo_keys(config: dict) -> None:
     if "default_nfs" in oppo:
         oppo["use_smb"] = not oppo.pop("default_nfs")
     oppo.pop("wait_nfs", None)
+
+
+def reset_telemetry_consent_for_1_2_0(config: dict) -> bool:
+    """Re-show the telemetry modal once on upgrade to 1.2.0, for every install."""
+    telemetry = config.setdefault("telemetry", {})
+    if telemetry.get("consent_reset_1_2_0"):
+        return False
+    telemetry["consent_prompted"] = False
+    telemetry["consent_reset_1_2_0"] = True
+    return True
