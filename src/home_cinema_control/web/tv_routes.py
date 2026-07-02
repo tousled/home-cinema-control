@@ -22,6 +22,7 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
 
     @router.post("/test-connection")
     def tv_test_connection(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = test_tv_connection(body)
         if result == "OK":
             tv = body.get("tv") or {}
@@ -54,24 +55,29 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
 
     @router.post("/sources")
     def tv_get_sources(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = detect_tv_sources(body)
         if result == "OK":
-            return api_runtime.config_service.sanitize(
-                api_runtime.config_service.prepare_submitted_config(body)
-            )
+            return api_runtime.config_service.sanitize(body)
+        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
+            component="tv", action="detect sources", detail=str(result)
+        ))
         raise HTTPException(status_code=400, detail=result)
 
     @router.post("/apps")
     def tv_get_apps(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = detect_tv_apps(body)
         if result == "OK":
-            return api_runtime.config_service.sanitize(
-                api_runtime.config_service.prepare_submitted_config(body)
-            )
+            return api_runtime.config_service.sanitize(body)
+        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
+            component="tv", action="detect apps", detail=str(result)
+        ))
         raise HTTPException(status_code=400, detail=result)
 
     @router.post("/switch-input")
     def tv_switch_input(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = switch_tv_to_player_input(body)
         if result == "OK":
             _, persisted = persist_verification_if_submitted_matches_saved(
@@ -87,6 +93,7 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
 
     @router.post("/restore-input")
     def tv_restore_input(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = restore_tv_media_server_app(body)
         if result == "OK":
             _, persisted = persist_verification_if_submitted_matches_saved(
