@@ -363,6 +363,12 @@ The same network scan helps locate the TV and AV receiver when you configure **R
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
 
+HDMI input detection, "Switch to OPPO", "Detect apps" and "Open Emby/Jellyfin" stay locked until "Test connection"
+confirms the TV responds — there is no point probing a TV that isn't reachable. "Open Emby/Jellyfin" additionally
+requires that app to have been detected on the TV; if it isn't among the detected apps, HCC tells you so you can pick
+it manually in case it shows under a different name. Switching the TV model clears the form fields (IP, MAC, detected
+inputs, …), unless you switch back to the model you already have saved, in which case its configuration is restored.
+
 ### Sony BRAVIA: enabling the Pre-Shared Key (PSK)
 
 Sony TVs (2013 or later) are controlled over Sony's official local REST API, authenticated with a Pre-Shared Key —
