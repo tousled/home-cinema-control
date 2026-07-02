@@ -20,14 +20,3 @@ def persist_verification_if_submitted_matches_saved(
     if persisted:
         config_service.save_config(updated_config)
     return updated_config, persisted
-
-
-def sanitized_submitted_section(
-    *,
-    config_service,
-    submitted_config: dict[str, Any],
-    section_key: str,
-) -> dict[str, Any]:
-    prepared = config_service.prepare_submitted_config(submitted_config)
-    sanitized = config_service.sanitize(prepared)
-    return sanitized.get(section_key, {})

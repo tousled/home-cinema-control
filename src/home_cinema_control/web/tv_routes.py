@@ -13,8 +13,8 @@ from home_cinema_control.playback.diagnostics import diagnose_device_action_fail
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.setup_actions import (
     persist_verification_if_submitted_matches_saved,
-    sanitized_submitted_section,
 )
+from home_cinema_control.web.setup_verification import mark_section_verified
 
 
 def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
@@ -31,19 +31,22 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
                 tv.get("model", ""),
                 tv.get("ip", ""),
             )
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="tv",
-            )
+            # A successful test proves the submitted values (including
+            # tv.sony_psk) actually work against the device, so persist them
+            # outright instead of only stamping "verified" onto whatever is
+            # already saved. The old fingerprint-gated persist skipped saving
+            # entirely on first-time setup (saved tv.ip is empty, so it never
+            # matched the submitted one) and, even when it did match, rebuilt
+            # the persisted config from the on-disk copy rather than the
+            # submitted one — so a freshly typed Sony PSK was verified against
+            # the live TV but never written to secrets.json, leaving
+            # "Detectar fuentes" clicked right after with nothing to send.
+            verified_config = mark_section_verified(body, "tv")
+            api_runtime.config_service.save_config(verified_config)
             return {
                 "status": "ok",
-                "verification_persisted": persisted,
-                "tv": sanitized_submitted_section(
-                    config_service=api_runtime.config_service,
-                    submitted_config=body,
-                    section_key="tv",
-                ),
+                "verification_persisted": True,
+                "tv": api_runtime.config_service.sanitize(verified_config).get("tv", {}),
             }
         api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
             component="tv",

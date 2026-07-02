@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from home_cinema_control.runtime import HomeCinemaControlRuntime, build_runtime_paths
 from home_cinema_control.web.api_app import create_api_app
 from home_cinema_control.web.config_service import WebConfigService
 from home_cinema_control.web.api_runtime import WebApiRuntime
@@ -110,6 +111,75 @@ def test_detect_sources_returns_detected_tv_data_without_saving(tmp_path, monkey
         {"id": "HDMI_1", "appId": "hdmi1"}
     ]
     assert "available_hdmi_inputs" not in runtime.config["tv"]
+
+
+def test_first_time_sony_setup_persists_psk_on_test_connection_before_any_save(
+    tmp_path, monkeypatch
+):
+    """Reproduces the real report end-to-end: a user configuring a Sony TV for
+    the first time (nothing saved yet) fills in ip+psk, clicks "Probar
+    conexión", then "Detectar fuentes" — without ever hitting the separate
+    "Guardar" button, which sits further down the page. The old
+    fingerprint-gated persist_verification_if_submitted_matches_saved never
+    persists on a first-time submission (saved tv.ip is empty, so it never
+    equals the submitted one), so the PSK was validated live against the TV
+    but never written to secrets.json — leaving the very next call with
+    nothing to refill.
+
+    Uses the real HomeCinemaControlRuntime (not the in-memory MutableRuntime
+    used elsewhere in this file) because the bug only reproduces through an
+    actual secrets.json round trip: test-connection must really persist to
+    disk for the following /sources call to have anything to merge back in.
+    """
+    config_file = tmp_path / "config.json"
+    secrets_file = tmp_path / "secrets.json"
+    config_file.write_text(json.dumps({
+        "oppo": {"ip": "192.168.1.10"},
+        "playback": {"path_mappings": []},
+    }), encoding="utf-8")
+    secrets_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("HCC_SECRETS_FILE_PATH", str(secrets_file))
+
+    runtime = HomeCinemaControlRuntime(
+        paths=build_runtime_paths(tmp_path, config_file),
+        version="test",
+    )
+    service = WebConfigService(runtime=runtime, config_file=config_file)
+    api_runtime = WebApiRuntime(
+        runtime=runtime,
+        config_service=service,
+        config_file=config_file,
+        log_file=tmp_path / "emby_xnoppo_client_logging.log",
+        frontend_dist_dir=tmp_path / "frontend" / "dist",
+    )
+    client = TestClient(create_api_app(api_runtime))
+
+    with patch("home_cinema_control.web.tv_routes.test_tv_connection", return_value="OK"):
+        test_response = client.post("/api/v1/tv/test-connection", json={
+            "tv": {"enabled": True, "model": "SONY", "ip": "192.168.0.17", "sony_psk": "user-typed-psk"}
+        })
+
+    assert test_response.status_code == 200
+    assert "sony_psk" not in test_response.json()["tv"]
+    assert test_response.json()["tv"]["sony_psk_configured"] is True
+    assert json.loads(secrets_file.read_text())["tv"]["sony_psk"] == "user-typed-psk"
+
+    seen_psk = {}
+
+    def _mutate_sources(config):
+        seen_psk["value"] = config.get("tv", {}).get("sony_psk")
+        config.setdefault("tv", {})["available_hdmi_inputs"] = [{"id": "HDMI_1"}]
+        return "OK"
+
+    # The frontend feeds the sanitized tv section from the response above
+    # straight into the next call, so sony_psk arrives empty here too.
+    with patch("home_cinema_control.web.tv_routes.detect_tv_sources", side_effect=_mutate_sources):
+        sources_response = client.post("/api/v1/tv/sources", json={
+            "tv": {"enabled": True, "model": "SONY", "ip": "192.168.0.17", "sony_psk": ""}
+        })
+
+    assert sources_response.status_code == 200
+    assert seen_psk["value"] == "user-typed-psk"
 
 
 def test_detect_sources_refills_sony_psk_redacted_by_earlier_test_connection_response(
