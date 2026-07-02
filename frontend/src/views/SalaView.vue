@@ -621,11 +621,18 @@ async function tvRestoreInput() {
 }
 
 async function saveTv() {
+  const wasTested = tvTested.value
   try {
     const savedConfig = await saveConfigSection('tv', tv.value)
     tv.value = {...(savedConfig.tv || {})}
     originalTv.value = {...(savedConfig.tv || {})}
     selectedTvSourceIndex.value = tv.value.player_hdmi_input_id || 0
+    // Same race as testTvConnection above: reassigning tv.value here retriggers
+    // the watch() that resets tvTested, even though nothing the user configured
+    // actually changed — just persisted. Restore the pre-save tested state
+    // after nextTick() so this write wins over that pending reset.
+    await nextTick()
+    tvTested.value = wasTested
     toast.success(t('x-common-saved'))
   } catch (e) {
     toast.error(e.message)
