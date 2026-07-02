@@ -412,6 +412,12 @@ Puntos importantes:
 - En Sony BRAVIA (2013 o posterior), HCC hace lo mismo vía la API REST oficial de Sony, autenticada con una
   clave PSK — ver más abajo cómo activarla.
 - En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
+- La detección de entradas HDMI, "Cambiar a OPPO", "Detectar apps" y "Abrir Emby/Jellyfin" quedan bloqueados hasta
+  que "Probar conexión" confirma que la TV responde — no tiene sentido detectar nada contra una TV inalcanzable.
+  "Abrir Emby/Jellyfin" además requiere haber detectado esa app en la TV; si no aparece entre las detectadas, HCC te
+  lo indica para que la elijas manualmente si aparece con otro nombre.
+- Cambiar el modelo de TV limpia los campos del formulario (IP, MAC, entradas detectadas…), salvo que vuelvas al
+  modelo que ya tienes guardado, en cuyo caso se restaura su configuración.
 
 ### Sony BRAVIA: activar el Pre-Shared Key (PSK)
 

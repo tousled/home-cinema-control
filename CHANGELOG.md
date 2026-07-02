@@ -23,6 +23,23 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   provider when the TV can't report it directly. Contract-tested against a mocked REST API; not yet validated
   on real Sony hardware.
 
+* Added a tooltip on the Sony PSK field in Room Setup explaining where to find/set the Pre-Shared Key on the TV.
+
+* Changed Room Setup's TV form so that switching the model dropdown clears the rest of the form (IP, MAC, detected
+  inputs, PSK, app mappings) unless you switch back to the model you already have saved, in which case its
+  configuration is restored instead of staying blank. HDMI input detection, "Switch to OPPO", "Detect apps" and
+  "Open Emby/Jellyfin" are now disabled until "Test connection" succeeds, since none of them make sense against an
+  unreachable TV. The "Open Emby/Jellyfin" action for Sony moved next to "Detect apps" (it depends on app detection,
+  not HDMI detection) and now stays disabled with an explanatory message until that app is actually found among the
+  TV's detected apps.
+
+### Fixed
+
+* Fixed a race in Room Setup's TV form where a successful "Test connection" could be silently undone: reassigning
+  the form state from the server response triggered an existing watcher (async by default) that resets the
+  "tested" flag on any field change, which ran after the connection test had already marked the TV as tested and
+  clobbered it back to untested — leaving TV action buttons disabled even though the connection had just succeeded.
+
 ## [1.1.4] - 2026-06-30
 
 ### Fixed
