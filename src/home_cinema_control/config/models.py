@@ -132,6 +132,7 @@ class TelemetryConfig(BaseModel):
     endpoint_url: str = ""
     ingest_key: str = ""
     consent_prompted: bool = False
+    consent_reset_1_2_0: bool = False
     schema_version: int = 1
     last_heartbeat_at: str = ""
     queue_max_events: int = 100

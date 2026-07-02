@@ -3,7 +3,10 @@ import os
 import shutil
 from pathlib import Path
 
-from home_cinema_control.config.migration import _remove_legacy_flat_keys
+from home_cinema_control.config.migration import (
+    _remove_legacy_flat_keys,
+    reset_telemetry_consent_for_1_2_0,
+)
 from home_cinema_control.config.models import HccConfig, MediaServerProviderConfig
 from home_cinema_control.media_servers.common.models import MediaServerProviderType
 
@@ -580,6 +583,21 @@ def migrate_playback_to_media_servers_on_disk(config_path: Path | str) -> bool:
 
     _backup_file(config_path, ".bak-migrate-playback")
     migrate_playback_to_media_servers(public_config)
+    _write_json(config_path, public_config)
+    return True
+
+
+def reset_telemetry_consent_for_1_2_0_on_disk(config_path: Path | str) -> bool:
+    """File-level wrapper around reset_telemetry_consent_for_1_2_0.
+
+    Called once at startup from web/main.py.
+    """
+    config_path = Path(config_path)
+    public_config = _read_json(config_path)
+
+    if not reset_telemetry_consent_for_1_2_0(public_config):
+        return False
+
     _write_json(config_path, public_config)
     return True
 
