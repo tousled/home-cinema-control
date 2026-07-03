@@ -35,6 +35,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+* Hardened OPPO SMB/CIFS mounting after `id_error`: SMB pre-mount now uses the configured SMB credentials, failed
+  pre-mount attempts are logged as failures instead of "primed" successes, and SMB `id_error` no longer triggers an
+  immediate second mount attempt that can further stress the OPPO control API.
+
 * Fixed Sony BRAVIA HDMI switching confirmation noise on models that return `Illegal State` from
   `getPlayingContentInfo` immediately after a successful input change. HCC now treats that specific response as
   unavailable confirmation instead of warning like the input switch itself failed.

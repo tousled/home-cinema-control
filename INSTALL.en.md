@@ -513,7 +513,11 @@ If configured, the Status screen can call a redeploy webhook. Otherwise it shows
 ### SMB returns `id_error`
 
 - Check share name, username, password, and permissions.
-- Try SMB pre-mount if your NAS/player combination needs session preparation.
+- Try SMB pre-mount if your NAS/player combination needs session preparation. If SMB credentials are saved, HCC also
+  uses them for that pre-mount; if the pre-mount fails, HCC logs it and still tries the real mount.
+- If `id_error` repeats, avoid pressing "Test path" many times in a row: some OPPO/Chinoppo players degrade their
+  control API after too many failed SMB mounts. Physically restart the player before testing again.
+- If that library is already verified through NFS and SMB keeps failing, use NFS for that mapping.
 - Do not expect fallback to NFS: fix SMB or explicitly change that mapping to NFS.
 
 ### SMB times out on long folder names or names with special characters

@@ -171,18 +171,25 @@ class OppoNetworkMountService:
 
             mount_response = self._mount(network_folder)
 
-            retryable_error = (
-                TIMEOUT_IN_MOUNT_REQUEST_ERROR if network_folder.is_nfs else "id_error"
-            )
-            if mount_response.error_message == retryable_error:
+            if (
+                network_folder.is_nfs
+                and mount_response.error_message == TIMEOUT_IN_MOUNT_REQUEST_ERROR
+            ):
                 logging.info(
-                    "OPPO %s mount failed on first attempt (%s); "
+                    "OPPO NFS mount failed on first attempt (%s); "
                     "retrying after brief wait (OPPO state warm-up).",
-                    "NFS" if network_folder.is_nfs else "SMB",
-                    retryable_error,
+                    TIMEOUT_IN_MOUNT_REQUEST_ERROR,
                 )
                 time.sleep(2)
                 mount_response = self._mount(network_folder)
+
+            if not network_folder.is_nfs and mount_response.error_message == "id_error":
+                logging.warning(
+                    "OPPO SMB mount returned id_error; not retrying immediately | "
+                    "server=%s | folder=%s",
+                    network_folder.server_name,
+                    network_folder.folder_path,
+                )
 
             logging.info(
                 "OPPO mount response | server=%s | folder=%s | response=%s",
@@ -268,24 +275,37 @@ class OppoNetworkMountService:
                 timeout=timeout,
             )
 
-        smb = self.config.get("smb", {})
-        username = str(smb.get("username", "")).strip()
-        password = str(smb.get("password", "")).strip()
+        return self._mount_samba(
+            server=network_folder.server_name,
+            folder=network_folder.folder_path,
+            timeout=timeout,
+        )
+
+    def _mount_samba(
+        self, *, server: str, folder: str, timeout: int | float
+    ) -> OppoCommandResponse:
+        username, password = self._smb_credentials()
 
         if username or password:
             return self.control_api_client.mount_samba_folder_with_id(
-                network_folder.server_name,
-                network_folder.folder_path,
+                server,
+                folder,
                 username,
                 password,
                 timeout=timeout,
             )
 
         return self.control_api_client.mount_samba_folder(
-            server=network_folder.server_name,
-            folder=network_folder.folder_path,
+            server=server,
+            folder=folder,
             timeout=timeout,
         )
+
+    def _smb_credentials(self) -> tuple[str, str]:
+        smb = self.config.get("smb", {})
+        username = str(smb.get("username", "")).strip()
+        password = str(smb.get("password", "")).strip()
+        return username, password
 
     def _refresh_nfs_share_folder_list(self) -> list[dict]:
         return self._refresh_share_folder_list("getNfsShareFolderlist")
@@ -321,13 +341,13 @@ class OppoNetworkMountService:
             folder_name = share_folder["Foldername"]
 
             if folder_name != ".." and folder_name.upper() != folder.upper():
-                self.control_api_client.mount_samba_folder(
+                response = self._mount_samba(
                     server=server,
                     folder=folder_name,
                     timeout=self.config["oppo"]["nfs_mount_timeout_seconds"],
                 )
 
-                logging.info("primed samba mount: %s/%s", server, folder_name)
+                self._log_samba_prime_result(server, folder_name, response)
                 return
 
         device_list = self.control_api_client.get_device_list().payload
@@ -345,12 +365,37 @@ class OppoNetworkMountService:
                 folder_name = share_folder["Foldername"]
 
                 if folder_name != "..":
-                    self.control_api_client.mount_samba_folder(
+                    response = self._mount_samba(
                         server=device["name"],
                         folder=folder_name,
                         timeout=self.config["oppo"]["nfs_mount_timeout_seconds"],
                     )
+                    self._log_samba_prime_result(device["name"], folder_name, response)
                     return
+
+    def _log_samba_prime_result(
+        self, server: str, folder: str, response: OppoCommandResponse
+    ) -> None:
+        username, password = self._smb_credentials()
+        credentials_configured = bool(username or password)
+
+        if response.is_successful:
+            logging.info(
+                "primed samba mount | server=%s | folder=%s | credentials_configured=%s",
+                server,
+                folder,
+                credentials_configured,
+            )
+            return
+
+        logging.warning(
+            "OPPO SMB pre-mount did not succeed | server=%s | folder=%s | "
+            "credentials_configured=%s | detail=%s",
+            server,
+            folder,
+            credentials_configured,
+            response.error_message,
+        )
 
 
 def _extract_device_list(payload: dict) -> list[dict]:
