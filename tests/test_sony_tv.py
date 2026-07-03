@@ -148,6 +148,24 @@ class SonySwitchToInputTest(unittest.TestCase):
             set_play_content_call.kwargs["json"]["params"],
         )
 
+    def test_illegal_state_during_confirmation_does_not_fail_successful_switch(self):
+        target = TvInputTarget(input_id="extInput:hdmi?port=3")
+        controller = SonyTvController(_config())
+
+        switched = _response({"result": [{}]})
+        illegal_state = _response({"error": [7, "Illegal State"]})
+        with patch(
+            "home_cinema_control.devices.tv.adapters.sony.requests.post",
+            side_effect=[switched, illegal_state],
+        ), self.assertLogs(level="INFO") as logs:
+            result = controller.switch_to_input(target)
+
+        self.assertEqual(DeviceCommandStatus.SUCCESS, result.status)
+        self.assertIn(
+            "Sony HDMI input confirmation unavailable after switch",
+            "\n".join(logs.output),
+        )
+
     def test_missing_input_id_fails(self):
         controller = SonyTvController(_config())
         result = controller.switch_to_input(TvInputTarget(input_id=""))

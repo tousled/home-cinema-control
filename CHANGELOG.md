@@ -35,6 +35,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+* Fixed Sony BRAVIA HDMI switching confirmation noise on models that return `Illegal State` from
+  `getPlayingContentInfo` immediately after a successful input change. HCC now treats that specific response as
+  unavailable confirmation instead of warning like the input switch itself failed.
+
 * Fixed a race in Room Setup's TV form where a successful "Test connection" could be silently undone: reassigning
   the form state from the server response triggered an existing watcher (async by default) that resets the
   "tested" flag on any field change, which ran after the connection test had already marked the TV as tested and

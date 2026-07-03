@@ -27,6 +27,22 @@ JELLYFIN_ANDROID_TV_PACKAGE = "org.jellyfin.androidtv"
 EMBY_ANDROID_TV_PACKAGE = "tv.emby.embyatv"
 
 
+class SonyApiError(OSError):
+    def __init__(self, service: str, method: str, api_error: list):
+        self.service = service
+        self.method = method
+        self.api_error = api_error
+        super().__init__(f"Sony API error calling {service}.{method}: {api_error}")
+
+    @property
+    def is_illegal_state(self) -> bool:
+        return (
+            len(self.api_error) >= 2
+            and self.api_error[0] == 7
+            and self.api_error[1] == "Illegal State"
+        )
+
+
 class SonyTvController(BaseTvController):
     def __init__(self, config: dict):
         super().__init__(config)
@@ -162,7 +178,7 @@ class SonyTvController(BaseTvController):
         body = response.json()
 
         if "error" in body:
-            raise OSError(f"Sony API error calling {service}.{method}: {body['error']}")
+            raise SonyApiError(service, method, body["error"])
 
         return body
 
@@ -233,6 +249,24 @@ class SonyTvController(BaseTvController):
                         "Sony HDMI input confirmed | target_input_id=%s", target_input_id
                     )
                     return
+
+            except SonyApiError as exc:
+                if exc.is_illegal_state:
+                    logging.info(
+                        "Sony HDMI input confirmation unavailable after switch | "
+                        "target_input_id=%s | error=%s",
+                        target_input_id,
+                        exc,
+                    )
+                    return
+
+                logging.warning(
+                    "Unable to confirm Sony HDMI input after switch | "
+                    "target_input_id=%s | error=%s",
+                    target_input_id,
+                    exc,
+                )
+                return
 
             except (OSError, TimeoutError, requests.RequestException) as exc:
                 logging.warning(
