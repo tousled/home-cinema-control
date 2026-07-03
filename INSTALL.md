@@ -593,7 +593,12 @@ muestra el comando para ejecutarlo manualmente.
 ### SMB devuelve `id_error`
 
 - Revisa nombre de recurso, usuario, contraseña y permisos.
-- Prueba el pre-montaje SMB si tu combinación NAS/reproductor necesita preparar la sesión.
+- Prueba el pre-montaje SMB si tu combinación NAS/reproductor necesita preparar la sesión. Si tienes credenciales SMB
+  guardadas, HCC las usa también para ese pre-montaje; si el pre-montaje falla, HCC lo registra y prueba igualmente el
+  montaje real.
+- Si se repite `id_error`, evita pulsar "Probar ruta" muchas veces seguidas: algunos OPPO/Chinoppo degradan su API de
+  control tras demasiados montajes SMB fallidos. Reinicia físicamente el reproductor antes de volver a probar.
+- Si esa biblioteca ya está verificada por NFS y SMB sigue fallando, usa NFS para ese mapeo.
 - No esperes fallback a NFS: corrige SMB o cambia explícitamente esa ruta a NFS.
 
 ### SMB da timeout con carpetas de nombre largo o con caracteres especiales
