@@ -363,6 +363,23 @@ The same network scan helps locate the TV and AV receiver when you configure **R
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
 
+HDMI input detection, "Switch to OPPO", "Detect apps" and "Open Emby/Jellyfin" stay locked until "Test connection"
+confirms the TV responds — there is no point probing a TV that isn't reachable. "Open Emby/Jellyfin" additionally
+requires that app to have been detected on the TV; if it isn't among the detected apps, HCC tells you so you can pick
+it manually in case it shows under a different name. Switching the TV model clears the form fields (IP, MAC, detected
+inputs, …), unless you switch back to the model you already have saved, in which case its configuration is restored.
+
+### Sony BRAVIA: enabling the Pre-Shared Key (PSK)
+
+Sony TVs (2013 or later) are controlled over Sony's official local REST API, authenticated with a Pre-Shared Key —
+no cloud account, unlike LG's on-screen pairing dialog there is no popup to accept; you set this once on the TV
+itself: **Settings → Network & Internet → Home Network Setup → IP Control**, turn on **Authentication**, choose
+**Pre-Shared Key**, and enter any string. Use that same key in HCC's Room Setup screen alongside the TV's IP. Sony
+also has no fixed app id to hardcode like LG does, so Room Setup includes a one-time "Detect apps" step that lists
+the TV's installed apps so you can pick your media server's.
+
+*(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
+
 ## 9. Diagnostics
 
 The Status screen shows readiness, playback state, latest failure, version status, and support summary.
@@ -372,6 +389,9 @@ The Status screen shows readiness, playback state, latest failure, version statu
 </p>
 
 Use it to understand whether the issue is Emby, path mapping, OPPO mount, optional room control, or deployment/update.
+A "Send diagnostics" button builds an automatically redacted report (no IPs, credentials, or paths), lets you review
+and edit it, then copies it to your clipboard and opens a new GitHub issue for you to paste it into and submit
+yourself — nothing is sent in the background or without you seeing it first.
 The version panel shows the installed version in Docker tag form, such as `1.1.1-rc.1`. When an update webhook is
 configured, HCC records the current version before asking the deployment platform to redeploy; older installs without
 that stored value derive rollback guidance from GitHub releases/tags instead of showing the internal build fallback.
@@ -493,7 +513,11 @@ If configured, the Status screen can call a redeploy webhook. Otherwise it shows
 ### SMB returns `id_error`
 
 - Check share name, username, password, and permissions.
-- Try SMB pre-mount if your NAS/player combination needs session preparation.
+- Try SMB pre-mount if your NAS/player combination needs session preparation. If SMB credentials are saved, HCC also
+  uses them for that pre-mount; if the pre-mount fails, HCC logs it and still tries the real mount.
+- If `id_error` repeats, avoid pressing "Test path" many times in a row: some OPPO/Chinoppo players degrade their
+  control API after too many failed SMB mounts. Physically restart the player before testing again.
+- If that library is already verified through NFS and SMB keeps failing, use NFS for that mapping.
 - Do not expect fallback to NFS: fix SMB or explicitly change that mapping to NFS.
 
 ### SMB times out on long folder names or names with special characters

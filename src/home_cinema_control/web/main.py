@@ -5,6 +5,7 @@ from home_cinema_control.config.manager import (
     ensure_config_exists,
     migrate_media_server_to_media_servers_on_disk,
     migrate_playback_to_media_servers_on_disk,
+    reset_telemetry_consent_for_1_2_0_on_disk,
 )
 from home_cinema_control.web.composition import (
     build_web_runtime_composition,
@@ -29,6 +30,7 @@ def main() -> None:
     # playback block. See
     # .agents/specs/2026-06-23-media-server-scoped-paths-libraries-device.md.
     migrate_playback_to_media_servers_on_disk(config_file)
+    reset_telemetry_consent_for_1_2_0_on_disk(config_file)
     composition = build_web_runtime_composition(
         base_dir=base_dir,
         config_file=config_file,

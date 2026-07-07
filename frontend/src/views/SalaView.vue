@@ -65,6 +65,7 @@
                   v-model="tv.model"
                   :options="tvModels.map(m => ({ value: m, label: m }))"
                   class="mb-4"
+                  @change="onTvModelChange"
               />
 
                 <template v-if="tv.model === 'LG'">
@@ -88,13 +89,17 @@
                   <FormSelect
                       id="tv-hdmi-input"
                       v-model="selectedTvSourceIndex"
+                      :disabled="!tvTested"
                       :options="tv.available_hdmi_inputs.map((src, i) => ({ value: i, label: src.nombre || src.name || src.id }))"
                       class="mb-3"
                   />
+                  <p v-if="!tvTested" class="section-hint">{{ $t('x-tv-actions-locked-hint') }}</p>
 
                   <div class="icon-action-row">
-                    <HelpTooltip :text="$t('x-tv-action-detect-inputs-tooltip')">
+                    <HelpTooltip
+                        :text="tvTested ? $t('x-tv-action-detect-inputs-tooltip') : $t('x-tv-actions-locked-tooltip')">
                       <IconActionButton
+                          :disabled="!tvTested"
                           :label="$t('x-tv-action-detect-inputs')"
                           :loading="tvSourcesLoading"
                           :loading-label="$t('x-tv-detecting-inputs')"
@@ -102,26 +107,137 @@
                           @click="getTvSources"
                       />
                     </HelpTooltip>
-                    <HelpTooltip :text="$t('x-tv-action-switch-player-tooltip')">
+                    <HelpTooltip
+                        :text="tvTested ? $t('x-tv-action-switch-player-tooltip') : $t('x-tv-actions-locked-tooltip')">
                       <IconActionButton
+                          :disabled="!tvTested"
                           :label="$t('x-tv-action-switch-player')"
                           icon="player"
                           @click="tvSwitchInput"
                       />
                     </HelpTooltip>
                     <HelpTooltip
-                        :text="mediaServerConfigured
-                          ? $t('x-tv-action-restore-media-server-tooltip', {server: mediaServerBrand.label})
-                          : $t('x-tv-action-restore-media-server-not-configured-tooltip')">
+                        :text="!tvTested
+                          ? $t('x-tv-actions-locked-tooltip')
+                          : mediaServerConfigured
+                            ? $t('x-tv-action-restore-media-server-tooltip', {server: mediaServerBrand.label})
+                            : $t('x-tv-action-restore-media-server-not-configured-tooltip')">
                       <IconActionButton
                           :brand="mediaServerBrand.brand"
-                          :disabled="!mediaServerConfigured"
+                          :disabled="!tvTested || !mediaServerConfigured"
                           :label="$t('x-tv-action-restore-media-server', {server: mediaServerBrand.label})"
                           icon="server"
                           @click="tvRestoreInput"
                       />
                     </HelpTooltip>
                   </div>
+                </template>
+
+              <template v-if="tv.model === 'SONY'">
+                <p class="section-hint mb-4">{{ $t('x-tv-sony-hint') }}</p>
+
+                <label class="form-label" for="tv-ip-sony">{{ $t('x-tv-ip') }}</label>
+                <IpInput id="tv-ip-sony" v-model="tv.ip" :devices="devices" class="mb-4"/>
+
+                <div class="form-label label-with-help">
+                  <label for="tv-psk-sony">{{ $t('x-tv-sony-psk') }}</label>
+                  <HelpTooltip :text="$t('x-tv-tooltip-sony-psk')"/>
+                </div>
+                <input id="tv-psk-sony" v-model="tv.sony_psk" autocomplete="off"
+                       class="form-input mb-1" type="password"/>
+                <p v-if="tv.sony_psk_configured" class="section-hint mb-4">
+                  {{ $t('x-tv-sony-psk-configured') }}
+                </p>
+
+                <button :disabled="tvTestLoading" class="btn-ghost mb-4" @click="testTvConnection">
+                  {{ tvTestLoading ? $t('x-common-testing') : $t('x-tv-test-connection') }}
+                </button>
+
+                <label class="form-label" for="tv-mac-sony">{{ $t('x-tv-mac') }}</label>
+                <input id="tv-mac-sony" v-model="tv.mac" :disabled="arpAvailable" class="form-input mb-1" type="text"/>
+                <p class="section-hint">{{ tv.mac ? $t('x-tv-mac-detected') : $t('x-tv-mac-pending') }}</p>
+                <p v-if="!arpAvailable" class="section-hint" style="color:var(--status-warning)">
+                  {{ $t('x-tv-mac-linux-only') }}</p>
+
+                <div class="form-label label-with-help">
+                  <label for="tv-hdmi-input-sony">{{ $t('x-tv-hdmi-input') }}</label>
+                  <HelpTooltip :text="$t('x-tv-tooltip-hdmi-input')"/>
+                </div>
+                <FormSelect
+                    id="tv-hdmi-input-sony"
+                    v-model="selectedTvSourceIndex"
+                    :disabled="!tvTested"
+                    :options="tv.available_hdmi_inputs.map((src, i) => ({ value: i, label: src.nombre || src.name || src.id }))"
+                    class="mb-3"
+                />
+                <p v-if="!tvTested" class="section-hint">{{ $t('x-tv-actions-locked-hint') }}</p>
+
+                <div class="icon-action-row">
+                  <HelpTooltip
+                      :text="tvTested ? $t('x-tv-action-detect-inputs-tooltip') : $t('x-tv-actions-locked-tooltip')">
+                    <IconActionButton
+                        :disabled="!tvTested"
+                        :label="$t('x-tv-action-detect-inputs')"
+                        :loading="tvSourcesLoading"
+                        :loading-label="$t('x-tv-detecting-inputs')"
+                        icon="scan"
+                        @click="getTvSources"
+                    />
+                  </HelpTooltip>
+                  <HelpTooltip
+                      :text="tvTested ? $t('x-tv-action-switch-player-tooltip') : $t('x-tv-actions-locked-tooltip')">
+                    <IconActionButton
+                        :disabled="!tvTested"
+                        :label="$t('x-tv-action-switch-player')"
+                        icon="player"
+                        @click="tvSwitchInput"
+                    />
+                  </HelpTooltip>
+                </div>
+
+                <div class="form-label label-with-help mt-4">
+                  <label for="tv-app-uri-sony">{{ $t('x-tv-sony-app-uri') }}</label>
+                  <HelpTooltip :text="$t('x-tv-sony-app-uri-tooltip')"/>
+                </div>
+                <FormSelect
+                    id="tv-app-uri-sony"
+                    v-model="selectedSonyAppUri"
+                    :disabled="!tvTested || !mediaServerConfigured"
+                    :options="sonyAvailableAppOptions"
+                    class="mb-3"
+                />
+
+                <div class="icon-action-row">
+                  <HelpTooltip
+                      :text="tvTested ? $t('x-tv-action-detect-apps-tooltip') : $t('x-tv-actions-locked-tooltip')">
+                    <IconActionButton
+                        :disabled="!tvTested || !mediaServerConfigured"
+                        :label="$t('x-tv-action-detect-apps')"
+                        :loading="tvAppsLoading"
+                        :loading-label="$t('x-tv-detecting-apps')"
+                        icon="scan"
+                        @click="getTvApps"
+                      />
+                  </HelpTooltip>
+                  <HelpTooltip
+                      :text="!tvTested
+                          ? $t('x-tv-actions-locked-tooltip')
+                          : !mediaServerConfigured
+                            ? $t('x-tv-action-restore-media-server-not-configured-tooltip')
+                            : $t('x-tv-action-restore-media-server-tooltip', {server: mediaServerBrand.label})">
+                    <IconActionButton
+                        :brand="mediaServerBrand.brand"
+                        :disabled="!tvTested || !mediaServerConfigured || !sonyAppMapped"
+                        :label="$t('x-tv-action-restore-media-server', {server: mediaServerBrand.label})"
+                        icon="server"
+                        @click="tvRestoreInput"
+                    />
+                    </HelpTooltip>
+                  </div>
+                <p v-if="tvTested && sonyAppsDetected && !sonyAppMapped" class="section-hint"
+                   style="color:var(--status-warning)">
+                  {{ $t('x-tv-sony-app-not-found', {server: mediaServerBrand.label}) }}
+                </p>
                 </template>
 
                 <template v-if="tv.model === 'SCRIPTS'">
@@ -301,7 +417,7 @@
 </template>
 
 <script setup>
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {Info, Speaker, Tv} from '@lucide/vue'
 import {api} from '../api/index.js'
@@ -332,30 +448,72 @@ const mediaServerConfigured = computed(() => Boolean(mediaServerProvider.value.s
 
 /* TV state */
 const tv = ref({})
+const originalTv = ref({})
 const tvModels = ref([])
 const selectedTvSourceIndex = ref(0)
 const tvTestLoading = ref(false)
 const tvSourcesLoading = ref(false)
+const tvAppsLoading = ref(false)
 const tvTested = ref(false)
 
 const tvState = computed(() => {
   if (!tv.value.enabled) return 'disabled'
   if (!tv.value.model) return 'incomplete'
   if (tv.value.model === 'LG' && !tv.value.ip) return 'incomplete'
+  if (tv.value.model === 'SONY' && (!tv.value.ip || !tv.value.sony_psk_configured)) return 'incomplete'
   if (tv.value.model === 'SCRIPTS' && !tv.value.startup_script) return 'incomplete'
   return tvTested.value ? 'tested' : 'configured'
 })
+
+const sonyAvailableAppOptions = computed(() =>
+    (tv.value.sony_available_apps || []).map((app) => ({value: app.uri, label: app.title || app.uri}))
+)
+
+const selectedSonyAppUri = computed({
+  get: () => (tv.value.sony_app_uris || {})[mediaServerType.value] || '',
+  set: (uri) => {
+    tv.value.sony_app_uris = {...(tv.value.sony_app_uris || {}), [mediaServerType.value]: uri}
+  },
+})
+
+const sonyAppsDetected = computed(() => Boolean((tv.value.sony_available_apps || []).length))
+const sonyAppMapped = computed(() => Boolean(selectedSonyAppUri.value))
 
 watch(selectedTvSourceIndex, (i) => {
   tv.value.player_hdmi_input_id = i
 })
 
 watch(
-    () => [tv.value.enabled, tv.value.model, tv.value.ip, tv.value.startup_script].join('|'),
+    () => [tv.value.enabled, tv.value.model, tv.value.ip, tv.value.sony_psk, tv.value.startup_script].join('|'),
     () => {
       tvTested.value = false
     },
 )
+
+function emptyTvForModel(model, enabled) {
+  return {
+    enabled,
+    model,
+    ip: '',
+    mac: '',
+    available_hdmi_inputs: [],
+    player_hdmi_input_id: 0,
+    startup_script: '',
+    shutdown_script: '',
+    sony_psk: '',
+    sony_psk_configured: false,
+    sony_app_uris: {},
+    sony_available_apps: [],
+  }
+}
+
+function onTvModelChange() {
+  tv.value = tv.value.model === originalTv.value.model
+      ? {...originalTv.value}
+      : emptyTvForModel(tv.value.model, tv.value.enabled)
+  selectedTvSourceIndex.value = tv.value.player_hdmi_input_id || 0
+  tvTested.value = false
+}
 
 function roomStateLabel(state) {
   return t(`x-room-state-${state}`)
@@ -400,6 +558,10 @@ async function testTvConnection() {
       tv.value = {...result.tv}
       selectedTvSourceIndex.value = tv.value.player_hdmi_input_id || 0
     }
+    // The reassignment above changes tv.value.ip, which the watch() below picks
+    // up asynchronously (default 'pre' flush) and resets tvTested to false —
+    // after nextTick() that pending reset has already run, so this write wins.
+    await nextTick()
     tvTested.value = true
     toast.success(t('x-tv-connection-ok'))
   } catch (e) {
@@ -424,6 +586,20 @@ async function getTvSources() {
   }
 }
 
+async function getTvApps() {
+  tvAppsLoading.value = true
+  try {
+    const updated = await api.getTvApps(await configWithSection('tv', tv.value))
+    tv.value = {...(updated.tv || {})}
+    fullConfig.value = updated
+    toast.success(t('x-tv-apps-detected'))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    tvAppsLoading.value = false
+  }
+}
+
 async function tvSwitchInput() {
   try {
     await api.tvSwitchInput(await configWithSection('tv', tv.value))
@@ -445,8 +621,18 @@ async function tvRestoreInput() {
 }
 
 async function saveTv() {
+  const wasTested = tvTested.value
   try {
-    await saveConfigSection('tv', tv.value)
+    const savedConfig = await saveConfigSection('tv', tv.value)
+    tv.value = {...(savedConfig.tv || {})}
+    originalTv.value = {...(savedConfig.tv || {})}
+    selectedTvSourceIndex.value = tv.value.player_hdmi_input_id || 0
+    // Same race as testTvConnection above: reassigning tv.value here retriggers
+    // the watch() that resets tvTested, even though nothing the user configured
+    // actually changed — just persisted. Restore the pre-save tested state
+    // after nextTick() so this write wins over that pending reset.
+    await nextTick()
+    tvTested.value = wasTested
     toast.success(t('x-common-saved'))
   } catch (e) {
     toast.error(e.message)
@@ -556,8 +742,9 @@ onMounted(async () => {
     const data = await api.getConfig()
     fullConfig.value = data
     tv.value = {...(data.tv || {})}
+    originalTv.value = {...(data.tv || {})}
     av.value = {...(data.av || {})}
-    tvModels.value = data.tv_dirs || ['LG', 'SCRIPTS']
+    tvModels.value = data.tv_dirs || ['LG', 'SONY', 'SCRIPTS']
     avModels.value = data.av_dirs || []
     selectedTvSourceIndex.value = tv.value.player_hdmi_input_id || 0
     selectedAvSource.value = av.value.player_hdmi_input || ''

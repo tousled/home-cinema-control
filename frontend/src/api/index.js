@@ -69,6 +69,7 @@ export const api = {
     getLogs: () => request('GET', '/logs'),
     clearDiagnostics: () => request('POST', '/diagnostics/clear'),
     getSupportSummary: () => request('GET', '/support/summary'),
+    getSupportReport: (lines) => request('GET', `/support/report${lines ? `?lines=${lines}` : ''}`),
     restart: () => request('POST', '/restart'),
 
     // version
@@ -124,6 +125,7 @@ export const api = {
     // tv
     testTvConnection: (config) => request('POST', '/tv/test-connection', config),
     getTvSources: (config) => request('POST', '/tv/sources', config),
+    getTvApps: (config) => request('POST', '/tv/apps', config),
     tvSwitchInput: (config) => request('POST', '/tv/switch-input', config),
     tvRestoreInput: (config) => request('POST', '/tv/restore-input', config),
 

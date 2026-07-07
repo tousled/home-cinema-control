@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [1.2.0] - 2026-07-07
+
+### Added
+
+* Added a "Send diagnostics" action on the Diagnostics screen for reporting bugs from non-technical installs. It
+  builds a report from the support summary and recent log lines, automatically redacts IPs, MAC addresses,
+  credentials, URLs, and configured folder paths, and shows the result in an editable preview before anything
+  happens. Confirming copies the (possibly edited) text to the clipboard and opens a pre-filled GitHub "new issue"
+  page in a new tab for the user to paste into and submit themselves — there is no backend call to GitHub, no bot
+  account, and no server-side storage of the report.
+
+* Added a Sony BRAVIA TV adapter (2013+ models) using Sony's official local REST API, authenticated with a
+  Pre-Shared Key configured directly on the TV — no cloud account required, unlike the SmartThings-dependent
+  Samsung path that was explored and set aside. Supports dynamic HDMI input discovery and direct switching,
+  and a "detect installed apps" step in Room Setup so Emby/Jellyfin can be launched from a per-TV discovered
+  app identifier instead of a hardcoded id. Current-app detection falls back to the configured media-server
+  provider when the TV can't report it directly. Contract-tested against a mocked REST API; not yet validated
+  on real Sony hardware.
+
+* Added a tooltip on the Sony PSK field in Room Setup explaining where to find/set the Pre-Shared Key on the TV.
+
+* Changed Room Setup's TV form so that switching the model dropdown clears the rest of the form (IP, MAC, detected
+  inputs, PSK, app mappings) unless you switch back to the model you already have saved, in which case its
+  configuration is restored instead of staying blank. HDMI input detection, "Switch to OPPO", "Detect apps" and
+  "Open Emby/Jellyfin" are now disabled until "Test connection" succeeds, since none of them make sense against an
+  unreachable TV. The "Open Emby/Jellyfin" action for Sony moved next to "Detect apps" (it depends on app detection,
+  not HDMI detection) and now stays disabled with an explanatory message until that app is actually found among the
+  TV's detected apps.
+
+### Fixed
+
+* Hardened OPPO SMB/CIFS mounting after `id_error`: SMB pre-mount now uses the configured SMB credentials, failed
+  pre-mount attempts are logged as failures instead of "primed" successes, and SMB `id_error` no longer triggers an
+  immediate second mount attempt that can further stress the OPPO control API.
+
+* Fixed Sony BRAVIA HDMI switching confirmation noise on models that return `Illegal State` from
+  `getPlayingContentInfo` immediately after a successful input change. HCC now treats that specific response as
+  unavailable confirmation instead of warning like the input switch itself failed.
+
+* Fixed a race in Room Setup's TV form where a successful "Test connection" could be silently undone: reassigning
+  the form state from the server response triggered an existing watcher (async by default) that resets the
+  "tested" flag on any field change, which ran after the connection test had already marked the TV as tested and
+  clobbered it back to untested — leaving TV action buttons disabled even though the connection had just succeeded.
+
 ## [1.1.4] - 2026-06-30
 
 ### Fixed

@@ -409,7 +409,33 @@ Puntos importantes:
 - Si TV está desactivada, no entra en el flujo de reproducción.
 - Si AV está desactivado, no entra en el flujo de reproducción.
 - En LG WebOS, HCC puede detectar entradas HDMI y restaurar la app del servidor multimedia.
+- En Sony BRAVIA (2013 o posterior), HCC hace lo mismo vía la API REST oficial de Sony, autenticada con una
+  clave PSK — ver más abajo cómo activarla.
 - En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
+- La detección de entradas HDMI, "Cambiar a OPPO", "Detectar apps" y "Abrir Emby/Jellyfin" quedan bloqueados hasta
+  que "Probar conexión" confirma que la TV responde — no tiene sentido detectar nada contra una TV inalcanzable.
+  "Abrir Emby/Jellyfin" además requiere haber detectado esa app en la TV; si no aparece entre las detectadas, HCC te
+  lo indica para que la elijas manualmente si aparece con otro nombre.
+- Cambiar el modelo de TV limpia los campos del formulario (IP, MAC, entradas detectadas…), salvo que vuelvas al
+  modelo que ya tienes guardado, en cuyo caso se restaura su configuración.
+
+### Sony BRAVIA: activar el Pre-Shared Key (PSK)
+
+Antes de configurar la TV Sony en HCC, hay que activar el control por IP directamente en el televisor — a diferencia
+de LG, aquí no hay un diálogo de emparejamiento en pantalla, se configura una vez desde los ajustes:
+
+1. En el mando, ve a **Ajustes → Red y Internet → Configuración de red doméstica → Control IP**.
+2. Activa **Autenticación** y elige **Pre-Shared Key**.
+3. Escribe una clave (cualquier cadena de texto) y guárdala — es la misma clave que introducirás en HCC.
+
+> La ruta exacta del menú varía algo según el año del modelo; el camino general **Red → Configuración de red
+> doméstica → Control IP → Pre-Shared Key** se mantiene desde los modelos de 2014 en adelante.
+
+En la pantalla **Sala** de HCC, introduce la IP de la TV y la misma clave PSK, y pulsa "Probar conexión". Después,
+usa "Detectar apps" para que HCC liste las apps instaladas en esa TV y puedas elegir la de tu servidor multimedia —
+Sony no permite fijar un identificador de antemano como LG, así que este paso hace falta una sola vez por TV.
+
+*(Capturas de pantalla de los ajustes de Sony pendientes de añadir — requieren una TV Sony real.)*
 
 Nota sobre CEC/ARC:
 
@@ -429,6 +455,9 @@ La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y 
 
 - comprobar si HCC está conectado;
 - copiar un resumen de soporte;
+- enviar un diagnóstico: genera un informe redactado automáticamente (sin IPs, credenciales ni rutas), te deja
+  revisarlo y editarlo, y luego lo copia al portapapeles y abre un nuevo issue en GitHub para que lo pegues y lo
+  envíes tú mismo — nada se envía en segundo plano ni sin que lo veas antes;
 - ver el último fallo;
 - comprobar actualizaciones;
 - activar o desactivar telemetría anónima y enviar interés de roadmap;
@@ -564,7 +593,12 @@ muestra el comando para ejecutarlo manualmente.
 ### SMB devuelve `id_error`
 
 - Revisa nombre de recurso, usuario, contraseña y permisos.
-- Prueba el pre-montaje SMB si tu combinación NAS/reproductor necesita preparar la sesión.
+- Prueba el pre-montaje SMB si tu combinación NAS/reproductor necesita preparar la sesión. Si tienes credenciales SMB
+  guardadas, HCC las usa también para ese pre-montaje; si el pre-montaje falla, HCC lo registra y prueba igualmente el
+  montaje real.
+- Si se repite `id_error`, evita pulsar "Probar ruta" muchas veces seguidas: algunos OPPO/Chinoppo degradan su API de
+  control tras demasiados montajes SMB fallidos. Reinicia físicamente el reproductor antes de volver a probar.
+- Si esa biblioteca ya está verificada por NFS y SMB sigue fallando, usa NFS para ese mapeo.
 - No esperes fallback a NFS: corrige SMB o cambia explícitamente esa ruta a NFS.
 
 ### SMB da timeout con carpetas de nombre largo o con caracteres especiales

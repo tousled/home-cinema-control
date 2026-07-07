@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from home_cinema_control.devices.tv.setup_control import (
+    detect_tv_apps,
     detect_tv_sources,
     restore_tv_media_server_app,
     switch_tv_to_player_input,
@@ -12,8 +13,8 @@ from home_cinema_control.playback.diagnostics import diagnose_device_action_fail
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.setup_actions import (
     persist_verification_if_submitted_matches_saved,
-    sanitized_submitted_section,
 )
+from home_cinema_control.web.setup_verification import mark_section_verified
 
 
 def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
@@ -21,6 +22,7 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
 
     @router.post("/test-connection")
     def tv_test_connection(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = test_tv_connection(body)
         if result == "OK":
             tv = body.get("tv") or {}
@@ -29,19 +31,22 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
                 tv.get("model", ""),
                 tv.get("ip", ""),
             )
-            _, persisted = persist_verification_if_submitted_matches_saved(
-                config_service=api_runtime.config_service,
-                submitted_config=body,
-                section="tv",
-            )
+            # A successful test proves the submitted values (including
+            # tv.sony_psk) actually work against the device, so persist them
+            # outright instead of only stamping "verified" onto whatever is
+            # already saved. The old fingerprint-gated persist skipped saving
+            # entirely on first-time setup (saved tv.ip is empty, so it never
+            # matched the submitted one) and, even when it did match, rebuilt
+            # the persisted config from the on-disk copy rather than the
+            # submitted one — so a freshly typed Sony PSK was verified against
+            # the live TV but never written to secrets.json, leaving
+            # "Detectar fuentes" clicked right after with nothing to send.
+            verified_config = mark_section_verified(body, "tv")
+            api_runtime.config_service.save_config(verified_config)
             return {
                 "status": "ok",
-                "verification_persisted": persisted,
-                "tv": sanitized_submitted_section(
-                    config_service=api_runtime.config_service,
-                    submitted_config=body,
-                    section_key="tv",
-                ),
+                "verification_persisted": True,
+                "tv": api_runtime.config_service.sanitize(verified_config).get("tv", {}),
             }
         api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
             component="tv",
@@ -53,15 +58,29 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
 
     @router.post("/sources")
     def tv_get_sources(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = detect_tv_sources(body)
         if result == "OK":
-            return api_runtime.config_service.sanitize(
-                api_runtime.config_service.prepare_submitted_config(body)
-            )
+            return api_runtime.config_service.sanitize(body)
+        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
+            component="tv", action="detect sources", detail=str(result)
+        ))
+        raise HTTPException(status_code=400, detail=result)
+
+    @router.post("/apps")
+    def tv_get_apps(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
+        result = detect_tv_apps(body)
+        if result == "OK":
+            return api_runtime.config_service.sanitize(body)
+        api_runtime.runtime.set_last_diagnostic(diagnose_device_action_failed(
+            component="tv", action="detect apps", detail=str(result)
+        ))
         raise HTTPException(status_code=400, detail=result)
 
     @router.post("/switch-input")
     def tv_switch_input(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = switch_tv_to_player_input(body)
         if result == "OK":
             _, persisted = persist_verification_if_submitted_matches_saved(
@@ -77,6 +96,7 @@ def build_tv_router(api_runtime: WebApiRuntime) -> APIRouter:
 
     @router.post("/restore-input")
     def tv_restore_input(body: dict):
+        body = api_runtime.config_service.prepare_submitted_config(body)
         result = restore_tv_media_server_app(body)
         if result == "OK":
             _, persisted = persist_verification_if_submitted_matches_saved(

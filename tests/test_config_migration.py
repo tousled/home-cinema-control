@@ -8,6 +8,7 @@ from home_cinema_control.config.migration import (
     LEGACY_DETECTION_KEYS,
     LEGACY_FLAT_CONFIG_KEYS,
     apply_all_migrations,
+    reset_telemetry_consent_for_1_2_0,
     _migrate_app_flat_keys,
     _migrate_app_to_playback_keys,
     _migrate_av_flat_keys,
@@ -724,6 +725,25 @@ class LegacyDetectionKeysTest(unittest.TestCase):
             | set(_OPPO_FLAT_KEY_MAP)
         )
         self.assertEqual(all_flat, LEGACY_DETECTION_KEYS)
+
+
+class ResetTelemetryConsentFor120Test(unittest.TestCase):
+    def test_resets_consent_prompted_regardless_of_enabled(self):
+        config = {"telemetry": {"enabled": True, "consent_prompted": True}}
+
+        changed = reset_telemetry_consent_for_1_2_0(config)
+
+        self.assertTrue(changed)
+        self.assertFalse(config["telemetry"]["consent_prompted"])
+
+    def test_noop_on_second_call(self):
+        config = {"telemetry": {"enabled": False, "consent_prompted": True}}
+
+        first = reset_telemetry_consent_for_1_2_0(config)
+        second = reset_telemetry_consent_for_1_2_0(config)
+
+        self.assertTrue(first)
+        self.assertFalse(second)
 
 
 if __name__ == "__main__":

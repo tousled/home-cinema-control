@@ -2,7 +2,6 @@ import unittest
 
 from home_cinema_control.web.setup_actions import (
     persist_verification_if_submitted_matches_saved,
-    sanitized_submitted_section,
 )
 
 
@@ -16,20 +15,6 @@ class FakeConfigService:
 
     def save_config(self, config):
         self.saved = config
-
-    def prepare_submitted_config(self, config):
-        return {
-            **config,
-            "media_server": {
-                **(config.get("media_server") or {}),
-                "access_token": "secret-token",
-            },
-        }
-
-    def sanitize(self, config):
-        media_server = dict(config.get("media_server") or {})
-        media_server.pop("access_token", None)
-        return {**config, "media_server": media_server}
 
 
 class SetupActionsTest(unittest.TestCase):
@@ -65,18 +50,6 @@ class SetupActionsTest(unittest.TestCase):
 
         self.assertFalse(persisted)
         self.assertIsNone(service.saved)
-
-    def test_sanitized_submitted_section_merges_secrets_then_removes_them(self):
-        service = FakeConfigService({})
-
-        section = sanitized_submitted_section(
-            config_service=service,
-            submitted_config={"media_server": {"server_url": "http://emby"}},
-            section_key="media_server",
-        )
-
-        self.assertEqual("http://emby", section["server_url"])
-        self.assertNotIn("access_token", section)
 
 
 if __name__ == "__main__":

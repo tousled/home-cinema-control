@@ -3,7 +3,10 @@ import os
 import shutil
 from pathlib import Path
 
-from home_cinema_control.config.migration import _remove_legacy_flat_keys
+from home_cinema_control.config.migration import (
+    _remove_legacy_flat_keys,
+    reset_telemetry_consent_for_1_2_0,
+)
 from home_cinema_control.config.models import HccConfig, MediaServerProviderConfig
 from home_cinema_control.media_servers.common.models import MediaServerProviderType
 
@@ -19,6 +22,7 @@ EXAMPLE_CONFIG_FILE = "config.example.json"
 SECRET_PATHS = {
     ("user_password",),
     ("smb", "password"),
+    ("tv", "sony_psk"),
 }
 
 SENSITIVE_WEB_CONFIG_PATHS = set(SECRET_PATHS)
@@ -66,6 +70,10 @@ def sanitize_config_for_web(config: dict) -> dict:
     account is configured. smb.password_configured reports whether a password is
     stored, without exposing it, so the UI can distinguish the three SMB
     credential states: none, username only, or username + password.
+
+    tv.sony_psk_configured reports whether a Sony Pre-Shared Key is stored, the
+    same way smb.password_configured does for SMB, so the Sony TV form can show
+    "already configured" instead of always rendering an empty field.
     """
     safe_config = _deep_merge({}, config)
 
@@ -74,6 +82,9 @@ def sanitize_config_for_web(config: dict) -> dict:
     password_configured = bool(
         str(_get_nested(config, ("smb", "password"), "")).strip()
     )
+    sony_psk_configured = bool(
+        str(_get_nested(config, ("tv", "sony_psk"), "")).strip()
+    )
 
     for path in SENSITIVE_WEB_CONFIG_PATHS:
         _pop_nested(safe_config, path)
@@ -81,6 +92,9 @@ def sanitize_config_for_web(config: dict) -> dict:
     safe_smb = safe_config.setdefault("smb", {})
     safe_smb["username"] = str(_get_nested(config, ("smb", "username"), "") or "")
     safe_smb["password_configured"] = password_configured
+
+    safe_tv = safe_config.setdefault("tv", {})
+    safe_tv["sony_psk_configured"] = sony_psk_configured
 
     _remove_legacy_flat_keys(safe_config)
 
@@ -569,6 +583,21 @@ def migrate_playback_to_media_servers_on_disk(config_path: Path | str) -> bool:
 
     _backup_file(config_path, ".bak-migrate-playback")
     migrate_playback_to_media_servers(public_config)
+    _write_json(config_path, public_config)
+    return True
+
+
+def reset_telemetry_consent_for_1_2_0_on_disk(config_path: Path | str) -> bool:
+    """File-level wrapper around reset_telemetry_consent_for_1_2_0.
+
+    Called once at startup from web/main.py.
+    """
+    config_path = Path(config_path)
+    public_config = _read_json(config_path)
+
+    if not reset_telemetry_consent_for_1_2_0(public_config):
+        return False
+
     _write_json(config_path, public_config)
     return True
 

@@ -209,7 +209,7 @@ class MountRetryTest(unittest.TestCase):
             2, client.calls.count(("mount_nfs_folder", "NAS", "Movies", 30))
         )
 
-    def test_retries_smb_mount_once_on_id_error(self, sleep, _check_control_api):
+    def test_does_not_retry_smb_mount_on_id_error(self, sleep, _check_control_api):
         client = FakeControlApiClient(
             samba_mount_responses=[
                 '{"success":false,"retInfo":"id_error"}',
@@ -220,8 +220,13 @@ class MountRetryTest(unittest.TestCase):
 
         result = service.mount(_smb_folder())
 
-        self.assertTrue(result.successful)
-        sleep.assert_called_once_with(2)
+        self.assertFalse(result.successful)
+        self.assertEqual("mount", result.failure_stage)
+        self.assertEqual("id_error", result.detail)
+        sleep.assert_not_called()
+        self.assertEqual(
+            1, client.calls.count(("mount_samba_folder", "NAS", "Movies", 30))
+        )
 
     def test_does_not_retry_non_retryable_mount_failure(self, sleep, _check_control_api):
         client = FakeControlApiClient(
@@ -269,6 +274,61 @@ class MountSmbPrimingTest(unittest.TestCase):
 
         self.assertTrue(result.successful)
         self.assertIn(("mount_samba_folder", "NAS", "Other", 30), client.calls)
+
+    def test_primes_smb_session_with_credentials_when_configured(self, _check_control_api):
+        client = FakeControlApiClient(
+            samba_mount_with_id_responses=[
+                '{"success":true,"cifsMntPath":"/mnt/cifs1"}',
+                '{"success":true,"cifsMntPath":"/mnt/cifs2"}',
+            ],
+        )
+        config = _config(pre_mount_smb=True)
+        config["smb"] = {"username": "david", "password": "secret"}
+        service = OppoNetworkMountService(config, control_api_client=client)
+
+        with patch(
+            "home_cinema_control.devices.oppo.network_mount_service.get_http_session",
+            return_value=FakeHttpSession([FakeHttpResponse(["Other"])]),
+        ):
+            result = service.mount(_smb_folder())
+
+        self.assertTrue(result.successful)
+        self.assertIn(
+            ("mount_samba_folder_with_id", "NAS", "Other", "david", "secret", 30),
+            client.calls,
+        )
+        self.assertIn(
+            ("mount_samba_folder_with_id", "NAS", "Movies", "david", "secret", 30),
+            client.calls,
+        )
+
+    def test_failed_smb_pre_mount_continues_to_real_mount(self, _check_control_api):
+        client = FakeControlApiClient(
+            samba_mount_responses=[
+                '{"success":false,"retInfo":"id_error"}',
+                '{"success":true,"cifsMntPath":"/mnt/cifs1"}',
+            ],
+        )
+        service = OppoNetworkMountService(
+            _config(pre_mount_smb=True), control_api_client=client
+        )
+
+        with patch(
+            "home_cinema_control.devices.oppo.network_mount_service.get_http_session",
+            return_value=FakeHttpSession([FakeHttpResponse(["Other"])]),
+        ), self.assertLogs(level="WARNING") as logs:
+            result = service.mount(_smb_folder())
+
+        self.assertTrue(result.successful)
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("OPPO SMB pre-mount did not succeed", joined_logs)
+        self.assertNotIn("primed samba mount", joined_logs)
+        self.assertEqual(
+            1, client.calls.count(("mount_samba_folder", "NAS", "Other", 30))
+        )
+        self.assertEqual(
+            1, client.calls.count(("mount_samba_folder", "NAS", "Movies", 30))
+        )
 
     def test_does_not_prime_when_pre_mount_smb_disabled(self, _check_control_api):
         client = FakeControlApiClient()
