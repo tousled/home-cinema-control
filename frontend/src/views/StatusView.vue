@@ -236,7 +236,7 @@
                 <dt style="color:var(--text-subtle)">{{ $t('x-status-installed-version') }}</dt>
                 <dd class="mono">{{ versionInfo?.current_version || state.Version || '—' }}</dd>
               </div>
-              <div class="flex gap-2">
+              <div v-if="versionInfo?.new_version" class="flex gap-2">
                 <dt style="color:var(--text-subtle)">{{ $t('x-status-available-version') }}</dt>
                 <dd class="mono">{{ versionInfo?.version || '—' }}</dd>
               </div>
