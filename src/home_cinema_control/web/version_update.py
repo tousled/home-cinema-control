@@ -262,38 +262,32 @@ def find_latest_tag(repository, *, include_prereleases, timeout, http_client=req
 
 
 def find_release_for_channel(releases, include_prereleases):
-    release = first_matching_release(releases, include_prereleases=include_prereleases)
-    if release is None and include_prereleases:
-        release = first_matching_release(releases, include_prereleases=False)
-    return release
+    matching_releases = [
+        release
+        for release in releases
+        if is_available_release(release, include_prereleases=include_prereleases)
+    ]
+    if not matching_releases:
+        return None
+    return max(matching_releases, key=lambda release: parse_version(release.get("tag_name", "")))
 
 
-def first_matching_release(releases, *, include_prereleases):
-    for release in releases:
-        if release.get("draft"):
-            continue
-        tag = release.get("tag_name", "")
-        if not tag:
-            continue
-        if should_include_available_version_tag(tag, include_prereleases):
-            return release
-    return None
+def is_available_release(release, *, include_prereleases):
+    if release.get("draft"):
+        return False
+    tag = release.get("tag_name", "")
+    return bool(tag) and should_include_available_version_tag(tag, include_prereleases)
 
 
 def find_tag_for_channel(tags, include_prereleases):
-    tag = first_matching_tag(tags, include_prereleases=include_prereleases)
-    if not tag and include_prereleases:
-        tag = first_matching_tag(tags, include_prereleases=False)
-    return tag
-
-
-def first_matching_tag(tags, *, include_prereleases):
-    for tag in tags:
-        if not tag:
-            continue
-        if should_include_available_version_tag(tag, include_prereleases):
-            return tag
-    return None
+    matching_tags = [
+        tag
+        for tag in tags
+        if tag and should_include_available_version_tag(tag, include_prereleases)
+    ]
+    if not matching_tags:
+        return None
+    return max(matching_tags, key=parse_version)
 
 
 def is_prerelease_tag(tag):
@@ -301,7 +295,7 @@ def is_prerelease_tag(tag):
 
 
 def should_include_available_version_tag(tag, include_prereleases):
-    return is_prerelease_tag(tag) if include_prereleases else not is_prerelease_tag(tag)
+    return include_prereleases or not is_prerelease_tag(tag)
 
 
 def should_include_history_version_tag(tag, include_prereleases):
