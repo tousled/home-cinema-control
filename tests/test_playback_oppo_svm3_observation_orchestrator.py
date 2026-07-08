@@ -74,7 +74,7 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
         source = RecordingEventSource(
             [
                 "@UTC 000 010 C 02:00:00",
-                "@UTC 000 024 C 02:09:16",
+                "@UTC 000 024 C 02:09:17",
                 "@UTC 000 000 C 00:00:00",
             ]
         )
@@ -87,7 +87,7 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
 
         result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
 
-        self.assertEqual(7756, result.position_seconds)
+        self.assertEqual(7757, result.position_seconds)
         self.assertEqual(7760, result.duration_seconds)
         self.assertEqual(
             PlaybackMonitoringStopReason.NATURAL_END,
@@ -98,6 +98,65 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
         self.assertEqual(
             [ObservedPlaybackEventType.POSITION_UPDATED],
             reporter.event_types,
+        )
+
+    def test_does_not_finish_at_old_ten_second_window(self):
+        source = RecordingEventSource(
+            [
+                "@UTC 000 024 C 00:59:13",
+                "@UPL STOP",
+            ]
+        )
+        orchestrator = VerbosePlaybackObservationStrategy(
+            event_source=source,
+            oppo_total_provider=lambda: 3563,
+        )
+
+        result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
+
+        self.assertEqual(3553, result.position_seconds)
+        self.assertEqual(3563, result.duration_seconds)
+        self.assertEqual(
+            PlaybackMonitoringStopReason.PLAYER_IDLE,
+            result.stop_reason,
+        )
+        self.assertEqual(PlayerPlaybackStatus.STOP, result.final_state.status)
+
+    def test_finishes_at_new_three_second_window(self):
+        source = RecordingEventSource(
+            [
+                "@UTC 000 024 C 00:59:20",
+                "@UTC 000 000 C 00:00:00",
+            ]
+        )
+        orchestrator = VerbosePlaybackObservationStrategy(
+            event_source=source,
+            oppo_total_provider=lambda: 3563,
+        )
+
+        result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
+
+        self.assertEqual(3560, result.position_seconds)
+        self.assertEqual(3563, result.duration_seconds)
+        self.assertEqual(
+            PlaybackMonitoringStopReason.NATURAL_END,
+            result.stop_reason,
+        )
+
+    def test_finishes_at_exact_total(self):
+        source = RecordingEventSource(["@UTC 000 024 C 00:59:23"])
+        orchestrator = VerbosePlaybackObservationStrategy(
+            event_source=source,
+            oppo_total_provider=lambda: 3563,
+        )
+
+        result = orchestrator.monitor_until_stopped(PlaybackMonitoringRequest())
+
+        self.assertEqual(3563, result.position_seconds)
+        self.assertEqual(3563, result.duration_seconds)
+        self.assertEqual(
+            PlaybackMonitoringStopReason.NATURAL_END,
+            result.stop_reason,
         )
 
     def test_does_not_treat_position_reset_as_natural_end_without_expected_duration(self):

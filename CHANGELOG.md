@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [Unreleased]
+
+### Fixed
+
+* Reduced OPPO natural-end detection tolerance so HCC no longer treats playback as finished ten seconds before the
+  title total while SVM3 still reports active playback. The shorter tolerance keeps the existing anti-auto-advance
+  behavior but avoids the observed early stop near the end of Jellyfin/Emby playback.
+
 ## [1.2.0] - 2026-07-07
 
 ### Added

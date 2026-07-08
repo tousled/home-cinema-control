@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 # disc that never reports one cannot drive an unbounded request loop.
 _TOTAL_LOOKUP_INTERVAL_UPDATES = 5
 _MAX_TOTAL_LOOKUP_ATTEMPTS = 60
+_NEAR_END_DIAGNOSTIC_WINDOW_SECONDS = 10
 
 
 class VerboseObservationEventSource(Protocol):
@@ -153,6 +154,51 @@ class VerbosePlaybackObservationStrategy:
             minimum_total_seconds=request.natural_end_minimum_total_seconds,
         )
 
+    def _log_near_end_position(
+            self,
+            state: "_MonitoringState",
+            request: PlaybackMonitoringRequest,
+    ) -> None:
+        if state.latched_total_seconds is None:
+            return
+
+        remaining_seconds = state.latched_total_seconds - state.last_position_seconds
+        if remaining_seconds < 0:
+            remaining_seconds = 0
+
+        diagnostic_window_seconds = max(
+            _NEAR_END_DIAGNOSTIC_WINDOW_SECONDS,
+            request.natural_end_tolerance_seconds,
+        )
+
+        if (
+                remaining_seconds <= diagnostic_window_seconds
+                and not state.near_end_diagnostic_logged
+        ):
+            state.near_end_diagnostic_logged = True
+            logger.info(
+                "SVM3 OPPO near-end position observed | position=%s | "
+                "total=%s | remaining=%s | tolerance=%s",
+                state.last_position_seconds,
+                state.latched_total_seconds,
+                remaining_seconds,
+                request.natural_end_tolerance_seconds,
+            )
+
+        if (
+                remaining_seconds <= request.natural_end_tolerance_seconds
+                and not state.active_tolerance_logged
+        ):
+            state.active_tolerance_logged = True
+            logger.info(
+                "SVM3 OPPO active natural-end tolerance reached | position=%s | "
+                "total=%s | remaining=%s | tolerance=%s",
+                state.last_position_seconds,
+                state.latched_total_seconds,
+                remaining_seconds,
+                request.natural_end_tolerance_seconds,
+            )
+
     def monitor_until_stopped(
         self,
         request: PlaybackMonitoringRequest,
@@ -229,6 +275,7 @@ class VerbosePlaybackObservationStrategy:
                     state.last_nonzero_position_seconds = state.last_position_seconds
 
                 self._maybe_latch_oppo_total(state, request)
+                self._log_near_end_position(state, request)
                 if self._reached_oppo_end_of_content(state, request):
                     stop_reason = PlaybackMonitoringStopReason.NATURAL_END
                     final_player_state = _player_state(
@@ -398,6 +445,8 @@ class _MonitoringState:
         self.latched_total_seconds: int | None = None
         self.total_lookup_attempts: int = 0
         self.updates_since_total_lookup: int = 0
+        self.near_end_diagnostic_logged: bool = False
+        self.active_tolerance_logged: bool = False
 
     @property
     def final_position_seconds(self) -> int:

@@ -22,6 +22,7 @@ from home_cinema_control.playback.during.natural_end import (
 )
 from home_cinema_control.playback.ports import MediaPlayerPort
 logger = logging.getLogger(__name__)
+_NEAR_END_DIAGNOSTIC_WINDOW_SECONDS = 10
 
 
 class PlaybackProgressReporter(Protocol):
@@ -72,6 +73,8 @@ class PollingPlaybackObservationStrategy:
         seconds_since_position_poll = 0.0
         elapsed_monitoring_seconds = 0.0
         paused_screensaver_logged = False
+        near_end_diagnostic_logged = False
+        active_tolerance_logged = False
 
         final_state = self._media_player.get_playback_state()
         last_active_state = _active_state_or_none(final_state) or request.last_active_state
@@ -231,6 +234,16 @@ class PollingPlaybackObservationStrategy:
                     )
                     break
                 continue
+
+            (
+                near_end_diagnostic_logged,
+                active_tolerance_logged,
+            ) = _log_near_end_position(
+                position=normalized_position,
+                tolerance_seconds=request.natural_end_tolerance_seconds,
+                near_end_diagnostic_logged=near_end_diagnostic_logged,
+                active_tolerance_logged=active_tolerance_logged,
+            )
 
             if is_oppo_next_title_started(
                     previous_position_seconds=last_position_seconds,
@@ -407,7 +420,7 @@ def _is_paused(playback_state: PlayerPlaybackState) -> bool:
 
 
 def _normalize_playback_position(
-    position: PlayerPlaybackPosition,
+        position: PlayerPlaybackPosition,
 ) -> PlayerPlaybackPosition:
     if not (
         position.total_seconds > 0
@@ -420,3 +433,47 @@ def _normalize_playback_position(
         total_seconds=position.total_seconds,
         raw_response=position.raw_response,
     )
+
+
+def _log_near_end_position(
+        *,
+        position: PlayerPlaybackPosition,
+        tolerance_seconds: int,
+        near_end_diagnostic_logged: bool,
+        active_tolerance_logged: bool,
+) -> tuple[bool, bool]:
+    remaining_seconds = position.total_seconds - position.current_seconds
+    if remaining_seconds < 0:
+        remaining_seconds = 0
+
+    diagnostic_window_seconds = max(
+        _NEAR_END_DIAGNOSTIC_WINDOW_SECONDS,
+        tolerance_seconds,
+    )
+
+    if (
+            remaining_seconds <= diagnostic_window_seconds
+            and not near_end_diagnostic_logged
+    ):
+        near_end_diagnostic_logged = True
+        logger.info(
+            "OPPO polling near-end position observed | position=%s | "
+            "total=%s | remaining=%s | tolerance=%s",
+            position.current_seconds,
+            position.total_seconds,
+            remaining_seconds,
+            tolerance_seconds,
+        )
+
+    if remaining_seconds <= tolerance_seconds and not active_tolerance_logged:
+        active_tolerance_logged = True
+        logger.info(
+            "OPPO polling active natural-end tolerance reached | position=%s | "
+            "total=%s | remaining=%s | tolerance=%s",
+            position.current_seconds,
+            position.total_seconds,
+            remaining_seconds,
+            tolerance_seconds,
+        )
+
+    return near_end_diagnostic_logged, active_tolerance_logged

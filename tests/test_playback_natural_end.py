@@ -2,6 +2,7 @@ import unittest
 
 from home_cinema_control.playback.during.natural_end import (
     DEFAULT_NATURAL_END_MINIMUM_TOTAL_SECONDS,
+    DEFAULT_NATURAL_END_TOLERANCE_SECONDS,
     is_oppo_end_of_content,
     is_oppo_next_title_started,
     was_content_played,
@@ -12,9 +13,19 @@ class IsOppoEndOfContentTest(unittest.TestCase):
     def test_true_when_current_within_tolerance_of_total(self):
         self.assertTrue(
             is_oppo_end_of_content(
-                current_seconds=9648,
+                current_seconds=9655,
                 total_seconds=9658,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
+                minimum_total_seconds=300,
+            )
+        )
+
+    def test_false_at_old_ten_second_window_with_new_default(self):
+        self.assertEqual(3, DEFAULT_NATURAL_END_TOLERANCE_SECONDS)
+        self.assertFalse(
+            is_oppo_end_of_content(
+                current_seconds=3553,
+                total_seconds=3563,
                 minimum_total_seconds=300,
             )
         )
@@ -24,7 +35,7 @@ class IsOppoEndOfContentTest(unittest.TestCase):
             is_oppo_end_of_content(
                 current_seconds=9658,
                 total_seconds=9658,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -34,7 +45,7 @@ class IsOppoEndOfContentTest(unittest.TestCase):
             is_oppo_end_of_content(
                 current_seconds=9000,
                 total_seconds=9658,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -45,7 +56,7 @@ class IsOppoEndOfContentTest(unittest.TestCase):
             is_oppo_end_of_content(
                 current_seconds=60,
                 total_seconds=60,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -55,7 +66,7 @@ class IsOppoEndOfContentTest(unittest.TestCase):
             is_oppo_end_of_content(
                 current_seconds=0,
                 total_seconds=0,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -66,10 +77,21 @@ class IsOppoNextTitleStartedTest(unittest.TestCase):
         # OPPO auto-advanced to a different file after the feature finished.
         self.assertTrue(
             is_oppo_next_title_started(
-                previous_position_seconds=7754,
+                previous_position_seconds=7753,
                 previous_total_seconds=7756,
                 current_total_seconds=5813,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
+                minimum_total_seconds=300,
+            )
+        )
+
+    def test_false_when_previous_only_inside_old_ten_second_window(self):
+        self.assertFalse(
+            is_oppo_next_title_started(
+                previous_position_seconds=3543,
+                previous_total_seconds=3552,
+                current_total_seconds=5813,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -81,7 +103,7 @@ class IsOppoNextTitleStartedTest(unittest.TestCase):
                 previous_position_seconds=7754,
                 previous_total_seconds=7756,
                 current_total_seconds=7756,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -93,7 +115,7 @@ class IsOppoNextTitleStartedTest(unittest.TestCase):
                 previous_position_seconds=3000,
                 previous_total_seconds=7756,
                 current_total_seconds=5813,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -105,7 +127,7 @@ class IsOppoNextTitleStartedTest(unittest.TestCase):
                 previous_position_seconds=60,
                 previous_total_seconds=60,
                 current_total_seconds=7756,
-                tolerance_seconds=10,
+                tolerance_seconds=3,
                 minimum_total_seconds=300,
             )
         )
@@ -155,11 +177,11 @@ class WasContentPlayedTest(unittest.TestCase):
         )
 
     def test_natural_end_position_is_also_played(self):
-        # A natural-end position (within 10s of total) is always >= 90%.
+        # A natural-end position (within 3s of total) is always >= 90%.
         total = DEFAULT_NATURAL_END_MINIMUM_TOTAL_SECONDS
         self.assertTrue(
             was_content_played(
-                current_seconds=total - 10,
+                current_seconds=total - DEFAULT_NATURAL_END_TOLERANCE_SECONDS,
                 total_seconds=total,
             )
         )
