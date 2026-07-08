@@ -42,6 +42,7 @@ class PlaybackOutputSwitchRequest:
     tv_enabled: bool = True
     av_enabled: bool = True
     previous_tv_app_id_override: str | None = None
+    active_media_server_provider_type: str | None = None
 
 
 @dataclass(frozen=True)

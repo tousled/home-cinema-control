@@ -20,6 +20,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
                     "active": "emby",
                     "providers": {
                         "emby": {
+                            "server_url": "http://emby.local",
                             "playback": {
                                 "path_mappings": [
                                     {"source_path": "/emby", "player_path": "/nas", "protocol": "nfs"}
@@ -74,6 +75,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
         self.assertTrue(output_request.tv_enabled)
         self.assertTrue(output_request.av_enabled)
         self.assertEqual("com.emby.app", output_request.previous_tv_app_id_override)
+        self.assertEqual("emby", output_request.active_media_server_provider_type)
 
         oppo_request = prepared.media_player_start_request
         self.assertFalse(oppo_request.assume_player_already_on)
@@ -117,6 +119,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
         self.assertIsNone(output_request.av_input_id)
         self.assertFalse(output_request.tv_enabled)
         self.assertFalse(output_request.av_enabled)
+        self.assertIsNone(output_request.active_media_server_provider_type)
         self.assertEqual(0, prepared.startup_completion_request.expected_duration_seconds)
 
     def test_uses_active_providers_path_mappings_not_inactive_providers(self):
@@ -133,6 +136,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
                             }
                         },
                         "jellyfin": {
+                            "server_url": "http://jf.local",
                             "playback": {
                                 "path_mappings": [
                                     {"source_path": "/jf", "player_path": "/nas"}
@@ -156,6 +160,35 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
         )
 
         self.assertEqual("nas", prepared.media_location.content_server)
+        self.assertEqual(
+            "jellyfin",
+            prepared.output_switch_request.active_media_server_provider_type,
+        )
+
+    def test_omits_active_provider_type_when_provider_has_no_server_url(self):
+        prepared = prepare_playback_requests(
+            config={
+                "media_servers": {
+                    "active": "jellyfin",
+                    "providers": {"jellyfin": {}},
+                },
+                "oppo": {"always_on": True, "playback_start_timeout_seconds": 30},
+            },
+            intent=_intent(),
+            item_info=MediaServerPlaybackSource(
+                path="/nas/Movies/Movie.mkv",
+                container="mkv",
+                duration_seconds=0,
+                production_year=None,
+                title="",
+                content_kind=MediaContentKind.OTHER,
+            ),
+            previous_tv_app_id_override=None,
+        )
+
+        self.assertIsNone(
+            prepared.output_switch_request.active_media_server_provider_type
+        )
 
 
 def _intent() -> PlaybackIntent:

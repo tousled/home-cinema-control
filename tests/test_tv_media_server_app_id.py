@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from home_cinema_control.devices.tv.adapters.lg import (
     EMBY_APP_ID,
+    LG_CURRENT_APP_CONNECT_TIMEOUT_SECONDS,
     JELLYFIN_APP_ID,
     LgTvController,
 )
@@ -22,6 +23,9 @@ class LgMediaServerAppIdTest(unittest.TestCase):
     def test_unknown_provider_returns_none(self):
         controller = LgTvController({"tv": {}})
         self.assertIsNone(controller.media_server_app_id("plex"))
+
+    def test_current_app_lookup_uses_short_startup_timeout(self):
+        self.assertEqual(3.0, LG_CURRENT_APP_CONNECT_TIMEOUT_SECONDS)
 
 
 class ScriptsMediaServerAppIdTest(unittest.TestCase):

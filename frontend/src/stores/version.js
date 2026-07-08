@@ -7,7 +7,7 @@ export const useVersionStore = defineStore('version', () => {
     const rollbackInfo = ref(null)
 
     function setVersionInfo(info) {
-        if (info?.new_version) newVersionAvailable.value = true
+        newVersionAvailable.value = info?.new_version === true
     }
 
     function clearNewVersion() {
