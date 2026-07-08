@@ -64,6 +64,10 @@ class TelevisionOutputPort(Protocol):
         """Return the current TV app id, if available."""
         ...
 
+    def media_server_app_id(self, provider_type: str) -> str | None:
+        """Return this TV brand's app id for the media-server provider."""
+        ...
+
     def switch_to_input(self, target: TvInputTarget) -> DeviceCommandResult:
         """Switch the TV to the requested input."""
         ...
