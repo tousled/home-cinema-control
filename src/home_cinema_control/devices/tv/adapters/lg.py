@@ -23,6 +23,7 @@ _MEDIA_SERVER_APP_IDS = {
 
 LG_CONNECT_TIMEOUT_SECONDS = 20.0
 LG_FAST_CONNECT_TIMEOUT_SECONDS = 2.0
+LG_CURRENT_APP_CONNECT_TIMEOUT_SECONDS = 3.0
 LG_WAKE_TIMEOUT_SECONDS = 20.0
 LG_WAKE_RETRY_INTERVAL_SECONDS = 1.0
 LG_INPUT_CONFIRM_TIMEOUT_SECONDS = 3.0
@@ -134,14 +135,19 @@ class LgTvController(BaseTvController):
             )
 
     @asynccontextmanager
-    async def _connected_client(self, *, wake_if_unreachable: bool = False):
+    async def _connected_client(
+            self,
+            *,
+            wake_if_unreachable: bool = False,
+            connect_timeout: float = LG_CONNECT_TIMEOUT_SECONDS,
+    ):
         client = None
 
         try:
             if wake_if_unreachable:
                 client = await self._connect_or_wake()
             else:
-                client = await self._connect()
+                client = await self._connect(timeout=connect_timeout)
 
             yield client
 
@@ -353,7 +359,9 @@ class LgTvController(BaseTvController):
             await client.launch_app(app_id)
 
     async def _get_current_app(self) -> str | None:
-        async with self._connected_client() as client:
+        async with self._connected_client(
+                connect_timeout=LG_CURRENT_APP_CONNECT_TIMEOUT_SECONDS,
+        ) as client:
             current_app = await client.get_current_app()
             logging.info("Current LG app: %s", current_app)
             return current_app

@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
+from home_cinema_control.playback.during.natural_end import (
+    DEFAULT_NATURAL_END_TOLERANCE_SECONDS,
+)
 from home_cinema_control.playback.player_state import PlayerPlaybackState
 
 
@@ -24,7 +27,7 @@ class PlaybackMonitoringRequest:
     max_end_of_media_polls: int = 3
     progress_interval_seconds: float = 10.0
     event_watchdog_seconds: float = 30.0
-    natural_end_tolerance_seconds: int = 10
+    natural_end_tolerance_seconds: int = DEFAULT_NATURAL_END_TOLERANCE_SECONDS
     natural_end_minimum_total_seconds: int = 300
     monitoring_timeout_seconds: float | None = None
     report_progress: bool = True

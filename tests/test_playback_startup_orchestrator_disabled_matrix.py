@@ -184,6 +184,9 @@ class _RecordingTv:
     def launch_app(self, app_id=None):
         return DeviceCommandResult.success()
 
+    def media_server_app_id(self, provider_type):
+        return None
+
 
 class _FailingTv:
     def get_current_app_id(self):
@@ -194,6 +197,9 @@ class _FailingTv:
 
     def launch_app(self, app_id=None):
         return DeviceCommandResult.failed("TV unreachable.")
+
+    def media_server_app_id(self, provider_type):
+        return None
 
 
 class _RecordingAv:

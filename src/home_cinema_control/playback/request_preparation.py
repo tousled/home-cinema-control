@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from home_cinema_control.config.manager import active_media_server_config
+from home_cinema_control.config.manager import (
+    active_media_server_config,
+    active_media_server_type,
+)
 from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
 )
@@ -91,7 +94,14 @@ def _output_switch_request(
         tv_enabled=tv.get("enabled") is True,
         av_enabled=av.get("enabled") is True,
         previous_tv_app_id_override=previous_tv_app_id_override,
+        active_media_server_provider_type=_active_provider_type_for_tv_restore(config),
     )
+
+
+def _active_provider_type_for_tv_restore(config: dict[str, Any]) -> str | None:
+    if not active_media_server_config(config).server_url:
+        return None
+    return str(active_media_server_type(config))
 
 
 def _resolve_tv_input_target(tv: dict) -> TvInputTarget:

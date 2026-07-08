@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [1.2.1] - 2026-07-08
+
+### Fixed
+
+* Reduced OPPO natural-end detection tolerance so HCC no longer treats playback as finished ten seconds before the
+  title total while SVM3 still reports active playback. The shorter tolerance keeps the existing anti-auto-advance
+  behavior but avoids the observed early stop near the end of Jellyfin/Emby playback.
+
+* Reduced TV current-app lookup impact during playback startup: LG now uses a short current-app connection timeout,
+  startup skips the lookup when TV control is disabled or missing, and HCC falls back to the configured media-server
+  TV app when exact current-app detection is unavailable.
+
 ## [1.2.0] - 2026-07-07
 
 ### Added

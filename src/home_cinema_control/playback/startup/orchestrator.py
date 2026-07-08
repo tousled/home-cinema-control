@@ -154,10 +154,53 @@ class PlaybackStartupOrchestrator:
             )
             return request.previous_tv_app_id_override
 
-        return self._measure_output_switch_step(
+        if not request.tv_enabled:
+            logger.info("Skipping current TV app read: TV control is disabled.")
+            return None
+
+        if self._television is None:
+            logger.info("Skipping current TV app read: no TV adapter configured.")
+            return None
+
+        current_app_id = self._measure_output_switch_step(
             "read_current_tv_app",
             self._get_current_tv_app_id,
         )
+        if current_app_id is not None:
+            logger.info("Using exact TV return app | app_id=%s", current_app_id)
+            return current_app_id
+
+        fallback_app_id = self._fallback_tv_app_id(request)
+        if fallback_app_id is None:
+            logger.info(
+                "No TV return app available | provider=%s",
+                request.active_media_server_provider_type,
+            )
+            return None
+
+        logger.info(
+            "Using fallback TV return app | provider=%s | app_id=%s",
+            request.active_media_server_provider_type,
+            fallback_app_id,
+        )
+        return fallback_app_id
+
+    def _fallback_tv_app_id(self, request: PlaybackOutputSwitchRequest) -> str | None:
+        if self._television is None:
+            return None
+
+        provider_type = request.active_media_server_provider_type
+        if provider_type is None:
+            return None
+
+        try:
+            return self._television.media_server_app_id(provider_type)
+        except Exception:
+            logger.exception(
+                "Could not resolve fallback TV app id for provider | provider=%s",
+                provider_type,
+            )
+            return None
 
     def _measure_output_switch_step(self, step_name: str, operation: Callable):
         started_at = time.perf_counter()
