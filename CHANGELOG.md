@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
+## [Unreleased]
+
+### Added
+
+* Added native Trinnov Altitude AV receiver support over the Altitude TCP automation protocol. HCC identifies as
+  `Home Cinema Control`, switches OPPO and TV-audio targets with Trinnov source/profile numbers, uses Wake-on-LAN
+  after the MAC address is configured or detected from the network scan, locks Trinnov power actions until that MAC is
+  available, and treats the integration as contract-tested until real Altitude hardware logs confirm it.
+
 ## [1.2.1] - 2026-07-08
 
 ### Fixed

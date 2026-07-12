@@ -363,6 +363,15 @@ The same network scan helps locate the TV and AV receiver when you configure **R
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
 
+For Trinnov Altitude processors, HCC uses source/profile numbers instead of HDMI input names. The Trinnov protocol
+requires HCC and the processor to be on the same subnet. Enter the IP address and use **Detect MAC** so HCC can try to
+fill the MAC from the network scan; Trinnov power actions stay locked until that MAC is available. Trinnov support is
+contract-tested and pending real-hardware validation.
+
+To configure Trinnov, select **TRINNOV**, enter the IP address, detect or type the MAC address, click **Detect HDMI
+inputs** so HCC can query the processor source/profile list, and choose the source/profile where the OPPO is connected.
+The selector stays locked until detection because Trinnov commands require an identified TCP session first.
+
 HDMI input detection, "Switch to OPPO", "Detect apps" and "Open Emby/Jellyfin" stay locked until "Test connection"
 confirms the TV responds — there is no point probing a TV that isn't reachable. "Open Emby/Jellyfin" additionally
 requires that app to have been detected on the TV; if it isn't among the detected apps, HCC tells you so you can pick

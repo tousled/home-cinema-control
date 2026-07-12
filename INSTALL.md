@@ -412,6 +412,14 @@ Puntos importantes:
 - En Sony BRAVIA (2013 o posterior), HCC hace lo mismo vía la API REST oficial de Sony, autenticada con una
   clave PSK — ver más abajo cómo activarla.
 - En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
+- En Trinnov Altitude, HCC usa números de fuente/perfil en lugar de nombres de entrada HDMI. El protocolo requiere que
+  HCC y el procesador estén en la misma subred. Introduce la IP y usa **Detectar MAC** para que HCC intente rellenar
+  la MAC desde el escaneo de red; las acciones de encendido/apagado quedan bloqueadas hasta tener esa MAC. Esta
+  integración está contract-tested y pendiente de validación en hardware real.
+- Para configurar Trinnov: selecciona **TRINNOV**, introduce la IP, detecta o escribe la MAC, pulsa **Detectar entradas
+  HDMI** para que HCC consulte los source/profile del procesador y elige el source/profile donde está conectado el
+  OPPO. El selector permanece bloqueado hasta esa detección porque Trinnov no acepta comandos útiles sin abrir primero
+  una sesión TCP identificada.
 - La detección de entradas HDMI, "Cambiar a OPPO", "Detectar apps" y "Abrir Emby/Jellyfin" quedan bloqueados hasta
   que "Probar conexión" confirma que la TV responde — no tiene sentido detectar nada contra una TV inalcanzable.
   "Abrir Emby/Jellyfin" además requiere haber detectado esa app en la TV; si no aparece entre las detectadas, HCC te
