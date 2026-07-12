@@ -19,6 +19,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   from theme/opening plugins, so selecting a movie or series no longer routes those MP3 themes through HCC or starts
   the OPPO handoff before the actual video item is played.
 
+* Stopped the source Emby/Jellyfin client before every OPPO handoff, including remote-control playback commands
+  targeting HCC, so the TV app no longer keeps playing the same item after OPPO playback is stopped.
+
+* Extended Emby stop cleanup to all active sessions for the same user and item, matching the existing Jellyfin
+  protection, so a renewed/stale Emby TV session cannot keep playing after OPPO playback finishes.
+
+* Blocked Emby/Jellyfin playback handoff when media-server item details cannot be loaded, such as with an expired
+  Emby access token, so HCC no longer starts OPPO takeover from WebSocket-only session data and then remains stuck in
+  `Loading`.
+
 ## [1.2.1] - 2026-07-08
 
 ### Fixed

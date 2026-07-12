@@ -97,6 +97,7 @@ class MediaServerSessionMonitor:
                     self._provider_name,
                     e,
                 )
+                return
 
         if session is None or session.now_playing is None:
             self._handle_playback_ended(session)

@@ -225,6 +225,37 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
     keyword-argument mismatch here raises a real TypeError, the same way it
     did on real hardware."""
 
+    def test_media_server_item_failure_resets_loading_without_stopping_source(self):
+        playback_session = FakePlaybackSessionForStartFromIntent(
+            item_error=RuntimeError("Access token is invalid or expired")
+        )
+        state = BridgePlaybackState()
+        service = PlaybackApplicationService(
+            playback_session=playback_session,
+            playback_state=state,
+            reload_config=lambda: None,
+            media_server_playback_services=SimpleNamespace(
+                playback_context_from_intent=lambda intent: SimpleNamespace(),
+            ),
+        )
+
+        with (
+            patch("home_cinema_control.playback.application.prepare_oppo_observation_mode"),
+            patch("home_cinema_control.playback.application.log_oppo_qpl_state"),
+            patch(
+                "home_cinema_control.playback.application.ensure_oppo_control_api_available"
+            ) as ensure_oppo,
+        ):
+            service._start_from_intent(
+                _intent(media_item_id="1"),
+                origin=PlaybackOrigin.OBSERVED_TV_CLIENT,
+            )
+
+        ensure_oppo.assert_not_called()
+        self.assertEqual("Free", state.playstate)
+        self.assertEqual([], playback_session.stopped_sessions)
+        self.assertEqual("MEDIA_SERVER_ITEM_UNAVAILABLE", state.last_diagnostic.code)
+
     def test_on_startup_completed_lambda_matches_the_real_method_signature(self):
         intent = PlaybackIntent(
             media_item_id="1",
@@ -313,10 +344,11 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
         # check; this also confirms on_startup_completed ran far enough to
         # send the content-kind-aware closing message via `messaging`.
         self.assertIn("episode", playback_session.notifications)
+        self.assertEqual(["session-1", "session-1"], playback_session.stopped_sessions)
 
 
 class FakePlaybackSessionForStartFromIntent:
-    def __init__(self):
+    def __init__(self, *, item_error=None):
         self.config = {}
         self.lang = {
             "msg-startup-received": "received",
@@ -337,11 +369,18 @@ class FakePlaybackSessionForStartFromIntent:
         self.client = object()
         self.user_info = {"User": {"Id": "user-1"}, "SessionInfo": {"Id": "session-1"}}
         self.notifications = []
+        self.stopped_sessions = []
+        self.item_error = item_error
 
     def notify_session(self, session_id, message, timeout_ms=None):
         self.notifications.append(message)
 
+    def stop_session_playback(self, session_id):
+        self.stopped_sessions.append(session_id)
+
     def get_media_source_info(self, user_id, item_id, media_source_id):
+        if self.item_error is not None:
+            raise self.item_error
         return MediaServerPlaybackSource(
             path="/nas/Series/Show/episode.mkv",
             container="mkv",
@@ -369,8 +408,8 @@ class ShouldStopSourceClientBeforeHandoffTest(unittest.TestCase):
             )
         )
 
-    def test_does_not_stop_for_remote_control_command_origin(self):
-        self.assertFalse(
+    def test_stops_for_remote_control_command_origin(self):
+        self.assertTrue(
             _should_stop_source_client_before_handoff(
                 PlaybackOrigin.REMOTE_CONTROL_COMMAND
             )

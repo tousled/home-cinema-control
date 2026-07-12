@@ -130,6 +130,18 @@ class EmbySessionMonitorTest(unittest.TestCase):
 
         self.dispatcher.dispatch.assert_not_called()
 
+    def test_item_details_failure_does_not_dispatch(self):
+        self.emby_session.get_item_playback_info.side_effect = RuntimeError(
+            "Access token is invalid or expired"
+        )
+        monitor = self._monitor()
+
+        monitor.on_sessions_update([_make_session()])
+
+        self.emby_session.is_item_path_in_library.assert_not_called()
+        self.dispatcher.dispatch.assert_not_called()
+        self.assertEqual("", monitor._monitored_state)
+
     def test_theme_mp3_does_not_dispatch_or_load_item_details(self):
         monitor = self._monitor()
 
