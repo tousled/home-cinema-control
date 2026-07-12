@@ -11,6 +11,7 @@ from home_cinema_control.media_servers.common.models import (
     MediaServerLoginCredentials,
 )
 from home_cinema_control.media_servers.jellyfin.web_config import (
+    _client_capabilities_payload,
     _authenticate_with_temporary_password,
     build_control_device_config,
     build_library_config,
@@ -20,6 +21,13 @@ from home_cinema_control.media_servers.jellyfin.web_config import (
     load_libraries,
     load_selectable_folders,
 )
+
+
+class ClientCapabilitiesPayloadTest(unittest.TestCase):
+    def test_registers_hcc_as_video_only_playback_target(self):
+        payload = _client_capabilities_payload()
+
+        self.assertEqual(["Video"], payload["PlayableMediaTypes"])
 
 
 class FakeAuthResponse:

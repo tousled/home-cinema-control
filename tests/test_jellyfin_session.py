@@ -7,16 +7,35 @@ class FakeJellyfinClient:
     def __init__(self, sessions=None):
         self._sessions = sessions
         self.get_sessions_by_user_calls = []
+        self.capabilities_payload = None
 
     def get_sessions_by_user(self, user_id):
         self.get_sessions_by_user_calls.append(user_id)
         return self._sessions
 
+    def set_capabilities(self, payload):
+        self.capabilities_payload = payload
+        return FakeResponse()
+
+
+class FakeResponse:
+    text = ""
+
 
 def _session_with_client(client) -> JellyfinSession:
     session = JellyfinSession.__new__(JellyfinSession)
     session.client = client
+    session._refresh_session_info = lambda: None
     return session
+
+
+class SetCapabilitiesTest(unittest.TestCase):
+    def test_registers_hcc_as_video_only_playback_target(self):
+        client = FakeJellyfinClient()
+
+        _session_with_client(client).set_capabilities()
+
+        self.assertEqual(["Video"], client.capabilities_payload["PlayableMediaTypes"])
 
 
 class FindControllingSessionIdTest(unittest.TestCase):

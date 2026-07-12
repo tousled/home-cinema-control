@@ -130,6 +130,41 @@ class EmbySessionMonitorTest(unittest.TestCase):
 
         self.dispatcher.dispatch.assert_not_called()
 
+    def test_theme_mp3_does_not_dispatch_or_load_item_details(self):
+        monitor = self._monitor()
+
+        monitor.on_sessions_update(
+            [
+                _make_session(
+                    item_id="theme-1",
+                    item_name="theme",
+                    item_type="Audio",
+                    item_path="/movies/Blade Runner 2049/theme.mp3",
+                )
+            ]
+        )
+
+        self.emby_session.get_item_playback_info.assert_not_called()
+        self.emby_session.is_item_path_in_library.assert_not_called()
+        self.dispatcher.dispatch.assert_not_called()
+        self.assertEqual("", monitor._monitored_state)
+
+    def test_theme_mp3_match_is_case_insensitive(self):
+        monitor = self._monitor()
+
+        monitor.on_sessions_update(
+            [
+                _make_session(
+                    item_id="theme-1",
+                    item_name="theme",
+                    item_type="Audio",
+                    item_path=r"\\nas\\movies\\Blade Runner 2049\\Theme.MP3",
+                )
+            ]
+        )
+
+        self.dispatcher.dispatch.assert_not_called()
+
     # -------------------------------------------------------------------------
     # Dispatch cases
     # -------------------------------------------------------------------------
