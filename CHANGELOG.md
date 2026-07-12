@@ -13,6 +13,12 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   after the MAC address is configured or detected from the network scan, locks Trinnov power actions until that MAC is
   available, and treats the integration as contract-tested until real Altitude hardware logs confirm it.
 
+### Fixed
+
+* Registered HCC as a video-only playback target for Emby/Jellyfin and ignored ambient `theme.mp3` playback events
+  from theme/opening plugins, so selecting a movie or series no longer routes those MP3 themes through HCC or starts
+  the OPPO handoff before the actual video item is played.
+
 ## [1.2.1] - 2026-07-08
 
 ### Fixed

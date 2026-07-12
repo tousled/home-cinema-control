@@ -18,12 +18,15 @@ def build_playback_intent_from_play_command(
 
     item_id = _requested_item_id(data)
     controlling_user_id = data.get("ControllingUserId", "")
+    item_info = load_item_info(controlling_user_id, item_id)
+    if _is_theme_audio_item(item_info):
+        logging.info("Ignoring Jellyfin theme audio play command | item_id=%s", item_id)
+        return None
 
     start_position_ticks = data.get("StartPositionTicks")
     if start_position_ticks is None:
         start_position_ticks = data.get("SavedPlaybackPositionTicks")
     if start_position_ticks is None or int(start_position_ticks) < 0:
-        item_info = load_item_info(controlling_user_id, item_id)
         start_position_ticks = int(
             item_info.get("UserData", {}).get("PlaybackPositionTicks", 0)
         )
@@ -99,3 +102,19 @@ def _requested_item_id(data: dict[str, Any]) -> str:
         return str(item_ids[0])
 
     return str(item_ids)
+
+
+def _is_theme_audio_item(item_info: dict[str, Any] | None) -> bool:
+    item_info = item_info or {}
+    item_path = str(item_info.get("Path") or "").lower()
+    item_name = str(item_info.get("Name") or "").lower()
+    item_type = str(item_info.get("Type") or "").lower()
+    container = str(item_info.get("Container") or "").lower()
+    return (
+        _path_basename(item_path) == "theme.mp3"
+        or (item_name == "theme" and item_type == "audio" and container == "mp3")
+    )
+
+
+def _path_basename(path: str) -> str:
+    return path.replace("\\", "/").rsplit("/", 1)[-1]

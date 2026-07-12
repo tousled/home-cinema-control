@@ -13,6 +13,7 @@ from home_cinema_control.media_servers.common.models import (
     is_library_active,
 )
 from home_cinema_control.media_servers.emby.web_config import (
+    _client_capabilities_payload,
     authenticate_legacy_credentials,
     build_control_device_config,
     build_library_config,
@@ -22,6 +23,13 @@ from home_cinema_control.media_servers.emby.web_config import (
     load_libraries,
     load_selectable_folders,
 )
+
+
+class ClientCapabilitiesPayloadTest(unittest.TestCase):
+    def test_registers_hcc_as_video_only_playback_target(self):
+        payload = _client_capabilities_payload()
+
+        self.assertEqual(["Video"], payload["PlayableMediaTypes"])
 
 
 class BuildControlDeviceConfigTest(unittest.TestCase):
