@@ -72,7 +72,6 @@ class MediaServerSessionMonitor:
                 session.now_playing.name,
                 session.now_playing.path,
             )
-            self._handle_playback_ended(session)
             return
 
         if session is not None and session.now_playing is not None:

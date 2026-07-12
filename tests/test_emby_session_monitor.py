@@ -177,6 +177,33 @@ class EmbySessionMonitorTest(unittest.TestCase):
 
         self.dispatcher.dispatch.assert_not_called()
 
+    def test_theme_mp3_between_same_item_does_not_reset_monitored_state(self):
+        # Regression: the client (e.g. LG TV Emby app) shows the ambient
+        # theme.mp3 on the details screen after a stop, then resumes the
+        # same title on its own. That resume must be treated as a
+        # continuation, not dispatched as a brand new handoff.
+        monitor = self._monitor()
+        session = _make_session()
+        monitor.on_sessions_update([session])
+        self.dispatcher.dispatch.assert_called_once()
+        self.assertEqual("Blade Runner 2049", monitor._monitored_state)
+
+        monitor.on_sessions_update(
+            [
+                _make_session(
+                    item_id="theme-1",
+                    item_name="theme",
+                    item_type="Audio",
+                    item_path="/movies/Blade Runner 2049/theme.mp3",
+                )
+            ]
+        )
+        self.assertEqual("Blade Runner 2049", monitor._monitored_state)
+
+        self.dispatcher.reset_mock()
+        monitor.on_sessions_update([session])
+        self.dispatcher.dispatch.assert_not_called()
+
     # -------------------------------------------------------------------------
     # Dispatch cases
     # -------------------------------------------------------------------------
