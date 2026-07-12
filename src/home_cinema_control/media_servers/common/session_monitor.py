@@ -65,14 +65,13 @@ class MediaServerSessionMonitor:
         item_playback_info = None
 
         if session is not None and _is_ambient_theme_audio(session.now_playing):
-            logging.info(
+            logging.debug(
                 "%s ignoring ambient theme audio | device=%s | title=%s | path=%s",
                 self._provider_name,
                 session.device_name,
                 session.now_playing.name,
                 session.now_playing.path,
             )
-            self._handle_playback_ended(session)
             return
 
         if session is not None and session.now_playing is not None:
