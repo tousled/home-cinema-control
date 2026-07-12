@@ -14,7 +14,7 @@ verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics,
 - Resolves the media-server path to the path visible from the OPPO or Chinoppo player.
 - Mounts NFS or SMB/CIFS shares per library mapping.
 - Starts playback on OPPO UDP-203/205 and compatible Chinoppo players.
-- Optionally switches TV and AV receiver inputs.
+- Optionally switches TV and AV receiver inputs, including Trinnov Altitude source/profile control.
 - Reports playback progress and state back to Emby when supported by the device flow.
 - Exposes diagnostics, structured logs with copy/download support, version checks, update hooks, and rollback guidance.
 - Offers opt-in anonymous telemetry and roadmap feedback; disabled by default and never sending paths, IPs, tokens,
@@ -95,6 +95,8 @@ Images are published for `linux/amd64` and `linux/arm64`.
 - NAS or shared media folders reachable by both Emby and the player.
 - NFS or SMB/CIFS shares mapped per media library.
 - Optional TV and AV receiver control.
+- Trinnov Altitude support is contract-tested and pending real-hardware validation; power actions require a configured
+  or network-detected MAC address and same-subnet reachability.
 
 ## Documentation
 

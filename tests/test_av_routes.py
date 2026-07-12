@@ -47,6 +47,30 @@ class AvSourcesRouteTest(unittest.TestCase):
         self.assertEqual("SIBD\n", inputs[0]["param"])
         config_service.save_config.assert_called_once()
 
+    @patch("home_cinema_control.web.av_routes.list_av_hdmi_inputs")
+    def test_av_sources_post_uses_submitted_config(self, mock_sources):
+        from home_cinema_control.config.models import AvInputSource
+        mock_sources.return_value = [
+            AvInputSource(id=2, name="Source/profile 2", param="profile 2\n"),
+        ]
+        client, _, config_service = _make_client(
+            config={"av": {"enabled": True, "model": "DENON", "ip": "192.168.1.20"}}
+        )
+        submitted = {"av": {"enabled": True, "model": "TRINNOV", "ip": "192.168.1.50"}}
+
+        resp = client.post("/api/v1/av/sources", json=submitted)
+
+        self.assertEqual(200, resp.status_code)
+        mock_sources.assert_called_once()
+        detected_config = mock_sources.call_args.args[0]
+        self.assertEqual("TRINNOV", detected_config["av"]["model"])
+        self.assertEqual("192.168.1.50", detected_config["av"]["ip"])
+        self.assertEqual("TRINNOV", resp.json()["av"]["model"])
+        self.assertEqual("profile 2\n", resp.json()["av"]["available_hdmi_inputs"][0]["param"])
+        config_service.save_config.assert_called_once()
+        saved_config = config_service.save_config.call_args.args[0]
+        self.assertEqual("profile 2\n", saved_config["av"]["available_hdmi_inputs"][0]["param"])
+
 
 if __name__ == "__main__":
     unittest.main()
