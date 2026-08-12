@@ -363,6 +363,10 @@ The same network scan helps locate the TV and AV receiver when you configure **R
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
 
+On LG webOS, first-time use shows the normal on-TV pairing prompt. HCC identifies itself with its own unsigned prompt
+manifest instead of LG's legacy signed test-app certificate, which some webOS 26 firmware rejects as a blocked
+certificate. After updating HCC or the TV, you may need to accept pairing again.
+
 For Trinnov Altitude processors, HCC uses source/profile numbers instead of HDMI input names. The Trinnov protocol
 requires HCC and the processor to be on the same subnet. Enter the IP address and use **Detect MAC** so HCC can try to
 fill the MAC from the network scan; Trinnov power actions stay locked until that MAC is available. Trinnov support is
