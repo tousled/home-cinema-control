@@ -8,6 +8,7 @@ class FakeEmbyClient:
     def __init__(self, item_data=None, sessions_by_user=None):
         self._item_data = item_data
         self._sessions_by_user = sessions_by_user
+        self.capabilities_payload = None
 
     def get_item_info(self, user_id, item_id):
         return self._item_data
@@ -15,11 +16,29 @@ class FakeEmbyClient:
     def get_sessions_by_user(self, user_id):
         return self._sessions_by_user
 
+    def set_capabilities(self, payload):
+        self.capabilities_payload = payload
+        return FakeResponse()
+
+
+class FakeResponse:
+    text = ""
+
 
 def _session_with_client(client) -> EmbySession:
     session = EmbySession.__new__(EmbySession)
     session.client = client
+    session._refresh_session_info = lambda: None
     return session
+
+
+class SetCapabilitiesTest(unittest.TestCase):
+    def test_registers_hcc_as_video_only_playback_target(self):
+        client = FakeEmbyClient()
+
+        _session_with_client(client).set_capabilities()
+
+        self.assertEqual(["Video"], client.capabilities_payload["PlayableMediaTypes"])
 
 
 class GetMediaSourceInfoTest(unittest.TestCase):

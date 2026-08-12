@@ -46,7 +46,7 @@ class EmbySession:
         message_data = {
             "IconUrl": "https://img.alicdn.com/imgextra/i1/1840220527/O1CN018lXYlv1FlPES6Bgcw_!!1840220527.png",
             "SupportsMediaControl": True,
-            "PlayableMediaTypes": ["Video", "Audio"],
+            "PlayableMediaTypes": ["Video"],
             "SupportedCommands": [
                 "Play",
                 "Playstate",

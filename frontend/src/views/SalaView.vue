@@ -315,9 +315,37 @@
                   <label class="form-label" for="av-ip">{{ $t('x-av-ip') }}</label>
                   <IpInput id="av-ip" v-model="av.ip" :devices="devices" class="mb-4"/>
 
+                  <template v-if="av.model === 'TRINNOV'">
+                    <div class="form-label label-with-help">
+                      <label for="av-mac">{{ $t('x-av-trinnov-mac') }}</label>
+                      <HelpTooltip :text="$t('x-av-tooltip-trinnov-mac')"/>
+                    </div>
+                    <input id="av-mac" v-model="av.trinnov_mac" :disabled="trinnovMacFieldLocked"
+                           class="form-input mb-1" type="text"/>
+                    <p class="section-hint">
+                      {{ av.trinnov_mac ? $t('x-av-trinnov-mac-detected') : $t('x-av-trinnov-mac-pending') }}
+                    </p>
+                    <p v-if="!arpAvailable" class="section-hint" style="color:var(--status-warning)">
+                      {{ $t('x-av-trinnov-mac-manual') }}
+                    </p>
+                    <div class="icon-action-row mb-4">
+                      <HelpTooltip :text="$t('x-av-action-detect-trinnov-mac-tooltip')">
+                        <IconActionButton
+                            :label="$t('x-av-action-detect-trinnov-mac')"
+                            :loading="scanning"
+                            :loading-label="$t('x-network-scanning')"
+                            icon="network"
+                            @click="detectTrinnovMac"
+                        />
+                      </HelpTooltip>
+                    </div>
+                    <p class="hint-copy mb-4">{{ $t('x-av-trinnov-hint') }}</p>
+                  </template>
+
                   <div class="icon-action-row mb-4">
                     <HelpTooltip :text="$t('x-av-action-power-on-tooltip')">
                       <IconActionButton
+                          :disabled="avPowerActionsLocked"
                           :label="$t('x-av-action-power-on')"
                           :loading="avPowerOnLoading"
                           :loading-label="$t('x-common-testing')"
@@ -327,6 +355,7 @@
                     </HelpTooltip>
                     <HelpTooltip :text="$t('x-av-action-power-off-tooltip')">
                       <IconActionButton
+                          :disabled="avPowerActionsLocked"
                           :label="$t('x-av-action-power-off')"
                           :loading="avPowerOffLoading"
                           :loading-label="$t('x-common-testing')"
@@ -335,18 +364,28 @@
                       />
                     </HelpTooltip>
                   </div>
+                  <p v-if="avPowerActionsLocked" class="section-hint mb-4">
+                    {{ $t('x-av-trinnov-power-locked') }}
+                  </p>
 
                   <div class="form-label label-with-help">
-                    <label for="av-hdmi-input">{{ $t('x-av-hdmi-input') }}</label>
-                    <HelpTooltip :text="$t('x-av-tooltip-hdmi-input')"/>
+                    <label for="av-hdmi-input">{{
+                        av.model === 'TRINNOV' ? $t('x-av-trinnov-source-profile') : $t('x-av-hdmi-input')
+                      }}</label>
+                    <HelpTooltip
+                        :text="av.model === 'TRINNOV' ? $t('x-av-tooltip-trinnov-source-profile') : $t('x-av-tooltip-hdmi-input')"/>
                   </div>
                   <FormSelect
                       id="av-hdmi-input"
                       v-model="selectedAvSource"
+                      :disabled="trinnovSourcesLocked"
                       :options="av.available_hdmi_inputs.map(src => ({ value: src.param, label: src.name }))"
                       class="mb-3"
                       @change="onAvSourceChange"
                   />
+                  <p v-if="trinnovSourcesLocked" class="section-hint mb-3">
+                    {{ $t('x-av-trinnov-sources-locked') }}
+                  </p>
 
                   <div class="icon-action-row">
                     <HelpTooltip :text="$t('x-av-action-detect-inputs-tooltip')">
@@ -360,6 +399,7 @@
                     </HelpTooltip>
                     <HelpTooltip :text="$t('x-av-action-test-player-input-tooltip')">
                       <IconActionButton
+                          :disabled="trinnovSourcesLocked"
                           :label="$t('x-av-action-test-player-input')"
                           :loading="avHdmiLoading"
                           :loading-label="$t('x-common-testing')"
@@ -432,6 +472,7 @@ import {useNetworkScan} from '../composables/useNetworkScan.js'
 import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useMediaServerBrand} from '../composables/useMediaServerBrand.js'
 import {useActiveMediaServer} from '../composables/useActiveMediaServer.js'
+import {patchSetupReadiness} from '../composables/useSetupReadiness.js'
 
 const {t} = useI18n()
 const toast = useToast()
@@ -449,6 +490,7 @@ const mediaServerConfigured = computed(() => Boolean(mediaServerProvider.value.s
 /* TV state */
 const tv = ref({})
 const originalTv = ref({})
+const originalRoomReadiness = ref({tv: null, av: null})
 const tvModels = ref([])
 const selectedTvSourceIndex = ref(0)
 const tvTestLoading = ref(false)
@@ -487,6 +529,7 @@ watch(
     () => [tv.value.enabled, tv.value.model, tv.value.ip, tv.value.sony_psk, tv.value.startup_script].join('|'),
     () => {
       tvTested.value = false
+      patchRoomReadiness('tv', localTvReadiness())
     },
 )
 
@@ -625,7 +668,9 @@ async function saveTv() {
   try {
     const savedConfig = await saveConfigSection('tv', tv.value)
     tv.value = {...(savedConfig.tv || {})}
+    originalRoomReadiness.value.tv = localTvReadiness()
     originalTv.value = {...(savedConfig.tv || {})}
+    patchRoomReadiness('tv', originalRoomReadiness.value.tv)
     selectedTvSourceIndex.value = tv.value.player_hdmi_input_id || 0
     // Same race as testTvConnection above: reassigning tv.value here retriggers
     // the watch() that resets tvTested, even though nothing the user configured
@@ -641,6 +686,7 @@ async function saveTv() {
 
 /* AV state */
 const av = ref({})
+const originalAv = ref({})
 const avModels = ref([])
 const selectedAvSource = ref('')
 const avPowerOnLoading = ref(false)
@@ -648,6 +694,15 @@ const avPowerOffLoading = ref(false)
 const avSourcesLoading = ref(false)
 const avHdmiLoading = ref(false)
 const avTested = ref(false)
+const trinnovMacManualEntry = ref(false)
+
+const isTrinnovAv = computed(() => av.value.model === 'TRINNOV')
+const trinnovMacAvailable = computed(() => Boolean((av.value.trinnov_mac || '').trim()))
+const avPowerActionsLocked = computed(() => isTrinnovAv.value && !trinnovMacAvailable.value)
+const trinnovMacFieldLocked = computed(() => isTrinnovAv.value && arpAvailable.value && !trinnovMacManualEntry.value)
+const trinnovSourcesLocked = computed(() => (
+    isTrinnovAv.value && !(av.value.available_hdmi_inputs || []).length
+))
 
 const avState = computed(() => {
   if (!av.value.enabled) return 'disabled'
@@ -658,9 +713,24 @@ const avState = computed(() => {
 })
 
 watch(
-    () => [av.value.enabled, av.value.model, av.value.ip, av.value.power_on_command, av.value.hdmi_input_command].join('|'),
+    () => [av.value.enabled, av.value.model, av.value.ip, av.value.trinnov_mac, av.value.power_on_command, av.value.hdmi_input_command].join('|'),
     () => {
       avTested.value = false
+      patchRoomReadiness('av', localAvReadiness())
+    },
+)
+
+watch(
+    () => [av.value.model, av.value.ip].join('|'),
+    () => {
+      trinnovMacManualEntry.value = false
+    },
+)
+
+watch(
+    [() => av.value.model, () => av.value.ip, devices],
+    () => {
+      autoFillTrinnovMac()
     },
 )
 
@@ -671,6 +741,102 @@ function onAvSourceChange() {
 function onAvModelChange() {
   selectedAvSource.value = ''
   av.value.player_hdmi_input = ''
+  av.value.available_hdmi_inputs = []
+  if (av.value.model === originalAv.value.model) {
+    av.value = {...originalAv.value}
+    selectedAvSource.value = av.value.player_hdmi_input || ''
+    trinnovMacManualEntry.value = false
+  } else if (av.value.model !== 'TRINNOV') {
+    delete av.value.trinnov_mac
+    trinnovMacManualEntry.value = false
+  } else {
+    autoFillTrinnovMac()
+  }
+  patchRoomReadiness('av', localAvReadiness())
+}
+
+function patchRoomReadiness(section, value) {
+  patchSetupReadiness(section, value)
+}
+
+function sectionsMatchCurrentOriginal(section) {
+  const current = section === 'tv' ? tv.value : av.value
+  const original = section === 'tv' ? originalTv.value : originalAv.value
+  return JSON.stringify(current || {}) === JSON.stringify(original || {})
+}
+
+function localTvReadiness() {
+  if (sectionsMatchCurrentOriginal('tv') && originalRoomReadiness.value.tv) {
+    return originalRoomReadiness.value.tv
+  }
+  if (!tv.value.enabled) return {status: 'disabled', detail: 'TV control disabled (optional)'}
+  if (!tv.value.model) return {status: 'incomplete', detail: 'Model not selected'}
+  if (tv.value.model === 'LG') {
+    return tv.value.ip
+        ? {status: 'configured', detail: `LG · ${tv.value.ip}`}
+        : {status: 'incomplete', detail: 'IP address not set'}
+  }
+  if (tv.value.model === 'SONY') {
+    return tv.value.ip && tv.value.sony_psk_configured
+        ? {status: 'configured', detail: `SONY · ${tv.value.ip}`}
+        : {status: 'incomplete', detail: 'IP address or PSK not set'}
+  }
+  if (tv.value.model === 'SCRIPTS') {
+    return tv.value.startup_script
+        ? {status: 'configured', detail: 'SCRIPTS'}
+        : {status: 'incomplete', detail: 'Startup script not set'}
+  }
+  return {status: 'configured', detail: tv.value.model}
+}
+
+function localAvReadiness() {
+  if (sectionsMatchCurrentOriginal('av') && originalRoomReadiness.value.av) {
+    return originalRoomReadiness.value.av
+  }
+  if (!av.value.enabled) return {status: 'disabled', detail: 'AV control disabled (optional)'}
+  if (!av.value.model) return {status: 'incomplete', detail: 'Model not selected'}
+  if (av.value.model === 'SCRIPTS') {
+    return av.value.power_on_command
+        ? {status: 'configured', detail: 'SCRIPTS'}
+        : {status: 'incomplete', detail: 'Power on script not set'}
+  }
+  if (!av.value.ip) return {status: 'incomplete', detail: 'IP address not set'}
+  if (av.value.model === 'TRINNOV' && !(av.value.available_hdmi_inputs || []).length) {
+    return {status: 'incomplete', detail: 'Source/profile not detected'}
+  }
+  return {status: 'configured', detail: `${av.value.model} · ${av.value.ip}`}
+}
+
+function trinnovDeviceForCurrentIp() {
+  if (!isTrinnovAv.value || !av.value.ip) return null
+  return devices.value.find((device) => device.ip === av.value.ip && device.mac) || null
+}
+
+function autoFillTrinnovMac() {
+  if (!isTrinnovAv.value || trinnovMacAvailable.value) return
+  const device = trinnovDeviceForCurrentIp()
+  if (device?.mac) {
+    av.value.trinnov_mac = device.mac
+    trinnovMacManualEntry.value = false
+  }
+}
+
+async function detectTrinnovMac() {
+  if (!av.value.ip) {
+    toast.error(t('x-av-trinnov-mac-missing-ip'))
+    return
+  }
+
+  await scan()
+  autoFillTrinnovMac()
+
+  if (trinnovMacAvailable.value) {
+    trinnovMacManualEntry.value = false
+    toast.success(t('x-av-trinnov-mac-detected'))
+  } else {
+    trinnovMacManualEntry.value = true
+    toast.error(t('x-av-trinnov-mac-not-found'))
+  }
 }
 
 async function testAvPowerOn() {
@@ -702,9 +868,12 @@ async function testAvPowerOff() {
 async function getAvSources() {
   avSourcesLoading.value = true
   try {
-    const updated = await api.getAvSources()
+    const updated = await api.getAvSources(await configWithSection('av', av.value))
     av.value = {...(updated.av || {})}
     fullConfig.value = updated
+    originalRoomReadiness.value.av = localAvReadiness()
+    originalAv.value = {...(updated.av || {})}
+    patchRoomReadiness('av', originalRoomReadiness.value.av)
     selectedAvSource.value = av.value.player_hdmi_input || ''
     toast.success(t('x-av-inputs-detected'))
   } catch (e) {
@@ -729,7 +898,11 @@ async function testAvHdmi() {
 
 async function saveAv() {
   try {
-    await saveConfigSection('av', av.value)
+    const savedConfig = await saveConfigSection('av', av.value)
+    av.value = {...(savedConfig.av || av.value)}
+    originalRoomReadiness.value.av = localAvReadiness()
+    originalAv.value = {...av.value}
+    patchRoomReadiness('av', originalRoomReadiness.value.av)
     toast.success(t('x-common-saved'))
   } catch (e) {
     toast.error(e.message)
@@ -744,6 +917,11 @@ onMounted(async () => {
     tv.value = {...(data.tv || {})}
     originalTv.value = {...(data.tv || {})}
     av.value = {...(data.av || {})}
+    originalAv.value = {...(data.av || {})}
+    originalRoomReadiness.value = {
+      tv: data.config_readiness?.tv || null,
+      av: data.config_readiness?.av || null,
+    }
     tvModels.value = data.tv_dirs || ['LG', 'SONY', 'SCRIPTS']
     avModels.value = data.av_dirs || []
     selectedTvSourceIndex.value = tv.value.player_hdmi_input_id || 0

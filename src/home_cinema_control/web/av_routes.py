@@ -16,13 +16,19 @@ from home_cinema_control.web.setup_actions import (
 def build_av_router(api_runtime: WebApiRuntime) -> APIRouter:
     router = APIRouter(prefix="/api/v1/av")
 
-    @router.get("/sources")
-    def av_get_sources():
-        config = api_runtime.config_service.load_config()
+    def _detect_av_sources(config: dict):
         result = list_av_hdmi_inputs(config)
         config.setdefault("av", {})["available_hdmi_inputs"] = [src.model_dump() for src in result]
         api_runtime.config_service.save_config(config)
         return api_runtime.config_service.sanitize(config)
+
+    @router.get("/sources")
+    def av_get_sources():
+        return _detect_av_sources(api_runtime.config_service.load_config())
+
+    @router.post("/sources")
+    def av_detect_sources(body: dict):
+        return _detect_av_sources(body)
 
     @router.post("/power-on")
     def av_power_on(body: dict):

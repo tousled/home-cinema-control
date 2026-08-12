@@ -288,7 +288,6 @@ def _client_capabilities_payload() -> dict:
         "SupportsMediaControl": True,
         "PlayableMediaTypes": [
             "Video",
-            "Audio",
         ],
         "SupportedCommands": [
             "Play",

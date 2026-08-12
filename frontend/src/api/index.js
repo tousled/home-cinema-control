@@ -19,6 +19,7 @@ function shouldNotifyConfigChanged(method, path) {
         || path === '/tv/test-connection'
         || path === '/tv/switch-input'
         || path === '/tv/restore-input'
+        || path === '/av/sources'
         || path === '/av/power-on'
         || path === '/av/power-off'
         || path === '/av/switch-input'
@@ -130,7 +131,7 @@ export const api = {
     tvRestoreInput: (config) => request('POST', '/tv/restore-input', config),
 
     // av
-    getAvSources: () => request('GET', '/av/sources'),
+    getAvSources: (config) => request('POST', '/av/sources', config),
     avPowerOn: (config) => request('POST', '/av/power-on', config),
     avPowerOff: (config) => request('POST', '/av/power-off', config),
     avSwitchInput: (config) => request('POST', '/av/switch-input', config),

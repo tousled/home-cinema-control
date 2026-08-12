@@ -73,7 +73,7 @@ class JellyfinSession:
         response = self.client.set_capabilities(
             {
                 "SupportsMediaControl": True,
-                "PlayableMediaTypes": ["Video", "Audio"],
+                "PlayableMediaTypes": ["Video"],
                 "SupportedCommands": [
                     "Play",
                     "Playstate",

@@ -18,6 +18,7 @@ def _make_session(
     user_id="user-1",
     item_id="42",
     item_name="Blade Runner 2049",
+    item_type="Movie",
     item_path="/movies/blade_runner.mkv",
     audio_index=1,
     subtitle_index=-1,
@@ -30,7 +31,7 @@ def _make_session(
         "NowPlayingItem": {
             "Id": item_id,
             "Name": item_name,
-            "Type": "Movie",
+            "Type": item_type,
             "Path": item_path,
             "Container": "mkv",
         },
@@ -178,6 +179,25 @@ class JellyfinSessionMonitorTest(unittest.TestCase):
         monitor.on_sessions_update([_make_session()])
 
         self.dispatcher.dispatch.assert_not_called()
+
+    def test_theme_mp3_does_not_dispatch_or_load_item_details(self):
+        monitor = self._monitor()
+
+        monitor.on_sessions_update(
+            [
+                _make_session(
+                    item_id="theme-1",
+                    item_name="theme",
+                    item_type="Audio",
+                    item_path="/movies/Blade Runner 2049/theme.mp3",
+                )
+            ]
+        )
+
+        self.jellyfin_session.get_item_playback_info.assert_not_called()
+        self.jellyfin_session.is_item_path_in_library.assert_not_called()
+        self.dispatcher.dispatch.assert_not_called()
+        self.assertEqual("", monitor._monitored_state)
 
     def test_new_item_in_library_dispatches_intent(self):
         monitor = self._monitor()

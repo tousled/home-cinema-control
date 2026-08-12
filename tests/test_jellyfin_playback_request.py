@@ -106,6 +106,23 @@ class BuildPlaybackIntentFromPlayCommandTest(unittest.TestCase):
 
         self.assertIsNone(intent.source_client_session_id)
 
+    def test_theme_mp3_play_command_is_ignored(self):
+        intent = build_playback_intent_from_play_command(
+            {
+                "PlayCommand": "PlayNow",
+                "ItemIds": ["theme-1"],
+                "StartPositionTicks": 0,
+            },
+            load_item_info=lambda user_id, item_id: {
+                "Name": "theme",
+                "Type": "Audio",
+                "Path": "/movies/Movie/theme.mp3",
+                "Container": "mp3",
+            },
+        )
+
+        self.assertIsNone(intent)
+
 
 if __name__ == "__main__":
     unittest.main()

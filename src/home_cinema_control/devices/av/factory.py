@@ -3,6 +3,7 @@ from home_cinema_control.devices.av.adapters.marantz import MarantzAvReceiver
 from home_cinema_control.devices.av.adapters.nad import NadAvReceiver
 from home_cinema_control.devices.av.adapters.onkyo import OnkyoAvReceiver
 from home_cinema_control.devices.av.adapters.scripts import ScriptsAvReceiver
+from home_cinema_control.devices.av.adapters.trinnov import TrinnovAvReceiver
 from home_cinema_control.devices.av.adapters.yamaha import YamahaAvReceiver
 
 
@@ -12,6 +13,7 @@ AV_RECEIVERS = {
     "NAD": NadAvReceiver,
     "ONKYO": OnkyoAvReceiver,
     "SCRIPTS": ScriptsAvReceiver,
+    "TRINNOV": TrinnovAvReceiver,
     "YAMAHA": YamahaAvReceiver,
 }
 

@@ -4,7 +4,7 @@ from .factory import create_av_receiver
 
 
 def _result_to_status(result) -> str:
-    return "OK" if result.successful else "FAILURE"
+    return "OK" if result.successful else (result.detail or "FAILURE")
 
 
 def power_on_av_receiver(config):

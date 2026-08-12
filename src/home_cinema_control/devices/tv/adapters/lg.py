@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import logging
 import time
 from collections.abc import Awaitable, Callable
@@ -31,6 +32,66 @@ LG_INPUT_CONFIRM_INTERVAL_SECONDS = 0.25
 LG_KEY_FILE_PATH = "/config/.aiopylgtv.sqlite"
 
 _TvOperation = Callable[[], Awaitable[None]]
+
+
+LG_WEBOS_PAIRING_MANIFEST = {
+    "appVersion": "1.0",
+    "manifestVersion": 1,
+    "permissions": [
+        "LAUNCH",
+        "LAUNCH_WEBAPP",
+        "APP_TO_APP",
+        "CLOSE",
+        "CONTROL_INPUT_TV",
+        "CONTROL_POWER",
+        "CONTROL_TV_SCREEN",
+        "READ_APP_STATUS",
+        "READ_CURRENT_CHANNEL",
+        "READ_INPUT_DEVICE_LIST",
+        "READ_NETWORK_STATE",
+        "READ_RUNNING_APPS",
+        "READ_TV_CHANNEL_LIST",
+        "WRITE_NOTIFICATION_TOAST",
+        "READ_POWER_STATE",
+        "READ_COUNTRY_INFO",
+        "CONTROL_AUDIO",
+        "CONTROL_DISPLAY",
+        "CONTROL_INPUT_JOYSTICK",
+        "CONTROL_INPUT_MEDIA_PLAYBACK",
+    ],
+    "signed": {
+        "appId": "com.homecinemacontrol.app",
+        "created": "20260812",
+        "localizedAppNames": {"": "Home Cinema Control"},
+        "localizedVendorNames": {"": "Home Cinema Control"},
+        "permissions": [
+            "CONTROL_POWER",
+            "READ_POWER_STATE",
+            "READ_CURRENT_CHANNEL",
+            "READ_RUNNING_APPS",
+            "READ_NETWORK_STATE",
+            "READ_INPUT_DEVICE_LIST",
+            "READ_TV_CHANNEL_LIST",
+            "WRITE_NOTIFICATION_TOAST",
+            "CONTROL_AUDIO",
+            "CONTROL_DISPLAY",
+            "CONTROL_INPUT_JOYSTICK",
+            "CONTROL_INPUT_MEDIA_PLAYBACK",
+            "CONTROL_INPUT_TV",
+            "CONTROL_TV_SCREEN",
+            "LAUNCH",
+            "LAUNCH_WEBAPP",
+            "APP_TO_APP",
+            "CLOSE",
+        ],
+        "serial": "home-cinema-control-webos",
+    },
+}
+
+
+def _new_lg_webos_pairing_manifest() -> dict:
+    """Return HCC's LG pairing manifest without LG's legacy test signature."""
+    return copy.deepcopy(LG_WEBOS_PAIRING_MANIFEST)
 
 
 def _map_webos_inputs_to_legacy_sources(inputs: list[dict]) -> list[dict]:
@@ -165,7 +226,9 @@ class LgTvController(BaseTvController):
             tv_ip,
             storage=storage,
             timeout_connect=timeout,
+            states=[],
         )
+        client.manifest = _new_lg_webos_pairing_manifest()
         await asyncio.wait_for(client.connect(), timeout=timeout)
 
         return client

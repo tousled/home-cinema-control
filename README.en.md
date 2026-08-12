@@ -93,7 +93,8 @@ mitigation, and return-to-app behavior after playback.
 </p>
 
 TV and AV are configured separately. If disabled, HCC does not instantiate them and does not put them into the playback
-flow. Automated tests cover this behavior to prevent regressions.
+flow. Trinnov Altitude is configured here with IP address, MAC address for Wake-on-LAN, and the OPPO source/profile
+instead of generic HDMI input names. Automated tests cover this behavior to prevent regressions.
 
 ## Improvements You Feel Even When You Do Not See Them
 
@@ -111,19 +112,19 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 
 ## Current Scope
 
-| Area                             | Status                                                                                                                 |
-|----------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| Emby                             | Implemented as a media-server provider.                                                                                |
-| Jellyfin                         | Implemented as a media-server provider, same flow as Emby.                                                             |
-| OPPO UDP-203/205                 | Supported through the MediaControl API.                                                                                |
-| Chinoppo M9702/M9201/M9203/M9205 | Supported when the OPPO-compatible API is exposed.                                                                     |
-| Per-library paths                | NFS or SMB/CIFS per mapping, with verification.                                                                        |
-| LG WebOS TV                      | Input switching and app restore when configured.                                                                       |
-| Sony BRAVIA TV (2013+)           | Input switching and app launch via local REST API (Pre-Shared Key). Contract-tested, pending real-hardware validation. |
-| AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, and custom scripts.                                                                |
-| Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.                                                    |
-| Telemetry                        | Opt-in, anonymous, documented, and used to prioritize roadmap work.                                                    |
-| Docker                           | Primary deployment path with host networking and persistent `/config`.                                                 |
+| Area                             | Status                                                                                                                                  |
+|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| Emby                             | Implemented as a media-server provider.                                                                                                 |
+| Jellyfin                         | Implemented as a media-server provider, same flow as Emby.                                                                              |
+| OPPO UDP-203/205                 | Supported through the MediaControl API.                                                                                                 |
+| Chinoppo M9702/M9201/M9203/M9205 | Supported when the OPPO-compatible API is exposed.                                                                                      |
+| Per-library paths                | NFS or SMB/CIFS per mapping, with verification.                                                                                         |
+| LG WebOS TV                      | Input switching and app restore when configured.                                                                                        |
+| Sony BRAVIA TV (2013+)           | Input switching and app launch via local REST API (Pre-Shared Key). Contract-tested, pending real-hardware validation.                  |
+| AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude, and custom scripts. Trinnov is contract-tested, pending real-hardware validation. |
+| Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.                                                                     |
+| Telemetry                        | Opt-in, anonymous, documented, and used to prioritize roadmap work.                                                                     |
+| Docker                           | Primary deployment path with host networking and persistent `/config`.                                                                  |
 
 ## What Defines 1.0.0
 

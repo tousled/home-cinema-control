@@ -39,7 +39,7 @@ class CollectRedactionTargetsTest(unittest.TestCase):
     def test_collects_device_ips_credentials_urls_and_paths(self):
         config = {
             "oppo": {"ip": "192.168.1.10"},
-            "av": {"ip": "192.168.1.20"},
+            "av": {"ip": "192.168.1.20", "trinnov_mac": "11:22:33:44:55:66"},
             "tv": {"ip": "192.168.1.30", "mac": "AA:BB:CC:DD:EE:FF", "sony_psk": "s3cr3tpsk"},
             "smb": {"username": "guest", "password": "hunter2"},
             "app": {"update_webhook_url": "https://hooks.example.com/abc"},
@@ -64,6 +64,7 @@ class CollectRedactionTargetsTest(unittest.TestCase):
         self.assertEqual(targets["192.168.1.10"], "IP")
         self.assertEqual(targets["192.168.1.20"], "IP")
         self.assertEqual(targets["192.168.1.30"], "IP")
+        self.assertEqual(targets["11:22:33:44:55:66"], "MAC")
         self.assertEqual(targets["AA:BB:CC:DD:EE:FF"], "MAC")
         self.assertEqual(targets["s3cr3tpsk"], "CREDENTIAL")
         self.assertEqual(targets["guest"], "CREDENTIAL")

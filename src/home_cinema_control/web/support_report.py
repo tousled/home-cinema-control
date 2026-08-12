@@ -43,6 +43,7 @@ def collect_redaction_targets(config: dict) -> dict[str, str]:
     add(config.get("av", {}).get("ip"), "IP")
     add(config.get("tv", {}).get("ip"), "IP")
     add(config.get("tv", {}).get("mac"), "MAC")
+    add(config.get("av", {}).get("trinnov_mac"), "MAC")
 
     add(config.get("smb", {}).get("username"), "CREDENTIAL")
     add(config.get("smb", {}).get("password"), "CREDENTIAL")
