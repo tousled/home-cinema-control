@@ -15,6 +15,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+* Updated LG webOS pairing to use HCC's own unsigned prompt manifest instead of the legacy LG test-app signature
+  that newer webOS 26 firmware can reject as a blacklisted certificate. LG connections now also skip the library's
+  eager software-info hydration, which newer firmware can reject with `401 insufficient permissions`. Existing LG
+  setups may need to accept the pairing prompt again after updating.
+
 * Registered HCC as a video-only playback target for Emby/Jellyfin and ignored ambient `theme.mp3` playback events
   from theme/opening plugins, so selecting a movie or series no longer routes those MP3 themes through HCC or starts
   the OPPO handoff before the actual video item is played.
