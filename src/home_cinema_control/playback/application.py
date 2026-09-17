@@ -17,6 +17,7 @@ from home_cinema_control.playback.device_runtime import (
 )
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.diagnostics import (
+    diagnose_media_server_item_unavailable,
     diagnose_oppo_unavailable,
     diagnose_orchestration_result,
     diagnose_path_error,
@@ -188,11 +189,22 @@ class PlaybackApplicationService:
         movie = ""
 
         with startup_timer.measure_step("process_media_server_payload"):
-            item_info = playback_session.get_media_source_info(
-                playback_session.user_info["User"]["Id"],
-                intent.media_item_id,
-                intent.media_source_id,
-            )
+            try:
+                item_info = playback_session.get_media_source_info(
+                    playback_session.user_info["User"]["Id"],
+                    intent.media_item_id,
+                    intent.media_source_id,
+                )
+            except Exception as exc:
+                logger.exception("Could not load media server item for playback handoff.")
+                _diag = diagnose_media_server_item_unavailable(str(exc))
+                self._record_diagnostic(_diag)
+                self._emit_telemetry(
+                    "playback_failed",
+                    {"component": "media_server", "code": _diag.code},
+                )
+                _reset_bridge_playback_state(self._state, movie)
+                return
 
         with startup_timer.measure_step("ensure_oppo_control_api_available"):
             control_api_available = ensure_oppo_control_api_available(
@@ -434,7 +446,10 @@ def _should_stop_source_client_before_handoff(origin: PlaybackOrigin) -> bool:
     # The OPPO takes over playback regardless of whether TV/AV switching is
     # configured, so the source client's own native playback must be stopped
     # either way — otherwise both end up playing the same item in parallel.
-    return origin == PlaybackOrigin.OBSERVED_TV_CLIENT
+    return origin in (
+        PlaybackOrigin.OBSERVED_TV_CLIENT,
+        PlaybackOrigin.REMOTE_CONTROL_COMMAND,
+    )
 
 
 def _reset_bridge_playback_state(state: BridgePlaybackState, movie: str) -> None:

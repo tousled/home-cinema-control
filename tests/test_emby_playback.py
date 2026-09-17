@@ -19,11 +19,13 @@ class RecordingEmbyClient:
     def __init__(
             self,
             *,
+            sessions=None,
             mark_unplayed_error=None,
             restore_position_error=None,
             stop_session_error=None,
     ):
         self.calls = []
+        self.sessions = sessions if sessions is not None else []
         self.mark_unplayed_error = mark_unplayed_error
         self.restore_position_error = restore_position_error
         self.stop_session_error = stop_session_error
@@ -60,6 +62,9 @@ class RecordingEmbyClient:
             raise self.stop_session_error
         self.calls.append(("stop_session", {"session_id": session_id, "payload": payload}))
         return FakeResponse()
+
+    def get_sessions_by_user(self, user_id):
+        return self.sessions
 
 
 class MediaServerPlaybackSourceTest(unittest.TestCase):
@@ -365,6 +370,66 @@ class EmbyPlaybackEventPublisherTest(unittest.TestCase):
             client.calls[-1][1],
         )
 
+    def test_stopped_clears_sessions_actively_playing_the_item_excludes_idle(self):
+        client = RecordingEmbyClient(
+            sessions=[
+                _session_payload(
+                    session_id="bridge-session",
+                    device_id="home-cinema-control",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="tv-session",
+                    device_id="tv-device",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="extra-tv-session",
+                    device_id="tv-device",
+                    user_id="tv-user",
+                    item_id="movie-1",
+                ),
+                _session_payload(
+                    session_id="idle-session",
+                    device_id="mobile-device",
+                    user_id="tv-user",
+                    item_id=None,
+                ),
+                _session_payload(
+                    session_id="other-item",
+                    device_id="tablet-device",
+                    user_id="tv-user",
+                    item_id="movie-2",
+                ),
+                _session_payload(
+                    session_id="other-user",
+                    device_id="guest-device",
+                    user_id="guest-user",
+                    item_id="movie-1",
+                ),
+            ]
+        )
+        publisher = EmbyPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(source_client_session_id="tv-session"),
+        )
+
+        publisher.stopped(position_seconds=66, duration_seconds=120)
+
+        stop_calls = [call for call in client.calls if call[0] == "stop_session"]
+        self.assertEqual(
+            [
+                ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
+                ("stop_session", {"session_id": "tv-session", "payload": {"Command": "Stop"}}),
+                ("stop_session", {"session_id": "extra-tv-session", "payload": {"Command": "Stop"}}),
+                ("stop_session", {"session_id": "extra-tv-session", "payload": {"Command": "Stop"}}),
+            ],
+            stop_calls,
+        )
+
     def test_stopped_skips_source_client_cleanup_without_a_session_id(self):
         client = RecordingEmbyClient()
         publisher = EmbyPlaybackEventPublisher(
@@ -402,6 +467,24 @@ def _context(start_position_ticks=0, source_client_session_id="tv-session"):
         media_server_playback_id="play-session",
         start_position_ticks=start_position_ticks,
     )
+
+
+def _session_payload(
+        *,
+        session_id: str,
+        device_id: str,
+        user_id: str,
+        item_id: str | None,
+) -> dict:
+    payload = {
+        "Id": session_id,
+        "DeviceId": device_id,
+        "DeviceName": device_id,
+        "UserId": user_id,
+    }
+    if item_id is not None:
+        payload["NowPlayingItem"] = {"Id": item_id, "Name": "Movie"}
+    return payload
 
 
 if __name__ == "__main__":

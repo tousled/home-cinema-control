@@ -325,6 +325,17 @@ def diagnose_media_server_library_paths_unavailable(reason: str) -> PlaybackDiag
     )
 
 
+def diagnose_media_server_item_unavailable(reason: str) -> PlaybackDiagnostic:
+    return PlaybackDiagnostic(
+        code="MEDIA_SERVER_ITEM_UNAVAILABLE",
+        severity="error",
+        component="media_server",
+        operation="media_item_lookup",
+        reason=f"Media server item details could not be loaded: {reason}",
+        suggestion="Check the media server connection and token in Media Server settings.",
+    )
+
+
 def diagnose_path_inference_failed() -> PlaybackDiagnostic:
     return PlaybackDiagnostic(
         code="PATH_INFERENCE_FAILED",
