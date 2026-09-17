@@ -50,8 +50,9 @@ class OppoMediaControlPlayback:
         playback_state_waiter: Callable[..., PlaybackStartupWaitResult]
         | None = None,
         sleep: Callable[[float], None] | None = None,
-            network_mount_service: OppoNetworkMountService | None = None,
-            step_timer: StartupStepTimer | None = None,
+        now: Callable[[], float] | None = None,
+        network_mount_service: OppoNetworkMountService | None = None,
+        step_timer: StartupStepTimer | None = None,
     ) -> None:
         self._config = config
         self._client = client or OppoControlApiClient.from_config(config)
@@ -59,6 +60,7 @@ class OppoMediaControlPlayback:
             playback_state_waiter or wait_until_oppo_reports_active_playback
         )
         self._sleep = sleep or time.sleep
+        self._now = now or time.monotonic
         self._network_mount_service = network_mount_service or (
             OppoNetworkMountService(config, control_api_client=self._client)
         )
@@ -287,7 +289,7 @@ class OppoMediaControlPlayback:
                 and subtitle_index > 0
             ):
                 retry_menu = self._retry_subtitle_selection_after_activation(
-                    subtitle_index
+                    subtitle_index,
                 )
                 if retry_menu is not None:
                     after_menu = retry_menu
@@ -331,12 +333,18 @@ class OppoMediaControlPlayback:
         timeout = self._track_menu_ready_timeout_seconds()
         poll_interval = self._track_menu_ready_poll_interval_seconds()
         query_timeout = self._track_menu_query_timeout_seconds()
-        deadline = time.monotonic() + timeout
+        deadline = self._now() + timeout
         attempts = 0
         last_raw_response = ""
         last_error = ""
 
         while True:
+            if attempts > 0 and self._now() >= deadline:
+                return DeviceCommandResult.failed(
+                    f"OPPO {menu_name} menu timed out while waiting for track "
+                    f"{requested_index} after {attempts} attempts"
+                )
+
             attempts += 1
 
             try:
@@ -373,7 +381,7 @@ class OppoMediaControlPlayback:
                     last_error,
                 )
 
-            remaining_seconds = deadline - time.monotonic()
+            remaining_seconds = deadline - self._now()
             if remaining_seconds <= 0:
                 detail = (
                     f"OPPO {menu_name} menu was not ready for requested track "
@@ -386,7 +394,11 @@ class OppoMediaControlPlayback:
 
                 return DeviceCommandResult.failed(detail)
 
-            self._sleep(min(poll_interval, remaining_seconds))
+            retry_delay = min(
+                poll_interval * (2 ** (attempts - 1)),
+                remaining_seconds,
+            )
+            self._sleep(retry_delay)
 
     def _wait_for_menu_selection(
         self,
@@ -399,13 +411,19 @@ class OppoMediaControlPlayback:
         timeout = self._track_selection_applied_timeout_seconds()
         poll_interval = self._track_selection_applied_poll_interval_seconds()
         query_timeout = self._track_menu_query_timeout_seconds()
-        deadline = time.monotonic() + timeout
+        deadline = self._now() + timeout
         attempts = 0
         last_response: OppoCommandResponse | None = None
         last_error = ""
         selected_index = None
 
         while True:
+            if attempts > 0 and self._now() >= deadline:
+                return DeviceCommandResult.failed(
+                    f"OPPO {menu_name} track selection was not applied | "
+                    f"requested={requested_index} | selected={selected_index}"
+                )
+
             attempts += 1
             try:
                 response = get_menu(timeout=query_timeout)
@@ -443,7 +461,7 @@ class OppoMediaControlPlayback:
                         last_response.raw_text,
                     )
 
-            remaining_seconds = deadline - time.monotonic()
+            remaining_seconds = deadline - self._now()
             if remaining_seconds <= 0:
                 detail = (
                     f"OPPO {menu_name} track selection was not applied | "
@@ -453,10 +471,15 @@ class OppoMediaControlPlayback:
                     detail = f"{detail}; last_error={last_error}"
                 return DeviceCommandResult.failed(detail)
 
-            self._sleep(min(poll_interval, remaining_seconds))
+            retry_delay = min(
+                poll_interval * (2 ** (attempts - 1)),
+                remaining_seconds,
+            )
+            self._sleep(retry_delay)
 
     def _retry_subtitle_selection_after_activation(
-        self, subtitle_index: int
+        self,
+        subtitle_index: int,
     ) -> OppoCommandResponse | None:
         logger.info(
             "Retrying OPPO subtitle selection after subtitle activation | requested_index=%s",
@@ -497,11 +520,14 @@ class OppoMediaControlPlayback:
         )
 
     def _track_menu_ready_poll_interval_seconds(self) -> float:
-        return float(
-            self._config.get("oppo", {}).get(
-                "track_menu_ready_poll_interval_seconds",
-                DEFAULT_TRACK_MENU_READY_POLL_INTERVAL_SECONDS,
-            )
+        return max(
+            DEFAULT_TRACK_MENU_READY_POLL_INTERVAL_SECONDS,
+            float(
+                self._config.get("oppo", {}).get(
+                    "track_menu_ready_poll_interval_seconds",
+                    DEFAULT_TRACK_MENU_READY_POLL_INTERVAL_SECONDS,
+                )
+            ),
         )
 
     def _track_menu_query_timeout_seconds(self) -> float:
