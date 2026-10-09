@@ -154,7 +154,7 @@ This screen avoids manual token editing, reloads the media server's devices, and
 mapping.
 
 If you use Jellyfin, the account you authorize HCC with must be an **administrator** for device and library reload
-to work — see [Frequent Issues](#14-frequent-issues).
+to work — see [Frequent Issues](#13-frequent-issues).
 
 ## 6. Media Player
 
@@ -197,7 +197,7 @@ screen shows an Emby/Jellyfin badge so you can tell which server you are mapping
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="HCC Media Paths assistant overview" width="860"/>
 </p>
 
-### 6.1 Create Emby Libraries First
+### 7.1 Create Emby Libraries First
 
 Before opening HCC, Emby should already have scanned libraries: Movies, TV Shows, Concerts, or whatever you use. In
 Emby,
@@ -217,7 +217,7 @@ Movies, TV Shows, or Music.
 When done, go to HCC and use **Reload libraries** in Media Paths. If a library does not appear, fix Emby first instead
 of typing paths blindly.
 
-### 6.2 Choose Which Libraries HCC Should Intercept
+### 7.2 Choose Which Libraries HCC Should Intercept
 
 Not everything in Emby has to go through the OPPO. You can leave music, documentaries, tests, or lightweight libraries
 on the normal Emby playback path.
@@ -229,7 +229,7 @@ through the normal Emby flow.
   <img src="assets/screenshots/install/05-media-paths-library-filter.png" alt="Intercepted libraries selection in Home Cinema Control" width="860"/>
 </p>
 
-### 6.3 Prepare NFS Or SMB/CIFS On The NAS
+### 7.3 Prepare NFS Or SMB/CIFS On The NAS
 
 HCC does not configure NAS permissions. The OPPO/Chinoppo must be able to browse the share from its own network menu.
 
@@ -259,7 +259,7 @@ or edit files.
 For Synology, QNAP, Windows, Unraid, or M9702/M920x screenshots, use the AVPasion thread linked at the top of this
 guide. HCC documents the HCC side; the exact NAS setup depends on your platform.
 
-### 6.4 Find The Path As The OPPO Sees It
+### 7.4 Find The Path As The OPPO Sees It
 
 This step prevents most failures. Do not copy only the Emby path. Open the OPPO/Chinoppo network browser and note how
 the folder appears there.
@@ -277,7 +277,7 @@ If you are unsure whether to use NFS or SMB, start with the protocol that alread
 can
 add another mapping with another protocol later if a specific library needs it.
 
-### 6.5 Create And Test The Mapping In HCC
+### 7.5 Create And Test The Mapping In HCC
 
 In **Media Paths**, work library by library:
 
@@ -311,7 +311,7 @@ State meanings:
   <img src="assets/screenshots/install/08-media-paths-states.png" alt="Route state legend for verified, pending, and error states" width="860"/>
 </p>
 
-### 6.6 When To Use Manual Mode
+### 7.6 When To Use Manual Mode
 
 Manual mode exists for real edge cases, not as a return to the old workflow:
 
@@ -328,27 +328,32 @@ diagnostic, and save only when you know which route works.
   <img src="assets/screenshots/install/09-media-paths-manual.png" alt="Manual path mapping mode in Home Cinema Control" width="860"/>
 </p>
 
-### 6.7 What HCC Improves Here
+### 7.7 Mapping Concepts
 
-HCC can discover Emby libraries, choose intercepted libraries, configure NFS or SMB/CIFS per mapping, test the player
-mount, and fall back to manual mapping when needed.
+| Field       | Meaning                                                         |
+|-------------|-----------------------------------------------------------------|
+| Server path | Physical path reported by Emby for the library.                 |
+| OPPO path   | NFS or SMB/CIFS path visible from the player's network browser. |
+| Protocol    | `nfs` or `cifs`, selected for each mapping.                     |
+| Verified    | HCC has confirmed that the player can mount the path.           |
 
-HCC does not silently switch protocols. If a mapping is SMB, playback uses SMB. If it is NFS, playback uses NFS.
+HCC does not silently switch between SMB and NFS. A mapping configured as SMB is tested and played over SMB; a mapping
+configured as NFS uses NFS.
 
-### 6.8 Why This Step Improves Playback
+### 7.8 Why This Step Matters
 
-Once routes are verified, HCC can treat playback as a controlled flow instead of a chain of guesses:
+Emby or Jellyfin and the OPPO may refer to the same content with different paths. The path known by the media server
+is not always the path the player can open from the network.
 
-- mount the correct share directly on the OPPO/Chinoppo;
-- avoid retries with protocols you did not choose;
-- classify the failure if the mount fails;
-- observe player state through SVM3 when available;
-- use bounded polling as a fallback, not as the only permanent strategy;
-- report progress to Emby on a controlled cadence;
-- clean up the session after stop or natural end so the player is not left in an odd state.
+A verified mapping tells HCC exactly:
 
-The difference is not always visible on screen, but it matters: less noise toward the player, fewer random behaviours,
-and better information when something fails.
+- which folder the OPPO must mount;
+- which protocol it must use;
+- which libraries should go through the player;
+- which configuration worked before a real playback starts.
+
+That is why each mapping should be tested and verified. If a route fails, the problem stays focused on the NAS,
+protocol, or permissions instead of appearing later as an ambiguous playback failure.
 
 ## 8. Room Setup
 
@@ -367,18 +372,15 @@ The same network scan helps locate the TV and AV receiver when you configure **R
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
 
-On LG webOS, first-time use shows the normal on-TV pairing prompt. HCC identifies itself with its own unsigned prompt
-manifest instead of LG's legacy signed test-app certificate, which some webOS 26 firmware rejects as a blocked
-certificate. After updating HCC or the TV, you may need to accept pairing again.
+On LG webOS, first-time use shows the normal on-TV pairing prompt. After updating HCC or the TV, you may need to accept
+pairing again.
 
 For Trinnov Altitude processors, HCC uses source/profile numbers instead of HDMI input names. The Trinnov protocol
 requires HCC and the processor to be on the same subnet. Enter the IP address and use **Detect MAC** so HCC can try to
-fill the MAC from the network scan; Trinnov power actions stay locked until that MAC is available. Trinnov support is
-contract-tested and pending real-hardware validation.
+fill the MAC from the network scan; Trinnov power actions stay locked until that MAC is available.
 
 To configure Trinnov, select **TRINNOV**, enter the IP address, detect or type the MAC address, click **Detect HDMI
-inputs** so HCC can query the processor source/profile list, and choose the source/profile where the OPPO is connected.
-The selector stays locked until detection because Trinnov commands require an identified TCP session first.
+inputs**, and choose the source/profile where the OPPO is connected.
 
 HDMI input detection, "Switch to OPPO", "Detect apps" and "Open Emby/Jellyfin" stay locked until "Test connection"
 confirms the TV responds — there is no point probing a TV that isn't reachable. "Open Emby/Jellyfin" additionally
@@ -392,8 +394,8 @@ Sony TVs (2013 or later) are controlled over Sony's official local REST API, aut
 no cloud account, unlike LG's on-screen pairing dialog there is no popup to accept; you set this once on the TV
 itself: **Settings → Network & Internet → Home Network Setup → IP Control**, turn on **Authentication**, choose
 **Pre-Shared Key**, and enter any string. Use that same key in HCC's Room Setup screen alongside the TV's IP. Sony
-also has no fixed app id to hardcode like LG does, so Room Setup includes a one-time "Detect apps" step that lists
-the TV's installed apps so you can pick your media server's.
+so Room Setup includes a one-time "Detect apps" step that lists the TV's installed apps so you can pick your media
+server's.
 
 *(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
 
@@ -410,8 +412,8 @@ A "Send diagnostics" button builds an automatically redacted report (no IPs, cre
 and edit it, then copies it to your clipboard and opens a new GitHub issue for you to paste it into and submit
 yourself — nothing is sent in the background or without you seeing it first.
 The version panel shows the installed version in Docker tag form, such as `1.1.1-rc.1`. When an update webhook is
-configured, HCC records the current version before asking the deployment platform to redeploy; older installs without
-that stored value derive rollback guidance from GitHub releases/tags instead of showing the internal build fallback.
+configured, HCC records the current version before asking the deployment platform to redeploy and shows the available
+information for rolling back if needed.
 
 Telemetry is optional and disabled by default. If enabled, HCC sends minimal anonymous data to understand adoption and
 prioritize development: active installation, version, language, Emby/Jellyfin provider, OPPO/TV/AV usage, NFS/SMB, and
@@ -453,18 +455,7 @@ Real hardware validation still matters: original OPPO players, Chinoppo clones, 
 can behave differently. If something fails, copy the support summary from **Diagnostics** and filter logs by warnings or
 errors.
 
-## 12. NAS And Player Preparation
-
-HCC does not change NAS permissions or player settings. Before testing paths:
-
-- the NAS must expose the folder via NFS or SMB/CIFS;
-- the player must see that share in its own network browser;
-- SMB users should verify username, password, and NAS SMB compatibility;
-- NFS users should verify export permissions for the player IP.
-
-Use the AVPasion thread linked above for platform-specific screenshots.
-
-## 13. Updating
+## 12. Updating
 
 If you installed with Docker Compose:
 
@@ -499,7 +490,7 @@ version you want and redeploy by re-pulling the image, not by rebuilding from th
 
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
-## 14. Frequent Issues
+## 13. Frequent Issues
 
 ### Jellyfin: devices and libraries don't show up when you click "Reload"
 
@@ -507,10 +498,8 @@ If configured, the Status screen can call a redeploy webhook. Otherwise it shows
   (`/Devices`) and the library/virtual-folder list (`/Library/VirtualFolders`) to elevated accounts — a regular
   account gets a 403 error loading them, even though login itself (authorizing, playing, reporting progress) works
   normally.
-- On Jellyfin 12.0 RC1 and later, HCC uses Jellyfin's modern authorization format. If you see `401` from `/Devices`,
-  `/Library/VirtualFolders`, or `/Sessions/Capabilities/Full`, together with `403 Forbidden` on the WebSocket,
-  update HCC to a version that includes this fix and re-authorize Jellyfin from **Media Server** if the stored token
-  was invalidated during the upgrade.
+- If Jellyfin returns `401` or `403` while reloading devices or libraries, update HCC and re-authorize Jellyfin from
+  **Media Server**.
 - If you only have one Jellyfin user, it's almost certainly already the administrator and there's nothing to change.
   If HCC uses a secondary account, grant it administrator rights from the Jellyfin dashboard.
 
@@ -530,8 +519,8 @@ If configured, the Status screen can call a redeploy webhook. Otherwise it shows
 ### SMB returns `id_error`
 
 - Check share name, username, password, and permissions.
-- Try SMB pre-mount if your NAS/player combination needs session preparation. If SMB credentials are saved, HCC also
-  uses them for that pre-mount; if the pre-mount fails, HCC logs it and still tries the real mount.
+- If your NAS/player combination needs SMB session preparation, check that the credentials are saved in HCC and test
+  the path again.
 - If `id_error` repeats, avoid pressing "Test path" many times in a row: some OPPO/Chinoppo players degrade their
   control API after too many failed SMB mounts. Physically restart the player before testing again.
 - If that library is already verified through NFS and SMB keeps failing, use NFS for that mapping.

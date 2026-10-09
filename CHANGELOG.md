@@ -6,6 +6,14 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-10-09
+
+### Fixed
+
+* Fixed direct Emby playback for STRM-backed items. HCC now preserves the physical `.strm` path for path mapping
+  while resolving the player-facing filename and container from reliable media-source metadata, including missing or
+  unmatched `MediaSourceId` values. HCC does not guess a container when Emby does not provide enough information.
+
 ## [1.3.2] - 2026-10-09
 
 ### Fixed
