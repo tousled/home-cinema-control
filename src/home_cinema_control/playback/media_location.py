@@ -13,6 +13,7 @@ def resolve_player_media_file_location(
     *,
     emby_media_path: str,
     playback_file_format: str,
+    playback_file_name: str | None = None,
     path_mappings: Sequence[Mapping[str, str]],
 ) -> PlayerMediaFileLocation:
     player_path, network_protocol = _apply_path_mappings(
@@ -22,6 +23,7 @@ def resolve_player_media_file_location(
     return _parse_player_media_file_location(
         player_path=player_path,
         playback_file_format=playback_file_format,
+        playback_file_name=playback_file_name,
         network_protocol=network_protocol,
     )
 
@@ -66,6 +68,7 @@ def _parse_player_media_file_location(
     *,
     player_path: str,
     playback_file_format: str,
+    playback_file_name: str | None = None,
     network_protocol: str | None = None,
 ) -> PlayerMediaFileLocation:
     path_parts = player_path.strip("/").split("/")
@@ -77,17 +80,22 @@ def _parse_player_media_file_location(
 
     content_server = path_parts[0]
     content_directory = "/".join(path_parts[1:-1])
-    playback_file_name = path_parts[-1]
+    resolved_playback_file_name = playback_file_name or path_parts[-1]
 
-    if not content_server or not content_directory or not playback_file_name:
+    if not content_server or not content_directory or not resolved_playback_file_name:
         raise PlayerMediaFileLocationError(
             f"Player media path must include server, folder and file: {player_path}"
+        )
+
+    if "/" in resolved_playback_file_name or "\\" in resolved_playback_file_name:
+        raise PlayerMediaFileLocationError(
+            "Playback filename must be a basename, not a path."
         )
 
     return PlayerMediaFileLocation(
         content_server=content_server,
         content_directory=content_directory,
-        playback_file_name=playback_file_name,
+        playback_file_name=resolved_playback_file_name,
         playback_file_format=playback_file_format,
         network_protocol=network_protocol,
     )
