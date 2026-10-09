@@ -225,7 +225,7 @@ real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qu
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="Vista general del asistente de rutas de Home Cinema Control" width="860"/>
 </p>
 
-### 6.1 Crea primero las bibliotecas en Emby
+### 7.1 Crea primero las bibliotecas en Emby
 
 Antes de entrar en HCC, Emby debe tener sus bibliotecas creadas y escaneadas: Películas, Series, Conciertos o las que
 vayas a usar. En Emby, una biblioteca agrupa una o varias carpetas físicas. HCC detecta esas bibliotecas y sus rutas,
@@ -245,7 +245,7 @@ separar el contenido en carpetas por tipo, como Movies, TV Shows o Music:
 Cuando termines, entra en HCC y usa **Recargar bibliotecas** en Media Paths. Si no aparece una biblioteca, primero
 corrige Emby; no empieces a escribir rutas manuales a ciegas.
 
-### 6.2 Elige qué bibliotecas debe interceptar HCC
+### 7.2 Elige qué bibliotecas debe interceptar HCC
 
 No todo lo que existe en Emby tiene que pasar por el OPPO. Puedes dejar fuera música, documentales, pruebas o cualquier
 biblioteca que quieras reproducir normalmente desde el cliente Emby.
@@ -257,7 +257,7 @@ seguirán reproduciéndose por el flujo normal de Emby.
   <img src="assets/screenshots/install/05-media-paths-library-filter.png" alt="Selección de bibliotecas interceptadas en Home Cinema Control" width="860"/>
 </p>
 
-### 6.3 Prepara NFS o SMB/CIFS en el NAS
+### 7.3 Prepara NFS o SMB/CIFS en el NAS
 
 HCC no configura permisos del NAS. Necesitas que el OPPO/Chinoppo pueda navegar el recurso desde su propio menú de red.
 
@@ -287,7 +287,7 @@ pantallas ni editar ficheros.
 Si necesitas capturas concretas de Synology, QNAP, Windows, Unraid o M9702/M920x, usa el hilo de AVPasion enlazado al
 principio de esta guía. HCC documenta su parte; la configuración exacta del NAS depende de tu plataforma.
 
-### 6.4 Encuentra la ruta como la ve el OPPO
+### 7.4 Encuentra la ruta como la ve el OPPO
 
 Este paso evita la mayoría de errores. No copies solo la ruta de Emby. Entra en el explorador de red del OPPO/Chinoppo y
 observa cómo aparece la carpeta.
@@ -304,7 +304,7 @@ Ejemplos habituales:
 Si dudas entre NFS y SMB, empieza por el protocolo que ya funcione manualmente desde el reproductor. Después podrás
 crear otro mapeo con otro protocolo si una biblioteca concreta lo necesita.
 
-### 6.5 Crea y prueba el mapeo en HCC
+### 7.5 Crea y prueba el mapeo en HCC
 
 En **Media Paths**, trabaja biblioteca por biblioteca:
 
@@ -338,7 +338,7 @@ Qué significa cada estado:
   <img src="assets/screenshots/install/08-media-paths-states.png" alt="Leyenda de estados de rutas verificadas, pendientes y con error" width="860"/>
 </p>
 
-### 6.6 Cuándo usar modo manual
+### 7.6 Cuándo usar modo manual
 
 El modo manual existe para casos reales, no para volver al método antiguo:
 
@@ -355,7 +355,7 @@ diagnóstico y guardar solo cuando entiendes qué ruta funciona.
   <img src="assets/screenshots/install/09-media-paths-manual.png" alt="Modo manual de rutas de Home Cinema Control" width="860"/>
 </p>
 
-### 6.7 Lo que HCC hace mejor aquí
+### 7.7 Lo que HCC hace mejor aquí
 
 - detecta bibliotecas y rutas físicas desde Emby;
 - permite elegir qué bibliotecas interceptar;
@@ -375,22 +375,6 @@ Conceptos clave:
 
 HCC no cambia silenciosamente de SMB a NFS ni de NFS a SMB. Si una ruta está configurada como SMB, se prueba y reproduce
 como SMB. Esto evita errores invisibles cuando una biblioteca funciona con un protocolo y otra necesita otro.
-
-### 6.8 Por qué este paso mejora toda la reproducción
-
-Cuando las rutas están verificadas, HCC puede tratar la sesión como un flujo controlado y no como una cadena de
-intentos:
-
-- monta directamente el recurso correcto en el OPPO/Chinoppo;
-- evita reintentos con protocolos que no has elegido;
-- clasifica el error si el montaje falla;
-- observa el estado del reproductor con SVM3 cuando está disponible;
-- usa polling acotado como respaldo, no como única estrategia permanente;
-- reporta progreso a Emby con una cadencia controlada;
-- limpia la sesión al parar o terminar para no dejar el reproductor en un estado raro.
-
-La diferencia no siempre se ve en pantalla, pero sí importa: menos ruido hacia el reproductor, menos comportamientos
-aleatorios y más información cuando algo falla.
 
 ## 8. Sala: TV y receptor AV son opcionales
 
@@ -458,7 +442,62 @@ Si el receptor AV cambia a la entrada correcta pero vuelve solo a TV Audio, ARC 
 En ese caso, desactiva CEC/ARC en el receptor o revisa la configuración HDMI. HCC puede reintentar cambios de entrada,
 pero si el AVR o la TV fuerzan otra fuente por CEC, la automatización será inestable.
 
-## 9. Diagnóstico: saber qué falla
+## 9. Home Assistant: automatización opcional
+
+HCC puede enviar eventos neutrales de reproducción a un webhook de Home Assistant. HCC no decide qué luces, escenas o
+entidades deben reaccionar: esa lógica permanece en Home Assistant.
+
+### 9.1 Crea el webhook en Home Assistant
+
+En Home Assistant crea una automatización con un disparador **Webhook**. Usa un identificador largo y aleatorio, permite
+el método `POST` y mantén `local_only` activado si HCC y Home Assistant están en la misma red.
+
+Ejemplo mínimo en YAML:
+
+```yaml
+alias: HCC playback events
+triggers:
+  - trigger: webhook
+    webhook_id: reemplaza-esto-por-un-id-largo-y-aleatorio
+    allowed_methods:
+      - POST
+    local_only: true
+actions:
+  - action: logbook.log
+    data:
+      name: HCC
+      message: "{{ trigger.json.event }} - {{ trigger.json.title | default('') }}"
+mode: queued
+```
+
+El identificador del webhook funciona como una credencial: no lo publiques ni lo compartas. Home Assistant expone el
+endpoint como `/api/webhook/<webhook_id>` y acepta el JSON que HCC enviará.
+
+### 9.2 Configura HCC
+
+En la pantalla **Home Assistant** de HCC:
+
+1. Activa la casilla **Activar envío de eventos de reproducción**.
+2. Introduce la URL base de Home Assistant, por ejemplo `http://homeassistant.local:8123`. No añadas `/api/webhook`.
+3. Introduce el mismo **ID del webhook** creado en Home Assistant.
+4. Si lo necesitas, abre las opciones avanzadas y ajusta el timeout de entrega.
+5. Pulsa **Guardar**.
+6. Reinicia HCC desde el enlace que aparece en la propia pantalla para que el listener cargue la configuración.
+
+HCC puede enviar estos eventos:
+
+- `started`
+- `paused`
+- `resumed`
+- `stopped`
+
+El JSON incluye el tipo de evento, `event_id`, `session_id` y, cuando están disponibles, `media_type`, `title`, `source`
+y `player`. Si Home Assistant no es accesible, HCC registra el error y el flujo de reproducción continúa.
+
+Para más detalles sobre los webhooks y sus opciones de seguridad, consulta la
+[documentación oficial de Home Assistant](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+
+## 10. Diagnóstico: saber qué falla
 
 La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y acciones de soporte.
 
@@ -493,7 +532,7 @@ temporalmente esos eventos anónimos en `/config/telemetry_queue.json` y los rei
 tokens, URLs, nombres de servidor, bibliotecas, títulos, logs, scripts ni comandos personalizados. Más detalle:
 [`docs/telemetry.md`](docs/telemetry.md).
 
-## 10. Logs entendibles
+## 11. Logs entendibles
 
 La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtrar.
 
@@ -508,7 +547,7 @@ desde el móvil. La descarga sigue generando el log completo.
 Esto sustituye el patrón de revisar logs crudos sin contexto. Los errores y avisos quedan marcados visualmente para que
 sea más fácil compartir información útil en soporte.
 
-## 11. Primera reproducción de validación
+## 12. Primera reproducción de validación
 
 Cuando las pantallas anteriores estén guardadas y verificadas, haz una primera prueba con una película de una biblioteca
 interceptada. No pruebes solo que el OPPO empieza a reproducir; prueba el ciclo completo.
@@ -530,7 +569,7 @@ La validación real de hardware sigue siendo importante: OPPO original, clones C
 comportarse de forma distinta. Si algo falla, copia el resumen de soporte desde **Diagnóstico** y revisa los logs
 filtrando por avisos o errores.
 
-## 12. Configuración del NAS y del reproductor
+## 13. Configuración del NAS y del reproductor
 
 HCC no cambia permisos del NAS ni configura el reproductor por ti. Antes de probar rutas:
 
@@ -541,7 +580,7 @@ HCC no cambia permisos del NAS ni configura el reproductor por ti. Antes de prob
 
 Para capturas de Synology, QNAP, Windows, Unraid y M9702/M920x, usa el hilo de AVPasion enlazado al principio.
 
-## 13. Actualización
+## 14. Actualización
 
 Si instalaste con Docker Compose:
 
@@ -577,7 +616,7 @@ que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), no reconstruy
 Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
 muestra el comando para ejecutarlo manualmente.
 
-## 14. Problemas frecuentes
+## 15. Problemas frecuentes
 
 ### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
 

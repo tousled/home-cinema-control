@@ -197,7 +197,7 @@ screen shows an Emby/Jellyfin badge so you can tell which server you are mapping
   <img src="assets/screenshots/install/04-media-paths-overview.png" alt="HCC Media Paths assistant overview" width="860"/>
 </p>
 
-### 6.1 Create Emby Libraries First
+### 7.1 Create Emby Libraries First
 
 Before opening HCC, Emby should already have scanned libraries: Movies, TV Shows, Concerts, or whatever you use. In
 Emby,
@@ -217,7 +217,7 @@ Movies, TV Shows, or Music.
 When done, go to HCC and use **Reload libraries** in Media Paths. If a library does not appear, fix Emby first instead
 of typing paths blindly.
 
-### 6.2 Choose Which Libraries HCC Should Intercept
+### 7.2 Choose Which Libraries HCC Should Intercept
 
 Not everything in Emby has to go through the OPPO. You can leave music, documentaries, tests, or lightweight libraries
 on the normal Emby playback path.
@@ -229,7 +229,7 @@ through the normal Emby flow.
   <img src="assets/screenshots/install/05-media-paths-library-filter.png" alt="Intercepted libraries selection in Home Cinema Control" width="860"/>
 </p>
 
-### 6.3 Prepare NFS Or SMB/CIFS On The NAS
+### 7.3 Prepare NFS Or SMB/CIFS On The NAS
 
 HCC does not configure NAS permissions. The OPPO/Chinoppo must be able to browse the share from its own network menu.
 
@@ -259,7 +259,7 @@ or edit files.
 For Synology, QNAP, Windows, Unraid, or M9702/M920x screenshots, use the AVPasion thread linked at the top of this
 guide. HCC documents the HCC side; the exact NAS setup depends on your platform.
 
-### 6.4 Find The Path As The OPPO Sees It
+### 7.4 Find The Path As The OPPO Sees It
 
 This step prevents most failures. Do not copy only the Emby path. Open the OPPO/Chinoppo network browser and note how
 the folder appears there.
@@ -277,7 +277,7 @@ If you are unsure whether to use NFS or SMB, start with the protocol that alread
 can
 add another mapping with another protocol later if a specific library needs it.
 
-### 6.5 Create And Test The Mapping In HCC
+### 7.5 Create And Test The Mapping In HCC
 
 In **Media Paths**, work library by library:
 
@@ -311,7 +311,7 @@ State meanings:
   <img src="assets/screenshots/install/08-media-paths-states.png" alt="Route state legend for verified, pending, and error states" width="860"/>
 </p>
 
-### 6.6 When To Use Manual Mode
+### 7.6 When To Use Manual Mode
 
 Manual mode exists for real edge cases, not as a return to the old workflow:
 
@@ -328,27 +328,12 @@ diagnostic, and save only when you know which route works.
   <img src="assets/screenshots/install/09-media-paths-manual.png" alt="Manual path mapping mode in Home Cinema Control" width="860"/>
 </p>
 
-### 6.7 What HCC Improves Here
+### 7.7 What HCC Improves Here
 
 HCC can discover Emby libraries, choose intercepted libraries, configure NFS or SMB/CIFS per mapping, test the player
 mount, and fall back to manual mapping when needed.
 
 HCC does not silently switch protocols. If a mapping is SMB, playback uses SMB. If it is NFS, playback uses NFS.
-
-### 6.8 Why This Step Improves Playback
-
-Once routes are verified, HCC can treat playback as a controlled flow instead of a chain of guesses:
-
-- mount the correct share directly on the OPPO/Chinoppo;
-- avoid retries with protocols you did not choose;
-- classify the failure if the mount fails;
-- observe player state through SVM3 when available;
-- use bounded polling as a fallback, not as the only permanent strategy;
-- report progress to Emby on a controlled cadence;
-- clean up the session after stop or natural end so the player is not left in an odd state.
-
-The difference is not always visible on screen, but it matters: less noise toward the player, fewer random behaviours,
-and better information when something fails.
 
 ## 8. Room Setup
 
@@ -397,7 +382,65 @@ the TV's installed apps so you can pick your media server's.
 
 *(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
 
-## 9. Diagnostics
+## 9. Home Assistant: Optional Automation
+
+HCC can send neutral playback events to a Home Assistant webhook. HCC does not decide which lights, scenes, or entities
+should react; that automation logic remains in Home Assistant.
+
+### 9.1 Create the webhook in Home Assistant
+
+In Home Assistant, create an automation with a **Webhook** trigger. Use a long random identifier, allow the `POST`
+method, and keep `local_only` enabled when HCC and Home Assistant are on the same network.
+
+Minimal YAML example:
+
+```yaml
+alias: HCC playback events
+triggers:
+  - trigger: webhook
+    webhook_id: replace-this-with-a-long-random-id
+    allowed_methods:
+      - POST
+    local_only: true
+actions:
+  - action: logbook.log
+    data:
+      name: HCC
+      message: "{{ trigger.json.event }} - {{ trigger.json.title | default('') }}"
+mode: queued
+```
+
+Treat the webhook ID like a credential: do not publish or share it. Home Assistant exposes the endpoint as
+`/api/webhook/<webhook_id>` and accepts the JSON sent by HCC.
+
+### 9.2 Configure HCC
+
+In HCC's **Home Assistant** screen:
+
+1. Enable the **Enable playback event delivery** checkbox.
+2. Enter the Home Assistant base URL, for example `http://homeassistant.local:8123`. Do not add `/api/webhook`.
+3. Enter the same **Webhook ID** created in Home Assistant.
+4. If needed, open the advanced options and adjust the delivery timeout.
+5. Click **Save**.
+6. Restart HCC using the link shown on the screen so the playback listener loads the configuration.
+
+HCC stores the webhook ID in `/config/secrets.json`, does not return it to the UI, and excludes it from diagnostics. The
+integration does not require a Home Assistant add-on or custom Home Assistant integration.
+
+HCC can send these events:
+
+- `started`
+- `paused`
+- `resumed`
+- `stopped`
+
+The JSON contains the event type, `event_id`, and `session_id`, plus `media_type`, `title`, `source`, and `player` when
+available. If Home Assistant is unreachable, HCC logs the error and playback continues.
+
+For webhook details and security options, see the
+[official Home Assistant documentation](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+
+## 10. Diagnostics
 
 The Status screen shows readiness, playback state, latest failure, version status, and support summary.
 
@@ -419,7 +462,7 @@ playback started/finished/failed events. If the telemetry backend is unavailable
 anonymous events in `/config/telemetry_queue.json` and retries later. It does not send paths, IPs, tokens, URLs, server
 names, libraries, titles, logs, scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
 
-## 10. Readable Logs
+## 11. Readable Logs
 
 The Logs screen renders structured logs with severity and filtering.
 
@@ -433,7 +476,7 @@ Downloads still include the full log.
 
 This makes support easier than sharing raw unfiltered logs.
 
-## 11. First Playback Validation
+## 12. First Playback Validation
 
 Once the setup screens are saved and verified, test one movie from an intercepted library. Do not only check that the
 player starts; check the full cycle.
@@ -453,7 +496,7 @@ Real hardware validation still matters: original OPPO players, Chinoppo clones, 
 can behave differently. If something fails, copy the support summary from **Diagnostics** and filter logs by warnings or
 errors.
 
-## 12. NAS And Player Preparation
+## 13. NAS And Player Preparation
 
 HCC does not change NAS permissions or player settings. Before testing paths:
 
@@ -464,7 +507,7 @@ HCC does not change NAS permissions or player settings. Before testing paths:
 
 Use the AVPasion thread linked above for platform-specific screenshots.
 
-## 13. Updating
+## 14. Updating
 
 If you installed with Docker Compose:
 
@@ -499,7 +542,7 @@ version you want and redeploy by re-pulling the image, not by rebuilding from th
 
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
-## 14. Frequent Issues
+## 15. Frequent Issues
 
 ### Jellyfin: devices and libraries don't show up when you click "Reload"
 
