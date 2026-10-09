@@ -8,10 +8,31 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+* Added an optional Home Assistant playback-event integration. HCC emits
+  provider-neutral `started`, `paused`, `resumed`, and `stopped` events with
+  event/session identifiers to a configurable webhook. Webhook credentials
+  remain in the Docker secrets file and room automation stays in Home Assistant.
+
 * Added native Trinnov Altitude AV receiver support over the Altitude TCP automation protocol. HCC identifies as
   `Home Cinema Control`, switches OPPO and TV-audio targets with Trinnov source/profile numbers, uses Wake-on-LAN
   after the MAC address is configured or detected from the network scan, locks Trinnov power actions until that MAC is
   available, and treats the integration as contract-tested until real Altitude hardware logs confirm it.
+
+### Changed
+
+* Refined the Home Assistant settings view with a consistent connection layout, representative icons, and an editable
+  delivery timeout grouped under advanced options.
+
+* Added Home Assistant readiness status to the configuration navigation and tightened the integration view layout with a
+  cinema-room background and compact webhook credential state.
+
+* Made Home Assistant delivery settings a collapsed advanced section so the main configuration view stays compact.
+
+* Linked the Home Assistant restart guidance directly to the service restart action in Diagnostics.
+
+* Fixed the restart link to scroll inside HCC's main content panel after the Diagnostics view finishes loading.
+
+* Added a dedicated Home Assistant integration background showing a neutral automation hub and connected providers.
 
 ### Fixed
 

@@ -8,6 +8,11 @@ const routes = [
     {path: '/media-player', component: () => import('../views/MediaPlayerView.vue'), meta: {title: 'Media Player'}},
     {path: '/media-paths', component: () => import('../views/MediaPathsView.vue'), meta: {title: 'Media Paths'}},
     {path: '/sala', component: () => import('../views/SalaView.vue'), meta: {title: 'Room Setup'}},
+    {
+        path: '/home-assistant',
+        component: () => import('../views/HomeAssistantView.vue'),
+        meta: {title: 'Home Assistant'}
+    },
     {path: '/tv', redirect: '/sala'},
     {path: '/av', redirect: '/sala'},
     {path: '/remote', component: () => import('../views/RemoteView.vue'), meta: {title: 'Remote'}},
@@ -17,6 +22,10 @@ const routes = [
 export const router = createRouter({
     history: createWebHistory(),
     routes,
+    scrollBehavior(to, from, savedPosition) {
+        if (savedPosition) return savedPosition
+        return {top: 0}
+    },
 })
 
 router.afterEach((to) => {

@@ -386,7 +386,8 @@
       <!-- Actions -->
       <div class="icon-action-row" style="margin-top:16px">
         <IconActionButton :label="$t('x-status-refresh')" icon="refresh" @click="refreshState"/>
-        <button :disabled="restarting" class="btn-service-action" @click="restartService">
+        <button id="restart-service-button" :disabled="restarting" class="btn-service-action"
+                style="scroll-margin-top:24px" @click="restartService">
           {{ restarting ? $t('x-status-restarting') : $t('x-status-restart') }}
         </button>
       </div>
@@ -456,8 +457,9 @@
 </template>
 
 <script setup>
-import {computed, onMounted, ref} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRoute} from 'vue-router'
 import {Activity, Cpu, PackageCheck, ShieldAlert} from '@lucide/vue'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-status.png'
@@ -471,6 +473,7 @@ import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useDiagnosticText} from '../composables/useDiagnosticText.js'
 
 const {t} = useI18n()
+const route = useRoute()
 const toast = useToast()
 const versionStore = useVersionStore()
 const {saveSection} = useConfigSectionSave()
@@ -855,6 +858,17 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+watch(loading, async (isLoading) => {
+  if (isLoading || route.hash !== '#restart-service-button') return
+  await nextTick()
+  requestAnimationFrame(() => {
+    document.getElementById('restart-service-button')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  })
 })
 </script>
 

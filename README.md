@@ -165,6 +165,18 @@ reproducción.
 Estas líneas son roadmap, no promesas de la versión actual. HCC prefiere declarar claramente qué está implementado y qué
 está en exploración antes que vender compatibilidad no validada.
 
+## Home Assistant
+
+HCC puede enviar eventos neutrales de reproducción a un webhook de Home Assistant. La integración no conoce luces,
+escenas ni entidades concretas: Home Assistant decide qué automatización ejecutar para cada evento.
+
+En la pantalla **Home Assistant**, configura la URL de tu instancia y el ID del webhook, activa la entrega y guarda.
+El ID se almacena en `secrets.json`, no se muestra en la interfaz y no se incluye en los diagnósticos. Reinicia HCC
+después de guardar para que el listener de reproducción cargue el consumer.
+
+El payload contiene `started`, `paused`, `resumed` o `stopped`, además de `event_id`, `session_id`, `media_type`,
+`title`, `source` y `player` cuando están disponibles.
+
 ## Instalación rápida
 
 HCC se despliega como contenedor Docker con red host para poder hablar directamente con Emby, el reproductor, la TV, el

@@ -88,6 +88,7 @@ def create_playback_orchestrator_wiring(
     track_resolver: PlaybackTrackResolver,
     playback_state: BridgePlaybackState | None = None,
     step_timer: StartupStepTimer | None = None,
+    playback_state_observer=None,
 ) -> PlaybackOrchestratorWiring:
     startup_wiring = create_playback_startup_wiring(config, step_timer=step_timer)
     playback_event_publisher = playback_event_publisher_factory(
@@ -106,6 +107,7 @@ def create_playback_orchestrator_wiring(
         config=config,
         media_player=startup_wiring.media_player,
         progress_reporter=progress_reporter,
+        playback_state_observer=playback_state_observer,
     )
     finish_playback_orchestrator = create_finish_playback_orchestrator(
         config,
@@ -142,10 +144,12 @@ def create_during_playback_orchestrator(
     config: dict[str, Any],
     media_player,
     progress_reporter,
+    playback_state_observer=None,
 ) -> DuringPlaybackOrchestrator:
     polling_orchestrator = PollingPlaybackObservationStrategy(
         media_player=media_player,
         progress_reporter=progress_reporter,
+        playback_state_observer=playback_state_observer,
     )
 
     if resolve_oppo_observation_mode(config) == OppoObservationMode.POLLING:
@@ -155,5 +159,6 @@ def create_during_playback_orchestrator(
         config=config,
         polling_orchestrator=polling_orchestrator,
         progress_reporter=progress_reporter,
+        playback_state_observer=playback_state_observer,
         oppo_total_provider=create_oppo_total_seconds_reader(config),
     )

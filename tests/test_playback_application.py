@@ -170,6 +170,7 @@ class OnStartupCompletedTest(unittest.TestCase):
             playback_state=BridgePlaybackState(),
             reload_config=lambda: None,
             media_server_playback_services=SimpleNamespace(
+                create_observed_playback_consumer=lambda **kwargs: object(),
                 create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
             ),
         )
@@ -305,6 +306,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                 playback_context_from_intent=lambda intent: SimpleNamespace(),
                 create_playback_event_publisher=lambda client, *, bridge_session_id, context: None,
                 create_track_resolver=lambda playback_session: SimpleNamespace(),
+                create_observed_playback_consumer=lambda **kwargs: object(),
                 create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
             ),
         )

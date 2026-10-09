@@ -6,6 +6,12 @@ import time
 from home_cinema_control.media_servers.common.playback import MediaServerPlaybackServices
 from home_cinema_control.playback.active_context import ActivePlaybackRuntimeContext
 from home_cinema_control.playback.content_kind import MediaContentKind
+from home_cinema_control.playback.events import (
+    PlaybackEventContext,
+    PlaybackObservation,
+    PlaybackObservedState,
+    new_playback_session_id,
+)
 from home_cinema_control.playback.dispatch import bridge_playback_is_active
 from home_cinema_control.playback.factory import create_playback_orchestrator_wiring
 from home_cinema_control.playback.device_runtime import (
@@ -37,6 +43,7 @@ from home_cinema_control.playback.result_reporting import report_orchestration_r
 from home_cinema_control.playback.startup import PlaybackStartupRequest
 from home_cinema_control.playback.startup.messaging import PlaybackStartupMessagingService
 from home_cinema_control.playback.state import BridgePlaybackState
+from home_cinema_control.playback.state_detector import PlaybackStateDetector
 from home_cinema_control.playback.thread_lifecycle import PlaybackThreadLifecycle
 from home_cinema_control.playback.timing import PlaybackStartupTimer
 
@@ -61,8 +68,10 @@ class PlaybackApplicationService:
         playback_session,
         playback_state: BridgePlaybackState,
         reload_config,
-            media_server_playback_services: MediaServerPlaybackServices | None = None,
-            telemetry_service=None,
+        media_server_playback_services: MediaServerPlaybackServices | None = None,
+        telemetry_service=None,
+        playback_event_dispatcher=None,
+        playback_state_detector: PlaybackStateDetector | None = None,
         stop_active_playback=None,
         sleep=time.sleep,
     ) -> None:
@@ -71,6 +80,8 @@ class PlaybackApplicationService:
         self._reload_config = reload_config
         self._media_server_playback_services = media_server_playback_services
         self._telemetry_service = telemetry_service
+        self._playback_event_dispatcher = playback_event_dispatcher
+        self._playback_state_detector = playback_state_detector or PlaybackStateDetector()
         self._stop_active_playback = stop_active_playback or (
             lambda: stop_active_player_playback_before_replacement(
                 self._state, self._playback_session.config
@@ -243,6 +254,7 @@ class PlaybackApplicationService:
             track_resolver=media_server_services.create_track_resolver(playback_session),
             playback_state=self._state,
             step_timer=startup_timer,
+            playback_state_observer=self._observe_playback_state,
         )
         self._active_context.activate(playback_wiring)
 
@@ -345,6 +357,7 @@ class PlaybackApplicationService:
 
         self._active_context.clear()
         power_down_after_playback_if_configured(playback_session.config)
+        self._publish_playback_event(self._playback_state_detector.stop_session())
         _reset_bridge_playback_state(self._state, movie)
         return playback_orchestration_result
 
@@ -380,13 +393,27 @@ class PlaybackApplicationService:
         logger.debug("start_position_seconds: %s", intent.start_position_seconds)
 
         playback_session = self._playback_session
+        active_session = self._state.active_session
+        context = PlaybackEventContext(
+            session_id=new_playback_session_id(),
+            media_type=content_kind.value,
+            title=active_session.title if active_session is not None else movie,
+            source=_media_server_source_name(playback_session),
+            player="oppo",
+        )
+        self._publish_playback_event(
+            self._playback_state_detector.start_session(context)
+        )
         logger.info("Reprodución iniciada: %s", movie)
 
         log_oppo_qpl_state(playback_session.config, "after_oppo_playback_start")
         startup_timer.log_summary()
         configure_oppo_observed_event_reporting(
-            playback_state=self._state,
             playback_wiring=playback_wiring,
+            observed_event_sink=self._media_server_services().create_observed_playback_consumer(
+                playback_state=self._state,
+                publisher=playback_wiring.playback_event_publisher,
+            ),
             track_mapper=self._media_server_services().create_observed_track_mapper(
                 playback_session,
                 playback_state=self._state,
@@ -410,6 +437,29 @@ class PlaybackApplicationService:
             )
         except Exception:
             logger.debug("Playback telemetry emission failed", exc_info=True)
+
+    def _observe_playback_state(self, state: PlaybackObservedState) -> None:
+        self._publish_playback_event(
+            self._playback_state_detector.observe(
+                PlaybackObservation(state=state, source="player-observation")
+            )
+        )
+
+    def observe_playback_state(self, state: PlaybackObservedState) -> None:
+        """Accept a player observation from media-server command handling."""
+        self._observe_playback_state(state)
+
+    def _publish_playback_event(self, event) -> None:
+        if event is None or self._playback_event_dispatcher is None:
+            return
+        try:
+            self._playback_event_dispatcher.publish(event)
+        except Exception:
+            logger.exception(
+                "Playback event dispatch failed | event_id=%s | event=%s",
+                event.event_id,
+                event.event_type,
+            )
 
     def _remember_playback_return_tv_app_id(self, playback_orchestration_result) -> None:
         startup_result = playback_orchestration_result.startup_result
@@ -463,3 +513,8 @@ def _telemetry_component(component: str) -> str:
     if component in {"emby", "jellyfin", "media_server"}:
         return "media_server"
     return "system"
+
+
+def _media_server_source_name(playback_session) -> str:
+    name = playback_session.__class__.__name__
+    return name.removesuffix("Session").lower()

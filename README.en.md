@@ -154,6 +154,18 @@ After 1.0.0, the architecture is intended to grow without mixing future integrat
 
 These items are roadmap direction, not current compatibility claims.
 
+## Home Assistant
+
+HCC can send neutral playback events to a Home Assistant webhook. The integration does not know about lights, scenes,
+or entity IDs; Home Assistant decides which automation to run for each event.
+
+In the **Home Assistant** screen, configure your instance URL and webhook ID, enable delivery, and save. The webhook
+ID is stored in `secrets.json`, never shown in the UI, and excluded from diagnostics. Restart HCC after saving so the
+playback listener loads the consumer.
+
+The payload contains `started`, `paused`, `resumed`, or `stopped`, plus `event_id`, `session_id`, `media_type`,
+`title`, `source`, and `player` when available.
+
 ## Quick Install
 
 HCC runs as a Docker container with host networking.

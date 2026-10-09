@@ -95,6 +95,8 @@ Images are published for `linux/amd64` and `linux/arm64`.
 - NAS or shared media folders reachable by both Emby and the player.
 - NFS or SMB/CIFS shares mapped per media library.
 - Optional TV and AV receiver control.
+- Optional Home Assistant webhook for provider-neutral playback events. Configure it from HCC's Home Assistant screen;
+  the webhook ID is stored in `/config/secrets.json`.
 - Trinnov Altitude support is contract-tested and pending real-hardware validation; power actions require a configured
   or network-detected MAC address and same-subnet reachability.
 

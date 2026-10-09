@@ -8,6 +8,9 @@ from home_cinema_control.media_servers.emby.observed_track_mapper import (
 )
 from home_cinema_control.media_servers.emby.playback import EmbyPlaybackEventPublisher
 from home_cinema_control.media_servers.emby.track_resolver import EmbyTrackResolver
+from home_cinema_control.media_servers.common.observed_playback_consumer import (
+    MediaServerObservedPlaybackConsumer,
+)
 
 
 class EmbyPlaybackServices:
@@ -32,3 +35,9 @@ class EmbyPlaybackServices:
 
     def create_observed_track_mapper(self, playback_session, *, playback_state):
         return EmbyObservedTrackMapper(playback_session, playback_state=playback_state)
+
+    def create_observed_playback_consumer(self, *, playback_state, publisher):
+        return MediaServerObservedPlaybackConsumer(
+            playback_state=playback_state,
+            publisher=publisher,
+        )

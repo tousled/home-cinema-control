@@ -15,11 +15,15 @@ from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_playback_command_control,
 )
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
+from home_cinema_control.home_automation.home_assistant_consumer import (
+    HomeAssistantWebhookConsumer,
+)
 from home_cinema_control.media_servers.common.websocket_events import (
     MediaServerWebsocketEventKind,
 )
 from home_cinema_control.playback.application import PlaybackApplicationService
 from home_cinema_control.playback.dispatch import PlaybackIntentDispatcher
+from home_cinema_control.playback.event_dispatcher import PlaybackEventDispatcher
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.telemetry.service import TelemetryService
 
@@ -63,6 +67,8 @@ class MediaServerWebsocketListener:
         self._playback_services = playback_services
         self._ws_app = None
         self.playback_application_service = None
+        self.playback_event_dispatcher = PlaybackEventDispatcher()
+        self._register_home_assistant_consumer()
         self.playback_command_handler = None
         self._session_monitor = None
         self._websocket_event_mapper = None
@@ -75,6 +81,9 @@ class MediaServerWebsocketListener:
 
     def stop(self):
         logging.info("%s websocket stop", self._provider_name)
+        if self.playback_application_service is not None:
+            self.playback_application_service.stop_active_playback_and_wait()
+        self.playback_event_dispatcher.shutdown(drain=True)
         if self._ws_app:
             self._ws_app.close()
 
@@ -83,6 +92,23 @@ class MediaServerWebsocketListener:
         config = load_effective_config(self.config_file)
         self.update_config(config)
         return config
+
+    def _register_home_assistant_consumer(self) -> None:
+        home_assistant = (self.config or {}).get("home_assistant") or {}
+        if not home_assistant.get("enabled"):
+            return
+        base_url = str(home_assistant.get("base_url") or "").strip()
+        webhook_id = str(home_assistant.get("webhook_id") or "").strip()
+        if not base_url or not webhook_id:
+            logging.warning("Home Assistant consumer is enabled but incomplete")
+            return
+        self.playback_event_dispatcher.register(
+            HomeAssistantWebhookConsumer(
+                base_url=base_url,
+                webhook_id=webhook_id,
+                timeout_seconds=float(home_assistant.get("timeout_seconds", 3.0)),
+            )
+        )
 
     def update_config(self, config: dict) -> None:
         self.config = config
@@ -236,6 +262,7 @@ class MediaServerWebsocketListener:
             playback_state=self.playback_state,
             reload_config=self.reload_config,
             media_server_playback_services=self._playback_services,
+            playback_event_dispatcher=self.playback_event_dispatcher,
             telemetry_service=TelemetryService(
                 config_file=self.config_file,
                 load_config=lambda: load_effective_config(self.config_file),
@@ -262,6 +289,9 @@ class MediaServerWebsocketListener:
             ),
             active_publisher_provider=lambda: (
                 self.playback_application_service.active_publisher
+            ),
+            playback_state_observer=(
+                self.playback_application_service.observe_playback_state
             ),
         )
         self._session_monitor = self._session_monitor_factory(
