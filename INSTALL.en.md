@@ -290,6 +290,10 @@ In **Media Paths**, work library by library:
 7. Click **Test path**.
 8. Save when the route is verified.
 
+HCC joins mappings as paths rather than literal text: the **OPPO path** may or may not end with `/`, and Windows-style
+Emby paths such as `Z:\` are normalized automatically. For example, `//192.168.1.149/Z` plus
+`HD-Olimpo/Movie` produces `//192.168.1.149/Z/HD-Olimpo/Movie`.
+
 <p align="center">
   <img src="assets/screenshots/install/06-media-paths-nfs-mapping.png" alt="Verified NFS mapping between Emby and OPPO" width="860"/>
 </p>

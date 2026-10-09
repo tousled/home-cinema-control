@@ -317,6 +317,10 @@ En **Media Paths**, trabaja biblioteca por biblioteca:
 7. Pulsa **Probar ruta**.
 8. Guarda cuando la ruta quede verificada.
 
+HCC une las rutas como rutas, no como texto literal: la **Ruta OPPO** puede terminar en `/` o no, y las rutas de
+Emby con formato Windows como `Z:\` se normalizan automáticamente. Por ejemplo, `//192.168.1.149/Z` más
+`HD-Olimpo/Película` produce `//192.168.1.149/Z/HD-Olimpo/Película`.
+
 <p align="center">
   <img src="assets/screenshots/install/06-media-paths-nfs-mapping.png" alt="Mapeo NFS verificado entre Emby y OPPO" width="860"/>
 </p>
