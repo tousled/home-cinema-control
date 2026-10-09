@@ -3,11 +3,148 @@ import unittest
 from home_cinema_control.media_servers.common.media_tracks import MediaTrackKind
 from home_cinema_control.media_servers.emby.item_mapper import (
     media_server_item_playback_info_from_item,
+    media_server_playback_source_from_item,
     media_tracks_from_item,
 )
 
 
 class EmbyItemMapperTest(unittest.TestCase):
+    def test_maps_normal_playback_source_without_overriding_filename(self):
+        source = media_server_playback_source_from_item(
+            {
+                "Path": "/media/Movie/Movie.mkv",
+                "Container": "mkv",
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "Path": "/media/Movie/Movie.mkv",
+                        "Container": "mkv",
+                        "RunTimeTicks": 10_000_000,
+                    }
+                ],
+            },
+            "source-1",
+        )
+
+        self.assertEqual("/media/Movie/Movie.mkv", source.path)
+        self.assertEqual("mkv", source.container)
+        self.assertIsNone(source.playback_file_name)
+
+    def test_missing_media_source_id_uses_first_source_metadata_and_strm_filename(self):
+        source = media_server_playback_source_from_item(
+            {
+                "Path": "/media/Movie/Movie.strm",
+                "Container": "strm",
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "Path": "/media/Movie/Movie.strm",
+                        "Container": "mkv",
+                    }
+                ],
+            },
+            "",
+        )
+
+        self.assertEqual("/media/Movie/Movie.strm", source.path)
+        self.assertEqual("mkv", source.container)
+        self.assertEqual("Movie.mkv", source.playback_file_name)
+
+    def test_unmatched_media_source_id_uses_first_source_metadata(self):
+        source = media_server_playback_source_from_item(
+            {
+                "Path": "/media/Movie/Movie.strm",
+                "Container": "strm",
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "Path": "/media/Movie/Movie.strm",
+                        "Container": "mp4",
+                    }
+                ],
+            },
+            "missing-source",
+        )
+
+        self.assertEqual("mp4", source.container)
+        self.assertEqual("Movie.mp4", source.playback_file_name)
+
+    def test_strm_source_container_falls_back_to_parent_container(self):
+        source = media_server_playback_source_from_item(
+            {
+                "Path": "/media/Movie/Movie.strm",
+                "Container": "mp4",
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "Path": "/media/Movie/Movie.strm",
+                        "Container": "strm",
+                    }
+                ],
+            },
+            "source-1",
+        )
+
+        self.assertEqual("mp4", source.container)
+        self.assertEqual("Movie.mp4", source.playback_file_name)
+
+    def test_empty_source_container_falls_back_to_parent_container(self):
+        source = media_server_playback_source_from_item(
+            {
+                "Path": "/media/Movie/Movie.strm",
+                "Container": "mkv",
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "Path": "/media/Movie/Movie.strm",
+                        "Container": "",
+                    }
+                ],
+            },
+            "source-1",
+        )
+
+        self.assertEqual("mkv", source.container)
+        self.assertEqual("Movie.mkv", source.playback_file_name)
+
+    def test_strm_target_path_supplies_extension_without_retaining_query(self):
+        source = media_server_playback_source_from_item(
+            {
+                "Path": "/media/Movie/Movie.strm",
+                "Container": "strm",
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "Path": "https://example/path/Movie.m2ts?token=secret",
+                        "Container": "strm",
+                    }
+                ],
+            },
+            "source-1",
+        )
+
+        self.assertEqual("/media/Movie/Movie.strm", source.path)
+        self.assertEqual("m2ts", source.container)
+        self.assertEqual("Movie.m2ts", source.playback_file_name)
+        self.assertNotIn("secret", source.playback_file_name)
+
+    def test_strm_without_reliable_container_fails_without_mkv_guess(self):
+        with self.assertRaisesRegex(ValueError, "playable container"):
+            media_server_playback_source_from_item(
+                {
+                    "Path": "/media/Movie/Movie.strm",
+                    "Container": "strm",
+                    "MediaSources": [
+                        {
+                            "Id": "source-1",
+                            "Path": "https://example/path/stream",
+                            "Container": "strm",
+                        }
+                    ],
+                },
+                "source-1",
+            )
+
     def test_maps_item_playback_info_from_selected_media_source(self):
         info = media_server_item_playback_info_from_item(
             {

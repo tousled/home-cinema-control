@@ -21,3 +21,4 @@ class MediaServerPlaybackSource:
     production_year: int | None
     title: str
     content_kind: MediaContentKind
+    playback_file_name: str | None = None
