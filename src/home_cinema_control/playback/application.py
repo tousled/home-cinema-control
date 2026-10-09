@@ -46,6 +46,7 @@ from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.state_detector import PlaybackStateDetector
 from home_cinema_control.playback.thread_lifecycle import PlaybackThreadLifecycle
 from home_cinema_control.playback.timing import PlaybackStartupTimer
+from home_cinema_control.telemetry.startup_metrics import build_startup_metrics
 
 
 logger = logging.getLogger(__name__)
@@ -419,7 +420,18 @@ class PlaybackApplicationService:
                 playback_state=self._state,
             ),
         )
-        self._emit_telemetry("playback_started")
+        startup_event = {}
+        try:
+            if _result is not None:
+                startup_event = {
+                    "startup_metrics": build_startup_metrics(
+                        startup_timer.snapshot(),
+                        _result,
+                    )
+                }
+        except Exception:
+            logger.debug("Could not build playback startup telemetry metrics", exc_info=True)
+        self._emit_telemetry("playback_started", startup_event)
 
         # Sent for every origin and regardless of TV-switching config: this is
         # the one notification that reaches whichever client started playback
@@ -430,7 +442,9 @@ class PlaybackApplicationService:
         if self._telemetry_service is None:
             return
         try:
-            self._telemetry_service.emit(
+            emit_async = getattr(self._telemetry_service, "emit_async", None)
+            emit = emit_async or self._telemetry_service.emit
+            emit(
                 event_name,
                 event=event,
                 config=self._playback_session.config,

@@ -13,6 +13,11 @@ class FakeTelemetryClient:
         return self.result
 
 
+class RaisingTelemetryClient(FakeTelemetryClient):
+    def send(self, base_url, ingest_key, payloads):
+        raise RuntimeError("telemetry unavailable")
+
+
 def _config(enabled=False, installation_id="", last_heartbeat_at=""):
     return {
         "Version": "1.2.3",
@@ -190,3 +195,43 @@ def test_due_heartbeat_updates_timestamp(tmp_path):
 
     assert service.emit_heartbeat_if_due() is True
     assert state["config"]["telemetry"]["last_heartbeat_at"] != old
+
+
+def test_async_emit_uses_one_worker_and_waits_for_accepted_event(tmp_path):
+    client = FakeTelemetryClient()
+    service, _ = _service(
+        tmp_path,
+        _config(
+            enabled=True,
+            installation_id="11111111-1111-4111-8111-111111111111",
+        ),
+        client,
+    )
+
+    assert service.emit_async("playback_started") is True
+    assert service.wait_for_async_idle()
+    assert len(client.calls) == 1
+    assert service._async_worker is not None
+
+
+def test_disabled_telemetry_does_not_start_async_worker(tmp_path):
+    client = FakeTelemetryClient()
+    service, _ = _service(tmp_path, _config(enabled=False), client)
+
+    assert service.emit_async("playback_started") is False
+    assert service._async_worker is None
+    assert client.calls == []
+
+
+def test_async_emit_contains_no_playback_blocking_exception(tmp_path):
+    service, _ = _service(
+        tmp_path,
+        _config(
+            enabled=True,
+            installation_id="11111111-1111-4111-8111-111111111111",
+        ),
+        RaisingTelemetryClient(),
+    )
+
+    assert service.emit_async("playback_started") is True
+    assert service.wait_for_async_idle()

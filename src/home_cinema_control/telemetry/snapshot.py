@@ -15,6 +15,7 @@ from home_cinema_control.telemetry.events import (
     TelemetryProductSnapshot,
     new_event_id,
 )
+from home_cinema_control.telemetry.startup_metrics import normalize_startup_metrics
 
 
 _UNKNOWN = "unknown"
@@ -113,6 +114,9 @@ def _normalize_model(
 
 
 def _normalize_event(event_name: str, event: dict[str, Any]) -> dict[str, Any]:
+    if event_name == "playback_started":
+        startup_metrics = normalize_startup_metrics(event.get("startup_metrics"))
+        return {"startup_metrics": startup_metrics} if startup_metrics else {}
     if event_name == "playback_finished":
         return {"result": "finished"}
     if event_name == "playback_failed":

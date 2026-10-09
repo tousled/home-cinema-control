@@ -22,14 +22,15 @@ class PlaybackStartupWiring:
 
 def create_playback_startup_wiring(
     config: dict[str, Any],
-        *,
-        step_timer=None,
+    *,
+    step_timer=None,
 ) -> PlaybackStartupWiring:
     media_player = create_oppo_playback_adapter(config, step_timer=step_timer)
     startup_orchestrator = PlaybackStartupOrchestrator(
         television=create_tv_controller_or_none(config),
         av_receiver=create_av_receiver_or_none(config),
         media_player=media_player,
+        step_timer=step_timer,
     )
     return PlaybackStartupWiring(
         startup_orchestrator=startup_orchestrator,

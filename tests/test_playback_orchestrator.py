@@ -124,7 +124,7 @@ class PlaybackOrchestratorTest(unittest.TestCase):
         self.assertEqual([_startup_request()], startup.output_switch_calls)
         self.assertEqual(_output_switch_result(), result.startup_result.output_switch_result)
         self.assertEqual([_startup_completion_request()], startup_completion.requests)
-        self.assertEqual(startup_result, completed_startups[0])
+        self.assertEqual(result.startup_result, completed_startups[0])
         self.assertEqual(1, len(during.requests))
         self.assertEqual(42, during.requests[0].initial_position_seconds)
         self.assertEqual(1, len(finish.requests))

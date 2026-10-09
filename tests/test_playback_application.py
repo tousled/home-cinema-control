@@ -214,6 +214,34 @@ class OnStartupCompletedTest(unittest.TestCase):
 
         self.assertEqual("Playing", service._state.playstate)
 
+    def test_startup_metric_serialization_failure_does_not_interrupt_playback(self):
+        service = self._service()
+        emitted = []
+        service._emit_telemetry = lambda event_name, event=None: emitted.append(
+            (event_name, event)
+        )
+        messaging = SimpleNamespace(action=lambda content_kind: None)
+
+        with patch(
+            "home_cinema_control.playback.application.build_startup_metrics",
+            side_effect=RuntimeError("serialization failed"),
+        ):
+            service._on_startup_completed(
+                SimpleNamespace(),
+                intent=_intent(media_item_id="1"),
+                movie="/movies/aquaman.mkv",
+                messaging=messaging,
+                content_kind=MediaContentKind.MOVIE,
+                playback_wiring=SimpleNamespace(
+                    playback_event_publisher=None,
+                    during_playback_orchestrator=SimpleNamespace(),
+                ),
+                startup_timer=PlaybackStartupTimer(),
+            )
+
+        self.assertEqual("Playing", service._state.playstate)
+        self.assertEqual([("playback_started", {})], emitted)
+
 
 class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
     """Regression test for a real bug: the on_startup_completed lambda built

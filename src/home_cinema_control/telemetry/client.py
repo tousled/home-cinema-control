@@ -112,6 +112,13 @@ def _to_event_body(payload: TelemetryPayload) -> dict:
     elif payload.event_name == "roadmap_interest_submitted":
         interests = payload.event.get("interests", [])
         attributes["interests"] = ",".join(str(i) for i in interests)
+    elif payload.event_name == "playback_started":
+        startup_metrics = payload.event.get("startup_metrics")
+        if isinstance(startup_metrics, dict):
+            for metric_name, attribute_name in _STARTUP_ATTRIBUTE_NAMES.items():
+                value = startup_metrics.get(metric_name)
+                if isinstance(value, (str, int)) and not isinstance(value, bool):
+                    attributes[attribute_name] = value
     return {
         "instance_id": payload.installation_id,
         "event_type": event_type,
@@ -119,3 +126,17 @@ def _to_event_body(payload: TelemetryPayload) -> dict:
         "install_type": "docker" if payload.deployment.docker else "native",
         "attributes": attributes,
     }
+
+
+_STARTUP_ATTRIBUTE_NAMES = {
+    "schema_version": "startup_schema_version",
+    "strategy": "startup_strategy",
+    "total_ms": "startup_total_ms",
+    "media_prepare_ms": "startup_media_prepare_ms",
+    "tv_prepare_ms": "startup_tv_prepare_ms",
+    "av_prepare_ms": "startup_av_prepare_ms",
+    "oppo_prepare_ms": "startup_oppo_prepare_ms",
+    "oppo_commit_ms": "startup_oppo_commit_ms",
+    "oppo_confirm_ms": "startup_oppo_confirm_ms",
+    "post_start_ms": "startup_post_start_ms",
+}
