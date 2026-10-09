@@ -6,6 +6,14 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-09
+
+### Fixed
+
+* Normalized media path mappings at the prefix boundary so Linux and Windows source paths produce exactly one
+  separator before the remaining media path. OPPO paths now work whether the configured destination ends with `/` or
+  not; a Windows mapping such as `Z:\` to `//server/Z` no longer becomes `//server/ZHD-Olimpo`.
+
 ## [1.3.1] - 2026-09-17
 
 ### Fixed

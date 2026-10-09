@@ -15,8 +15,9 @@ def resolve_player_media_file_location(
     playback_file_format: str,
     path_mappings: Sequence[Mapping[str, str]],
 ) -> PlayerMediaFileLocation:
-    player_path, network_protocol = _apply_path_mappings(emby_media_path, path_mappings)
-    player_path = _normalize_path_separators(player_path)
+    player_path, network_protocol = _apply_path_mappings(
+        _normalize_path_separators(emby_media_path), path_mappings
+    )
 
     return _parse_player_media_file_location(
         player_path=player_path,
@@ -33,9 +34,13 @@ def _apply_path_mappings(
     network_protocol = None
 
     for mapping in path_mappings:
-        emby_path = mapping["source_path"]
-        if emby_path in player_path:
-            player_path = player_path.replace(emby_path, mapping["player_path"])
+        emby_path = _normalize_path_separators(mapping["source_path"])
+        if _path_mapping_matches(player_path, emby_path):
+            player_path = _replace_path_prefix(
+                player_path,
+                emby_path,
+                _normalize_path_separators(mapping["player_path"]),
+            )
             network_protocol = mapping.get("protocol") or network_protocol
 
     return player_path, network_protocol
@@ -43,6 +48,18 @@ def _apply_path_mappings(
 
 def _normalize_path_separators(path: str) -> str:
     return path.replace("\\\\", "\\").replace("\\", "/")
+
+
+def _path_mapping_matches(media_path: str, source_path: str) -> bool:
+    source_prefix = source_path.rstrip("/")
+    return media_path == source_prefix or media_path.startswith(source_prefix + "/")
+
+
+def _replace_path_prefix(media_path: str, source_path: str, player_path: str) -> str:
+    source_prefix = source_path.rstrip("/")
+    suffix = media_path[len(source_prefix) :].lstrip("/")
+    player_prefix = player_path.rstrip("/")
+    return player_prefix if not suffix else f"{player_prefix}/{suffix}"
 
 
 def _parse_player_media_file_location(
