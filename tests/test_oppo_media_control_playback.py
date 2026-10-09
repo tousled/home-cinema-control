@@ -500,6 +500,34 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             client.calls,
         )
 
+    def test_times_out_empty_audio_menu_retries_with_exponential_backoff(self):
+        client = RecordingMediaControlClient(
+            audio_menu_responses=['{"success":true,"audio_list":[]}']
+        )
+        delays = []
+        clock = [0.0]
+        playback = OppoMediaControlPlayback(
+            {
+                "oppo": {
+                    "use_smb": False,
+                    "nfs_mount_timeout_seconds": 30,
+                    "playback_start_timeout_seconds": 30,
+                    "track_menu_ready_timeout_seconds": 8,
+                }
+            },
+            client=client,
+            playback_state_waiter=_started_playback,
+            sleep=lambda delay: delays.append(delay) or clock.__setitem__(0, clock[0] + delay),
+            now=lambda: clock[0],
+        )
+
+        result = playback.select_audio_track(2)
+
+        self.assertFalse(result.successful)
+        self.assertEqual(5, len([call for call in client.calls if call[0] == "get_audio_menu"]))
+        self.assertEqual([0.5, 1.0, 2.0, 4.0, 0.5], delays)
+        self.assertNotIn(("select_audio_track", 2), client.calls)
+
     def test_reports_failed_audio_selection_when_oppo_keeps_previous_track(self):
         client = RecordingMediaControlClient(
             audio_menu_responses=[
