@@ -6,6 +6,24 @@ from home_cinema_control.playback.media_location import (
 
 
 class ResolvePlayerMediaFileLocationTest(unittest.TestCase):
+    def test_explicit_playback_filename_keeps_mapped_physical_directory(self):
+        location = resolve_player_media_file_location(
+            emby_media_path="/media/library/Movie/Movie.strm",
+            playback_file_format="mkv",
+            playback_file_name="Movie.mkv",
+            path_mappings=[
+                {
+                    "source_path": "/media/library",
+                    "player_path": "/nas",
+                    "protocol": "nfs",
+                }
+            ],
+        )
+
+        self.assertEqual("nas", location.content_server)
+        self.assertEqual("Movie", location.content_directory)
+        self.assertEqual("Movie.mkv", location.playback_file_name)
+
     def test_joins_path_prefixes_without_relying_on_trailing_slashes(self):
         cases = [
             {

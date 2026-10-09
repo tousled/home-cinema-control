@@ -173,7 +173,7 @@ El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleg
 
 Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
 dispositivos
-y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
+y bibliotecas funcione — ver [Problemas frecuentes](#13-problemas-frecuentes).
 
 ## 6. Media Player: localiza el OPPO/Chinoppo
 
@@ -376,6 +376,21 @@ Conceptos clave:
 HCC no cambia silenciosamente de SMB a NFS ni de NFS a SMB. Si una ruta está configurada como SMB, se prueba y reproduce
 como SMB. Esto evita errores invisibles cuando una biblioteca funciona con un protocolo y otra necesita otro.
 
+### 7.8 Por qué es importante este paso
+
+Emby o Jellyfin y el OPPO pueden referirse al mismo contenido con rutas distintas. La ruta que conoce el servidor
+multimedia no siempre es la que el reproductor puede abrir desde su red.
+
+Una ruta verificada le dice a HCC exactamente:
+
+- qué carpeta debe montar el OPPO;
+- con qué protocolo debe acceder a ella;
+- qué bibliotecas deben pasar por el reproductor;
+- qué configuración ha funcionado antes de iniciar una reproducción real.
+
+Por eso conviene probar y verificar cada mapeo. Si una ruta falla, el problema queda acotado al NAS, al protocolo o a
+los permisos, en lugar de aparecer más tarde como un fallo ambiguo al intentar reproducir.
+
 ## 8. Sala: TV y receptor AV son opcionales
 
 La pantalla **Sala** controla qué debe hacer HCC al iniciar y terminar una reproducción: cambiar entrada de TV, encender
@@ -396,21 +411,16 @@ Puntos importantes:
 - TV y AV se configuran por separado.
 - Si TV está desactivada, no entra en el flujo de reproducción.
 - Si AV está desactivado, no entra en el flujo de reproducción.
-- En LG WebOS, HCC puede detectar entradas HDMI y restaurar la app del servidor multimedia.
-  El primer uso muestra el diálogo normal de emparejamiento en la TV; HCC se identifica con un manifiesto propio sin
-  el certificado de prueba heredado de LG, que algunos firmware webOS 26 rechazan como certificado bloqueado. Tras
-  actualizar HCC o la TV puede que tengas que aceptar el emparejamiento de nuevo.
+- En LG WebOS, HCC puede detectar entradas HDMI y restaurar la app del servidor multimedia. El primer uso muestra el
+  diálogo normal de emparejamiento en la TV; tras actualizar HCC o la TV puede que tengas que aceptarlo de nuevo.
 - En Sony BRAVIA (2013 o posterior), HCC hace lo mismo vía la API REST oficial de Sony, autenticada con una
   clave PSK — ver más abajo cómo activarla.
 - En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
 - En Trinnov Altitude, HCC usa números de fuente/perfil en lugar de nombres de entrada HDMI. El protocolo requiere que
   HCC y el procesador estén en la misma subred. Introduce la IP y usa **Detectar MAC** para que HCC intente rellenar
-  la MAC desde el escaneo de red; las acciones de encendido/apagado quedan bloqueadas hasta tener esa MAC. Esta
-  integración está contract-tested y pendiente de validación en hardware real.
+  la MAC desde el escaneo de red; las acciones de encendido/apagado quedan bloqueadas hasta tener esa MAC.
 - Para configurar Trinnov: selecciona **TRINNOV**, introduce la IP, detecta o escribe la MAC, pulsa **Detectar entradas
-  HDMI** para que HCC consulte los source/profile del procesador y elige el source/profile donde está conectado el
-  OPPO. El selector permanece bloqueado hasta esa detección porque Trinnov no acepta comandos útiles sin abrir primero
-  una sesión TCP identificada.
+  HDMI** y elige el source/profile donde está conectado el OPPO.
 - La detección de entradas HDMI, "Cambiar a OPPO", "Detectar apps" y "Abrir Emby/Jellyfin" quedan bloqueados hasta
   que "Probar conexión" confirma que la TV responde — no tiene sentido detectar nada contra una TV inalcanzable.
   "Abrir Emby/Jellyfin" además requiere haber detectado esa app en la TV; si no aparece entre las detectadas, HCC te
@@ -431,8 +441,8 @@ de LG, aquí no hay un diálogo de emparejamiento en pantalla, se configura una 
 > doméstica → Control IP → Pre-Shared Key** se mantiene desde los modelos de 2014 en adelante.
 
 En la pantalla **Sala** de HCC, introduce la IP de la TV y la misma clave PSK, y pulsa "Probar conexión". Después,
-usa "Detectar apps" para que HCC liste las apps instaladas en esa TV y puedas elegir la de tu servidor multimedia —
-Sony no permite fijar un identificador de antemano como LG, así que este paso hace falta una sola vez por TV.
+usa "Detectar apps" para que HCC liste las apps instaladas en esa TV y puedas elegir la de tu servidor multimedia.
+Este paso hace falta una sola vez por TV.
 
 *(Capturas de pantalla de los ajustes de Sony pendientes de añadir — requieren una TV Sony real.)*
 
@@ -518,9 +528,8 @@ La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y 
 - reiniciar el servicio si tu despliegue lo permite.
 
 El bloque de versión muestra la versión instalada con el mismo formato que las etiquetas Docker (`1.1.1-rc.1`, por
-ejemplo). Si configuras un webhook de actualización, HCC guarda la versión actual antes de pedir el redeploy; si esa
-información no existe en una instalación antigua, intenta derivar una versión de rollback desde las releases/tags de
-GitHub en vez de mostrar el fallback interno de build.
+ejemplo). Si configuras un webhook de actualización, HCC guarda la versión actual antes de pedir el redeploy y muestra
+la información disponible para volver atrás si fuese necesario.
 
 El objetivo es que un fallo no sea simplemente “no reproduce”, sino una pista concreta: servidor no accesible, ruta sin
 verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
@@ -624,10 +633,8 @@ muestra el comando para ejecutarlo manualmente.
   dispositivos (`/Devices`) y la de carpetas de biblioteca (`/Library/VirtualFolders`) para cuentas con privilegios
   elevados — una cuenta normal recibe un error 403 al cargarlas, aunque el login en sí (autorizar, reproducir,
   reportar progreso) funcione con normalidad.
-- En Jellyfin 12.0 RC1 y versiones posteriores, HCC usa la autorización moderna de Jellyfin. Si ves `401` en
-  `/Devices`, `/Library/VirtualFolders` o `/Sessions/Capabilities/Full`, junto con `403 Forbidden` en el WebSocket,
-  actualiza HCC a una versión que incluya esta corrección y vuelve a autorizar Jellyfin desde la pantalla
-  **Media Server** si el token guardado quedó invalidado durante la actualización.
+- Si Jellyfin muestra errores `401` o `403` al recargar dispositivos o bibliotecas, actualiza HCC y vuelve a autorizar
+  Jellyfin desde la pantalla **Media Server**.
 - Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
   usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 
@@ -647,9 +654,8 @@ muestra el comando para ejecutarlo manualmente.
 ### SMB devuelve `id_error`
 
 - Revisa nombre de recurso, usuario, contraseña y permisos.
-- Prueba el pre-montaje SMB si tu combinación NAS/reproductor necesita preparar la sesión. Si tienes credenciales SMB
-  guardadas, HCC las usa también para ese pre-montaje; si el pre-montaje falla, HCC lo registra y prueba igualmente el
-  montaje real.
+- Si tu combinación NAS/reproductor necesita preparar la sesión SMB, comprueba que las credenciales estén guardadas en
+  HCC y vuelve a probar la ruta.
 - Si se repite `id_error`, evita pulsar "Probar ruta" muchas veces seguidas: algunos OPPO/Chinoppo degradan su API de
   control tras demasiados montajes SMB fallidos. Reinicia físicamente el reproductor antes de volver a probar.
 - Si esa biblioteca ya está verificada por NFS y SMB sigue fallando, usa NFS para ese mapeo.

@@ -52,6 +52,7 @@ def prepare_playback_requests(
     media_location = resolve_player_media_file_location(
         emby_media_path=item_info.path,
         playback_file_format=item_info.container,
+        playback_file_name=item_info.playback_file_name,
         path_mappings=[mapping.model_dump() for mapping in path_mappings],
     )
     output_switch_request = _output_switch_request(
