@@ -1,5 +1,4 @@
 import logging
-import threading
 
 import requests as _requests
 from fastapi import APIRouter, HTTPException
@@ -20,6 +19,7 @@ from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.config_sections import apply_media_server_section
 from home_cinema_control.web.media_server_setup import media_server_setup_service
 from home_cinema_control.web.setup_verification import mark_section_verified
+from home_cinema_control.telemetry.events import TelemetryEvent
 
 
 def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_factory) -> APIRouter:
@@ -334,8 +334,6 @@ def build_media_server_router(api_runtime: WebApiRuntime, media_server_provider_
 def _emit_telemetry_async(api_runtime: WebApiRuntime) -> None:
     if api_runtime.telemetry is None:
         return
-    threading.Thread(
-        target=api_runtime.telemetry.emit,
-        args=("heartbeat",),
-        daemon=True,
-    ).start()
+    api_runtime.runtime.application_event_bus.publish(
+        TelemetryEvent(event_name="heartbeat")
+    )

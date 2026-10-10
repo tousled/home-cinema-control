@@ -17,9 +17,26 @@ from home_cinema_control.playback.startup.models import (
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.timing import PlaybackStartupTimer
+from home_cinema_control.telemetry.events import TelemetryEvent
 
 
 class PlaybackApplicationServiceTest(unittest.TestCase):
+    def test_telemetry_is_published_as_an_application_event(self):
+        publisher = RecordingEventPublisher()
+        service = PlaybackApplicationService(
+            playback_session=FakePlaybackSession(),
+            playback_state=BridgePlaybackState(),
+            reload_config=lambda: None,
+            playback_event_publisher=publisher,
+        )
+
+        service._emit_telemetry("playback_failed", {"component": "oppo"})
+
+        self.assertEqual(1, len(publisher.events))
+        self.assertIsInstance(publisher.events[0], TelemetryEvent)
+        self.assertEqual("playback_failed", publisher.events[0].event_name)
+        self.assertEqual({"component": "oppo"}, publisher.events[0].attributes)
+
     def test_request_playback_ignores_duplicate_active_item(self):
         calls = []
         state = BridgePlaybackState()
@@ -487,6 +504,14 @@ class _FakeActiveThread:
 
     def join(self, timeout=None):
         self._calls.append("join_active")
+
+
+class RecordingEventPublisher:
+    def __init__(self):
+        self.events = []
+
+    def publish(self, event):
+        self.events.append(event)
 
 
 def _intent(*, media_item_id: str) -> PlaybackIntent:

@@ -5,9 +5,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from home_cinema_control.home_automation.home_assistant_consumer import (
+    HomeAssistantWebhookConsumer,
+)
+from home_cinema_control.home_automation.home_assistant_transport import (
     HomeAssistantWebhookClient,
     HomeAssistantWebhookError,
-    HomeAssistantWebhookConsumer,
 )
 from home_cinema_control.home_automation.delivery_status import (
     HomeAssistantDeliveryStatus,

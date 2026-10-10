@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from home_cinema_control.config.models import HccConfig, TelemetryConfig
 from home_cinema_control.telemetry.client import TelemetryClient
-from home_cinema_control.telemetry.events import TelemetryEventName
+from home_cinema_control.telemetry.events import TelemetryEvent, TelemetryEventName
 from home_cinema_control.telemetry.queue import TelemetryQueue
 from home_cinema_control.telemetry.snapshot import build_telemetry_payload
 
@@ -27,11 +27,13 @@ class TelemetryService:
         load_config: Callable[[], dict[str, Any]],
         save_config: Callable[[dict[str, Any]], None],
         client: TelemetryClient | None = None,
+        publish: Callable[[TelemetryEvent], None] | None = None,
     ) -> None:
         self._config_file = Path(config_file)
         self._load_config = load_config
         self._save_config = save_config
         self._client = client or TelemetryClient()
+        self._publish = publish
         self._async_queue: queue.Queue[tuple] | None = None
         self._async_worker: threading.Thread | None = None
         self._async_worker_lock = threading.Lock()
@@ -67,7 +69,10 @@ class TelemetryService:
             }
         )
         self._save_config(updated.model_dump())
-        self.emit("install_opt_in", config=updated)
+        if self._publish is not None:
+            self._publish(TelemetryEvent(event_name="install_opt_in"))
+        else:
+            self.emit("install_opt_in", config=updated)
         return self.status()
 
     def dismiss_prompt(self) -> dict[str, Any]:
@@ -114,6 +119,8 @@ class TelemetryService:
         *,
         event: dict[str, Any] | None = None,
         config: HccConfig | dict[str, Any] | None = None,
+        event_id: str | None = None,
+        occurred_at: str | None = None,
     ) -> bool:
         with self._emit_lock:
             validated = self._validated_config(config)
@@ -122,7 +129,13 @@ class TelemetryService:
             if not validated.telemetry.installation_id:
                 return False
 
-            payload = build_telemetry_payload(validated, event_name, event=event)
+            payload = build_telemetry_payload(
+                validated,
+                event_name,
+                event=event,
+                event_id=event_id,
+                occurred_at=occurred_at,
+            )
             queue = self._queue(validated.telemetry)
             self._flush_queue(validated, queue)
             endpoint_url = _effective_endpoint_url(validated.telemetry)
@@ -138,6 +151,8 @@ class TelemetryService:
         *,
         event: dict[str, Any] | None = None,
         config: HccConfig | dict[str, Any] | None = None,
+        event_id: str | None = None,
+        occurred_at: str | None = None,
     ) -> bool:
         """Accept telemetry without making playback wait for network I/O."""
         try:
@@ -164,13 +179,19 @@ class TelemetryService:
                 self._async_worker.start()
             async_queue = self._async_queue
 
-        task = (event_name, dict(event or {}), validated)
+        task = (event_name, dict(event or {}), validated, event_id, occurred_at)
         try:
             async_queue.put_nowait(task)
         except queue.Full:
             logger.debug("Asynchronous telemetry queue is full; persisting event")
             try:
-                payload = build_telemetry_payload(validated, event_name, event=event)
+                payload = build_telemetry_payload(
+                    validated,
+                    event_name,
+                    event=event,
+                    event_id=event_id,
+                    occurred_at=occurred_at,
+                )
                 with self._emit_lock:
                     self._queue(validated.telemetry).enqueue(payload)
                 return False
@@ -192,7 +213,7 @@ class TelemetryService:
 
     def _run_async_worker(self, async_queue: queue.Queue) -> None:
         while True:
-            event_name, event, config = async_queue.get()
+            event_name, event, config, event_id, occurred_at = async_queue.get()
             try:
                 try:
                     current_config = self._validated_config(None)
@@ -202,7 +223,13 @@ class TelemetryService:
                         != config.telemetry.installation_id
                     ):
                         continue
-                    self.emit(event_name, event=event, config=config)
+                    self.emit(
+                        event_name,
+                        event=event,
+                        config=config,
+                        event_id=event_id,
+                        occurred_at=occurred_at,
+                    )
                 except Exception:
                     logger.debug("Asynchronous telemetry emission failed", exc_info=True)
             finally:

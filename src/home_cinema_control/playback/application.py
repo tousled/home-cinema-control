@@ -47,6 +47,7 @@ from home_cinema_control.playback.state_detector import PlaybackStateDetector
 from home_cinema_control.playback.thread_lifecycle import PlaybackThreadLifecycle
 from home_cinema_control.playback.timing import PlaybackStartupTimer
 from home_cinema_control.telemetry.startup_metrics import build_startup_metrics
+from home_cinema_control.telemetry.events import TelemetryEvent
 
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,6 @@ class PlaybackApplicationService:
         playback_state: BridgePlaybackState,
         reload_config,
         media_server_playback_services: MediaServerPlaybackServices | None = None,
-        telemetry_service=None,
         playback_event_dispatcher=None,
         playback_event_publisher=None,
         playback_state_detector: PlaybackStateDetector | None = None,
@@ -81,7 +81,6 @@ class PlaybackApplicationService:
         self._state = playback_state
         self._reload_config = reload_config
         self._media_server_playback_services = media_server_playback_services
-        self._telemetry_service = telemetry_service
         self._playback_event_publisher = playback_event_publisher or playback_event_dispatcher
         self._playback_state_detector = playback_state_detector or PlaybackStateDetector()
         self._stop_active_playback = stop_active_playback or (
@@ -441,18 +440,17 @@ class PlaybackApplicationService:
         messaging.action(content_kind)
 
     def _emit_telemetry(self, event_name: str, event: dict | None = None) -> None:
-        if self._telemetry_service is None:
+        if self._playback_event_publisher is None:
             return
         try:
-            emit_async = getattr(self._telemetry_service, "emit_async", None)
-            emit = emit_async or self._telemetry_service.emit
-            emit(
-                event_name,
-                event=event,
-                config=self._playback_session.config,
+            self._playback_event_publisher.publish(
+                TelemetryEvent(
+                    event_name=event_name,
+                    attributes=dict(event or {}),
+                )
             )
         except Exception:
-            logger.debug("Playback telemetry emission failed", exc_info=True)
+            logger.debug("Playback telemetry event dispatch failed", exc_info=True)
 
     def _observe_playback_state(self, state: PlaybackObservedState) -> None:
         self._playback_state_detector.observe(

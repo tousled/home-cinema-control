@@ -13,7 +13,7 @@ from home_cinema_control.runtime import (
 )
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.config_service import WebConfigService
-from home_cinema_control.telemetry.service import TelemetryService
+from home_cinema_control.telemetry.events import TelemetryEvent
 
 
 @dataclass(frozen=True)
@@ -58,18 +58,13 @@ def build_web_runtime_composition(
     runtime = application.runtime
     runtime_paths = application.paths
     config_service = WebConfigService(runtime=runtime, config_file=runtime_paths.config_file)
-    telemetry = TelemetryService(
-        config_file=runtime_paths.config_file,
-        load_config=runtime.load_config,
-        save_config=runtime.save_config,
-    )
     api_runtime = WebApiRuntime(
         runtime=runtime,
         config_service=config_service,
         config_file=runtime_paths.config_file,
         log_file=runtime_paths.log_file,
         frontend_dist_dir=runtime_paths.base_dir / "frontend" / "dist",
-        telemetry=telemetry,
+        telemetry=application.telemetry,
         home_assistant_delivery_status=application.home_assistant_delivery_status,
     )
     return WebRuntimeComposition(
@@ -82,7 +77,7 @@ def build_web_runtime_composition(
 def prepare_runtime_for_web(composition: WebRuntimeComposition) -> None:
     config = composition.runtime.load_config()
     configure_logging(config, composition.paths.log_file)
-    composition.api_runtime.telemetry.emit("app_started", config=config)
+    composition.event_bus.publish(TelemetryEvent(event_name="app_started"))
     composition.runtime.start_playback_listener_if_configured()
     composition.update_monitor.start()
 

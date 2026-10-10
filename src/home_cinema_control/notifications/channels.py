@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
-from home_cinema_control.home_automation.home_assistant_consumer import (
+from home_cinema_control.home_automation.home_assistant_transport import (
     HomeAssistantWebhookError,
 )
 from home_cinema_control.notifications.models import UpdateNotification
@@ -55,7 +55,14 @@ class HomeAssistantUpdateChannel(NotificationChannel):
 
     def deliver(self, notification: UpdateNotification) -> NotificationDeliveryResult:
         try:
-            self._client.send_update(notification)
+            self._client.send(
+                {
+                    "event": "hcc_update_available",
+                    "current_version": notification.current_version,
+                    "latest_version": notification.latest_version,
+                    "release_url": notification.release_url,
+                }
+            )
         except HomeAssistantWebhookError as exc:
             logger.warning(
                 "Home Assistant update notification failed | current=%s | latest=%s | "

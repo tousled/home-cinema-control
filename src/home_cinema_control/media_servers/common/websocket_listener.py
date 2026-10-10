@@ -9,7 +9,6 @@ from home_cinema_control import __version__
 from home_cinema_control.config.manager import (
     active_media_server_config,
     load_effective_config,
-    save_effective_config,
 )
 from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_playback_command_control,
@@ -25,7 +24,6 @@ from home_cinema_control.playback.application import PlaybackApplicationService
 from home_cinema_control.playback.dispatch import PlaybackIntentDispatcher
 from home_cinema_control.playback.event_dispatcher import PlaybackEventDispatcher
 from home_cinema_control.playback.state import BridgePlaybackState
-from home_cinema_control.telemetry.service import TelemetryService
 
 
 class MediaServerWebsocketListener:
@@ -271,13 +269,6 @@ class MediaServerWebsocketListener:
             media_server_playback_services=self._playback_services,
             playback_event_publisher=(
                 self._playback_event_publisher or self.playback_event_dispatcher
-            ),
-            telemetry_service=TelemetryService(
-                config_file=self.config_file,
-                load_config=lambda: load_effective_config(self.config_file),
-                save_config=lambda config: save_effective_config(
-                    self.config_file, config
-                ),
             ),
         )
         dispatcher = PlaybackIntentDispatcher(

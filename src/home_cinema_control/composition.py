@@ -7,6 +7,8 @@ from home_cinema_control.application_events import ApplicationEventBus
 from home_cinema_control.devices.tv.factory import create_tv_controller_or_none
 from home_cinema_control.home_automation.home_assistant_consumer import (
     HomeAssistantPlaybackConsumer,
+)
+from home_cinema_control.home_automation.home_assistant_transport import (
     HomeAssistantWebhookClient,
 )
 from home_cinema_control.home_automation.delivery_status import (
@@ -30,6 +32,9 @@ from home_cinema_control.runtime import (
     RuntimePaths,
     build_runtime_paths,
 )
+from home_cinema_control.telemetry.consumer import TelemetryConsumer
+from home_cinema_control.telemetry.events import TelemetryEvent
+from home_cinema_control.telemetry.service import TelemetryService
 
 
 @dataclass(frozen=True)
@@ -39,6 +44,7 @@ class ApplicationComposition:
     event_bus: ApplicationEventBus
     update_monitor: UpdateMonitor
     update_notifications: UpdateNotificationCoordinator
+    telemetry: TelemetryService
     home_assistant_delivery_status: HomeAssistantDeliveryStatus | None
 
 
@@ -56,6 +62,13 @@ def build_application_composition(
         application_event_bus=event_bus,
     )
     config = runtime.load_config()
+    telemetry = TelemetryService(
+        config_file=paths.config_file,
+        load_config=runtime.load_config,
+        save_config=runtime.save_config,
+        publish=event_bus.publish,
+    )
+    event_bus.subscribe(TelemetryEvent, TelemetryConsumer(telemetry))
     notification_state_path = paths.config_file.with_name("hcc_notifications.sqlite")
     notification_state_store = NotificationStateStore(notification_state_path)
     home_assistant = config.get("home_assistant") or {}
@@ -107,6 +120,7 @@ def build_application_composition(
         event_bus=event_bus,
         update_monitor=update_monitor,
         update_notifications=update_notifications,
+        telemetry=telemetry,
         home_assistant_delivery_status=(
             home_assistant_delivery_status if home_assistant_client is not None else None
         ),

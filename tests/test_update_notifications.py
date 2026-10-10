@@ -151,8 +151,8 @@ class FakeHomeAssistant:
     def __init__(self):
         self.notifications = []
 
-    def send_update(self, notification):
-        self.notifications.append(notification)
+    def send(self, payload):
+        self.notifications.append(payload)
 
 
 class FakeTv:
