@@ -173,7 +173,7 @@ El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleg
 
 Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
 dispositivos
-y bibliotecas funcione — ver [Problemas frecuentes](#13-problemas-frecuentes).
+y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
 
 ## 6. Media Player: localiza el OPPO/Chinoppo
 
@@ -355,16 +355,7 @@ diagnóstico y guardar solo cuando entiendes qué ruta funciona.
   <img src="assets/screenshots/install/09-media-paths-manual.png" alt="Modo manual de rutas de Home Cinema Control" width="860"/>
 </p>
 
-### 7.7 Lo que HCC hace mejor aquí
-
-- detecta bibliotecas y rutas físicas desde Emby;
-- permite elegir qué bibliotecas interceptar;
-- permite configurar NFS o SMB/CIFS por mapeo;
-- puede probar si el OPPO/Chinoppo monta la ruta;
-- marca rutas como verificadas, pendientes, revisables o con error;
-- permite crear una ruta manual si Emby no devuelve las carpetas esperadas o si tu estructura necesita ajustes.
-
-Conceptos clave:
+### 7.7 Conceptos clave del mapeo
 
 | Campo             | Qué significa                                                        |
 |-------------------|----------------------------------------------------------------------|
@@ -616,18 +607,7 @@ La validación real de hardware sigue siendo importante: OPPO original, clones C
 comportarse de forma distinta. Si algo falla, copia el resumen de soporte desde **Diagnóstico** y revisa los logs
 filtrando por avisos o errores.
 
-## 13. Configuración del NAS y del reproductor
-
-HCC no cambia permisos del NAS ni configura el reproductor por ti. Antes de probar rutas:
-
-- el NAS debe compartir la carpeta por NFS o SMB/CIFS;
-- el OPPO/Chinoppo debe poder ver ese recurso desde su navegador de red;
-- si usas SMB, revisa usuario, contraseña y compatibilidad SMB de tu NAS;
-- si usas NFS, revisa permisos de export y acceso desde la IP del reproductor.
-
-Para capturas de Synology, QNAP, Windows, Unraid y M9702/M920x, usa el hilo de AVPasion enlazado al principio.
-
-## 14. Actualización
+## 13. Actualización
 
 Si instalaste con Docker Compose:
 
@@ -663,7 +643,7 @@ que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), no reconstruy
 Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
 muestra el comando para ejecutarlo manualmente.
 
-## 15. Problemas frecuentes
+## 14. Problemas frecuentes
 
 ### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
 

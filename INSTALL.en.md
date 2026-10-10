@@ -154,7 +154,7 @@ This screen avoids manual token editing, reloads the media server's devices, and
 mapping.
 
 If you use Jellyfin, the account you authorize HCC with must be an **administrator** for device and library reload
-to work — see [Frequent Issues](#13-frequent-issues).
+to work — see [Frequent Issues](#14-frequent-issues).
 
 ## 6. Media Player
 
@@ -328,12 +328,7 @@ diagnostic, and save only when you know which route works.
   <img src="assets/screenshots/install/09-media-paths-manual.png" alt="Manual path mapping mode in Home Cinema Control" width="860"/>
 </p>
 
-### 7.7 What HCC Improves Here
-
-HCC can discover Emby libraries, choose intercepted libraries, configure NFS or SMB/CIFS per mapping, test the player
-mount, and fall back to manual mapping when needed.
-
-HCC does not silently switch protocols. If a mapping is SMB, playback uses SMB. If it is NFS, playback uses NFS.
+### 7.7 Mapping Concepts
 
 | Field       | Meaning                                                         |
 |-------------|-----------------------------------------------------------------|
@@ -556,18 +551,7 @@ Real hardware validation still matters: original OPPO players, Chinoppo clones, 
 can behave differently. If something fails, copy the support summary from **Diagnostics** and filter logs by warnings or
 errors.
 
-## 13. NAS And Player Preparation
-
-HCC does not change NAS permissions or player settings. Before testing paths:
-
-- the NAS must expose the folder via NFS or SMB/CIFS;
-- the player must see that share in its own network browser;
-- SMB users should verify username, password, and NAS SMB compatibility;
-- NFS users should verify export permissions for the player IP.
-
-Use the AVPasion thread linked above for platform-specific screenshots.
-
-## 14. Updating
+## 13. Updating
 
 If you installed with Docker Compose:
 
@@ -602,7 +586,7 @@ version you want and redeploy by re-pulling the image, not by rebuilding from th
 
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
-## 15. Frequent Issues
+## 14. Frequent Issues
 
 ### Jellyfin: devices and libraries don't show up when you click "Reload"
 
