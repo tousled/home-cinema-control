@@ -173,9 +173,18 @@ escenas ni entidades concretas: Home Assistant decide qué automatización ejecu
 En la pantalla **Home Assistant**, configura la URL de tu instancia y el ID del webhook, activa la entrega y guarda.
 El ID se almacena en `secrets.json`, no se muestra en la interfaz y no se incluye en los diagnósticos. Reinicia HCC
 después de guardar para que el listener de reproducción cargue el consumer.
+La pantalla separa la configuración de la última entrega conocida para que puedas comprobar el estado sin confundirlo
+con
+una prueba artificial del webhook.
 
 El payload contiene `started`, `paused`, `resumed` o `stopped`, además de `event_id`, `session_id`, `media_type`,
 `title`, `source` y `player` cuando están disponibles.
+
+La pantalla muestra también el estado de la última entrega real: pendiente del primer evento, correcta o fallida. Este
+estado se conserva entre reinicios de HCC y no se envía ningún webhook artificial para comprobarlo.
+Si cambias la URL o el webhook, el estado vuelve a pendiente hasta que la nueva configuración entregue un evento.
+Si la configuración no puede cargarse, HCC muestra un error accionable y permite reintentarlo sin presentar valores por
+defecto como si fueran la configuración real.
 
 Cuando HCC detecta una nueva versión en segundo plano, también puede enviar el evento de aplicación
 `hcc_update_available` con `current_version`, `latest_version` y `release_url`. Home Assistant decide si lo convierte en

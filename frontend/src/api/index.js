@@ -103,6 +103,7 @@ export const api = {
     // readiness
     getConfigReadiness: () => request('GET', '/config/readiness'),
     clearSmbCredentials: () => request('POST', '/config/smb/clear'),
+    getHomeAssistantDeliveryStatus: () => request('GET', '/home-assistant/status'),
 
     // media-server discovery
     getLibraryPaths: () => request('GET', '/media-server/library-paths'),

@@ -4,11 +4,12 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from home_cinema_control.home_automation.delivery_status import HomeAssistantDeliveryStatus
 from home_cinema_control.web.api_app import create_api_app
 from home_cinema_control.web.api_runtime import WebApiRuntime
 
 
-def _make_client(*, config=None, sanitized=None):
+def _make_client(*, config=None, sanitized=None, home_assistant_delivery_status=None):
     config = config or {}
     sanitized = sanitized or config
 
@@ -31,8 +32,37 @@ def _make_client(*, config=None, sanitized=None):
         config_file=Path("/tmp/config.json"),
         log_file=Path("/tmp/emby_xnoppo_client_logging.log"),
         frontend_dist_dir=Path("/tmp/frontend/dist"),
+        home_assistant_delivery_status=home_assistant_delivery_status,
     )
     return TestClient(create_api_app(api_runtime)), runtime, config_service
+
+
+class HomeAssistantDeliveryStatusRouteTest(unittest.TestCase):
+    def test_returns_disabled_when_home_assistant_is_not_configured(self):
+        client, _, _ = _make_client()
+
+        response = client.get("/api/v1/home-assistant/status")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("disabled", response.json()["status"])
+
+    def test_returns_latest_runtime_delivery_status(self):
+        status = HomeAssistantDeliveryStatus()
+        status.mark_delivered("started")
+        client, _, _ = _make_client(home_assistant_delivery_status=status)
+
+        response = client.get("/api/v1/home-assistant/status")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {
+                "status": "delivered",
+                "last_event": "started",
+                "last_attempt_at": response.json()["last_attempt_at"],
+                "detail": None,
+            },
+            response.json(),
+        )
 
 
 class ConfigReadinessRouteTest(unittest.TestCase):

@@ -441,6 +441,9 @@ In HCC's **Home Assistant** screen:
 5. Click **Save**.
 6. Restart HCC using the link shown on the screen so the playback listener loads the configuration.
 
+The screen keeps event delivery setup and the latest known delivery in separate blocks. It does not send an artificial
+webhook to check the status.
+
 HCC stores the webhook ID in `/config/secrets.json`, does not return it to the UI, and excludes it from diagnostics. The
 integration does not require a Home Assistant add-on or custom Home Assistant integration.
 
@@ -453,6 +456,15 @@ HCC can send these events:
 
 The JSON contains the event type, `event_id`, and `session_id`, plus `media_type`, `title`, `source`, and `player` when
 available. If Home Assistant is unreachable, HCC logs the error and playback continues.
+
+The Home Assistant screen shows the latest real delivery status. It starts as pending until the first event, then
+reports
+whether delivery succeeded or failed. This indicator is preserved across HCC restarts and does not send test requests to
+the webhook.
+If you change the URL or webhook ID, HCC treats the new configuration as pending until it delivers an event
+successfully.
+If HCC cannot load this screen's configuration, it shows an actionable error with a **Try again** button instead of an
+empty form filled with default values.
 
 When HCC detects a newer release in the background, it also sends this compact payload:
 

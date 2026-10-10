@@ -7,7 +7,7 @@ from collections.abc import Callable
 from home_cinema_control import __version__
 from home_cinema_control.notifications.models import UpdateAvailableEvent
 from home_cinema_control.notifications.service_helpers import build_update_notification
-from home_cinema_control.web.version_update import get_cached_version_info
+from home_cinema_control.versioning.checker import get_cached_version_info
 
 logger = logging.getLogger(__name__)
 

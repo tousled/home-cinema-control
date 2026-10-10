@@ -37,7 +37,7 @@
               <div class="session-left">
                 <img v-if="posterSrc && !posterError" :src="posterSrc" alt="" class="session-poster"
                      @error="posterError = true"/>
-                <div class="flex gap-2 mt-2">
+                <div class="status-playback-actions">
                   <button class="btn-ghost" @click="sendKey('STP')">■ Stop</button>
                   <button class="btn-ghost" @click="sendKey('PLA')">▶ Play</button>
                   <button class="btn-ghost" @click="sendKey('PAU')">⏸ Pause</button>
@@ -77,7 +77,7 @@
             <ShieldAlert :size="13" :stroke-width="2.3"/>
             {{ $t('x-diag-section-last-failure') }}
           </h2>
-          <div class="flex gap-2">
+          <div class="status-diagnostic-actions">
             <IconActionButton :label="$t('x-diag-copy-summary')" icon="copy" @click="copySupportSummary"/>
             <IconActionButton
                 :label="$t('x-diag-send-diagnostics')"
@@ -979,6 +979,19 @@ watch(loading, async (isLoading) => {
   display: block;
 }
 
+.status-playback-actions,
+.status-diagnostic-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.status-diagnostic-actions {
+  max-width: 100%;
+}
+
 .telemetry-table {
   display: grid;
   gap: 1px;
@@ -1082,6 +1095,10 @@ watch(loading, async (isLoading) => {
 }
 
 @media (max-width: 640px) {
+  .status-diagnostic-actions {
+    flex: 1 1 100%;
+  }
+
   .session-with-poster {
     flex-direction: column;
     gap: 12px;
@@ -1095,6 +1112,10 @@ watch(loading, async (isLoading) => {
 
   .session-poster {
     width: 64px;
+  }
+
+  .status-playback-actions {
+    flex: 1;
   }
 }
 

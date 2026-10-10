@@ -70,6 +70,7 @@ def build_web_runtime_composition(
         log_file=runtime_paths.log_file,
         frontend_dist_dir=runtime_paths.base_dir / "frontend" / "dist",
         telemetry=telemetry,
+        home_assistant_delivery_status=application.home_assistant_delivery_status,
     )
     return WebRuntimeComposition(
         application=application,

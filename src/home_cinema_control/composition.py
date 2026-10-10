@@ -9,6 +9,13 @@ from home_cinema_control.home_automation.home_assistant_consumer import (
     HomeAssistantPlaybackConsumer,
     HomeAssistantWebhookClient,
 )
+from home_cinema_control.home_automation.delivery_status import (
+    HomeAssistantDeliveryStatus,
+    home_assistant_configuration_fingerprint,
+)
+from home_cinema_control.home_automation.delivery_status_store import (
+    HomeAssistantDeliveryStatusStore,
+)
 from home_cinema_control.notifications.channels import (
     HomeAssistantUpdateChannel,
     TelevisionUpdateChannel,
@@ -32,6 +39,7 @@ class ApplicationComposition:
     event_bus: ApplicationEventBus
     update_monitor: UpdateMonitor
     update_notifications: UpdateNotificationCoordinator
+    home_assistant_delivery_status: HomeAssistantDeliveryStatus | None
 
 
 def build_application_composition(
@@ -48,10 +56,28 @@ def build_application_composition(
         application_event_bus=event_bus,
     )
     config = runtime.load_config()
-    home_assistant_client = _build_home_assistant_client(config)
+    notification_state_path = paths.config_file.with_name("hcc_notifications.sqlite")
+    notification_state_store = NotificationStateStore(notification_state_path)
+    home_assistant = config.get("home_assistant") or {}
+    base_url = str(home_assistant.get("base_url") or "").strip()
+    webhook_id = str(home_assistant.get("webhook_id") or "").strip()
+    configuration_fingerprint = None
+    if home_assistant.get("enabled") and base_url and webhook_id:
+        configuration_fingerprint = home_assistant_configuration_fingerprint(
+            base_url,
+            webhook_id,
+        )
+    home_assistant_delivery_status = HomeAssistantDeliveryStatus(
+        store=HomeAssistantDeliveryStatusStore(notification_state_path),
+        configuration_fingerprint=configuration_fingerprint,
+    )
+    home_assistant_client = _build_home_assistant_client(
+        config,
+        delivery_status=home_assistant_delivery_status,
+    )
     channels = _build_notification_channels(config, runtime, home_assistant_client)
     update_notifications = UpdateNotificationCoordinator(
-        state_store=NotificationStateStore(paths.config_file.with_name("hcc_notifications.sqlite")),
+        state_store=notification_state_store,
         channels=channels,
     )
     event_bus.subscribe(UpdateAvailableEvent, update_notifications)
@@ -81,6 +107,9 @@ def build_application_composition(
         event_bus=event_bus,
         update_monitor=update_monitor,
         update_notifications=update_notifications,
+        home_assistant_delivery_status=(
+            home_assistant_delivery_status if home_assistant_client is not None else None
+        ),
     )
 
 
@@ -107,7 +136,11 @@ def _build_notification_channels(
     return channels
 
 
-def _build_home_assistant_client(config: dict):
+def _build_home_assistant_client(
+    config: dict,
+    *,
+    delivery_status: HomeAssistantDeliveryStatus | None = None,
+):
     home_assistant = config.get("home_assistant") or {}
     if not home_assistant.get("enabled"):
         return None
@@ -119,4 +152,5 @@ def _build_home_assistant_client(config: dict):
         base_url=base_url,
         webhook_id=webhook_id,
         timeout_seconds=float(home_assistant.get("timeout_seconds", 3.0)),
+        delivery_status=delivery_status,
     )

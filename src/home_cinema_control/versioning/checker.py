@@ -1,3 +1,5 @@
+"""Provider-neutral release lookup and version comparison services."""
+
 import re
 import threading
 import time
@@ -23,17 +25,6 @@ class VersionInfo:
     asset_url: str
     new_version: bool
     error: str = ""
-
-    def as_legacy_response(self) -> dict:
-        return {
-            "version": self.latest_version,
-            "file": self.asset_url,
-            "new_version": self.new_version,
-            "current_version": self.current_version,
-            "latest_tag": self.latest_tag,
-            "release_url": self.release_url,
-            "error": self.error,
-        }
 
 
 def get_cached_version_info(config, current_version, *, force=False, http_client=requests):

@@ -485,6 +485,9 @@ En la pantalla **Home Assistant** de HCC:
 5. Pulsa **Guardar**.
 6. Reinicia HCC desde el enlace que aparece en la propia pantalla para que el listener cargue la configuración.
 
+La pantalla muestra la configuración de entrega y la última entrega conocida en bloques separados. El estado no se
+comprueba enviando un webhook artificial.
+
 HCC puede enviar estos eventos:
 
 - `started`
@@ -494,6 +497,15 @@ HCC puede enviar estos eventos:
 
 El JSON incluye el tipo de evento, `event_id`, `session_id` y, cuando están disponibles, `media_type`, `title`, `source`
 y `player`. Si Home Assistant no es accesible, HCC registra el error y el flujo de reproducción continúa.
+
+La pantalla de Home Assistant muestra el estado de la última entrega real. Antes del primer evento aparece como
+pendiente;
+después indica si la entrega fue correcta o fallida. Este indicador se conserva entre reinicios de HCC y no envía
+peticiones de prueba al webhook.
+Si cambias la URL o el ID del webhook, HCC considera la nueva configuración pendiente hasta que entregue un evento
+correctamente.
+Si HCC no puede cargar la configuración de esta pantalla, muestra un error con la opción **Reintentar** y no presenta un
+formulario vacío con valores por defecto.
 
 Cuando HCC detecta una nueva versión en segundo plano, envía además este payload compacto:
 

@@ -15,7 +15,11 @@ class PlaybackEventDispatcher(ApplicationEventBus):
     """Compatibility adapter that keeps the legacy playback-only contract."""
 
     def register(self, consumer: PlaybackEventConsumer) -> None:
-        self.subscribe(PlaybackEvent, consumer)
+        self.subscribe(
+            PlaybackEvent,
+            consumer,
+            ordering_key=lambda event: event.session_id,
+        )
 
 __all__ = [
     "ApplicationEventBus",
