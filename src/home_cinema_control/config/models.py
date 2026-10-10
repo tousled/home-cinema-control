@@ -139,6 +139,15 @@ class TelemetryConfig(BaseModel):
     queue_max_age_days: int = 7
 
 
+class HomeAssistantConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    enabled: bool = False
+    base_url: str = ""
+    webhook_id: str = ""
+    timeout_seconds: float = 3.0
+
+
 class ProviderPlaybackConfig(BaseModel):
     """What HCC needs to detect and translate playback from one provider.
 
@@ -209,3 +218,4 @@ class HccConfig(BaseModel):
     media_servers: MediaServersConfig = Field(default_factory=MediaServersConfig)
     smb: SmbConfig = Field(default_factory=SmbConfig)
     telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)
+    home_assistant: HomeAssistantConfig = Field(default_factory=HomeAssistantConfig)

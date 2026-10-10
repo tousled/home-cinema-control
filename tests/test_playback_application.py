@@ -17,9 +17,26 @@ from home_cinema_control.playback.startup.models import (
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.timing import PlaybackStartupTimer
+from home_cinema_control.telemetry.events import TelemetryEvent
 
 
 class PlaybackApplicationServiceTest(unittest.TestCase):
+    def test_telemetry_is_published_as_an_application_event(self):
+        publisher = RecordingEventPublisher()
+        service = PlaybackApplicationService(
+            playback_session=FakePlaybackSession(),
+            playback_state=BridgePlaybackState(),
+            reload_config=lambda: None,
+            playback_event_publisher=publisher,
+        )
+
+        service._emit_telemetry("playback_failed", {"component": "oppo"})
+
+        self.assertEqual(1, len(publisher.events))
+        self.assertIsInstance(publisher.events[0], TelemetryEvent)
+        self.assertEqual("playback_failed", publisher.events[0].event_name)
+        self.assertEqual({"component": "oppo"}, publisher.events[0].attributes)
+
     def test_request_playback_ignores_duplicate_active_item(self):
         calls = []
         state = BridgePlaybackState()
@@ -170,6 +187,7 @@ class OnStartupCompletedTest(unittest.TestCase):
             playback_state=BridgePlaybackState(),
             reload_config=lambda: None,
             media_server_playback_services=SimpleNamespace(
+                create_observed_playback_consumer=lambda **kwargs: object(),
                 create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
             ),
         )
@@ -212,6 +230,34 @@ class OnStartupCompletedTest(unittest.TestCase):
         )
 
         self.assertEqual("Playing", service._state.playstate)
+
+    def test_startup_metric_serialization_failure_does_not_interrupt_playback(self):
+        service = self._service()
+        emitted = []
+        service._emit_telemetry = lambda event_name, event=None: emitted.append(
+            (event_name, event)
+        )
+        messaging = SimpleNamespace(action=lambda content_kind: None)
+
+        with patch(
+            "home_cinema_control.playback.application.build_startup_metrics",
+            side_effect=RuntimeError("serialization failed"),
+        ):
+            service._on_startup_completed(
+                SimpleNamespace(),
+                intent=_intent(media_item_id="1"),
+                movie="/movies/aquaman.mkv",
+                messaging=messaging,
+                content_kind=MediaContentKind.MOVIE,
+                playback_wiring=SimpleNamespace(
+                    playback_event_publisher=None,
+                    during_playback_orchestrator=SimpleNamespace(),
+                ),
+                startup_timer=PlaybackStartupTimer(),
+            )
+
+        self.assertEqual("Playing", service._state.playstate)
+        self.assertEqual([("playback_started", {})], emitted)
 
 
 class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
@@ -305,6 +351,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                 playback_context_from_intent=lambda intent: SimpleNamespace(),
                 create_playback_event_publisher=lambda client, *, bridge_session_id, context: None,
                 create_track_resolver=lambda playback_session: SimpleNamespace(),
+                create_observed_playback_consumer=lambda **kwargs: object(),
                 create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
             ),
         )
@@ -457,6 +504,14 @@ class _FakeActiveThread:
 
     def join(self, timeout=None):
         self._calls.append("join_active")
+
+
+class RecordingEventPublisher:
+    def __init__(self):
+        self.events = []
+
+    def publish(self, event):
+        self.events.append(event)
 
 
 def _intent(*, media_item_id: str) -> PlaybackIntent:

@@ -1,7 +1,7 @@
 import unittest
 
-import home_cinema_control.web.version_update as version_update_module
-from home_cinema_control.web.version_update import (
+import home_cinema_control.versioning.checker as version_update_module
+from home_cinema_control.versioning.checker import (
     check_application_version,
     display_version,
     find_previous_version,

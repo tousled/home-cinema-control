@@ -50,6 +50,11 @@ class SonyFactoryTest(unittest.TestCase):
         controller = create_tv_controller(_config())
         self.assertIsInstance(controller, SonyTvController)
 
+    def test_native_notifications_are_explicitly_unsupported(self):
+        result = SonyTvController(_config()).show_notification("HCC 1.4.1 disponible")
+
+        self.assertEqual(DeviceCommandStatus.SKIPPED, result.status)
+
 
 class SonyCallTest(unittest.TestCase):
     def test_call_raises_before_any_http_request_when_ip_missing(self):

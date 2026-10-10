@@ -1,4 +1,5 @@
 import json
+import inspect
 import logging
 import logging.handlers
 import os
@@ -15,6 +16,7 @@ from home_cinema_control.config.manager import is_configured, save_effective_con
 from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import PlaybackDiagnostic
 from home_cinema_control.playback.dispatch import bridge_playback_is_active
+from home_cinema_control.application_events import ApplicationEventBus
 
 
 @dataclass(frozen=True)
@@ -117,15 +119,27 @@ class HomeCinemaControlRuntime:
         *,
         paths: RuntimePaths,
         version: str,
-            media_server_provider_factory=None,
+        media_server_provider_factory=None,
         exit_process=os._exit,
+        application_event_bus: ApplicationEventBus | None = None,
+        application_event_dispatcher: ApplicationEventBus | None = None,
+        update_notification_service=None,
+        update_monitor=None,
     ):
         self.paths = paths
         self.version = version
         self._media_server_provider_factory = (
-                media_server_provider_factory or MediaServerProviderFactory()
+            media_server_provider_factory or MediaServerProviderFactory()
         )
         self._exit_process = exit_process
+        self.application_event_bus = (
+            application_event_bus
+            or application_event_dispatcher
+            or ApplicationEventBus()
+        )
+        self.application_event_dispatcher = self.application_event_bus
+        self.update_notification_service = update_notification_service
+        self.update_monitor = update_monitor
         self.playback_listener = None
         self.playback_listener_thread = None
 
@@ -164,11 +178,21 @@ class HomeCinemaControlRuntime:
 
     def start_playback_listener(self, *, config: dict, language: dict) -> None:
         provider = self._media_server_provider_factory.create(config)
-        self.playback_listener = provider.create_playback_listener(
-            config=config,
-            config_file=str(self.paths.config_file),
-            language=language,
-        )
+        create_listener = provider.create_playback_listener
+        listener_kwargs = {
+            "config": config,
+            "config_file": str(self.paths.config_file),
+            "language": language,
+        }
+        try:
+            supports_event_publisher = (
+                "playback_event_publisher" in inspect.signature(create_listener).parameters
+            )
+        except (TypeError, ValueError):
+            supports_event_publisher = False
+        if supports_event_publisher:
+            listener_kwargs["playback_event_publisher"] = self.application_event_bus
+        self.playback_listener = create_listener(**listener_kwargs)
 
         self.playback_listener_thread = threading.Thread(
             target=_run_playback_listener,
@@ -300,6 +324,9 @@ class HomeCinemaControlRuntime:
         logging.info("Restarting process")
         try:
             self.stop_playback_listener()
+            if self.update_monitor is not None:
+                self.update_monitor.stop()
+            self.application_event_bus.shutdown(drain=True)
         except Exception:
             logging.exception(
                 "Failed to stop the playback listener during process restart"

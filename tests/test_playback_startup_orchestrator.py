@@ -11,6 +11,32 @@ from home_cinema_control.playback.startup.orchestrator import (
 
 
 class PlaybackStartupOrchestratorTest(unittest.TestCase):
+    def test_output_switch_uses_the_shared_startup_timer(self):
+        step_timer = RecordingStepTimer()
+        orchestrator = PlaybackStartupOrchestrator(
+            television=RecordingTelevisionOutput(current_app_id="com.emby.app"),
+            av_receiver=RecordingAvReceiverOutput(),
+            media_player=UnusedOppoPlayback(),
+            step_timer=step_timer,
+        )
+
+        orchestrator.switch_playback_output_to_oppo(
+            PlaybackOutputSwitchRequest(
+                tv_input=TvInputTarget(input_id="HDMI_3"),
+                av_input_id="SIMPLAY",
+            )
+        )
+
+        self.assertEqual(
+            [
+                "read_current_tv_app",
+                "switch_tv_to_oppo_input",
+                "power_on_av_receiver",
+                "switch_av_receiver_to_oppo_input",
+            ],
+            step_timer.measured_steps,
+        )
+
     def test_output_switch_uses_preserved_return_app_without_reading_current_tv_app(self):
         television = RecordingTelevisionOutput(current_app_id="com.webos.app.hdmi3")
         orchestrator = PlaybackStartupOrchestrator(
@@ -150,6 +176,23 @@ class RecordingAvReceiverOutput:
 
 class UnusedOppoPlayback:
     pass
+
+
+class RecordingStepTimer:
+    def __init__(self):
+        self.measured_steps = []
+
+    def measure_step(self, step_name):
+        self.measured_steps.append(step_name)
+        return _NoopContextManager()
+
+
+class _NoopContextManager:
+    def __enter__(self):
+        return None
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
 
 
 if __name__ == "__main__":

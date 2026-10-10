@@ -38,6 +38,7 @@ class MediaServerProvider(Protocol):
         config: dict,
         config_file: str,
         language: dict,
+        playback_event_publisher=None,
     ) -> MediaServerPlaybackListener: ...
 
     def setup_service(self) -> MediaServerSetupService: ...

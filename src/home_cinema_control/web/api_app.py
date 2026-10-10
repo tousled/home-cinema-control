@@ -1,5 +1,4 @@
 import logging
-import threading
 
 from fastapi import APIRouter, BackgroundTasks, Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +11,7 @@ from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.av_routes import build_av_router
 from home_cinema_control.web.config_sections import apply_config_section
 from home_cinema_control.web.media_server_routes import build_media_server_router
+from home_cinema_control.web.home_assistant_routes import build_home_assistant_router
 from home_cinema_control.web.migration import (
     apply_migration,
     import_legacy_config,
@@ -24,6 +24,7 @@ from home_cinema_control.web.paths_routes import build_paths_router
 from home_cinema_control.web.static_assets import read_binary_asset
 from home_cinema_control.web.support_report import build_diagnostic_report, clamp_log_lines
 from home_cinema_control.web.telemetry_routes import build_telemetry_router
+from home_cinema_control.telemetry.events import TelemetryEvent
 from home_cinema_control.web.tv_routes import build_tv_router
 from home_cinema_control.web.version_routes import build_version_router
 
@@ -203,6 +204,7 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
     app.include_router(
         build_media_server_router(api_runtime, media_server_provider_factory)
     )
+    app.include_router(build_home_assistant_router(api_runtime))
     app.include_router(router)
     app.include_router(build_tv_router(api_runtime))
     app.include_router(build_av_router(api_runtime))
@@ -229,8 +231,6 @@ def create_api_app(api_runtime: WebApiRuntime) -> FastAPI:
 def _emit_telemetry_async(api_runtime: WebApiRuntime) -> None:
     if api_runtime.telemetry is None:
         return
-    threading.Thread(
-        target=api_runtime.telemetry.emit,
-        args=("heartbeat",),
-        daemon=True,
-    ).start()
+    api_runtime.runtime.application_event_bus.publish(
+        TelemetryEvent(event_name="heartbeat")
+    )

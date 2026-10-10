@@ -25,7 +25,6 @@ from home_cinema_control.playback.startup.models import (
     PlaybackOutputSwitchResult,
     PlaybackStartupRequest,
     PlaybackStartupResult,
-    PlayerPlaybackStartResult,
 )
 from home_cinema_control.playback.startup.completion import (
     PlayMediaItemRequest,
@@ -46,7 +45,7 @@ class PlaybackOrchestrationRequest:
     finish_idle_confirmation_polls: int | Callable[[], int] = 5
     on_startup_waiting: Callable[[int], None] | None = None
     on_tracks_applying: Callable[[], None] | None = None
-    on_startup_completed: Callable[[PlayerPlaybackStartResult], None] | None = None
+    on_startup_completed: Callable[[PlaybackStartupResult], None] | None = None
 
 
 @dataclass(frozen=True)
@@ -113,7 +112,7 @@ class PlaybackOrchestrator:
                 request.startup_completion_request
             )
             if request.on_startup_completed is not None:
-                request.on_startup_completed(startup_result.media_player_start_result)
+                request.on_startup_completed(startup_result)
 
             self._wire_deferred_audio_if_needed(startup_completion_result)
 

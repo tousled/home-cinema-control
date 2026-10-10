@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from home_cinema_control.telemetry.events import RoadmapInterest
+from home_cinema_control.telemetry.events import RoadmapInterest, TelemetryEvent
 from home_cinema_control.telemetry.service import TelemetryService
 from home_cinema_control.web.api_runtime import WebApiRuntime
 
@@ -23,6 +23,8 @@ def build_telemetry_router(api_runtime: WebApiRuntime) -> APIRouter:
     router = APIRouter(prefix="/api/v1/telemetry")
 
     def service() -> TelemetryService:
+        if api_runtime.telemetry is not None:
+            return api_runtime.telemetry
         return TelemetryService(
             config_file=api_runtime.config_file,
             load_config=api_runtime.config_service.load_config,
@@ -70,10 +72,18 @@ def build_telemetry_router(api_runtime: WebApiRuntime) -> APIRouter:
             event: dict = {"interests": body.interests}
             if body.comment:
                 event["comment"] = body.comment[:200].strip()
-            telemetry_service.emit(
-                "roadmap_interest_submitted",
-                event=event,
-            )
+            if api_runtime.telemetry is None:
+                telemetry_service.emit(
+                    "roadmap_interest_submitted",
+                    event=event,
+                )
+            else:
+                api_runtime.runtime.application_event_bus.publish(
+                    TelemetryEvent(
+                        event_name="roadmap_interest_submitted",
+                        attributes=event,
+                    )
+                )
             return telemetry_service.status()
         except Exception as exc:
             logging.exception("telemetry_roadmap_interest failed")

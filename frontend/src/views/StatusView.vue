@@ -37,7 +37,7 @@
               <div class="session-left">
                 <img v-if="posterSrc && !posterError" :src="posterSrc" alt="" class="session-poster"
                      @error="posterError = true"/>
-                <div class="flex gap-2 mt-2">
+                <div class="status-playback-actions">
                   <button class="btn-ghost" @click="sendKey('STP')">■ Stop</button>
                   <button class="btn-ghost" @click="sendKey('PLA')">▶ Play</button>
                   <button class="btn-ghost" @click="sendKey('PAU')">⏸ Pause</button>
@@ -77,7 +77,7 @@
             <ShieldAlert :size="13" :stroke-width="2.3"/>
             {{ $t('x-diag-section-last-failure') }}
           </h2>
-          <div class="flex gap-2">
+          <div class="status-diagnostic-actions">
             <IconActionButton :label="$t('x-diag-copy-summary')" icon="copy" @click="copySupportSummary"/>
             <IconActionButton
                 :label="$t('x-diag-send-diagnostics')"
@@ -386,7 +386,8 @@
       <!-- Actions -->
       <div class="icon-action-row" style="margin-top:16px">
         <IconActionButton :label="$t('x-status-refresh')" icon="refresh" @click="refreshState"/>
-        <button :disabled="restarting" class="btn-service-action" @click="restartService">
+        <button id="restart-service-button" :disabled="restarting" class="btn-service-action"
+                style="scroll-margin-top:24px" @click="restartService">
           {{ restarting ? $t('x-status-restarting') : $t('x-status-restart') }}
         </button>
       </div>
@@ -456,8 +457,9 @@
 </template>
 
 <script setup>
-import {computed, onMounted, ref} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRoute} from 'vue-router'
 import {Activity, Cpu, PackageCheck, ShieldAlert} from '@lucide/vue'
 import {api} from '../api/index.js'
 import heroBg from '../assets/backgrounds/bg-status.png'
@@ -471,6 +473,7 @@ import {useConfigSectionSave} from '../composables/useConfigSectionSave.js'
 import {useDiagnosticText} from '../composables/useDiagnosticText.js'
 
 const {t} = useI18n()
+const route = useRoute()
 const toast = useToast()
 const versionStore = useVersionStore()
 const {saveSection} = useConfigSectionSave()
@@ -856,6 +859,17 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+watch(loading, async (isLoading) => {
+  if (isLoading || route.hash !== '#restart-service-button') return
+  await nextTick()
+  requestAnimationFrame(() => {
+    document.getElementById('restart-service-button')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  })
+})
 </script>
 
 <style scoped>
@@ -965,6 +979,19 @@ onMounted(async () => {
   display: block;
 }
 
+.status-playback-actions,
+.status-diagnostic-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.status-diagnostic-actions {
+  max-width: 100%;
+}
+
 .telemetry-table {
   display: grid;
   gap: 1px;
@@ -1068,6 +1095,10 @@ onMounted(async () => {
 }
 
 @media (max-width: 640px) {
+  .status-diagnostic-actions {
+    flex: 1 1 100%;
+  }
+
   .session-with-poster {
     flex-direction: column;
     gap: 12px;
@@ -1081,6 +1112,10 @@ onMounted(async () => {
 
   .session-poster {
     width: 64px;
+  }
+
+  .status-playback-actions {
+    flex: 1;
   }
 }
 

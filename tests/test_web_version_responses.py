@@ -5,7 +5,7 @@ from home_cinema_control.web.version_responses import (
     check_version_response,
     update_version_response,
 )
-from home_cinema_control.web.version_update import VersionInfo
+from home_cinema_control.versioning.checker import VersionInfo
 
 
 class WebVersionResponsesTest(unittest.TestCase):

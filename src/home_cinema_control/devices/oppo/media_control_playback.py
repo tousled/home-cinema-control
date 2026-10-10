@@ -110,9 +110,12 @@ class OppoMediaControlPlayback:
                 )
 
             mounted_share = mount_result.mounted_share
-            playback_response = self._start_mounted_share_playback(
-                request=request,
-                mounted_share=mounted_share,
+            playback_response = self._measure(
+                "commit_oppo_playback",
+                lambda: self._start_mounted_share_playback(
+                    request=request,
+                    mounted_share=mounted_share,
+                ),
             )
             logger.info(
                 "OPPO MediaControl playback command response | mounted_path=%s | filename=%s | response=%s",

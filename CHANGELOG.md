@@ -4,7 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
-## [Unreleased]
+## Unreleased
+
+HCC 1.4.0 brings the cinema room into Home Assistant, makes important releases easier to notice, and adds clearer
+visibility into the startup and integration paths that keep playback reliable.
+
+### Highlights
+
+* **Home Assistant integration.** HCC can publish neutral playback events to a configured Home Assistant webhook, so
+  automations can react when playback starts, pauses, resumes, or stops. HCC sends the event; Home Assistant decides
+  what the room should do.
+
+* **Release awareness.** HCC checks for newer releases in the background and can surface an update through Home
+  Assistant and supported local TV adapters, without calling GitHub from playback or delaying the movie. Project-wide
+  release announcements remain available through the official Telegram channel.
+
+* **Better visibility into startup.** Opt-in telemetry now includes anonymous startup timing for the existing
+  `playback_started` event, using integer milliseconds and excluding media, path, network, and user data.
+
+### Home Assistant experience
+
+* Added a dedicated Home Assistant setup screen with clear configuration status, protected webhook credentials, and a
+  configurable delivery timeout.
+
+* Added a persisted “latest delivery” status based on a real playback or application event. The status survives HCC
+  restarts, starts fresh when the URL or webhook changes, and never sends an artificial request just to test the
+  webhook.
+
+* Refined the screen layout and copy so event setup, latest delivery, and the restart action are easy to scan and match
+  the rest of the HCC web UI.
+
+### Reliability and safety
+
+* Home Assistant delivery runs outside the playback critical path. Webhook errors are isolated, logged without exposing
+  the webhook ID, and cannot fail playback.
+
+* Update notifications are deduplicated per channel and delivered best-effort. Unsupported TV notification capabilities
+  remain unsupported instead of being reported as TV failures.
+
+* Existing web update banners, playback events, device control, and telemetry flows remain available alongside the new
+  channels.
+
+* Responsive action groups now wrap correctly on narrow screens, keeping diagnostic and playback controls inside their
+  panels.
+
+* Home Assistant connection fields now make their disabled state explicit when event delivery is turned off, while the
+  saved configuration remains visible.
 
 ## [1.3.3] - 2026-10-09
 

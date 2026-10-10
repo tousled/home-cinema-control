@@ -9,6 +9,7 @@ from home_cinema_control.media_servers.common.models import (
     MediaServerCommandKind,
 )
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
+from home_cinema_control.playback.events import PlaybackObservedState
 from home_cinema_control.playback.ports import MediaPlayerCommandPort
 from home_cinema_control.playback.state import BridgePlaybackState
 
@@ -33,6 +34,7 @@ class MediaServerPlaybackCommandHandler:
         playback_intent_dispatcher_factory: Callable,
         active_publisher_provider: Callable[[], Any],
         oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerCommandPort],
+        playback_state_observer: Callable[[PlaybackObservedState], None] | None = None,
     ) -> None:
         self._provider_name = provider_name
         self._session = media_server_session
@@ -41,6 +43,7 @@ class MediaServerPlaybackCommandHandler:
         self._playback_intent_dispatcher_factory = playback_intent_dispatcher_factory
         self._oppo_control_factory = oppo_control_factory
         self._active_publisher_provider = active_publisher_provider
+        self._playback_state_observer = playback_state_observer
 
     def handle_playback_intent(self, intent: PlaybackIntent) -> None:
         logging.info(
@@ -248,6 +251,12 @@ class MediaServerPlaybackCommandHandler:
         event_name, is_paused = pause_event
         self._report_interaction_event(event_name, is_paused=is_paused)
         self._state.playstate = "Paused" if is_paused else "Playing"
+        if self._playback_state_observer is not None:
+            self._playback_state_observer(
+                PlaybackObservedState.PAUSED
+                if is_paused
+                else PlaybackObservedState.PLAYING
+            )
 
     def _pause_event_from_current_oppo_state(self) -> tuple[str, bool] | None:
         if self._active_publisher() is not None:

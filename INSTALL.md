@@ -173,7 +173,7 @@ El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleg
 
 Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
 dispositivos
-y bibliotecas funcione — ver [Problemas frecuentes](#13-problemas-frecuentes).
+y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
 
 ## 6. Media Player: localiza el OPPO/Chinoppo
 
@@ -443,7 +443,112 @@ Si el receptor AV cambia a la entrada correcta pero vuelve solo a TV Audio, ARC 
 En ese caso, desactiva CEC/ARC en el receptor o revisa la configuración HDMI. HCC puede reintentar cambios de entrada,
 pero si el AVR o la TV fuerzan otra fuente por CEC, la automatización será inestable.
 
-## 9. Diagnóstico: saber qué falla
+## 9. Home Assistant: automatización opcional
+
+HCC puede enviar eventos neutrales de reproducción a un webhook de Home Assistant. HCC no decide qué luces, escenas o
+entidades deben reaccionar: esa lógica permanece en Home Assistant.
+
+### 9.1 Crea el webhook en Home Assistant
+
+En Home Assistant crea una automatización con un disparador **Webhook**. Usa un identificador largo y aleatorio, permite
+el método `POST` y mantén `local_only` activado si HCC y Home Assistant están en la misma red.
+
+Ejemplo mínimo en YAML:
+
+```yaml
+alias: HCC playback events
+triggers:
+  - trigger: webhook
+    webhook_id: reemplaza-esto-por-un-id-largo-y-aleatorio
+    allowed_methods:
+      - POST
+    local_only: true
+actions:
+  - action: logbook.log
+    data:
+      name: HCC
+      message: "{{ trigger.json.event }} - {{ trigger.json.title | default('') }}"
+mode: queued
+```
+
+El identificador del webhook funciona como una credencial: no lo publiques ni lo compartas. Home Assistant expone el
+endpoint como `/api/webhook/<webhook_id>` y acepta el JSON que HCC enviará.
+
+### 9.2 Configura HCC
+
+En la pantalla **Home Assistant** de HCC:
+
+1. Activa la casilla **Activar envío de eventos de reproducción**.
+2. Introduce la URL base de Home Assistant, por ejemplo `http://homeassistant.local:8123`. No añadas `/api/webhook`.
+3. Introduce el mismo **ID del webhook** creado en Home Assistant.
+4. Si lo necesitas, abre las opciones avanzadas y ajusta el timeout de entrega.
+5. Pulsa **Guardar**.
+6. Reinicia HCC desde el enlace que aparece en la propia pantalla para que el listener cargue la configuración.
+
+La pantalla muestra la configuración de entrega y la última entrega conocida en bloques separados. El estado no se
+comprueba enviando un webhook artificial.
+
+HCC puede enviar estos eventos:
+
+- `started`
+- `paused`
+- `resumed`
+- `stopped`
+
+El JSON incluye el tipo de evento, `event_id`, `session_id` y, cuando están disponibles, `media_type`, `title`, `source`
+y `player`. Si Home Assistant no es accesible, HCC registra el error y el flujo de reproducción continúa.
+
+La pantalla de Home Assistant muestra el estado de la última entrega real. Antes del primer evento aparece como
+pendiente;
+después indica si la entrega fue correcta o fallida. Este indicador se conserva entre reinicios de HCC y no envía
+peticiones de prueba al webhook.
+Si cambias la URL o el ID del webhook, HCC considera la nueva configuración pendiente hasta que entregue un evento
+correctamente.
+Si HCC no puede cargar la configuración de esta pantalla, muestra un error con la opción **Reintentar** y no presenta un
+formulario vacío con valores por defecto.
+
+Cuando HCC detecta una nueva versión en segundo plano, envía además este payload compacto:
+
+```json
+{
+  "event": "hcc_update_available",
+  "current_version": "1.4.0",
+  "latest_version": "1.4.1",
+  "release_url": "https://github.com/tousled/home-cinema-control/releases/tag/1.4.1"
+}
+```
+
+Ejemplo de automatización para mostrarlo como notificación persistente:
+
+```yaml
+alias: HCC update available
+triggers:
+  - trigger: webhook
+    webhook_id: reemplaza-esto-por-un-id-largo-y-aleatorio
+    allowed_methods:
+      - POST
+    local_only: true
+conditions:
+  - condition: template
+    value_template: "{{ trigger.json.event == 'hcc_update_available' }}"
+actions:
+  - action: persistent_notification.create
+    data:
+      notification_id: hcc_update_available
+      title: "Nueva versión de HCC"
+      message: >-
+        HCC {{ trigger.json.latest_version }} está disponible.
+        {{ trigger.json.release_url }}
+mode: restart
+```
+
+Este estado es independiente del aviso de actualización de la web. El canal oficial de Telegram del proyecto publica
+las releases globales y no requiere configuración en cada instalación de HCC.
+
+Para más detalles sobre los webhooks y sus opciones de seguridad, consulta la
+[documentación oficial de Home Assistant](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+
+## 10. Diagnóstico: saber qué falla
 
 La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y acciones de soporte.
 
@@ -477,7 +582,7 @@ temporalmente esos eventos anónimos en `/config/telemetry_queue.json` y los rei
 tokens, URLs, nombres de servidor, bibliotecas, títulos, logs, scripts ni comandos personalizados. Más detalle:
 [`docs/telemetry.md`](docs/telemetry.md).
 
-## 10. Logs entendibles
+## 11. Logs entendibles
 
 La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtrar.
 
@@ -492,7 +597,7 @@ desde el móvil. La descarga sigue generando el log completo.
 Esto sustituye el patrón de revisar logs crudos sin contexto. Los errores y avisos quedan marcados visualmente para que
 sea más fácil compartir información útil en soporte.
 
-## 11. Primera reproducción de validación
+## 12. Primera reproducción de validación
 
 Cuando las pantallas anteriores estén guardadas y verificadas, haz una primera prueba con una película de una biblioteca
 interceptada. No pruebes solo que el OPPO empieza a reproducir; prueba el ciclo completo.
@@ -514,7 +619,7 @@ La validación real de hardware sigue siendo importante: OPPO original, clones C
 comportarse de forma distinta. Si algo falla, copia el resumen de soporte desde **Diagnóstico** y revisa los logs
 filtrando por avisos o errores.
 
-## 12. Actualización
+## 13. Actualización
 
 Si instalaste con Docker Compose:
 
@@ -550,7 +655,7 @@ que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), no reconstruy
 Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
 muestra el comando para ejecutarlo manualmente.
 
-## 13. Problemas frecuentes
+## 14. Problemas frecuentes
 
 ### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
 
