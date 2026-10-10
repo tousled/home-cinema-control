@@ -2,11 +2,45 @@ import threading
 import time
 import unittest
 
+from home_cinema_control.application_events import ApplicationEventBus
+from home_cinema_control.notifications.models import (
+    UpdateAvailableEvent,
+    UpdateNotification,
+)
 from home_cinema_control.playback.event_dispatcher import PlaybackEventDispatcher
 from home_cinema_control.playback.events import PlaybackEvent, PlaybackEventType
 
 
 class PlaybackEventDispatcherTest(unittest.TestCase):
+    def test_typed_subscriptions_route_without_global_event_coupling(self):
+        playback = RecordingConsumer("playback")
+        updates = RecordingConsumer("updates")
+        bus = ApplicationEventBus()
+        bus.subscribe(
+            PlaybackEvent,
+            playback,
+            ordering_key=lambda event: event.session_id,
+        )
+        bus.subscribe(UpdateAvailableEvent, updates)
+
+        bus.publish(_event("event-1", PlaybackEventType.STARTED))
+        bus.publish(
+            UpdateAvailableEvent(
+                notification=UpdateNotification(
+                    current_version="1.4.0",
+                    latest_version="1.4.1",
+                    release_url="https://example.test/1.4.1",
+                    title="Update",
+                    message="Update",
+                )
+            )
+        )
+        bus.publish(_event("event-2", PlaybackEventType.PAUSED))
+        bus.shutdown(drain=True)
+
+        self.assertEqual(["event-1", "event-2"], playback.events)
+        self.assertEqual(1, len(updates.events))
+
     def test_consumers_receive_events_independently_in_order(self):
         fast = RecordingConsumer("fast")
         slow = RecordingConsumer("slow", wait=True)
@@ -36,11 +70,11 @@ class PlaybackEventDispatcherTest(unittest.TestCase):
         self.assertEqual(["event-1"], healthy.events)
 
 
-def _event(event_id):
+def _event(event_id, event_type=PlaybackEventType.PAUSED):
     return PlaybackEvent(
         event_id=event_id,
         session_id="session-1",
-        event_type=PlaybackEventType.PAUSED,
+        event_type=event_type,
     )
 
 

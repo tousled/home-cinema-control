@@ -62,6 +62,30 @@ class PlaybackStateDetectorTest(unittest.TestCase):
             )
         )
 
+    def test_published_lifecycle_events_keep_session_order(self):
+        published = []
+
+        self.detector.start_session(self.context, publish=published.append)
+        self.detector.observe(
+            PlaybackObservation(PlaybackObservedState.PAUSED, source="svm3"),
+            publish=published.append,
+        )
+        self.detector.observe(
+            PlaybackObservation(PlaybackObservedState.PLAYING, source="command"),
+            publish=published.append,
+        )
+        self.detector.stop_session(publish=published.append)
+
+        self.assertEqual(
+            [
+                PlaybackEventType.STARTED,
+                PlaybackEventType.PAUSED,
+                PlaybackEventType.RESUMED,
+                PlaybackEventType.STOPPED,
+            ],
+            [event.event_type for event in published],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

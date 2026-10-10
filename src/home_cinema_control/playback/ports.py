@@ -77,6 +77,12 @@ class TelevisionOutputPort(Protocol):
         ...
 
 
+class TelevisionNotificationPort(Protocol):
+    def show_notification(self, message: str) -> DeviceCommandResult:
+        """Show a native notification without waking or changing the TV input."""
+        ...
+
+
 class AvReceiverOutputPort(Protocol):
     def power_on(self) -> DeviceCommandResult:
         """Ensure the AV receiver is powered on."""

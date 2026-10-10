@@ -25,6 +25,7 @@ _MEDIA_SERVER_APP_IDS = {
 LG_CONNECT_TIMEOUT_SECONDS = 20.0
 LG_FAST_CONNECT_TIMEOUT_SECONDS = 2.0
 LG_CURRENT_APP_CONNECT_TIMEOUT_SECONDS = 3.0
+LG_NOTIFICATION_CONNECT_TIMEOUT_SECONDS = 2.0
 LG_WAKE_TIMEOUT_SECONDS = 20.0
 LG_WAKE_RETRY_INTERVAL_SECONDS = 1.0
 LG_INPUT_CONFIRM_TIMEOUT_SECONDS = 3.0
@@ -116,6 +117,12 @@ def _map_webos_inputs_to_legacy_sources(inputs: list[dict]) -> list[dict]:
 
 
 class LgTvController(BaseTvController):
+    def show_notification(self, message: str) -> DeviceCommandResult:
+        return self._execute_tv_operation(
+            "showing LG TV notification",
+            lambda: self._show_notification(message),
+        )
+
     def test_connection(self) -> DeviceCommandResult:
         return self._execute_tv_operation(
             "testing LG TV connection",
@@ -321,6 +328,13 @@ class LgTvController(BaseTvController):
     async def _test_connection(self) -> None:
         async with self._connected_client():
             self._refresh_mac_from_arp()
+
+    async def _show_notification(self, message: str) -> None:
+        async with self._connected_client(
+            wake_if_unreachable=False,
+            connect_timeout=LG_NOTIFICATION_CONNECT_TIMEOUT_SECONDS,
+        ) as client:
+            await client.send_message(message)
 
     async def _refresh_inputs(self) -> None:
         async with self._connected_client() as client:

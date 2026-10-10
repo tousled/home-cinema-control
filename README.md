@@ -177,6 +177,12 @@ después de guardar para que el listener de reproducción cargue el consumer.
 El payload contiene `started`, `paused`, `resumed` o `stopped`, además de `event_id`, `session_id`, `media_type`,
 `title`, `source` y `player` cuando están disponibles.
 
+Cuando HCC detecta una nueva versión en segundo plano, también puede enviar el evento de aplicación
+`hcc_update_available` con `current_version`, `latest_version` y `release_url`. Home Assistant decide si lo convierte en
+una notificación persistente, móvil o cualquier otra automatización. Los usuarios que no abren habitualmente HCC pueden
+seguir las nuevas releases en el canal oficial de Telegram del proyecto; Telegram es un canal global y no requiere
+configuración dentro de HCC.
+
 ## Instalación rápida
 
 HCC se despliega como contenedor Docker con red host para poder hablar directamente con Emby, el reproductor, la TV, el

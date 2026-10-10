@@ -46,6 +46,7 @@ class MediaServerWebsocketListener:
         config_file: str = "",
         language=None,
         playback_services=None,
+        playback_event_publisher=None,
     ):
         self._provider_name = provider_name
         self._session_attribute_name = session_attribute_name
@@ -65,10 +66,15 @@ class MediaServerWebsocketListener:
         self.config_file = config_file
         self.language = language
         self._playback_services = playback_services
+        self._playback_event_publisher = playback_event_publisher
         self._ws_app = None
         self.playback_application_service = None
-        self.playback_event_dispatcher = PlaybackEventDispatcher()
-        self._register_home_assistant_consumer()
+        self._owns_playback_event_dispatcher = playback_event_publisher is None
+        self.playback_event_dispatcher = (
+            PlaybackEventDispatcher() if self._owns_playback_event_dispatcher else None
+        )
+        if self._owns_playback_event_dispatcher:
+            self._register_home_assistant_consumer()
         self.playback_command_handler = None
         self._session_monitor = None
         self._websocket_event_mapper = None
@@ -83,7 +89,8 @@ class MediaServerWebsocketListener:
         logging.info("%s websocket stop", self._provider_name)
         if self.playback_application_service is not None:
             self.playback_application_service.stop_active_playback_and_wait()
-        self.playback_event_dispatcher.shutdown(drain=True)
+        if self._owns_playback_event_dispatcher:
+            self.playback_event_dispatcher.shutdown(drain=True)
         if self._ws_app:
             self._ws_app.close()
 
@@ -262,7 +269,9 @@ class MediaServerWebsocketListener:
             playback_state=self.playback_state,
             reload_config=self.reload_config,
             media_server_playback_services=self._playback_services,
-            playback_event_dispatcher=self.playback_event_dispatcher,
+            playback_event_publisher=(
+                self._playback_event_publisher or self.playback_event_dispatcher
+            ),
             telemetry_service=TelemetryService(
                 config_file=self.config_file,
                 load_config=lambda: load_effective_config(self.config_file),

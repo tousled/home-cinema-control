@@ -166,6 +166,11 @@ playback listener loads the consumer.
 The payload contains `started`, `paused`, `resumed`, or `stopped`, plus `event_id`, `session_id`, `media_type`,
 `title`, `source`, and `player` when available.
 
+When HCC detects a newer release in the background, it can also send the application event `hcc_update_available` with
+`current_version`, `latest_version`, and `release_url`. Home Assistant decides whether to turn it into a persistent,
+mobile, or other automation notification. Users who rarely open HCC can follow new releases through the project's
+official Telegram channel; Telegram is global and requires no HCC configuration.
+
 ## Quick Install
 
 HCC runs as a Docker container with host networking.

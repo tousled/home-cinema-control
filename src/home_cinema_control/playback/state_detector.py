@@ -26,15 +26,28 @@ class PlaybackStateDetector:
         self._context: PlaybackEventContext | None = None
         self._state: PlaybackObservedState | None = None
 
-    def start_session(self, context: PlaybackEventContext) -> PlaybackEvent | None:
+    def start_session(
+        self,
+        context: PlaybackEventContext,
+        *,
+        publish: Callable[[PlaybackEvent], None] | None = None,
+    ) -> PlaybackEvent | None:
         with self._lock:
             if self._context is not None:
                 return None
             self._context = context
             self._state = PlaybackObservedState.PLAYING
-            return self._event(PlaybackEventType.STARTED)
+            event = self._event(PlaybackEventType.STARTED)
+            if publish is not None:
+                publish(event)
+            return event
 
-    def observe(self, observation: PlaybackObservation) -> PlaybackEvent | None:
+    def observe(
+        self,
+        observation: PlaybackObservation,
+        *,
+        publish: Callable[[PlaybackEvent], None] | None = None,
+    ) -> PlaybackEvent | None:
         with self._lock:
             if self._context is None or self._state == observation.state:
                 return None
@@ -45,15 +58,24 @@ class PlaybackStateDetector:
                 event_type = PlaybackEventType.RESUMED
             else:
                 event_type = PlaybackEventType.PAUSED
-            return self._event(event_type)
+            event = self._event(event_type)
+            if publish is not None:
+                publish(event)
+            return event
 
-    def stop_session(self) -> PlaybackEvent | None:
+    def stop_session(
+        self,
+        *,
+        publish: Callable[[PlaybackEvent], None] | None = None,
+    ) -> PlaybackEvent | None:
         with self._lock:
             if self._context is None:
                 return None
             event = self._event(PlaybackEventType.STOPPED)
             self._context = None
             self._state = None
+            if publish is not None:
+                publish(event)
             return event
 
     @property

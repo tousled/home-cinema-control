@@ -72,6 +72,7 @@ class PlaybackApplicationService:
         media_server_playback_services: MediaServerPlaybackServices | None = None,
         telemetry_service=None,
         playback_event_dispatcher=None,
+        playback_event_publisher=None,
         playback_state_detector: PlaybackStateDetector | None = None,
         stop_active_playback=None,
         sleep=time.sleep,
@@ -81,7 +82,7 @@ class PlaybackApplicationService:
         self._reload_config = reload_config
         self._media_server_playback_services = media_server_playback_services
         self._telemetry_service = telemetry_service
-        self._playback_event_dispatcher = playback_event_dispatcher
+        self._playback_event_publisher = playback_event_publisher or playback_event_dispatcher
         self._playback_state_detector = playback_state_detector or PlaybackStateDetector()
         self._stop_active_playback = stop_active_playback or (
             lambda: stop_active_player_playback_before_replacement(
@@ -358,7 +359,7 @@ class PlaybackApplicationService:
 
         self._active_context.clear()
         power_down_after_playback_if_configured(playback_session.config)
-        self._publish_playback_event(self._playback_state_detector.stop_session())
+        self._playback_state_detector.stop_session(publish=self._publish_playback_event)
         _reset_bridge_playback_state(self._state, movie)
         return playback_orchestration_result
 
@@ -402,8 +403,9 @@ class PlaybackApplicationService:
             source=_media_server_source_name(playback_session),
             player="oppo",
         )
-        self._publish_playback_event(
-            self._playback_state_detector.start_session(context)
+        self._playback_state_detector.start_session(
+            context,
+            publish=self._publish_playback_event,
         )
         logger.info("Reprodución iniciada: %s", movie)
 
@@ -453,10 +455,9 @@ class PlaybackApplicationService:
             logger.debug("Playback telemetry emission failed", exc_info=True)
 
     def _observe_playback_state(self, state: PlaybackObservedState) -> None:
-        self._publish_playback_event(
-            self._playback_state_detector.observe(
-                PlaybackObservation(state=state, source="player-observation")
-            )
+        self._playback_state_detector.observe(
+            PlaybackObservation(state=state, source="player-observation"),
+            publish=self._publish_playback_event,
         )
 
     def observe_playback_state(self, state: PlaybackObservedState) -> None:
@@ -464,10 +465,10 @@ class PlaybackApplicationService:
         self._observe_playback_state(state)
 
     def _publish_playback_event(self, event) -> None:
-        if event is None or self._playback_event_dispatcher is None:
+        if event is None or self._playback_event_publisher is None:
             return
         try:
-            self._playback_event_dispatcher.publish(event)
+            self._playback_event_publisher.publish(event)
         except Exception:
             logger.exception(
                 "Playback event dispatch failed | event_id=%s | event=%s",

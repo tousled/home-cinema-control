@@ -459,6 +459,44 @@ HCC can send these events:
 The JSON contains the event type, `event_id`, and `session_id`, plus `media_type`, `title`, `source`, and `player` when
 available. If Home Assistant is unreachable, HCC logs the error and playback continues.
 
+When HCC detects a newer release in the background, it also sends this compact payload:
+
+```json
+{
+  "event": "hcc_update_available",
+  "current_version": "1.4.0",
+  "latest_version": "1.4.1",
+  "release_url": "https://github.com/tousled/home-cinema-control/releases/tag/1.4.1"
+}
+```
+
+Example automation that displays it as a persistent notification:
+
+```yaml
+alias: HCC update available
+triggers:
+  - trigger: webhook
+    webhook_id: replace-this-with-a-long-random-id
+    allowed_methods:
+      - POST
+    local_only: true
+conditions:
+  - condition: template
+    value_template: "{{ trigger.json.event == 'hcc_update_available' }}"
+actions:
+  - action: persistent_notification.create
+    data:
+      notification_id: hcc_update_available
+      title: "New HCC version"
+      message: >-
+        HCC {{ trigger.json.latest_version }} is available.
+        {{ trigger.json.release_url }}
+mode: restart
+```
+
+This state is independent from the web update banner. The project's official Telegram channel publishes project-wide
+releases and requires no configuration in each HCC installation.
+
 For webhook details and security options, see the
 [official Home Assistant documentation](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
 

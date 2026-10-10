@@ -16,6 +16,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   and `stopped` events with event and session identifiers to a configurable webhook. The webhook ID is stored as a
   secret, while room automation remains in Home Assistant.
 
+* Added background release awareness. HCC reuses the existing version checker and can deliver a deduplicated
+  `hcc_update_available` event to Home Assistant and best-effort native notifications through supported local TV
+  adapters without blocking playback. Global release announcements remain outside HCC and can be published through
+  the project's official Telegram channel.
+
 ### Changed
 
 * Added a Home Assistant setup screen with readiness status, webhook credential protection, and a configurable delivery

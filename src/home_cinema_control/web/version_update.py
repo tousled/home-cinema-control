@@ -1,4 +1,5 @@
 import re
+import threading
 import time
 from dataclasses import dataclass
 
@@ -10,6 +11,7 @@ DEFAULT_RELEASE_REPOSITORY = "tousled/home-cinema-control"
 _version_cache = None
 _version_cache_time: float = 0.0
 _version_cache_include_prerelease: bool | None = None
+_version_cache_lock = threading.RLock()
 
 
 @dataclass(frozen=True)
@@ -36,17 +38,23 @@ class VersionInfo:
 
 def get_cached_version_info(config, current_version, *, force=False, http_client=requests):
     global _version_cache, _version_cache_time, _version_cache_include_prerelease
-    app = config.get("app") or {}
-    interval_hours = app.get("version_check_interval_hours", 24)
-    include_prerelease = bool(app.get("include_prerelease", False))
-    age = time.time() - _version_cache_time
-    prerelease_changed = include_prerelease != _version_cache_include_prerelease
-    if not force and not prerelease_changed and _version_cache is not None and age < interval_hours * 3600:
+    with _version_cache_lock:
+        app = config.get("app") or {}
+        interval_hours = app.get("version_check_interval_hours", 24)
+        include_prerelease = bool(app.get("include_prerelease", False))
+        age = time.time() - _version_cache_time
+        prerelease_changed = include_prerelease != _version_cache_include_prerelease
+        if (
+            not force
+            and not prerelease_changed
+            and _version_cache is not None
+            and age < interval_hours * 3600
+        ):
+            return _version_cache
+        _version_cache = check_application_version(config, current_version, http_client)
+        _version_cache_time = time.time()
+        _version_cache_include_prerelease = include_prerelease
         return _version_cache
-    _version_cache = check_application_version(config, current_version, http_client)
-    _version_cache_time = time.time()
-    _version_cache_include_prerelease = include_prerelease
-    return _version_cache
 
 
 def check_application_version(config, current_version, http_client=requests):
