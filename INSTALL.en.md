@@ -399,88 +399,26 @@ server's.
 
 *(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
 
-## 9. Home Assistant: Optional Automation
+## 9. Connect HCC to Home Assistant
 
-HCC can send neutral playback events to a Home Assistant webhook. HCC does not decide which lights, scenes, or entities
-should react; that automation logic remains in Home Assistant.
+With this integration, HCC tells Home Assistant when playback starts, pauses, resumes, or stops. Home Assistant then
+decides
+what to do: turn on lights, activate a scene, send an alert, or simply record the event. HCC does not create automations
+on
+its own; you choose the reaction in Home Assistant.
 
-### 9.1 Create the webhook in Home Assistant
+<p align="center">
+  <img src="assets/screenshots/install/10-home-assistant.png" alt="HCC Home Assistant configuration screen" width="860"/>
+</p>
 
-In Home Assistant, create an automation with a **Webhook** trigger. Use a long random identifier, allow the `POST`
-method, and keep `local_only` enabled when HCC and Home Assistant are on the same network.
+### 9.1 Create the automation in Home Assistant
 
-Minimal YAML example:
-
-```yaml
-alias: HCC playback events
-triggers:
-  - trigger: webhook
-    webhook_id: replace-this-with-a-long-random-id
-    allowed_methods:
-      - POST
-    local_only: true
-actions:
-  - action: logbook.log
-    data:
-      name: HCC
-      message: "{{ trigger.json.event }} - {{ trigger.json.title | default('') }}"
-mode: queued
-```
-
-Treat the webhook ID like a credential: do not publish or share it. Home Assistant exposes the endpoint as
-`/api/webhook/<webhook_id>` and accepts the JSON sent by HCC.
-
-### 9.2 Configure HCC
-
-In HCC's **Home Assistant** screen:
-
-1. Enable the **Enable playback event delivery** checkbox.
-2. Enter the Home Assistant base URL, for example `http://homeassistant.local:8123`. Do not add `/api/webhook`.
-3. Enter the same **Webhook ID** created in Home Assistant.
-4. If needed, open the advanced options and adjust the delivery timeout.
-5. Click **Save**.
-6. Restart HCC using the link shown on the screen so the playback listener loads the configuration.
-
-The screen keeps event delivery setup and the latest known delivery in separate blocks. It does not send an artificial
-webhook to check the status.
-
-HCC stores the webhook ID in `/config/secrets.json`, does not return it to the UI, and excludes it from diagnostics. The
-integration does not require a Home Assistant add-on or custom Home Assistant integration.
-
-HCC can send these events:
-
-- `started`
-- `paused`
-- `resumed`
-- `stopped`
-
-The JSON contains the event type, `event_id`, and `session_id`, plus `media_type`, `title`, `source`, and `player` when
-available. If Home Assistant is unreachable, HCC logs the error and playback continues.
-
-The Home Assistant screen shows the latest real delivery status. It starts as pending until the first event, then
-reports
-whether delivery succeeded or failed. This indicator is preserved across HCC restarts and does not send test requests to
-the webhook.
-If you change the URL or webhook ID, HCC treats the new configuration as pending until it delivers an event
-successfully.
-If HCC cannot load this screen's configuration, it shows an actionable error with a **Try again** button instead of an
-empty form filled with default values.
-
-When HCC detects a newer release in the background, it also sends this compact payload:
-
-```json
-{
-  "event": "hcc_update_available",
-  "current_version": "1.4.0",
-  "latest_version": "1.4.1",
-  "release_url": "https://github.com/tousled/home-cinema-control/releases/tag/1.4.1"
-}
-```
-
-Example automation that displays it as a persistent notification:
+In Home Assistant, create an automation with a **Webhook** trigger. You can copy this complete example. It only writes
+each
+change to the Home Assistant logbook, so you can verify the connection before adding lights, scenes, or notifications.
 
 ```yaml
-alias: HCC update available
+alias: HCC - playback events
 triggers:
   - trigger: webhook
     webhook_id: replace-this-with-a-long-random-id
@@ -489,23 +427,113 @@ triggers:
     local_only: true
 conditions:
   - condition: template
-    value_template: "{{ trigger.json.event == 'hcc_update_available' }}"
+    value_template: >-
+      {{ trigger.json.event | default('') in ['started', 'paused', 'resumed', 'stopped'] }}
 actions:
-  - action: persistent_notification.create
-    data:
-      notification_id: hcc_update_available
-      title: "New HCC version"
-      message: >-
-        HCC {{ trigger.json.latest_version }} is available.
-        {{ trigger.json.release_url }}
-mode: restart
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'started' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Playback started: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'paused' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Playback paused: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'resumed' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Playback resumed: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'stopped' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Playback stopped: {{ trigger.json.title | default('') }}"
+mode: queued
 ```
 
-This state is independent from the web update banner. The project's official Telegram channel publishes project-wide
-releases and requires no configuration in each HCC installation.
+The text `replace-this-with-a-long-random-id` is only an example. Replace it with a new identifier and keep it private.
+This
+identifier is the code that allows HCC to send events to this automation, so treat it like a password.
 
-For webhook details and security options, see the
-[official Home Assistant documentation](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+Keep `local_only: true` when HCC and Home Assistant are on your local network. This prevents Home Assistant from
+accepting
+this webhook from the Internet. HCC sends the data with the `POST` method.
+
+For general automation concepts, see
+the [official Home Assistant documentation](https://www.home-assistant.io/docs/automation/).
+For trigger options, see
+the [official Webhook documentation](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+
+### 9.2 Configure HCC
+
+In HCC's **Home Assistant** screen:
+
+1. Enable **Send HCC events to Home Assistant**.
+2. Enter your Home Assistant address, for example `http://homeassistant.local:8123`. Enter only the base address; do not
+   add
+   `/api/webhook`.
+3. Enter the same code in **Webhook ID** that you used in the automation.
+4. Click **Save**.
+5. Click **Restart HCC** in the link below the button to apply the configuration.
+
+You normally do not need to change the timeout under **Advanced settings**. Use it only if Home Assistant takes longer
+than
+usual to respond.
+
+### 9.3 Check that it works
+
+HCC sends four playback events:
+
+- `started`: playback has started.
+- `paused`: playback is paused.
+- `resumed`: playback has resumed.
+- `stopped`: playback has ended or was stopped.
+
+The event data looks like this:
+
+```json
+{
+  "event": "started",
+  "event_id": "57438c115b84467dafcf843368d9bef6",
+  "session_id": "33feec42b11b48799f749bf6534e371c",
+  "media_type": "movie",
+  "title": "Interstellar",
+  "source": "emby",
+  "player": "oppo"
+}
+```
+
+`event` tells you what happened. `event_id` identifies that delivery and `session_id` groups events from the same
+playback.
+The title, server, and player fields are included when HCC has that information.
+
+To test the setup, start playback from the device monitored by HCC and check the Home Assistant **Logbook**. The HCC
+screen
+also shows the latest real delivery. Before the first event it shows pending; HCC does not send an artificial test
+request.
+
+If Home Assistant does not respond, HCC records the error and playback continues. If you change the address or webhook
+ID,
+the status returns to pending until HCC successfully sends an event with the new configuration.
+
+If HCC cannot load this screen, it shows an actionable error with a **Try again** button instead of filling the form
+with
+values that may not be yours.
 
 ## 10. Diagnostics
 
