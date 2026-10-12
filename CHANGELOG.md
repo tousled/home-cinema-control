@@ -6,63 +6,50 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
-HCC 1.4.0 brings the cinema room into Home Assistant, makes important releases easier to notice, and adds clearer
-visibility into the startup and integration paths that keep playback reliable.
+HCC 1.4.0 connects playback events to Home Assistant, makes updates easier to discover, and improves the visibility and
+reliability of playback startup and integration activity.
 
-### Changed
+### Added
 
-* Kept provider-specific media-server field names out of shared playback state and command policy. Emby and Jellyfin
-  payload shapes remain localized in their own adapters.
-* Centralized media-server configuration transitions so patch, token, and connection-check routes share one policy for
-  secret preservation, provider verification, active-playback confirmation, draft saves, and listener restarts.
-* Centralized OPPO lifecycle policy for startup preparation, availability checks, observed-event wiring, QPL logging,
-  replacement stops, and post-playback power-down.
-* Clarified media-server listener ownership: listener shutdown now owns clean playback termination and runtime status
-  access goes through the listener contract instead of nested listener internals.
-* Concentrated the synchronous playback handoff and cleanup in one lifecycle module. Playback domain events now carry
-  the canonical lifecycle facts for asynchronous consumers, including a separate handoff-finalized fact after cleanup.
-
-### Highlights
-
-* **Home Assistant integration.** HCC can publish neutral playback events to a configured Home Assistant webhook, so
+* **Home Assistant integration.** HCC can send neutral playback events to a configured Home Assistant webhook, so
   automations can react when playback starts, pauses, resumes, or stops. HCC sends the event; Home Assistant decides
   what the room should do.
 
-* **Release awareness.** HCC checks for newer releases in the background and can surface an update through Home
-  Assistant and supported local TV adapters, without calling GitHub from playback or delaying the movie. Project-wide
-  release announcements remain available through the official Telegram channel.
+* **Home Assistant setup and delivery status.** Added a dedicated setup screen with clear configuration status,
+  protected webhook credentials, and a configurable delivery timeout. The persisted “latest delivery” status is based
+  on a real playback or application event, survives HCC restarts, and resets when the URL or webhook changes.
 
-* **Better visibility into startup.** Opt-in telemetry now includes anonymous startup timing for the existing
-  `playback_started` event, using integer milliseconds and excluding media, path, network, and user data.
+* **Release notifications.** HCC checks for newer releases in the background and can surface an update through Home
+  Assistant and supported local TV adapters, without delaying playback. Project-wide release announcements remain
+  available through the official Telegram channel.
 
-### Home Assistant experience
+* **Startup telemetry.** Opt-in telemetry now includes anonymous startup timing for the existing `playback_started`
+  event, using integer milliseconds and excluding media, path, network, and user data.
 
-* Added a dedicated Home Assistant setup screen with clear configuration status, protected webhook credentials, and a
-  configurable delivery timeout.
+### Changed
 
-* Added a persisted “latest delivery” status based on a real playback or application event. The status survives HCC
-  restarts, starts fresh when the URL or webhook changes, and never sends an artificial request just to test the
-  webhook.
+* **More predictable playback boundaries.** Emby and Jellyfin-specific payload handling now stays in each provider
+  adapter, while shared playback policy handles common behavior. This keeps session handling and playback state
+  consistent across media servers.
 
-* Refined the screen layout and copy so event setup, latest delivery, and the restart action are easy to scan and match
-  the rest of the HCC web UI.
+* **More reliable lifecycle transitions.** Media-server configuration, OPPO lifecycle, listener shutdown, and playback
+  handoff cleanup now each have a single coordination point. Playback events carry the canonical lifecycle facts that
+  asynchronous integrations need, including a separate handoff-finalized event after cleanup.
 
-### Reliability and safety
+* **Safer Home Assistant delivery.** Webhook delivery runs outside the playback critical path. Errors are isolated,
+  logged without exposing the webhook ID, and cannot fail playback. The setup screen also makes disabled connection
+  fields explicit while keeping the saved configuration visible.
 
-* Home Assistant delivery runs outside the playback critical path. Webhook errors are isolated, logged without exposing
-  the webhook ID, and cannot fail playback.
-
-* Update notifications are deduplicated per channel and delivered best-effort. Unsupported TV notification capabilities
-  remain unsupported instead of being reported as TV failures.
+* **Consistent update delivery.** Update notifications are deduplicated per channel and delivered on a best-effort
+  basis. Unsupported TV notification capabilities remain unsupported instead of being reported as TV failures.
 
 * Existing web update banners, playback events, device control, and telemetry flows remain available alongside the new
-  channels.
+  Home Assistant and TV notification channels.
+
+### Fixed
 
 * Responsive action groups now wrap correctly on narrow screens, keeping diagnostic and playback controls inside their
   panels.
-
-* Home Assistant connection fields now make their disabled state explicit when event delivery is turned off, while the
-  saved configuration remains visible.
 
 * Improved keyboard navigation on the Home Assistant screen: configuration fields now expose meaningful browser
   metadata, and disabled advanced settings are removed from the tab order.
