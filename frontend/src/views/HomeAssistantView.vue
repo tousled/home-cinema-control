@@ -61,7 +61,7 @@
                   <HelpTooltip :text="$t('x-home-assistant-tooltip-url')"/>
                 </div>
                 <input id="ha-base-url" v-model.trim="homeAssistant.base_url"
-                       :disabled="!homeAssistant.enabled"
+                       :disabled="!homeAssistant.enabled" autocomplete="url" name="home_assistant_base_url"
                        :placeholder="$t('x-home-assistant-url-placeholder')"
                        class="form-input mb-1" type="url">
                 <div v-if="homeAssistant.base_url" class="webhook-url-preview home-assistant-webhook-preview mb-4">
@@ -73,7 +73,8 @@
                   <div class="webhook-credential-status">
                     <CheckCircle2 :size="18" :stroke-width="2.2"/>
                     <span class="webhook-credential-label">{{ $t('x-home-assistant-webhook-configured') }}</span>
-                    <button :disabled="!homeAssistant.enabled" class="btn-ghost" @click="changingWebhook = true">
+                    <button :disabled="!homeAssistant.enabled" class="btn-ghost" type="button"
+                            @click="changingWebhook = true">
                       {{ $t('x-home-assistant-change-webhook') }}
                     </button>
                   </div>
@@ -85,10 +86,10 @@
                     <HelpTooltip :text="$t('x-home-assistant-tooltip-webhook-id')"/>
                   </div>
                   <input id="ha-webhook-id" v-model.trim="homeAssistant.webhook_id" :disabled="!homeAssistant.enabled"
-                         autocomplete="new-password"
+                         autocomplete="new-password" name="home_assistant_webhook_id"
                          class="form-input mb-1" type="password">
                   <div class="flex gap-2">
-                    <button v-if="changingWebhook" class="btn-ghost" @click="cancelWebhookChange">
+                    <button v-if="changingWebhook" class="btn-ghost" type="button" @click="cancelWebhookChange">
                       {{ $t('x-common-cancel') }}
                     </button>
                   </div>
@@ -103,6 +104,7 @@
                          class="advanced-config home-assistant-advanced-config">
                   <summary
                       :aria-disabled="!homeAssistant.enabled"
+                      :tabindex="homeAssistant.enabled ? 0 : -1"
                       class="home-assistant-advanced-summary"
                       @click="!homeAssistant.enabled && $event.preventDefault()"
                   >
@@ -116,7 +118,8 @@
                       <HelpTooltip :text="$t('x-home-assistant-tooltip-timeout')"/>
                     </div>
                     <input id="ha-timeout" v-model.number="homeAssistant.timeout_seconds"
-                           :disabled="!homeAssistant.enabled" class="form-input mb-2"
+                           :disabled="!homeAssistant.enabled" autocomplete="off"
+                           class="form-input mb-2" name="home_assistant_timeout_seconds"
                            max="30" min="1" step="0.5" type="number">
                     <p class="section-hint">{{ $t('x-home-assistant-timeout-hint') }}</p>
                   </div>
@@ -125,7 +128,7 @@
             </section>
 
             <div class="flex gap-3 flex-wrap">
-              <button :disabled="saving" class="btn-ghost" @click="saveConfig">
+              <button :disabled="saving" class="btn-ghost" type="button" @click="saveConfig">
                 {{ saving ? $t('x-common-saving') : $t('x-common-save') }}
               </button>
             </div>

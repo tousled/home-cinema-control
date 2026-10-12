@@ -11,6 +11,19 @@ from home_cinema_control.playback.events import PlaybackEvent, PlaybackEventType
 
 
 class ApplicationEventBusTest(unittest.TestCase):
+    def test_shutdown_rejects_new_subscriptions_and_drops_later_events(self):
+        consumer = RecordingConsumer("playback")
+        bus = ApplicationEventBus()
+        bus.subscribe(PlaybackEvent, consumer)
+        bus.shutdown(drain=True)
+
+        with self.assertRaises(RuntimeError):
+            bus.subscribe(PlaybackEvent, RecordingConsumer("late"))
+
+        bus.publish(_event("after-shutdown"))
+
+        self.assertEqual([], consumer.events)
+
     def test_typed_subscriptions_route_without_global_event_coupling(self):
         playback = RecordingConsumer("playback")
         updates = RecordingConsumer("updates")

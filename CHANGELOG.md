@@ -51,6 +51,9 @@ visibility into the startup and integration paths that keep playback reliable.
 * Home Assistant connection fields now make their disabled state explicit when event delivery is turned off, while the
   saved configuration remains visible.
 
+* Improved keyboard navigation on the Home Assistant screen: configuration fields now expose meaningful browser
+  metadata, and disabled advanced settings are removed from the tab order.
+
 ## [1.3.3] - 2026-10-09
 
 ### Fixed

@@ -102,6 +102,9 @@ describe('HomeAssistantView connection state', () => {
         expect(wrapper.find('#ha-base-url').element.disabled).toBe(true)
         expect(wrapper.find('#ha-webhook-id').element.disabled).toBe(true)
         expect(wrapper.find('#ha-timeout').element.disabled).toBe(true)
+        expect(wrapper.find('.home-assistant-advanced-summary').attributes('tabindex')).toBe('-1')
+        await wrapper.find('.home-assistant-advanced-summary').trigger('click')
+        expect(wrapper.find('details').element.open).toBe(false)
     })
 
     it('keeps the webhook hidden and shows the restart guidance', async () => {
@@ -124,6 +127,7 @@ describe('HomeAssistantView connection state', () => {
         await flushPromises()
 
         expect(wrapper.find('#ha-webhook-id').exists()).toBe(false)
+        expect(wrapper.find('#ha-base-url').attributes('name')).toBe('home_assistant_base_url')
         expect(wrapper.text()).toContain('Reiniciar HCC')
         expect(wrapper.text()).toContain('Última entrega correcta')
         expect(wrapper.text()).toContain('Evento reproducción iniciada')
