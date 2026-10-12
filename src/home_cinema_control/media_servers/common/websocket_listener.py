@@ -295,7 +295,7 @@ class MediaServerWebsocketListener:
             oppo_control_factory=lambda config: create_oppo_playback_command_control(
                 config,
                 on_verbose_preamble=getattr(
-                    self.playback_application_service.active_oppo_playback,
+                    self.playback_application_service.active_media_player,
                     "preamble_callback",
                     None,
                 ),

@@ -85,10 +85,6 @@ class PlaybackHandoffService:
     def active_media_player(self):
         return self._active_context.media_player
 
-    @property
-    def active_oppo_playback(self):
-        return self.active_media_player
-
     def stop_active_playback_before_replacement(self) -> None:
         self._oppo_lifecycle.stop_active_playback_before_replacement(
             self._state,

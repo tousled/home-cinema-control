@@ -19,29 +19,25 @@ class MediaServerSessionMonitor:
     a monitored TV client starts playing an item from an active mapped library.
 
     The monitor reasons over :class:`MediaServerSession` domain objects only.
-    Each provider supplies ``find_monitored_session`` as its inbound mapper
-    (wire payload -> ``MediaServerSession``); the handoff policy below never
-    touches provider wire shape.
+    Each provider maps its wire payload, loads provider-specific item details,
+    and calls :meth:`on_monitored_session`; the policy below never touches
+    provider wire shape or a provider session object.
     """
 
     def __init__(
         self,
         *,
         provider_name: str,
-        media_server_session,
         playback_state: BridgePlaybackState,
         config_provider,
         dispatcher,
-        find_monitored_session: Callable[
-            [list[dict[str, Any]], str], MediaServerSession | None
-        ],
+        is_item_path_in_library: Callable[[str, str], bool],
     ):
         self._provider_name = provider_name
-        self._session = media_server_session
         self._state = playback_state
         self._config_provider = config_provider
         self._dispatcher = dispatcher
-        self._find_monitored_session = find_monitored_session
+        self._is_item_path_in_library = is_item_path_in_library
         self._monitored_state = ""
 
     def reset(self) -> None:
@@ -49,22 +45,15 @@ class MediaServerSessionMonitor:
             logging.info("%s session monitor reset on reconnect", self._provider_name)
             self._monitored_state = ""
 
-    def on_sessions_update(self, sessions: list) -> None:
-        config = self._config_provider()
-        device_id = active_media_server_config(config).playback.hcc_controlled_device
-        if not device_id:
-            return
-
-        logging.debug(
-            "%s ws: checking sessions for monitored device | sessions=%s",
-            self._provider_name,
-            len(sessions),
-        )
-
-        session = self._find_monitored_session(sessions, device_id)
-        item_playback_info = None
-
-        if session is not None and _is_ambient_theme_audio(session.now_playing):
+    def on_monitored_session(
+        self,
+        session: MediaServerSession | None,
+        item_playback_info: MediaServerItemPlaybackInfo | None,
+        *,
+        config: dict,
+    ) -> None:
+        """Apply shared admission policy to provider-mapped domain data."""
+        if session is not None and is_ambient_theme_audio(session.now_playing):
             logging.debug(
                 "%s ignoring ambient theme audio | device=%s | title=%s | path=%s",
                 self._provider_name,
@@ -75,28 +64,15 @@ class MediaServerSessionMonitor:
             return
 
         if session is not None and session.now_playing is not None:
-            try:
-                item_playback_info = self._session.get_item_playback_info(
-                    session.user_id,
-                    session.now_playing.item_id,
-                    session.media_source_id,
-                )
-                logging.info(
-                    "%s monitored item detected | device=%s | title=%s | "
-                    "type=%s | container=%s",
-                    self._provider_name,
-                    session.device_name,
-                    session.now_playing.name,
-                    session.now_playing.item_type,
-                    session.now_playing.container,
-                )
-            except Exception as e:
-                logging.exception(
-                    "%s ws: could not load monitored item details: %s",
-                    self._provider_name,
-                    e,
-                )
-                return
+            logging.info(
+                "%s monitored item detected | device=%s | title=%s | "
+                "type=%s | container=%s",
+                self._provider_name,
+                session.device_name,
+                session.now_playing.name,
+                session.now_playing.item_type,
+                session.now_playing.container,
+            )
 
         if session is None or session.now_playing is None:
             self._handle_playback_ended(session)
@@ -221,7 +197,7 @@ class MediaServerSessionMonitor:
 
         for view in playback.libraries:
             if view.active:
-                if self._session.is_item_path_in_library(view.id, item_path):
+                if self._is_item_path_in_library(view.id, item_path):
                     return view.name, True
 
         return "", False
@@ -317,7 +293,7 @@ def describe_session_playback_source(
     }
 
 
-def _is_ambient_theme_audio(now_playing) -> bool:
+def is_ambient_theme_audio(now_playing) -> bool:
     if now_playing is None:
         return False
 

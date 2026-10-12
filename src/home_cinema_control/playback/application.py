@@ -74,10 +74,6 @@ class PlaybackApplicationService:
     def active_media_player(self):
         return self._handoff.active_media_player
 
-    @property
-    def active_oppo_playback(self):
-        return self._handoff.active_oppo_playback
-
     def request_playback_from_intent(
         self,
         intent: PlaybackIntent,
@@ -113,23 +109,6 @@ class PlaybackApplicationService:
     def observe_playback_state(self, state) -> None:
         """Accept a player observation from media-server command handling."""
         self._handoff.observe_playback_state(state)
-
-    @property
-    def _playback_return_tv_app_id(self):
-        return self._handoff._playback_return_tv_app_id
-
-    @_playback_return_tv_app_id.setter
-    def _playback_return_tv_app_id(self, value):
-        self._handoff._playback_return_tv_app_id = value
-
-    def _remember_playback_return_tv_app_id(self, result) -> None:
-        self._handoff._remember_playback_return_tv_app_id(result)
-
-    def _clear_playback_return_tv_app_id_after_final_finish(self, result) -> None:
-        self._handoff._clear_playback_return_tv_app_id_after_final_finish(result)
-
-    def _on_startup_completed(self, *args, **kwargs) -> None:
-        self._handoff._on_startup_completed(*args, **kwargs)
 
     def _is_duplicate_intent(self, intent: PlaybackIntent) -> bool:
         if not bridge_playback_is_active(self._state.playstate):
