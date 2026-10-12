@@ -9,6 +9,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 HCC 1.4.0 brings the cinema room into Home Assistant, makes important releases easier to notice, and adds clearer
 visibility into the startup and integration paths that keep playback reliable.
 
+### Changed
+
+* Kept provider-specific media-server field names out of shared playback state and command policy. Emby and Jellyfin
+  payload shapes remain localized in their own adapters.
+
 ### Highlights
 
 * **Home Assistant integration.** HCC can publish neutral playback events to a configured Home Assistant webhook, so

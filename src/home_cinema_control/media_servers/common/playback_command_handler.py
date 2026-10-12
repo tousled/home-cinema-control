@@ -11,7 +11,7 @@ from home_cinema_control.media_servers.common.models import (
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.events import PlaybackObservedState
 from home_cinema_control.playback.ports import MediaPlayerCommandPort
-from home_cinema_control.playback.state import BridgePlaybackState
+from home_cinema_control.playback.state import ActivePlaybackSession, BridgePlaybackState
 
 _Kind = MediaServerCommandKind
 
@@ -103,10 +103,10 @@ class MediaServerPlaybackCommandHandler:
             )
 
     def _handle_audio_track_change(self, source_audio_index: int) -> None:
-        params = self._current_playback_request_params()
+        active_session = self._require_active_playback_session()
         audio_index = self._session.resolve_audio_track_index(
-            params["ControllingUserId"],
-            params["item_id"],
+            active_session.source_user_id,
+            active_session.media_item_id,
             source_audio_index,
         )
         logging.info(
@@ -127,10 +127,10 @@ class MediaServerPlaybackCommandHandler:
         )
 
     def _handle_subtitle_track_change(self, source_subtitle_index: int) -> None:
-        params = self._current_playback_request_params()
+        active_session = self._require_active_playback_session()
         subtitle_index = self._session.resolve_subtitle_track_index(
-            params["ControllingUserId"],
-            params["item_id"],
+            active_session.source_user_id,
+            active_session.media_item_id,
             source_subtitle_index,
         )
         logging.info(
@@ -333,21 +333,11 @@ class MediaServerPlaybackCommandHandler:
     def _current_oppo_position_ticks(self) -> int:
         return self._oppo_control.current_position_ticks()
 
-    def _current_playback_request_params(self) -> dict[str, Any]:
+    def _require_active_playback_session(self) -> ActivePlaybackSession:
         active_session = self._state.active_session
         if active_session is None:
             raise RuntimeError("No active playback session is available.")
-
-        return {
-            "item_id": active_session.media_item_id,
-            "media_source_id": active_session.media_source_id,
-            "audio_stream_index": active_session.selected_audio_track_id,
-            "subtitle_stream_index": active_session.selected_subtitle_track_id,
-            "ControllingUserId": active_session.source_user_id,
-            "Session_id": active_session.source_client_session_id,
-            "DeviceName": active_session.source_device_name,
-            "Device_Id": active_session.source_device_id,
-        }
+        return active_session
 
     @property
     def _config(self) -> dict[str, Any]:

@@ -7,7 +7,6 @@ from home_cinema_control.media_servers.common.playback_source import (
     MediaServerPlaybackSource,
 )
 from home_cinema_control.playback.intent import PlaybackIntent
-from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 
 if TYPE_CHECKING:
     from home_cinema_control.playback.diagnostics import PlaybackDiagnostic
@@ -18,8 +17,7 @@ class ActivePlaybackSession:
     """Typed description of the playback currently owned by the bridge.
 
     This is the source of truth for the active item, selected tracks, source
-    client and resolved player media path. `to_media_server_payload()` exists
-    only for Emby-facing code that still expects the old dictionary payload.
+    client and resolved player media path.
     """
 
     media_item_id: str
@@ -75,21 +73,6 @@ class ActivePlaybackSession:
 
         if subtitle_track_id is not None:
             self.selected_subtitle_track_id = subtitle_track_id
-
-    def to_media_server_payload(self) -> dict[str, Any]:
-        return {
-            "ItemIds": [self.media_item_id],
-            "MediaSourceId": self.media_source_id,
-            "AudioStreamIndex": self.selected_audio_track_id,
-            "SubtitleStreamIndex": self.selected_subtitle_track_id,
-            "ControllingUserId": self.source_user_id,
-            "SessionID": self.source_client_session_id,
-            "StartPositionTicks": (
-                    self.start_position_seconds * TICKS_PER_SECOND
-            ),
-            "Device_Id": self.source_device_id,
-            "DeviceName": self.source_device_name,
-        }
 
     def to_runtime_status(self) -> dict[str, Any]:
         """Serialize the active session for status/UI consumers."""

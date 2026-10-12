@@ -208,8 +208,9 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         controls = []
         publisher = RecordingPublisher()
         state = _default_playback_state()
+        session = RecordingEmbySession()
         handler = EmbyPlaybackCommandHandler(
-            emby_session=RecordingEmbySession(),
+            emby_session=session,
             playback_state=state,
             config_provider=lambda: {"name": "config"},
             playback_intent_dispatcher_factory=lambda: RecordingDispatcher(),
@@ -224,6 +225,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         )
 
         self.assertIn(("audio", "config", 2), controls)
+        self.assertEqual([("user-1", "item-1", 2)], session.audio_track_calls)
         self.assertEqual(2, state.active_session.selected_audio_track_id)
         self.assertEqual("AudioTrackChange", publisher.events[-1]["event_name"])
         self.assertEqual(2, publisher.events[-1]["audio_track_id"])
@@ -281,8 +283,9 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         controls = []
         publisher = RecordingPublisher()
         state = _default_playback_state()
+        session = RecordingEmbySession()
         handler = EmbyPlaybackCommandHandler(
-            emby_session=RecordingEmbySession(),
+            emby_session=session,
             playback_state=state,
             config_provider=lambda: {"name": "config"},
             playback_intent_dispatcher_factory=lambda: RecordingDispatcher(),
@@ -297,6 +300,7 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         )
 
         self.assertIn(("subtitle", "config", 1), controls)
+        self.assertEqual([("user-1", "item-1", 3)], session.subtitle_track_calls)
         self.assertEqual(3, state.active_session.selected_subtitle_track_id)
         self.assertEqual("SubtitleTrackChange", publisher.events[-1]["event_name"])
         self.assertEqual(3, publisher.events[-1]["subtitle_track_id"])
@@ -488,6 +492,8 @@ class RecordingEmbySession:
     def __init__(self, controlling_session_id=None):
         self._controlling_session_id = controlling_session_id
         self.resolve_calls = []
+        self.audio_track_calls = []
+        self.subtitle_track_calls = []
 
     def find_controlling_session_id(self, controlling_user_id):
         self.resolve_calls.append(controlling_user_id)
@@ -505,6 +511,7 @@ class RecordingEmbySession:
         }
 
     def resolve_audio_track_index(self, user_id, item_id, index):
+        self.audio_track_calls.append((user_id, item_id, index))
         info = self.get_item_info(user_id, item_id)
         oppo_index = 0
         for stream in info["MediaStreams"]:
@@ -515,6 +522,7 @@ class RecordingEmbySession:
         return 1
 
     def resolve_subtitle_track_index(self, user_id, item_id, index):
+        self.subtitle_track_calls.append((user_id, item_id, index))
         if index < 0:
             return 0
         info = self.get_item_info(user_id, item_id)
