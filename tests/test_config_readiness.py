@@ -208,5 +208,27 @@ class AvReadinessTest(unittest.TestCase):
         self.assertEqual("verified", r["av"]["status"])
 
 
+class HomeAssistantReadinessTest(unittest.TestCase):
+    def test_disabled_when_not_enabled(self):
+        r = compute_config_readiness(_base_config())
+        self.assertEqual("disabled", r["home_assistant"]["status"])
+
+    def test_incomplete_when_enabled_without_webhook(self):
+        r = compute_config_readiness(_base_config(
+            home_assistant={"enabled": True, "base_url": "http://ha:8123"}
+        ))
+        self.assertEqual("incomplete", r["home_assistant"]["status"])
+
+    def test_configured_when_enabled_with_url_and_webhook(self):
+        r = compute_config_readiness(_base_config(
+            home_assistant={
+                "enabled": True,
+                "base_url": "http://ha:8123",
+                "webhook_id_configured": True,
+            }
+        ))
+        self.assertEqual("configured", r["home_assistant"]["status"])
+
+
 if __name__ == "__main__":
     unittest.main()

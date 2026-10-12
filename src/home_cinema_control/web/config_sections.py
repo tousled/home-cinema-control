@@ -21,7 +21,7 @@ from home_cinema_control.media_servers.common.models import (
 # untyped dict merges on purpose — the config models use extra="allow", so an
 # all-optional Pydantic body model here would only restate those models and
 # re-introduce the default duplication that the Pydantic-defaulting work removed.
-SIMPLE_SECTIONS = ("app", "oppo", "tv", "av", "smb")
+SIMPLE_SECTIONS = ("app", "oppo", "tv", "av", "smb", "home_assistant")
 
 
 class MediaServerSectionBody(BaseModel):

@@ -11,6 +11,12 @@ class PlaybackStartupStepTiming:
     elapsed_seconds: float
 
 
+@dataclass(frozen=True)
+class PlaybackStartupTimingSnapshot:
+    total_elapsed_seconds: float
+    steps: tuple[PlaybackStartupStepTiming, ...]
+
+
 @dataclass
 class PlaybackStartupTimer:
     """
@@ -46,14 +52,21 @@ class PlaybackStartupTimer:
             )
 
     def log_summary(self) -> None:
-        total_elapsed_seconds = time.perf_counter() - self._started_at
+        snapshot = self.snapshot()
         step_summary = " | ".join(
             f"{step.name}={step.elapsed_seconds:.3f}s"
-            for step in self._steps
+            for step in snapshot.steps
         )
 
         logging.info(
             "Playback startup timing summary | total=%.3fs | %s",
-            total_elapsed_seconds,
+            snapshot.total_elapsed_seconds,
             step_summary,
+        )
+
+    def snapshot(self) -> PlaybackStartupTimingSnapshot:
+        """Return an immutable view without changing the timer state."""
+        return PlaybackStartupTimingSnapshot(
+            total_elapsed_seconds=max(0.0, time.perf_counter() - self._started_at),
+            steps=tuple(self._steps),
         )

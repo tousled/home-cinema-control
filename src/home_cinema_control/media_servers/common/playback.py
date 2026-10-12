@@ -21,6 +21,13 @@ class MediaServerPlaybackServices(Protocol):
 
     def create_track_resolver(self, playback_session) -> PlaybackTrackResolver: ...
 
+    def create_observed_playback_consumer(
+        self,
+        *,
+        playback_state: BridgePlaybackState,
+        publisher,
+    ): ...
+
     def create_observed_track_mapper(
         self,
         playback_session,

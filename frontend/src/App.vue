@@ -102,6 +102,17 @@
             <span>{{ $t('x-nav-sala') }}</span>
             <span :style="{ color: stepDotColor(roomReadinessStatus) }" class="nav-dot">●</span>
           </RouterLink>
+          <RouterLink class="nav-item" to="/home-assistant">
+            <svg class="nav-icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                 stroke-width="2" viewBox="0 0 24 24">
+              <path d="m3 11 9-8 9 8"/>
+              <path d="M5 10v10h14V10"/>
+              <path d="M9 20v-6h6v6"/>
+              <path d="M16.5 7.5a3 3 0 0 1 0 4.2"/>
+            </svg>
+            <span>{{ $t('x-nav-home-assistant') }}</span>
+            <span :style="{ color: stepDotColor(readiness?.home_assistant?.status) }" class="nav-dot">●</span>
+          </RouterLink>
         </div>
 
         <div class="nav-section">

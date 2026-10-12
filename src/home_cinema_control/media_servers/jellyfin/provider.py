@@ -14,12 +14,20 @@ class JellyfinProvider:
     def playback_services(self):
         return JellyfinPlaybackServices()
 
-    def create_playback_listener(self, *, config: dict, config_file: str, language: dict):
+    def create_playback_listener(
+        self,
+        *,
+        config: dict,
+        config_file: str,
+        language: dict,
+        playback_event_publisher=None,
+    ):
         return JellyfinWebsocket(
             config=config,
             config_file=config_file,
             language=language,
             playback_services=self.playback_services(),
+            playback_event_publisher=playback_event_publisher,
         )
 
     def setup_service(self):

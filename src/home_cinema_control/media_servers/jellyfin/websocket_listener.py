@@ -24,8 +24,9 @@ class JellyfinWebsocket(MediaServerWebsocketListener):
         *,
         config=None,
         config_file: str = "",
-        language=None,
-        playback_services=None,
+            language=None,
+            playback_services=None,
+            playback_event_publisher=None,
     ):
         super().__init__(
             provider_name="Jellyfin",
@@ -50,4 +51,5 @@ class JellyfinWebsocket(MediaServerWebsocketListener):
             config_file=config_file,
             language=language,
             playback_services=playback_services,
+            playback_event_publisher=playback_event_publisher,
         )

@@ -1,0 +1,2 @@
+"""Application update notification services."""
+

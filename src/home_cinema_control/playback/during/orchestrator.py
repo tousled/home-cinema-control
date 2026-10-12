@@ -10,6 +10,7 @@ from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_total_seconds_reader,
 )
 from home_cinema_control.playback.player_state import PlayerPlaybackLifecyclePhase
+from home_cinema_control.playback.events import PlaybackObservedState
 from home_cinema_control.devices.oppo.svm_mode import OppoSVMModeClient
 from home_cinema_control.devices.oppo.svm3_runtime import OppoSVM3PlaybackRuntime
 from home_cinema_control.devices.oppo.verbose_events import OppoVerboseEventListener
@@ -47,6 +48,7 @@ class DuringPlaybackOrchestrator:
         svm3_runtime: OppoSVM3PlaybackRuntime | None = None,
             oppo_total_provider: Callable[[], int] | None = None,
         tcp_client: LoggingTcpClient | None = None,
+        playback_state_observer: Callable[[PlaybackObservedState], None] | None = None,
     ) -> None:
         self._config = config
         self._polling_orchestrator = polling_orchestrator
@@ -56,6 +58,7 @@ class DuringPlaybackOrchestrator:
             or VerbosePlaybackObservationStrategy(
                 event_source=self._svm3_runtime,
                 progress_reporter=progress_reporter,
+                playback_state_observer=playback_state_observer,
             oppo_total_provider=(
                     oppo_total_provider or create_oppo_total_seconds_reader(config)
             ),

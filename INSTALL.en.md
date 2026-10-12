@@ -154,7 +154,7 @@ This screen avoids manual token editing, reloads the media server's devices, and
 mapping.
 
 If you use Jellyfin, the account you authorize HCC with must be an **administrator** for device and library reload
-to work — see [Frequent Issues](#13-frequent-issues).
+to work — see [Frequent Issues](#14-frequent-issues).
 
 ## 6. Media Player
 
@@ -399,7 +399,115 @@ server's.
 
 *(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
 
-## 9. Diagnostics
+## 9. Home Assistant: Optional Automation
+
+HCC can send neutral playback events to a Home Assistant webhook. HCC does not decide which lights, scenes, or entities
+should react; that automation logic remains in Home Assistant.
+
+### 9.1 Create the webhook in Home Assistant
+
+In Home Assistant, create an automation with a **Webhook** trigger. Use a long random identifier, allow the `POST`
+method, and keep `local_only` enabled when HCC and Home Assistant are on the same network.
+
+Minimal YAML example:
+
+```yaml
+alias: HCC playback events
+triggers:
+  - trigger: webhook
+    webhook_id: replace-this-with-a-long-random-id
+    allowed_methods:
+      - POST
+    local_only: true
+actions:
+  - action: logbook.log
+    data:
+      name: HCC
+      message: "{{ trigger.json.event }} - {{ trigger.json.title | default('') }}"
+mode: queued
+```
+
+Treat the webhook ID like a credential: do not publish or share it. Home Assistant exposes the endpoint as
+`/api/webhook/<webhook_id>` and accepts the JSON sent by HCC.
+
+### 9.2 Configure HCC
+
+In HCC's **Home Assistant** screen:
+
+1. Enable the **Enable playback event delivery** checkbox.
+2. Enter the Home Assistant base URL, for example `http://homeassistant.local:8123`. Do not add `/api/webhook`.
+3. Enter the same **Webhook ID** created in Home Assistant.
+4. If needed, open the advanced options and adjust the delivery timeout.
+5. Click **Save**.
+6. Restart HCC using the link shown on the screen so the playback listener loads the configuration.
+
+The screen keeps event delivery setup and the latest known delivery in separate blocks. It does not send an artificial
+webhook to check the status.
+
+HCC stores the webhook ID in `/config/secrets.json`, does not return it to the UI, and excludes it from diagnostics. The
+integration does not require a Home Assistant add-on or custom Home Assistant integration.
+
+HCC can send these events:
+
+- `started`
+- `paused`
+- `resumed`
+- `stopped`
+
+The JSON contains the event type, `event_id`, and `session_id`, plus `media_type`, `title`, `source`, and `player` when
+available. If Home Assistant is unreachable, HCC logs the error and playback continues.
+
+The Home Assistant screen shows the latest real delivery status. It starts as pending until the first event, then
+reports
+whether delivery succeeded or failed. This indicator is preserved across HCC restarts and does not send test requests to
+the webhook.
+If you change the URL or webhook ID, HCC treats the new configuration as pending until it delivers an event
+successfully.
+If HCC cannot load this screen's configuration, it shows an actionable error with a **Try again** button instead of an
+empty form filled with default values.
+
+When HCC detects a newer release in the background, it also sends this compact payload:
+
+```json
+{
+  "event": "hcc_update_available",
+  "current_version": "1.4.0",
+  "latest_version": "1.4.1",
+  "release_url": "https://github.com/tousled/home-cinema-control/releases/tag/1.4.1"
+}
+```
+
+Example automation that displays it as a persistent notification:
+
+```yaml
+alias: HCC update available
+triggers:
+  - trigger: webhook
+    webhook_id: replace-this-with-a-long-random-id
+    allowed_methods:
+      - POST
+    local_only: true
+conditions:
+  - condition: template
+    value_template: "{{ trigger.json.event == 'hcc_update_available' }}"
+actions:
+  - action: persistent_notification.create
+    data:
+      notification_id: hcc_update_available
+      title: "New HCC version"
+      message: >-
+        HCC {{ trigger.json.latest_version }} is available.
+        {{ trigger.json.release_url }}
+mode: restart
+```
+
+This state is independent from the web update banner. The project's official Telegram channel publishes project-wide
+releases and requires no configuration in each HCC installation.
+
+For webhook details and security options, see the
+[official Home Assistant documentation](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+
+## 10. Diagnostics
 
 The Status screen shows readiness, playback state, latest failure, version status, and support summary.
 
@@ -421,7 +529,7 @@ playback started/finished/failed events. If the telemetry backend is unavailable
 anonymous events in `/config/telemetry_queue.json` and retries later. It does not send paths, IPs, tokens, URLs, server
 names, libraries, titles, logs, scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
 
-## 10. Readable Logs
+## 11. Readable Logs
 
 The Logs screen renders structured logs with severity and filtering.
 
@@ -435,7 +543,7 @@ Downloads still include the full log.
 
 This makes support easier than sharing raw unfiltered logs.
 
-## 11. First Playback Validation
+## 12. First Playback Validation
 
 Once the setup screens are saved and verified, test one movie from an intercepted library. Do not only check that the
 player starts; check the full cycle.
@@ -455,7 +563,7 @@ Real hardware validation still matters: original OPPO players, Chinoppo clones, 
 can behave differently. If something fails, copy the support summary from **Diagnostics** and filter logs by warnings or
 errors.
 
-## 12. Updating
+## 13. Updating
 
 If you installed with Docker Compose:
 
@@ -490,7 +598,7 @@ version you want and redeploy by re-pulling the image, not by rebuilding from th
 
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.
 
-## 13. Frequent Issues
+## 14. Frequent Issues
 
 ### Jellyfin: devices and libraries don't show up when you click "Reload"
 

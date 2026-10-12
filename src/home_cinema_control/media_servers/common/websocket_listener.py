@@ -6,22 +6,28 @@ from collections.abc import Callable
 from websocket import WebSocketConnectionClosedException
 
 from home_cinema_control import __version__
+from home_cinema_control.application_events import ApplicationEventBus
 from home_cinema_control.config.manager import (
     active_media_server_config,
     load_effective_config,
-    save_effective_config,
 )
 from home_cinema_control.devices.oppo.playback_command_control import (
     create_oppo_playback_command_control,
 )
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
+from home_cinema_control.home_automation.home_assistant_consumer import (
+    HomeAssistantWebhookConsumer,
+)
 from home_cinema_control.media_servers.common.websocket_events import (
     MediaServerWebsocketEventKind,
 )
 from home_cinema_control.playback.application import PlaybackApplicationService
-from home_cinema_control.playback.dispatch import PlaybackIntentDispatcher
+from home_cinema_control.playback.dispatch import (
+    PlaybackIntentDispatcher,
+    bridge_playback_is_active,
+)
+from home_cinema_control.playback.events import PlaybackEvent
 from home_cinema_control.playback.state import BridgePlaybackState
-from home_cinema_control.telemetry.service import TelemetryService
 
 
 class MediaServerWebsocketListener:
@@ -42,6 +48,7 @@ class MediaServerWebsocketListener:
         config_file: str = "",
         language=None,
         playback_services=None,
+        playback_event_publisher=None,
     ):
         self._provider_name = provider_name
         self._session_attribute_name = session_attribute_name
@@ -61,8 +68,15 @@ class MediaServerWebsocketListener:
         self.config_file = config_file
         self.language = language
         self._playback_services = playback_services
+        self._playback_event_publisher = playback_event_publisher
         self._ws_app = None
         self.playback_application_service = None
+        self._owns_application_event_bus = playback_event_publisher is None
+        self.application_event_bus = (
+            ApplicationEventBus() if self._owns_application_event_bus else None
+        )
+        if self._owns_application_event_bus:
+            self._register_home_assistant_consumer()
         self.playback_command_handler = None
         self._session_monitor = None
         self._websocket_event_mapper = None
@@ -75,14 +89,44 @@ class MediaServerWebsocketListener:
 
     def stop(self):
         logging.info("%s websocket stop", self._provider_name)
+        if self.playback_application_service is not None:
+            self.playback_application_service.stop_active_playback_and_wait()
+        if self._owns_application_event_bus:
+            self.application_event_bus.shutdown(drain=True)
         if self._ws_app:
             self._ws_app.close()
+
+    def get_playback_state(self) -> BridgePlaybackState | None:
+        return self.playback_state
+
+    def has_active_playback(self) -> bool:
+        state = self.get_playback_state()
+        return state is not None and bridge_playback_is_active(state.playstate)
 
     def reload_config(self):
         logging.info("Reloading config")
         config = load_effective_config(self.config_file)
         self.update_config(config)
         return config
+
+    def _register_home_assistant_consumer(self) -> None:
+        home_assistant = (self.config or {}).get("home_assistant") or {}
+        if not home_assistant.get("enabled"):
+            return
+        base_url = str(home_assistant.get("base_url") or "").strip()
+        webhook_id = str(home_assistant.get("webhook_id") or "").strip()
+        if not base_url or not webhook_id:
+            logging.warning("Home Assistant consumer is enabled but incomplete")
+            return
+        self.application_event_bus.subscribe(
+            PlaybackEvent,
+            HomeAssistantWebhookConsumer(
+                base_url=base_url,
+                webhook_id=webhook_id,
+                timeout_seconds=float(home_assistant.get("timeout_seconds", 3.0)),
+            ),
+            ordering_key=lambda event: event.session_id,
+        )
 
     def update_config(self, config: dict) -> None:
         self.config = config
@@ -236,12 +280,8 @@ class MediaServerWebsocketListener:
             playback_state=self.playback_state,
             reload_config=self.reload_config,
             media_server_playback_services=self._playback_services,
-            telemetry_service=TelemetryService(
-                config_file=self.config_file,
-                load_config=lambda: load_effective_config(self.config_file),
-                save_config=lambda config: save_effective_config(
-                    self.config_file, config
-                ),
+            playback_event_publisher=(
+                self._playback_event_publisher or self.application_event_bus
             ),
         )
         dispatcher = PlaybackIntentDispatcher(
@@ -255,13 +295,16 @@ class MediaServerWebsocketListener:
             oppo_control_factory=lambda config: create_oppo_playback_command_control(
                 config,
                 on_verbose_preamble=getattr(
-                    self.playback_application_service.active_oppo_playback,
+                    self.playback_application_service.active_media_player,
                     "preamble_callback",
                     None,
                 ),
             ),
             active_publisher_provider=lambda: (
                 self.playback_application_service.active_publisher
+            ),
+            playback_state_observer=(
+                self.playback_application_service.observe_playback_state
             ),
         )
         self._session_monitor = self._session_monitor_factory(

@@ -16,12 +16,14 @@ class EmbyProvider:
         config: dict,
         config_file: str,
         language: dict,
+        playback_event_publisher=None,
     ) -> EmbyWebsocket:
         return EmbyWebsocket(
             config=config,
             config_file=config_file,
             language=language,
             playback_services=self.playback_services(),
+            playback_event_publisher=playback_event_publisher,
         )
 
     def setup_service(self):

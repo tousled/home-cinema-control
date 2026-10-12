@@ -234,8 +234,16 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
 
         self.assertTrue(result.successful)
         self.assertEqual(
-            ["mount_oppo_network_share", "wait_for_oppo_playback_active"],
+            [
+                "mount_oppo_network_share",
+                "commit_oppo_playback",
+                "wait_for_oppo_playback_active",
+            ],
             step_timer.measured_steps,
+        )
+        self.assertEqual(
+            [("play_normal_file", "/mnt/nfs1", "NAS", "Movie.mkv", "0", 30)],
+            client.calls,
         )
 
     def test_starts_samba_playback_when_smb_is_active(self):

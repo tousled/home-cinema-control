@@ -12,6 +12,7 @@ def compute_config_readiness(config: dict) -> dict:
         "media_paths": _media_paths_readiness(config),
         "tv": _tv_readiness(config),
         "av": _av_readiness(config),
+        "home_assistant": _home_assistant_readiness(config),
     }
 
 
@@ -80,3 +81,12 @@ def _av_readiness(config: dict) -> dict:
             return {"status": verified_status(config, "av"), "detail": f"{model} · {av['ip']}"}
         return {"status": "incomplete", "detail": "IP address not set"}
     return {"status": "incomplete", "detail": "Model not selected"}
+
+
+def _home_assistant_readiness(config: dict) -> dict:
+    home_assistant = config.get("home_assistant") or {}
+    if not home_assistant.get("enabled", False):
+        return {"status": "disabled", "detail": "Home Assistant integration disabled (optional)"}
+    if home_assistant.get("base_url") and home_assistant.get("webhook_id_configured"):
+        return {"status": "configured", "detail": home_assistant["base_url"]}
+    return {"status": "incomplete", "detail": "Server URL or webhook not configured"}

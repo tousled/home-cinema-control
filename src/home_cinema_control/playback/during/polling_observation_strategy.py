@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from typing import Protocol
 
 from home_cinema_control.playback.player_state import (
@@ -11,6 +12,7 @@ from home_cinema_control.playback.player_state import (
     PlayerPlaybackState,
     PlayerPlaybackStatus,
 )
+from home_cinema_control.playback.events import PlaybackObservedState
 from home_cinema_control.playback.during.models import (
     PlaybackMonitoringRequest,
     PlaybackMonitoringResult,
@@ -55,10 +57,12 @@ class PollingPlaybackObservationStrategy:
         *,
         media_player: MediaPlayerPort,
         progress_reporter: PlaybackProgressReporter | None = None,
+        playback_state_observer: Callable[[PlaybackObservedState], None] | None = None,
         sleep=time.sleep,
     ) -> None:
         self._media_player = media_player
         self._progress_reporter = progress_reporter
+        self._playback_state_observer = playback_state_observer
         self._sleep = sleep
 
     def monitor_until_stopped(
@@ -87,6 +91,7 @@ class PollingPlaybackObservationStrategy:
             self._sleep(request.poll_interval_seconds)
             elapsed_monitoring_seconds += request.poll_interval_seconds
             final_state = self._media_player.get_playback_state()
+            self._observe_playback_state(final_state)
 
             if _is_paused_screensaver_state(final_state, last_active_state):
                 transition_polls = 0
@@ -306,6 +311,14 @@ class PollingPlaybackObservationStrategy:
             final_state=final_state,
             stop_reason=stop_reason,
         )
+
+    def _observe_playback_state(self, playback_state: PlayerPlaybackState) -> None:
+        if self._playback_state_observer is None:
+            return
+        if playback_state.status == PlayerPlaybackStatus.PAUSE:
+            self._playback_state_observer(PlaybackObservedState.PAUSED)
+        elif playback_state.status in ACTIVE_PLAYBACK_STATUSES:
+            self._playback_state_observer(PlaybackObservedState.PLAYING)
 
     def _report_progress(
         self,

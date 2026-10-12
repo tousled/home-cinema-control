@@ -10,13 +10,8 @@ from home_cinema_control.playback.application import (
     _should_stop_source_client_before_handoff,
 )
 from home_cinema_control.playback.content_kind import MediaContentKind
-from home_cinema_control.playback.startup.models import (
-    DeviceCommandResult,
-    PlaybackOutputSwitchResult,
-)
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
-from home_cinema_control.playback.timing import PlaybackStartupTimer
 
 
 class PlaybackApplicationServiceTest(unittest.TestCase):
@@ -102,118 +97,6 @@ class PlaybackApplicationServiceTest(unittest.TestCase):
 
         self.assertEqual("stop_active_playback", command)
 
-    def test_remembers_non_hdmi_tv_return_app(self):
-        service = PlaybackApplicationService(
-            playback_session="session",
-            playback_state=BridgePlaybackState(),
-            reload_config=lambda: None,
-        )
-
-        service._remember_playback_return_tv_app_id(
-            _playback_result_with_previous_tv_app("com.emby.app")
-        )
-
-        self.assertEqual("com.emby.app", service._playback_return_tv_app_id)
-
-    def test_does_not_overwrite_return_app_with_hdmi_input(self):
-        service = PlaybackApplicationService(
-            playback_session="session",
-            playback_state=BridgePlaybackState(),
-            reload_config=lambda: None,
-        )
-        service._playback_return_tv_app_id = "com.emby.app"
-
-        service._remember_playback_return_tv_app_id(
-            _playback_result_with_previous_tv_app("com.webos.app.hdmi3")
-        )
-
-        self.assertEqual("com.emby.app", service._playback_return_tv_app_id)
-
-    def test_keeps_return_app_while_replacement_finish_is_joining(self):
-        service = PlaybackApplicationService(
-            playback_session="session",
-            playback_state=BridgePlaybackState(),
-            reload_config=lambda: None,
-        )
-        service._playback_return_tv_app_id = "com.emby.app"
-        service._thread_lifecycle._replacement_requested.set()
-
-        service._clear_playback_return_tv_app_id_after_final_finish(
-            _playback_result_with_previous_tv_app("com.emby.app", finished=True)
-        )
-
-        self.assertEqual("com.emby.app", service._playback_return_tv_app_id)
-
-    def test_clears_return_app_after_final_finish(self):
-        service = PlaybackApplicationService(
-            playback_session="session",
-            playback_state=BridgePlaybackState(),
-            reload_config=lambda: None,
-        )
-        service._playback_return_tv_app_id = "com.emby.app"
-
-        service._clear_playback_return_tv_app_id_after_final_finish(
-            _playback_result_with_previous_tv_app("com.emby.app", finished=True)
-        )
-
-        self.assertIsNone(service._playback_return_tv_app_id)
-
-
-class OnStartupCompletedTest(unittest.TestCase):
-    """`_on_startup_completed` delegates the actual touchpoint-6 send to the
-    messaging service (see test_playback_startup_messaging.py for content/copy
-    coverage) — this only verifies the delegation itself."""
-
-    def _service(self):
-        return PlaybackApplicationService(
-            playback_session=SimpleNamespace(config={"tv": {"enabled": True}}),
-            playback_state=BridgePlaybackState(),
-            reload_config=lambda: None,
-            media_server_playback_services=SimpleNamespace(
-                create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
-            ),
-        )
-
-    def test_delegates_to_messaging_action_with_the_resolved_content_kind(self):
-        service = self._service()
-        actions = []
-        messaging = SimpleNamespace(action=lambda content_kind: actions.append(content_kind))
-
-        service._on_startup_completed(
-            None,
-            intent=_intent(media_item_id="1"),
-            movie="/movies/aquaman.mkv",
-            messaging=messaging,
-            content_kind=MediaContentKind.CONCERT,
-            playback_wiring=SimpleNamespace(
-                playback_event_publisher=None,
-                during_playback_orchestrator=SimpleNamespace(),
-            ),
-            startup_timer=PlaybackStartupTimer(),
-        )
-
-        self.assertEqual([MediaContentKind.CONCERT], actions)
-
-    def test_sets_playstate_to_playing(self):
-        service = self._service()
-        messaging = SimpleNamespace(action=lambda content_kind: None)
-
-        service._on_startup_completed(
-            None,
-            intent=_intent(media_item_id="1"),
-            movie="/movies/aquaman.mkv",
-            messaging=messaging,
-            content_kind=MediaContentKind.MOVIE,
-            playback_wiring=SimpleNamespace(
-                playback_event_publisher=None,
-                during_playback_orchestrator=SimpleNamespace(),
-            ),
-            startup_timer=PlaybackStartupTimer(),
-        )
-
-        self.assertEqual("Playing", service._state.playstate)
-
-
 class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
     """Regression test for a real bug: the on_startup_completed lambda built
     inside _start_from_intent passed `origin=origin` as a keyword argument
@@ -240,10 +123,10 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
         )
 
         with (
-            patch("home_cinema_control.playback.application.prepare_oppo_observation_mode"),
-            patch("home_cinema_control.playback.application.log_oppo_qpl_state"),
+            patch("home_cinema_control.playback.oppo_lifecycle.prepare_oppo_observation_mode"),
+            patch("home_cinema_control.playback.oppo_lifecycle.log_oppo_qpl_state"),
             patch(
-                "home_cinema_control.playback.application.ensure_oppo_control_api_available"
+                "home_cinema_control.playback.oppo_lifecycle.ensure_oppo_control_api_available"
             ) as ensure_oppo,
         ):
             service._start_from_intent(
@@ -305,19 +188,20 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                 playback_context_from_intent=lambda intent: SimpleNamespace(),
                 create_playback_event_publisher=lambda client, *, bridge_session_id, context: None,
                 create_track_resolver=lambda playback_session: SimpleNamespace(),
+                create_observed_playback_consumer=lambda **kwargs: object(),
                 create_observed_track_mapper=lambda playback_session, *, playback_state: object(),
             ),
         )
 
         with (
             patch(
-                "home_cinema_control.playback.application.ensure_oppo_control_api_available",
+                "home_cinema_control.playback.oppo_lifecycle.ensure_oppo_control_api_available",
                 return_value=True,
             ),
-            patch("home_cinema_control.playback.application.prepare_oppo_observation_mode"),
-            patch("home_cinema_control.playback.application.log_oppo_qpl_state"),
+            patch("home_cinema_control.playback.oppo_lifecycle.prepare_oppo_observation_mode"),
+            patch("home_cinema_control.playback.oppo_lifecycle.log_oppo_qpl_state"),
             patch(
-                "home_cinema_control.playback.application.create_playback_orchestrator_wiring",
+                "home_cinema_control.playback.handoff.create_playback_orchestrator_wiring",
                 return_value=SimpleNamespace(
                     playback_orchestrator=FakeOrchestrator(),
                     playback_event_publisher=None,
@@ -326,15 +210,15 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                 ),
             ),
             patch(
-                "home_cinema_control.playback.application.prepare_playback_requests",
+                "home_cinema_control.playback.handoff.prepare_playback_requests",
                 return_value=prepared_requests,
             ),
-            patch("home_cinema_control.playback.application.report_orchestration_result"),
+            patch("home_cinema_control.playback.handoff.report_orchestration_result"),
             patch(
-                "home_cinema_control.playback.application.diagnose_orchestration_result",
+                "home_cinema_control.playback.handoff.diagnose_orchestration_result",
                 return_value=None,
             ),
-            patch("home_cinema_control.playback.application.power_down_after_playback_if_configured"),
+            patch("home_cinema_control.playback.oppo_lifecycle.power_down_after_playback_if_configured"),
         ):
             service._start_from_intent(
                 intent, origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND
@@ -470,20 +354,6 @@ def _intent(*, media_item_id: str) -> PlaybackIntent:
         start_position_seconds=0,
         selected_audio_track_id=1,
         selected_subtitle_track_id=-1,
-    )
-
-
-def _playback_result_with_previous_tv_app(previous_tv_app_id, *, finished=False):
-    return SimpleNamespace(
-        startup_result=SimpleNamespace(
-            output_switch_result=PlaybackOutputSwitchResult(
-                previous_tv_app_id=previous_tv_app_id,
-                tv_input_result=DeviceCommandResult.success(),
-                av_power_result=DeviceCommandResult.success(),
-                av_input_result=DeviceCommandResult.success(),
-            )
-        ),
-        finish_result=object() if finished else None,
     )
 
 

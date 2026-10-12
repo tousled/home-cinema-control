@@ -31,13 +31,15 @@ class PlaybackStartupOrchestrator:
     def __init__(
         self,
         *,
-            television: TelevisionOutputPort | None,
-            av_receiver: AvReceiverOutputPort | None,
+        television: TelevisionOutputPort | None,
+        av_receiver: AvReceiverOutputPort | None,
         media_player: MediaPlayerPort,
+        step_timer=None,
     ) -> None:
         self._television = television
         self._av_receiver = av_receiver
         self._media_player = media_player
+        self._step_timer = step_timer
 
     def start_playback(
         self,
@@ -204,7 +206,11 @@ class PlaybackStartupOrchestrator:
 
     def _measure_output_switch_step(self, step_name: str, operation: Callable):
         started_at = time.perf_counter()
-        result = operation()
+        if self._step_timer is None:
+            result = operation()
+        else:
+            with self._step_timer.measure_step(step_name):
+                result = operation()
         logger.info(
             "Playback output switch timing | step=%s | elapsed=%.3fs",
             step_name,

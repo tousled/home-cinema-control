@@ -13,6 +13,7 @@ from home_cinema_control.playback.player_state import (
     PlayerPlaybackState,
     PlayerPlaybackStatus,
 )
+from home_cinema_control.playback.events import PlaybackObservedState
 from home_cinema_control.playback.during.models import (
     PlaybackMonitoringRequest,
     PlaybackMonitoringResult,
@@ -80,11 +81,13 @@ class VerbosePlaybackObservationStrategy:
         event_source: VerboseObservationEventSource,
         progress_reporter: PlaybackProgressReporter | None = None,
         observed_event_reporter: ObservedPlaybackEventReporter | None = None,
+        playback_state_observer: Callable[[PlaybackObservedState], None] | None = None,
             oppo_total_provider: Callable[[], int] | None = None,
     ) -> None:
         self._event_source = event_source
         self._progress_reporter = progress_reporter
         self._observed_event_reporter = observed_event_reporter
+        self._playback_state_observer = playback_state_observer
         self._deferred_audio_selector: Callable[[], DeviceCommandResult] | None = None
         self._oppo_total_provider = oppo_total_provider
 
@@ -223,6 +226,7 @@ class VerbosePlaybackObservationStrategy:
             utc_idle_timeout_seconds=request.event_watchdog_seconds,
         ):
             observed_event = translate_oppo_verbose_event(event)
+            self._observe_playback_state(observed_event)
 
             if _is_stop_event(observed_event):
                 state.pending_stop_event = observed_event
@@ -364,6 +368,14 @@ class VerbosePlaybackObservationStrategy:
             final_state=final_player_state,
             stop_reason=stop_reason,
         )
+
+    def _observe_playback_state(self, event: ObservedPlaybackEvent | None) -> None:
+        if self._playback_state_observer is None:
+            return
+        if _is_pause_event(event):
+            self._playback_state_observer(PlaybackObservedState.PAUSED)
+        elif _is_play_event(event):
+            self._playback_state_observer(PlaybackObservedState.PLAYING)
 
     def _report_observed_event(self, event: ObservedPlaybackEvent) -> None:
         if self._observed_event_reporter is None:
