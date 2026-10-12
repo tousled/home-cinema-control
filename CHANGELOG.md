@@ -15,6 +15,8 @@ visibility into the startup and integration paths that keep playback reliable.
   payload shapes remain localized in their own adapters.
 * Centralized media-server configuration transitions so patch, token, and connection-check routes share one policy for
   secret preservation, provider verification, active-playback confirmation, draft saves, and listener restarts.
+* Centralized OPPO lifecycle policy for startup preparation, availability checks, observed-event wiring, QPL logging,
+  replacement stops, and post-playback power-down.
 
 ### Highlights
 

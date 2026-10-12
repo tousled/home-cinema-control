@@ -286,10 +286,10 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
         )
 
         with (
-            patch("home_cinema_control.playback.application.prepare_oppo_observation_mode"),
-            patch("home_cinema_control.playback.application.log_oppo_qpl_state"),
+            patch("home_cinema_control.playback.oppo_lifecycle.prepare_oppo_observation_mode"),
+            patch("home_cinema_control.playback.oppo_lifecycle.log_oppo_qpl_state"),
             patch(
-                "home_cinema_control.playback.application.ensure_oppo_control_api_available"
+                "home_cinema_control.playback.oppo_lifecycle.ensure_oppo_control_api_available"
             ) as ensure_oppo,
         ):
             service._start_from_intent(
@@ -358,11 +358,11 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
 
         with (
             patch(
-                "home_cinema_control.playback.application.ensure_oppo_control_api_available",
+                "home_cinema_control.playback.oppo_lifecycle.ensure_oppo_control_api_available",
                 return_value=True,
             ),
-            patch("home_cinema_control.playback.application.prepare_oppo_observation_mode"),
-            patch("home_cinema_control.playback.application.log_oppo_qpl_state"),
+            patch("home_cinema_control.playback.oppo_lifecycle.prepare_oppo_observation_mode"),
+            patch("home_cinema_control.playback.oppo_lifecycle.log_oppo_qpl_state"),
             patch(
                 "home_cinema_control.playback.application.create_playback_orchestrator_wiring",
                 return_value=SimpleNamespace(
@@ -381,7 +381,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                 "home_cinema_control.playback.application.diagnose_orchestration_result",
                 return_value=None,
             ),
-            patch("home_cinema_control.playback.application.power_down_after_playback_if_configured"),
+            patch("home_cinema_control.playback.oppo_lifecycle.power_down_after_playback_if_configured"),
         ):
             service._start_from_intent(
                 intent, origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND

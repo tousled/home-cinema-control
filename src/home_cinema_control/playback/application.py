@@ -14,13 +14,7 @@ from home_cinema_control.playback.events import (
 )
 from home_cinema_control.playback.dispatch import bridge_playback_is_active
 from home_cinema_control.playback.factory import create_playback_orchestrator_wiring
-from home_cinema_control.playback.device_runtime import (
-    ensure_oppo_control_api_available,
-    log_oppo_qpl_state,
-    power_down_after_playback_if_configured,
-    prepare_oppo_observation_mode,
-    stop_active_player_playback_before_replacement,
-)
+from home_cinema_control.playback.oppo_lifecycle import OppoPlaybackLifecycleService
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.diagnostics import (
     diagnose_media_server_item_unavailable,
@@ -33,9 +27,6 @@ from home_cinema_control.playback.notification_sender import (
     playback_start_messages,
     send_stop_with_delivery_reliability,
     send_playback_message,
-)
-from home_cinema_control.playback.observed_event_adapter import (
-    configure_oppo_observed_event_reporting,
 )
 from home_cinema_control.playback.orchestrator import PlaybackOrchestrationRequest
 from home_cinema_control.playback.request_preparation import prepare_playback_requests
@@ -71,6 +62,7 @@ class PlaybackApplicationService:
         playback_state: BridgePlaybackState,
         reload_config,
         media_server_playback_services: MediaServerPlaybackServices | None = None,
+        oppo_lifecycle: OppoPlaybackLifecycleService | None = None,
         playback_event_dispatcher=None,
         playback_event_publisher=None,
         playback_state_detector: PlaybackStateDetector | None = None,
@@ -81,10 +73,11 @@ class PlaybackApplicationService:
         self._state = playback_state
         self._reload_config = reload_config
         self._media_server_playback_services = media_server_playback_services
+        self._oppo_lifecycle = oppo_lifecycle or OppoPlaybackLifecycleService()
         self._playback_event_publisher = playback_event_publisher or playback_event_dispatcher
         self._playback_state_detector = playback_state_detector or PlaybackStateDetector()
         self._stop_active_playback = stop_active_playback or (
-            lambda: stop_active_player_playback_before_replacement(
+            lambda: self._oppo_lifecycle.stop_active_playback_before_replacement(
                 self._state, self._playback_session.config
             )
         )
@@ -187,8 +180,7 @@ class PlaybackApplicationService:
         with startup_timer.measure_step("notify_received"):
             messaging.received()
 
-        prepare_oppo_observation_mode(playback_session.config)
-        log_oppo_qpl_state(playback_session.config, "playback_application_start")
+        self._oppo_lifecycle.prepare_playback_start(playback_session.config)
 
         logger.info("playback origin: %s", origin.value)
 
@@ -219,7 +211,7 @@ class PlaybackApplicationService:
                 return
 
         with startup_timer.measure_step("ensure_oppo_control_api_available"):
-            control_api_available = ensure_oppo_control_api_available(
+            control_api_available = self._oppo_lifecycle.ensure_control_api_available(
                 playback_session.config
             )
 
@@ -357,7 +349,7 @@ class PlaybackApplicationService:
         )
 
         self._active_context.clear()
-        power_down_after_playback_if_configured(playback_session.config)
+        self._oppo_lifecycle.finish_playback(playback_session.config)
         self._playback_state_detector.stop_session(publish=self._publish_playback_event)
         _reset_bridge_playback_state(self._state, movie)
         return playback_orchestration_result
@@ -408,18 +400,13 @@ class PlaybackApplicationService:
         )
         logger.info("Reprodución iniciada: %s", movie)
 
-        log_oppo_qpl_state(playback_session.config, "after_oppo_playback_start")
+        self._oppo_lifecycle.record_playback_started(playback_session.config)
         startup_timer.log_summary()
-        configure_oppo_observed_event_reporting(
+        self._oppo_lifecycle.configure_observed_event_reporting(
             playback_wiring=playback_wiring,
-            observed_event_sink=self._media_server_services().create_observed_playback_consumer(
-                playback_state=self._state,
-                publisher=playback_wiring.playback_event_publisher,
-            ),
-            track_mapper=self._media_server_services().create_observed_track_mapper(
-                playback_session,
-                playback_state=self._state,
-            ),
+            media_server_services=self._media_server_services(),
+            playback_session=playback_session,
+            playback_state=self._state,
         )
         startup_event = {}
         try:
