@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
+from home_cinema_control.devices.tv.ports import TelevisionNotificationPort
 from home_cinema_control.home_automation.home_assistant_transport import (
     HomeAssistantWebhookError,
 )
@@ -91,7 +92,7 @@ class TelevisionUpdateChannel(NotificationChannel):
         self,
         *,
         channel_id: str,
-        television_provider: Callable[[], object | None],
+        television_provider: Callable[[], TelevisionNotificationPort | None],
     ) -> None:
         self.channel_id = channel_id
         self._television_provider = television_provider
@@ -99,13 +100,16 @@ class TelevisionUpdateChannel(NotificationChannel):
     def deliver(self, notification: UpdateNotification) -> NotificationDeliveryResult:
         try:
             television = self._television_provider()
-            show_notification = getattr(television, "show_notification", None)
-            if not callable(show_notification):
+            if not isinstance(television, TelevisionNotificationPort):
                 return NotificationDeliveryResult.unsupported(
                     "TV adapter has no notification capability."
                 )
+            if not television.supports_notifications:
+                return NotificationDeliveryResult.unsupported(
+                    "TV adapter does not support native notifications."
+                )
 
-            result = show_notification(notification.message)
+            result = television.show_notification(notification.message)
             if result.status == DeviceCommandStatus.SKIPPED:
                 return NotificationDeliveryResult.unsupported(result.detail)
             if result.status != DeviceCommandStatus.SUCCESS:

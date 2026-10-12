@@ -8,6 +8,7 @@ from home_cinema_control.notifications.models import (
     UpdateAvailableEvent,
     UpdateNotification,
 )
+from home_cinema_control.notifications.channels import TelevisionUpdateChannel
 from home_cinema_control.notifications.monitor import UpdateMonitor
 from home_cinema_control.notifications.service import UpdateNotificationService
 from home_cinema_control.notifications.state import NotificationStateStore
@@ -88,6 +89,28 @@ class UpdateNotificationServiceTest(unittest.TestCase):
 
         self.assertIsNone(self.store.last_notified_version("lg_tv"))
 
+    def test_tv_without_notification_port_is_unsupported(self):
+        channel = TelevisionUpdateChannel(
+            channel_id="television",
+            television_provider=lambda: object(),
+        )
+
+        result = channel.deliver(_notification())
+
+        self.assertEqual("unsupported", result.status)
+
+    def test_tv_capability_flag_is_checked_before_delivery(self):
+        tv = UnsupportedNotificationTv()
+        channel = TelevisionUpdateChannel(
+            channel_id="television",
+            television_provider=lambda: tv,
+        )
+
+        result = channel.deliver(_notification())
+
+        self.assertEqual("unsupported", result.status)
+        self.assertEqual([], tv.messages)
+
 
 class UpdateMonitorTest(unittest.TestCase):
     def test_no_update_is_not_published(self):
@@ -156,6 +179,8 @@ class FakeHomeAssistant:
 
 
 class FakeTv:
+    supports_notifications = True
+
     def __init__(self):
         self.messages = []
         self.result = DeviceCommandResult.success()
@@ -163,6 +188,17 @@ class FakeTv:
     def show_notification(self, message):
         self.messages.append(message)
         return self.result
+
+
+class UnsupportedNotificationTv:
+    supports_notifications = False
+
+    def __init__(self):
+        self.messages = []
+
+    def show_notification(self, message):
+        self.messages.append(message)
+        return DeviceCommandResult.success()
 
 
 if __name__ == "__main__":

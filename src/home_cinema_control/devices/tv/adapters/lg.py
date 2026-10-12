@@ -117,6 +117,8 @@ def _map_webos_inputs_to_legacy_sources(inputs: list[dict]) -> list[dict]:
 
 
 class LgTvController(BaseTvController):
+    supports_notifications = True
+
     def show_notification(self, message: str) -> DeviceCommandResult:
         return self._execute_tv_operation(
             "showing LG TV notification",

@@ -5,6 +5,8 @@ from home_cinema_control.playback.startup.models import DeviceCommandResult
 
 
 class BaseTvController(ABC):
+    supports_notifications = False
+
     def __init__(self, config: dict):
         self.config = config
 
