@@ -17,26 +17,9 @@ from home_cinema_control.playback.startup.models import (
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.timing import PlaybackStartupTimer
-from home_cinema_control.telemetry.events import TelemetryEvent
 
 
 class PlaybackApplicationServiceTest(unittest.TestCase):
-    def test_telemetry_is_published_as_an_application_event(self):
-        publisher = RecordingEventPublisher()
-        service = PlaybackApplicationService(
-            playback_session=FakePlaybackSession(),
-            playback_state=BridgePlaybackState(),
-            reload_config=lambda: None,
-            playback_event_publisher=publisher,
-        )
-
-        service._emit_telemetry("playback_failed", {"component": "oppo"})
-
-        self.assertEqual(1, len(publisher.events))
-        self.assertIsInstance(publisher.events[0], TelemetryEvent)
-        self.assertEqual("playback_failed", publisher.events[0].event_name)
-        self.assertEqual({"component": "oppo"}, publisher.events[0].attributes)
-
     def test_request_playback_ignores_duplicate_active_item(self):
         calls = []
         state = BridgePlaybackState()
@@ -233,14 +216,10 @@ class OnStartupCompletedTest(unittest.TestCase):
 
     def test_startup_metric_serialization_failure_does_not_interrupt_playback(self):
         service = self._service()
-        emitted = []
-        service._emit_telemetry = lambda event_name, event=None: emitted.append(
-            (event_name, event)
-        )
         messaging = SimpleNamespace(action=lambda content_kind: None)
 
         with patch(
-            "home_cinema_control.playback.application.build_startup_metrics",
+            "home_cinema_control.playback.handoff.build_startup_metrics",
             side_effect=RuntimeError("serialization failed"),
         ):
             service._on_startup_completed(
@@ -257,7 +236,6 @@ class OnStartupCompletedTest(unittest.TestCase):
             )
 
         self.assertEqual("Playing", service._state.playstate)
-        self.assertEqual([("playback_started", {})], emitted)
 
 
 class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
@@ -364,7 +342,7 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
             patch("home_cinema_control.playback.oppo_lifecycle.prepare_oppo_observation_mode"),
             patch("home_cinema_control.playback.oppo_lifecycle.log_oppo_qpl_state"),
             patch(
-                "home_cinema_control.playback.application.create_playback_orchestrator_wiring",
+                "home_cinema_control.playback.handoff.create_playback_orchestrator_wiring",
                 return_value=SimpleNamespace(
                     playback_orchestrator=FakeOrchestrator(),
                     playback_event_publisher=None,
@@ -373,12 +351,12 @@ class StartFromIntentWiresOnStartupCompletedCorrectlyTest(unittest.TestCase):
                 ),
             ),
             patch(
-                "home_cinema_control.playback.application.prepare_playback_requests",
+                "home_cinema_control.playback.handoff.prepare_playback_requests",
                 return_value=prepared_requests,
             ),
-            patch("home_cinema_control.playback.application.report_orchestration_result"),
+            patch("home_cinema_control.playback.handoff.report_orchestration_result"),
             patch(
-                "home_cinema_control.playback.application.diagnose_orchestration_result",
+                "home_cinema_control.playback.handoff.diagnose_orchestration_result",
                 return_value=None,
             ),
             patch("home_cinema_control.playback.oppo_lifecycle.power_down_after_playback_if_configured"),
@@ -504,14 +482,6 @@ class _FakeActiveThread:
 
     def join(self, timeout=None):
         self._calls.append("join_active")
-
-
-class RecordingEventPublisher:
-    def __init__(self):
-        self.events = []
-
-    def publish(self, event):
-        self.events.append(event)
 
 
 def _intent(*, media_item_id: str) -> PlaybackIntent:

@@ -26,7 +26,7 @@ from home_cinema_control.notifications.coordinator import UpdateNotificationCoor
 from home_cinema_control.notifications.models import UpdateAvailableEvent
 from home_cinema_control.notifications.monitor import UpdateMonitor
 from home_cinema_control.notifications.state import NotificationStateStore
-from home_cinema_control.playback.events import PlaybackEvent
+from home_cinema_control.playback.events import PlaybackDomainEvent, PlaybackEvent
 from home_cinema_control.runtime import (
     HomeCinemaControlRuntime,
     RuntimePaths,
@@ -68,7 +68,14 @@ def build_application_composition(
         save_config=runtime.save_config,
         publish=event_bus.publish,
     )
-    event_bus.subscribe(TelemetryEvent, TelemetryConsumer(telemetry))
+    telemetry_consumer = TelemetryConsumer(telemetry)
+    event_bus.subscribe(TelemetryEvent, telemetry_consumer)
+    event_bus.subscribe(
+        PlaybackDomainEvent,
+        telemetry_consumer,
+        ordering_key=lambda event: getattr(event, "session_id", None)
+        or getattr(event, "handoff_id", None),
+    )
     notification_state_path = paths.config_file.with_name("hcc_notifications.sqlite")
     notification_state_store = NotificationStateStore(notification_state_path)
     home_assistant = config.get("home_assistant") or {}

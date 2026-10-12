@@ -94,4 +94,9 @@ class PlaybackStateDetector:
             title=context.title,
             source=context.source,
             player=context.player,
+            startup_metrics=(
+                dict(context.startup_metrics)
+                if context.startup_metrics is not None
+                else None
+            ),
         )

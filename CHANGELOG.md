@@ -19,6 +19,8 @@ visibility into the startup and integration paths that keep playback reliable.
   replacement stops, and post-playback power-down.
 * Clarified media-server listener ownership: listener shutdown now owns clean playback termination and runtime status
   access goes through the listener contract instead of nested listener internals.
+* Concentrated the synchronous playback handoff and cleanup in one lifecycle module. Playback domain events now carry
+  the canonical lifecycle facts for asynchronous consumers, including a separate handoff-finalized fact after cleanup.
 
 ### Highlights
 

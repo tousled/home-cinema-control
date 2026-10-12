@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from home_cinema_control.composition import build_application_composition
+from home_cinema_control.playback.events import PlaybackDomainEvent
 from home_cinema_control.telemetry.consumer import TelemetryConsumer
 from home_cinema_control.telemetry.events import TelemetryEvent
 
@@ -25,9 +26,15 @@ class ApplicationCompositionTest(unittest.TestCase):
                 for subscription in composition.event_bus._subscriptions
                 if subscription.event_type is TelemetryEvent
             ]
+            playback_telemetry_subscriptions = [
+                subscription
+                for subscription in composition.event_bus._subscriptions
+                if subscription.event_type is PlaybackDomainEvent
+            ]
 
             self.assertIs(composition.runtime.application_event_bus, composition.event_bus)
             self.assertEqual(1, len(telemetry_subscriptions))
+            self.assertEqual(1, len(playback_telemetry_subscriptions))
             self.assertIsInstance(
                 telemetry_subscriptions[0].consumer,
                 TelemetryConsumer,
