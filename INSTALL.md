@@ -443,85 +443,25 @@ Si el receptor AV cambia a la entrada correcta pero vuelve solo a TV Audio, ARC 
 En ese caso, desactiva CEC/ARC en el receptor o revisa la configuración HDMI. HCC puede reintentar cambios de entrada,
 pero si el AVR o la TV fuerzan otra fuente por CEC, la automatización será inestable.
 
-## 9. Home Assistant: automatización opcional
+## 9. Conecta HCC con Home Assistant
 
-HCC puede enviar eventos neutrales de reproducción a un webhook de Home Assistant. HCC no decide qué luces, escenas o
-entidades deben reaccionar: esa lógica permanece en Home Assistant.
+Con esta integración, HCC avisa a Home Assistant cuando una reproducción empieza, se pausa, continúa o termina. Después,
+Home Assistant decide qué hacer: encender luces, activar una escena, enviar un aviso o simplemente guardar el evento en
+el
+registro. HCC no crea automatizaciones por su cuenta; tú eliges la reacción en Home Assistant.
 
-### 9.1 Crea el webhook en Home Assistant
+<p align="center">
+  <img src="assets/screenshots/install/10-home-assistant.png" alt="Pantalla de configuración de Home Assistant en HCC" width="860"/>
+</p>
 
-En Home Assistant crea una automatización con un disparador **Webhook**. Usa un identificador largo y aleatorio, permite
-el método `POST` y mantén `local_only` activado si HCC y Home Assistant están en la misma red.
+### 9.1 Crea la automatización en Home Assistant
 
-Ejemplo mínimo en YAML:
-
-```yaml
-alias: HCC playback events
-triggers:
-  - trigger: webhook
-    webhook_id: reemplaza-esto-por-un-id-largo-y-aleatorio
-    allowed_methods:
-      - POST
-    local_only: true
-actions:
-  - action: logbook.log
-    data:
-      name: HCC
-      message: "{{ trigger.json.event }} - {{ trigger.json.title | default('') }}"
-mode: queued
-```
-
-El identificador del webhook funciona como una credencial: no lo publiques ni lo compartas. Home Assistant expone el
-endpoint como `/api/webhook/<webhook_id>` y acepta el JSON que HCC enviará.
-
-### 9.2 Configura HCC
-
-En la pantalla **Home Assistant** de HCC:
-
-1. Activa la casilla **Activar envío de eventos de reproducción**.
-2. Introduce la URL base de Home Assistant, por ejemplo `http://homeassistant.local:8123`. No añadas `/api/webhook`.
-3. Introduce el mismo **ID del webhook** creado en Home Assistant.
-4. Si lo necesitas, abre las opciones avanzadas y ajusta el timeout de entrega.
-5. Pulsa **Guardar**.
-6. Reinicia HCC desde el enlace que aparece en la propia pantalla para que el listener cargue la configuración.
-
-La pantalla muestra la configuración de entrega y la última entrega conocida en bloques separados. El estado no se
-comprueba enviando un webhook artificial.
-
-HCC puede enviar estos eventos:
-
-- `started`
-- `paused`
-- `resumed`
-- `stopped`
-
-El JSON incluye el tipo de evento, `event_id`, `session_id` y, cuando están disponibles, `media_type`, `title`, `source`
-y `player`. Si Home Assistant no es accesible, HCC registra el error y el flujo de reproducción continúa.
-
-La pantalla de Home Assistant muestra el estado de la última entrega real. Antes del primer evento aparece como
-pendiente;
-después indica si la entrega fue correcta o fallida. Este indicador se conserva entre reinicios de HCC y no envía
-peticiones de prueba al webhook.
-Si cambias la URL o el ID del webhook, HCC considera la nueva configuración pendiente hasta que entregue un evento
-correctamente.
-Si HCC no puede cargar la configuración de esta pantalla, muestra un error con la opción **Reintentar** y no presenta un
-formulario vacío con valores por defecto.
-
-Cuando HCC detecta una nueva versión en segundo plano, envía además este payload compacto:
-
-```json
-{
-  "event": "hcc_update_available",
-  "current_version": "1.4.0",
-  "latest_version": "1.4.1",
-  "release_url": "https://github.com/tousled/home-cinema-control/releases/tag/1.4.1"
-}
-```
-
-Ejemplo de automatización para mostrarlo como notificación persistente:
+En Home Assistant crea una automatización con un disparador **Webhook**. Puedes copiar este ejemplo completo. De momento
+solo escribe cada cambio en el registro de Home Assistant, para que puedas comprobar que la conexión funciona antes de
+añadir luces, escenas o notificaciones.
 
 ```yaml
-alias: HCC update available
+alias: HCC - eventos de reproducción
 triggers:
   - trigger: webhook
     webhook_id: reemplaza-esto-por-un-id-largo-y-aleatorio
@@ -530,23 +470,111 @@ triggers:
     local_only: true
 conditions:
   - condition: template
-    value_template: "{{ trigger.json.event == 'hcc_update_available' }}"
+    value_template: >-
+      {{ trigger.json.event | default('') in ['started', 'paused', 'resumed', 'stopped'] }}
 actions:
-  - action: persistent_notification.create
-    data:
-      notification_id: hcc_update_available
-      title: "Nueva versión de HCC"
-      message: >-
-        HCC {{ trigger.json.latest_version }} está disponible.
-        {{ trigger.json.release_url }}
-mode: restart
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'started' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción iniciada: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'paused' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción pausada: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'resumed' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción reanudada: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'stopped' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción detenida: {{ trigger.json.title | default('') }}"
+mode: queued
 ```
 
-Este estado es independiente del aviso de actualización de la web. El canal oficial de Telegram del proyecto publica
-las releases globales y no requiere configuración en cada instalación de HCC.
+El texto `reemplaza-esto-por-un-id-largo-y-aleatorio` es un ejemplo. Sustitúyelo por un identificador nuevo y guárdalo:
+será el código que permitirá a HCC enviar eventos a esta automatización. Trátalo como una contraseña: no lo publiques ni
+lo compartas.
 
-Para más detalles sobre los webhooks y sus opciones de seguridad, consulta la
-[documentación oficial de Home Assistant](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+Deja `local_only: true` si HCC y Home Assistant están en tu red local. Así Home Assistant no acepta este webhook desde
+Internet. El método `POST` es el que utiliza HCC para enviar los datos.
+
+Para aprender más sobre automatizaciones, consulta la
+[documentación oficial de Home Assistant](https://www.home-assistant.io/docs/automation/). Para las opciones del
+disparador,
+consulta la [documentación oficial del Webhook](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+
+### 9.2 Configura HCC
+
+En la pantalla **Home Assistant** de HCC:
+
+1. Activa **Enviar eventos de HCC a Home Assistant**.
+2. Escribe la dirección de Home Assistant, por ejemplo `http://homeassistant.local:8123`. Escribe solo la dirección
+   base;
+   no añadas `/api/webhook`.
+3. Escribe el mismo código en **ID del webhook** que has puesto en la automatización.
+4. Pulsa **Guardar**.
+5. Pulsa **Reiniciar HCC** en el enlace que aparece debajo del botón para aplicar la configuración.
+
+El ajuste de timeout de **Ajustes avanzados** normalmente no tienes que cambiarlo. Solo úsalo si Home Assistant tarda
+más
+de lo normal en responder.
+
+### 9.3 Comprueba que funciona
+
+HCC envía estos cuatro eventos:
+
+- `started`: la reproducción ha comenzado.
+- `paused`: la reproducción está pausada.
+- `resumed`: la reproducción continúa.
+- `stopped`: la reproducción ha terminado o se ha detenido.
+
+El contenido de un evento se parece a esto:
+
+```json
+{
+  "event": "started",
+  "event_id": "57438c115b84467dafcf843368d9bef6",
+  "session_id": "33feec42b11b48799f749bf6534e371c",
+  "media_type": "movie",
+  "title": "Interstellar",
+  "source": "emby",
+  "player": "oppo"
+}
+```
+
+`event` indica qué ha ocurrido. `event_id` identifica ese envío y `session_id` agrupa los eventos de la misma
+reproducción.
+El título, el servidor y el reproductor aparecen cuando HCC dispone de esos datos.
+
+Para probarlo, inicia una reproducción desde el dispositivo que HCC monitoriza y revisa el **Registro** de Home
+Assistant.
+La pantalla de HCC también muestra la última entrega real. Antes de enviar el primer evento aparecerá como pendiente; no
+se envía una petición de prueba automática.
+
+Si Home Assistant no responde, HCC registra el error y la reproducción continúa. Si cambias la dirección o el ID del
+webhook, el estado vuelve a pendiente hasta que HCC consiga enviar un evento con la nueva configuración.
+
+Si HCC no puede cargar esta pantalla, muestra un error con la opción **Reintentar** en lugar de rellenar el formulario
+con
+valores que podrían no ser los tuyos.
 
 ## 10. Diagnóstico: saber qué falla
 

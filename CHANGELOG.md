@@ -6,8 +6,8 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
-HCC 1.4.0 connects playback events to Home Assistant, makes updates easier to discover, and improves the visibility and
-reliability of playback startup and integration activity.
+HCC 1.4.0 connects playback events to Home Assistant and improves the visibility and reliability of playback startup and
+integration activity.
 
 ### Added
 
@@ -17,11 +17,7 @@ reliability of playback startup and integration activity.
 
 * **Home Assistant setup and delivery status.** Added a dedicated setup screen with clear configuration status,
   protected webhook credentials, and a configurable delivery timeout. The persisted “latest delivery” status is based
-  on a real playback or application event, survives HCC restarts, and resets when the URL or webhook changes.
-
-* **Release notifications.** HCC checks for newer releases in the background and can surface an update through Home
-  Assistant and supported local TV adapters, without delaying playback. Project-wide release announcements remain
-  available through the official Telegram channel.
+  on a real playback event, survives HCC restarts, and resets when the URL or webhook changes.
 
 * **Startup telemetry.** Opt-in telemetry now includes anonymous startup timing for the existing `playback_started`
   event, using integer milliseconds and excluding media, path, network, and user data.
@@ -40,11 +36,8 @@ reliability of playback startup and integration activity.
   logged without exposing the webhook ID, and cannot fail playback. The setup screen also makes disabled connection
   fields explicit while keeping the saved configuration visible.
 
-* **Consistent update delivery.** Update notifications are deduplicated per channel and delivered on a best-effort
-  basis. Unsupported TV notification capabilities remain unsupported instead of being reported as TV failures.
-
 * Existing web update banners, playback events, device control, and telemetry flows remain available alongside the new
-  Home Assistant and TV notification channels.
+  Home Assistant playback event integration.
 
 ### Fixed
 
