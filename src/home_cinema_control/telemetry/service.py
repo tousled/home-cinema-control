@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -9,7 +12,7 @@ from uuid import uuid4
 
 from home_cinema_control.config.models import HccConfig, TelemetryConfig
 from home_cinema_control.telemetry.client import TelemetryClient
-from home_cinema_control.telemetry.events import TelemetryEventName
+from home_cinema_control.telemetry.events import TelemetryEvent, TelemetryEventName
 from home_cinema_control.telemetry.queue import TelemetryQueue
 from home_cinema_control.telemetry.snapshot import build_telemetry_payload
 
@@ -24,11 +27,17 @@ class TelemetryService:
         load_config: Callable[[], dict[str, Any]],
         save_config: Callable[[dict[str, Any]], None],
         client: TelemetryClient | None = None,
+        publish: Callable[[TelemetryEvent], None] | None = None,
     ) -> None:
         self._config_file = Path(config_file)
         self._load_config = load_config
         self._save_config = save_config
         self._client = client or TelemetryClient()
+        self._publish = publish
+        self._async_queue: queue.Queue[tuple] | None = None
+        self._async_worker: threading.Thread | None = None
+        self._async_worker_lock = threading.Lock()
+        self._emit_lock = threading.RLock()
 
     def status(self) -> dict[str, Any]:
         config = HccConfig.model_validate(self._load_config())
@@ -60,7 +69,10 @@ class TelemetryService:
             }
         )
         self._save_config(updated.model_dump())
-        self.emit("install_opt_in", config=updated)
+        if self._publish is not None:
+            self._publish(TelemetryEvent(event_name="install_opt_in"))
+        else:
+            self.emit("install_opt_in", config=updated)
         return self.status()
 
     def dismiss_prompt(self) -> dict[str, Any]:
@@ -107,22 +119,121 @@ class TelemetryService:
         *,
         event: dict[str, Any] | None = None,
         config: HccConfig | dict[str, Any] | None = None,
+        event_id: str | None = None,
+        occurred_at: str | None = None,
     ) -> bool:
-        validated = self._validated_config(config)
-        if not validated.telemetry.enabled:
-            return False
-        if not validated.telemetry.installation_id:
+        with self._emit_lock:
+            validated = self._validated_config(config)
+            if not validated.telemetry.enabled:
+                return False
+            if not validated.telemetry.installation_id:
+                return False
+
+            payload = build_telemetry_payload(
+                validated,
+                event_name,
+                event=event,
+                event_id=event_id,
+                occurred_at=occurred_at,
+            )
+            queue = self._queue(validated.telemetry)
+            self._flush_queue(validated, queue)
+            endpoint_url = _effective_endpoint_url(validated.telemetry)
+            ingest_key = _effective_ingest_key(validated.telemetry)
+            if self._client.send(endpoint_url, ingest_key, [payload]):
+                return True
+            queue.enqueue(payload)
             return False
 
-        payload = build_telemetry_payload(validated, event_name, event=event)
-        queue = self._queue(validated.telemetry)
-        self._flush_queue(validated, queue)
-        endpoint_url = _effective_endpoint_url(validated.telemetry)
-        ingest_key = _effective_ingest_key(validated.telemetry)
-        if self._client.send(endpoint_url, ingest_key, [payload]):
+    def emit_async(
+        self,
+        event_name: TelemetryEventName,
+        *,
+        event: dict[str, Any] | None = None,
+        config: HccConfig | dict[str, Any] | None = None,
+        event_id: str | None = None,
+        occurred_at: str | None = None,
+    ) -> bool:
+        """Accept telemetry without making playback wait for network I/O."""
+        try:
+            validated = self._validated_config(config)
+        except Exception:
+            logger.debug("Could not validate asynchronous telemetry config", exc_info=True)
+            return False
+
+        if not validated.telemetry.enabled or not validated.telemetry.installation_id:
+            return False
+
+        with self._async_worker_lock:
+            if self._async_queue is None:
+                self._async_queue = queue.Queue(
+                    maxsize=max(1, min(validated.telemetry.queue_max_events, 32))
+                )
+            if self._async_worker is None or not self._async_worker.is_alive():
+                self._async_worker = threading.Thread(
+                    target=self._run_async_worker,
+                    args=(self._async_queue,),
+                    name="hcc-telemetry",
+                    daemon=True,
+                )
+                self._async_worker.start()
+            async_queue = self._async_queue
+
+        task = (event_name, dict(event or {}), validated, event_id, occurred_at)
+        try:
+            async_queue.put_nowait(task)
+        except queue.Full:
+            logger.debug("Asynchronous telemetry queue is full; persisting event")
+            try:
+                payload = build_telemetry_payload(
+                    validated,
+                    event_name,
+                    event=event,
+                    event_id=event_id,
+                    occurred_at=occurred_at,
+                )
+                with self._emit_lock:
+                    self._queue(validated.telemetry).enqueue(payload)
+                return False
+            except Exception:
+                logger.debug("Could not persist asynchronous telemetry event", exc_info=True)
+                return False
+        return True
+
+    def wait_for_async_idle(self, timeout: float = 2.0) -> bool:
+        """Wait for accepted events; useful for graceful shutdown and tests."""
+        async_queue = self._async_queue
+        if async_queue is None:
             return True
-        queue.enqueue(payload)
-        return False
+
+        deadline = time.monotonic() + timeout
+        while async_queue.unfinished_tasks and time.monotonic() < deadline:
+            time.sleep(0.005)
+        return async_queue.unfinished_tasks == 0
+
+    def _run_async_worker(self, async_queue: queue.Queue) -> None:
+        while True:
+            event_name, event, config, event_id, occurred_at = async_queue.get()
+            try:
+                try:
+                    current_config = self._validated_config(None)
+                    if (
+                        not current_config.telemetry.enabled
+                        or current_config.telemetry.installation_id
+                        != config.telemetry.installation_id
+                    ):
+                        continue
+                    self.emit(
+                        event_name,
+                        event=event,
+                        config=config,
+                        event_id=event_id,
+                        occurred_at=occurred_at,
+                    )
+                except Exception:
+                    logger.debug("Asynchronous telemetry emission failed", exc_info=True)
+            finally:
+                async_queue.task_done()
 
     def emit_heartbeat_if_due(self) -> bool:
         config = HccConfig.model_validate(self._load_config())

@@ -12,6 +12,9 @@ from home_cinema_control.media_servers.jellyfin.playback import (
 from home_cinema_control.media_servers.jellyfin.track_resolver import (
     JellyfinTrackResolver,
 )
+from home_cinema_control.media_servers.common.observed_playback_consumer import (
+    MediaServerObservedPlaybackConsumer,
+)
 
 
 class JellyfinPlaybackServices:
@@ -38,4 +41,10 @@ class JellyfinPlaybackServices:
         return JellyfinObservedTrackMapper(
             playback_session,
             playback_state=playback_state,
+        )
+
+    def create_observed_playback_consumer(self, *, playback_state, publisher):
+        return MediaServerObservedPlaybackConsumer(
+            playback_state=playback_state,
+            publisher=publisher,
         )

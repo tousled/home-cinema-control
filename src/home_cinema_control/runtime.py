@@ -1,4 +1,5 @@
 import json
+import inspect
 import logging
 import logging.handlers
 import os
@@ -14,7 +15,7 @@ from home_cinema_control.web.static_assets import load_json_asset
 from home_cinema_control.config.manager import is_configured, save_effective_config
 from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import PlaybackDiagnostic
-from home_cinema_control.playback.dispatch import bridge_playback_is_active
+from home_cinema_control.application_events import ApplicationEventBus
 
 
 @dataclass(frozen=True)
@@ -117,15 +118,27 @@ class HomeCinemaControlRuntime:
         *,
         paths: RuntimePaths,
         version: str,
-            media_server_provider_factory=None,
+        media_server_provider_factory=None,
         exit_process=os._exit,
+        application_event_bus: ApplicationEventBus | None = None,
+        application_event_dispatcher: ApplicationEventBus | None = None,
+        update_notification_service=None,
+        update_monitor=None,
     ):
         self.paths = paths
         self.version = version
         self._media_server_provider_factory = (
-                media_server_provider_factory or MediaServerProviderFactory()
+            media_server_provider_factory or MediaServerProviderFactory()
         )
         self._exit_process = exit_process
+        self.application_event_bus = (
+            application_event_bus
+            or application_event_dispatcher
+            or ApplicationEventBus()
+        )
+        self.application_event_dispatcher = self.application_event_bus
+        self.update_notification_service = update_notification_service
+        self.update_monitor = update_monitor
         self.playback_listener = None
         self.playback_listener_thread = None
 
@@ -164,11 +177,21 @@ class HomeCinemaControlRuntime:
 
     def start_playback_listener(self, *, config: dict, language: dict) -> None:
         provider = self._media_server_provider_factory.create(config)
-        self.playback_listener = provider.create_playback_listener(
-            config=config,
-            config_file=str(self.paths.config_file),
-            language=language,
-        )
+        create_listener = provider.create_playback_listener
+        listener_kwargs = {
+            "config": config,
+            "config_file": str(self.paths.config_file),
+            "language": language,
+        }
+        try:
+            supports_event_publisher = (
+                "playback_event_publisher" in inspect.signature(create_listener).parameters
+            )
+        except (TypeError, ValueError):
+            supports_event_publisher = False
+        if supports_event_publisher:
+            listener_kwargs["playback_event_publisher"] = self.application_event_bus
+        self.playback_listener = create_listener(**listener_kwargs)
 
         self.playback_listener_thread = threading.Thread(
             target=_run_playback_listener,
@@ -180,9 +203,7 @@ class HomeCinemaControlRuntime:
     def has_active_playback(self) -> bool:
         if self.playback_listener is None:
             return False
-
-        playstate = getattr(self.playback_listener.playback_state, "playstate", None)
-        return bridge_playback_is_active(playstate)
+        return self.playback_listener.has_active_playback()
 
     def stop_playback_listener(self) -> None:
         """Cleanly stop the current listener, if any.
@@ -193,12 +214,6 @@ class HomeCinemaControlRuntime:
         """
         if self.playback_listener is None:
             return
-
-        app_service = getattr(
-            self.playback_listener, "playback_application_service", None
-        )
-        if app_service is not None:
-            app_service.stop_active_playback_and_wait()
 
         self.playback_listener.stop()
         if self.playback_listener_thread is not None:
@@ -221,8 +236,17 @@ class HomeCinemaControlRuntime:
     def get_state(self) -> dict:
         status = {"Version": self.version}
 
-        try:
-            state = self.playback_listener.playback_state
+        state = (
+            self.playback_listener.get_playback_state()
+            if self.playback_listener is not None
+            else None
+        )
+        if state is None:
+            status["Playstate"] = "Not_Connected"
+            status["ActiveSession"] = None
+            status["LastDiagnostic"] = None
+            status["DiagnosticHistory"] = []
+        else:
             status["Playstate"] = state.playstate
             active_session = getattr(state, "active_session", None)
             status["ActiveSession"] = (
@@ -236,11 +260,6 @@ class HomeCinemaControlRuntime:
             )
             history = getattr(state, "diagnostic_history_status", None)
             status["DiagnosticHistory"] = history(limit=5) if callable(history) else []
-        except AttributeError:
-            status["Playstate"] = "Not_Connected"
-            status["ActiveSession"] = None
-            status["LastDiagnostic"] = None
-            status["DiagnosticHistory"] = []
 
         status["cpu_perc"] = psutil.cpu_percent()
         status["mem_perc"] = psutil.virtual_memory().percent
@@ -249,26 +268,32 @@ class HomeCinemaControlRuntime:
         return status
 
     def set_last_diagnostic(self, diagnostic: PlaybackDiagnostic) -> None:
-        try:
-            state = self.playback_listener.playback_state
-            record = getattr(state, "record_diagnostic", None)
-            if callable(record):
-                record(diagnostic)
-            else:
-                state.last_diagnostic = diagnostic
-        except AttributeError:
-            pass
+        state = (
+            self.playback_listener.get_playback_state()
+            if self.playback_listener is not None
+            else None
+        )
+        if state is None:
+            return
+        record = getattr(state, "record_diagnostic", None)
+        if callable(record):
+            record(diagnostic)
+        else:
+            state.last_diagnostic = diagnostic
 
     def clear_last_diagnostic(self) -> None:
-        try:
-            state = self.playback_listener.playback_state
-            clear = getattr(state, "clear_last_diagnostic", None)
-            if callable(clear):
-                clear()
-            else:
-                state.last_diagnostic = None
-        except AttributeError:
-            pass
+        state = (
+            self.playback_listener.get_playback_state()
+            if self.playback_listener is not None
+            else None
+        )
+        if state is None:
+            return
+        clear = getattr(state, "clear_last_diagnostic", None)
+        if callable(clear):
+            clear()
+        else:
+            state.last_diagnostic = None
 
     def get_support_summary(self) -> dict:
         state = self.get_state()
@@ -300,6 +325,9 @@ class HomeCinemaControlRuntime:
         logging.info("Restarting process")
         try:
             self.stop_playback_listener()
+            if self.update_monitor is not None:
+                self.update_monitor.stop()
+            self.application_event_bus.shutdown(drain=True)
         except Exception:
             logging.exception(
                 "Failed to stop the playback listener during process restart"

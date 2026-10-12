@@ -2,8 +2,10 @@ import unittest
 from types import SimpleNamespace
 
 from home_cinema_control.playback.observed_event_adapter import (
-    ObservedPlaybackSessionSink,
     configure_oppo_observed_event_reporting,
+)
+from home_cinema_control.media_servers.common.observed_playback_consumer import (
+    MediaServerObservedPlaybackConsumer,
 )
 from home_cinema_control.playback.state import BridgePlaybackState
 
@@ -13,8 +15,11 @@ class PlaybackObservedEventReportingTest(unittest.TestCase):
         wiring = FakePlaybackWiring()
 
         configured = configure_oppo_observed_event_reporting(
-            playback_state=BridgePlaybackState(),
             playback_wiring=wiring,
+            observed_event_sink=MediaServerObservedPlaybackConsumer(
+                playback_state=BridgePlaybackState(),
+                publisher=wiring.playback_event_publisher,
+            ),
             track_mapper=FakeTrackMapper(),
         )
 
@@ -25,7 +30,7 @@ class PlaybackObservedEventReportingTest(unittest.TestCase):
     def test_observed_playback_sink_updates_playstate(self):
         state = BridgePlaybackState()
         state.playstate = "Playing"
-        sink = ObservedPlaybackSessionSink(
+        sink = MediaServerObservedPlaybackConsumer(
             playback_state=state,
             publisher=RecordingPublisher(),
         )

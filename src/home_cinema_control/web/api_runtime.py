@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from home_cinema_control.runtime import HomeCinemaControlRuntime
+from home_cinema_control.home_automation.delivery_status import HomeAssistantDeliveryStatus
 from home_cinema_control.telemetry.service import TelemetryService
 from home_cinema_control.web.config_service import WebConfigService
 
@@ -16,3 +17,4 @@ class WebApiRuntime:
     log_file: Path
     frontend_dist_dir: Path
     telemetry: TelemetryService | None = field(default=None)
+    home_assistant_delivery_status: HomeAssistantDeliveryStatus | None = field(default=None)

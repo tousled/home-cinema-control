@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from dataclasses import dataclass, field
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -18,6 +19,24 @@ TelemetryEventName = Literal[
     "playback_failed",
     "roadmap_interest_submitted",
 ]
+
+
+def new_event_id() -> str:
+    return str(uuid4())
+
+
+@dataclass(frozen=True)
+class TelemetryEvent:
+    """Application event consumed by the telemetry delivery adapter."""
+
+    event_name: TelemetryEventName
+    attributes: dict[str, Any] = field(default_factory=dict)
+    event_id: str = field(default_factory=new_event_id)
+    occurred_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    event_type: str = "telemetry"
+
 
 TelemetryFailureComponent = Literal[
     "oppo",
@@ -80,7 +99,3 @@ class TelemetryPayload(BaseModel):
     deployment: TelemetryDeployment
     product: TelemetryProductSnapshot
     event: dict[str, Any] = Field(default_factory=dict)
-
-
-def new_event_id() -> str:
-    return str(uuid4())

@@ -24,6 +24,52 @@ from home_cinema_control.config.manager import (
 
 
 class ConfigManagerTest(unittest.TestCase):
+    def test_sanitize_config_for_web_hides_home_assistant_webhook_id(self):
+        sanitized = sanitize_config_for_web(
+            {
+                "home_assistant": {
+                    "enabled": True,
+                    "base_url": "http://homeassistant",
+                    "webhook_id": "secret-webhook",
+                }
+            }
+        )
+
+        self.assertEqual("http://homeassistant", sanitized["home_assistant"]["base_url"])
+        self.assertNotIn("webhook_id", sanitized["home_assistant"])
+        self.assertTrue(sanitized["home_assistant"]["webhook_id_configured"])
+
+    def test_save_effective_config_keeps_home_assistant_webhook_in_secrets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_file = Path(directory) / "config.json"
+            config_file.write_text("{}", encoding="utf-8")
+            secrets_file = Path(directory) / "secrets.json"
+            secrets_file.write_text("{}", encoding="utf-8")
+            previous_secrets_path = os.environ.get("HCC_SECRETS_FILE_PATH")
+            os.environ["HCC_SECRETS_FILE_PATH"] = str(secrets_file)
+            try:
+                save_effective_config(
+                    config_file,
+                    {
+                        "home_assistant": {
+                            "enabled": True,
+                            "base_url": "http://homeassistant",
+                            "webhook_id": "secret-webhook",
+                        }
+                    },
+                )
+            finally:
+                if previous_secrets_path is None:
+                    os.environ.pop("HCC_SECRETS_FILE_PATH", None)
+                else:
+                    os.environ["HCC_SECRETS_FILE_PATH"] = previous_secrets_path
+
+            public_config = json.loads(config_file.read_text(encoding="utf-8"))
+            secrets = json.loads(secrets_file.read_text(encoding="utf-8"))
+
+        self.assertNotIn("webhook_id", public_config["home_assistant"])
+        self.assertEqual("secret-webhook", secrets["home_assistant"]["webhook_id"])
+
     def test_sanitize_config_for_web_removes_media_server_token_values(self):
         sanitized = sanitize_config_for_web(
             {

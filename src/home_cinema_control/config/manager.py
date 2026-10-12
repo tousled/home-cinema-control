@@ -23,6 +23,7 @@ SECRET_PATHS = {
     ("user_password",),
     ("smb", "password"),
     ("tv", "sony_psk"),
+    ("home_assistant", "webhook_id"),
 }
 
 SENSITIVE_WEB_CONFIG_PATHS = set(SECRET_PATHS)
@@ -95,6 +96,12 @@ def sanitize_config_for_web(config: dict) -> dict:
 
     safe_tv = safe_config.setdefault("tv", {})
     safe_tv["sony_psk_configured"] = sony_psk_configured
+
+    home_assistant_webhook_configured = bool(
+        str(_get_nested(config, ("home_assistant", "webhook_id"), "")).strip()
+    )
+    safe_home_assistant = safe_config.setdefault("home_assistant", {})
+    safe_home_assistant["webhook_id_configured"] = home_assistant_webhook_configured
 
     _remove_legacy_flat_keys(safe_config)
 

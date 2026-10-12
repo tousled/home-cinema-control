@@ -2,22 +2,46 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from home_cinema_control.application_events import ApplicationEventBus
+from home_cinema_control.composition import (
+    ApplicationComposition,
+    build_application_composition,
+)
 from home_cinema_control.runtime import (
-    HomeCinemaControlRuntime,
     RuntimePaths,
-    build_runtime_paths,
     configure_logging,
 )
 from home_cinema_control.web.api_runtime import WebApiRuntime
 from home_cinema_control.web.config_service import WebConfigService
-from home_cinema_control.telemetry.service import TelemetryService
+from home_cinema_control.telemetry.events import TelemetryEvent
 
 
 @dataclass(frozen=True)
 class WebRuntimeComposition:
-    runtime: HomeCinemaControlRuntime
+    application: ApplicationComposition
     api_runtime: WebApiRuntime
     paths: RuntimePaths
+
+    @property
+    def runtime(self):
+        return self.application.runtime
+
+    @property
+    def event_bus(self) -> ApplicationEventBus:
+        return self.application.event_bus
+
+    @property
+    def event_dispatcher(self):
+        """Compatibility alias for callers migrating from the old name."""
+        return self.application.event_bus
+
+    @property
+    def update_monitor(self):
+        return self.application.update_monitor
+
+    @property
+    def update_notifications(self):
+        return self.application.update_notifications
 
 
 def build_web_runtime_composition(
@@ -26,30 +50,36 @@ def build_web_runtime_composition(
     config_file: str | Path,
     version: str,
 ) -> WebRuntimeComposition:
-    runtime_paths = build_runtime_paths(base_dir, config_file)
-    runtime = HomeCinemaControlRuntime(paths=runtime_paths, version=version)
-    config_service = WebConfigService(runtime=runtime, config_file=runtime_paths.config_file)
-    telemetry = TelemetryService(
-        config_file=runtime_paths.config_file,
-        load_config=runtime.load_config,
-        save_config=runtime.save_config,
+    application = build_application_composition(
+        base_dir=base_dir,
+        config_file=config_file,
+        version=version,
     )
+    runtime = application.runtime
+    runtime_paths = application.paths
+    config_service = WebConfigService(runtime=runtime, config_file=runtime_paths.config_file)
     api_runtime = WebApiRuntime(
         runtime=runtime,
         config_service=config_service,
         config_file=runtime_paths.config_file,
         log_file=runtime_paths.log_file,
         frontend_dist_dir=runtime_paths.base_dir / "frontend" / "dist",
-        telemetry=telemetry,
+        telemetry=application.telemetry,
+        home_assistant_delivery_status=application.home_assistant_delivery_status,
     )
-    return WebRuntimeComposition(runtime=runtime, api_runtime=api_runtime, paths=runtime_paths)
+    return WebRuntimeComposition(
+        application=application,
+        api_runtime=api_runtime,
+        paths=runtime_paths,
+    )
 
 
 def prepare_runtime_for_web(composition: WebRuntimeComposition) -> None:
     config = composition.runtime.load_config()
     configure_logging(config, composition.paths.log_file)
-    composition.api_runtime.telemetry.emit("app_started", config=config)
+    composition.event_bus.publish(TelemetryEvent(event_name="app_started"))
     composition.runtime.start_playback_listener_if_configured()
+    composition.update_monitor.start()
 
 
 def serve_web_app(

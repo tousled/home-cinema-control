@@ -154,6 +154,31 @@ After 1.0.0, the architecture is intended to grow without mixing future integrat
 
 These items are roadmap direction, not current compatibility claims.
 
+## Home Assistant
+
+HCC can send neutral playback events to a Home Assistant webhook. The integration does not know about lights, scenes,
+or entity IDs; Home Assistant decides which automation to run for each event.
+
+In the **Home Assistant** screen, configure your instance URL and webhook ID, enable delivery, and save. The webhook
+ID is stored in `secrets.json`, never shown in the UI, and excluded from diagnostics. Restart HCC after saving so the
+playback listener loads the consumer.
+The screen keeps setup separate from the latest known delivery, so you can read the state without triggering an
+artificial webhook test.
+
+The payload contains `started`, `paused`, `resumed`, or `stopped`, plus `event_id`, `session_id`, `media_type`,
+`title`, `source`, and `player` when available.
+
+The screen also shows the latest real delivery status: pending the first event, succeeded, or failed. This status is
+preserved across HCC restarts, and HCC does not send an artificial webhook just to test it.
+If you change the URL or webhook, the status returns to pending until the new configuration delivers an event.
+If the configuration cannot be loaded, HCC shows an actionable error and lets the user retry instead of presenting
+default values as if they were the real configuration.
+
+When HCC detects a newer release in the background, it can also send the application event `hcc_update_available` with
+`current_version`, `latest_version`, and `release_url`. Home Assistant decides whether to turn it into a persistent,
+mobile, or other automation notification. Users who rarely open HCC can follow new releases through the project's
+official Telegram channel; Telegram is global and requires no HCC configuration.
+
 ## Quick Install
 
 HCC runs as a Docker container with host networking.

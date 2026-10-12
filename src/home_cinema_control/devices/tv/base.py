@@ -5,6 +5,8 @@ from home_cinema_control.playback.startup.models import DeviceCommandResult
 
 
 class BaseTvController(ABC):
+    supports_notifications = False
+
     def __init__(self, config: dict):
         self.config = config
 
@@ -36,3 +38,7 @@ class BaseTvController(ABC):
         each media-server provider owns its own wire format. Adding a TV brand
         means adding its mapping here, not touching shared code.
         """
+
+    def show_notification(self, message: str) -> DeviceCommandResult:
+        """Show an application notification when the adapter supports it."""
+        return DeviceCommandResult.skipped("Native TV notifications are unsupported.")

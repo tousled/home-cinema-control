@@ -4,7 +4,55 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
-## [Unreleased]
+## Unreleased
+
+HCC 1.4.0 connects playback events to Home Assistant, makes updates easier to discover, and improves the visibility and
+reliability of playback startup and integration activity.
+
+### Added
+
+* **Home Assistant integration.** HCC can send neutral playback events to a configured Home Assistant webhook, so
+  automations can react when playback starts, pauses, resumes, or stops. HCC sends the event; Home Assistant decides
+  what the room should do.
+
+* **Home Assistant setup and delivery status.** Added a dedicated setup screen with clear configuration status,
+  protected webhook credentials, and a configurable delivery timeout. The persisted “latest delivery” status is based
+  on a real playback or application event, survives HCC restarts, and resets when the URL or webhook changes.
+
+* **Release notifications.** HCC checks for newer releases in the background and can surface an update through Home
+  Assistant and supported local TV adapters, without delaying playback. Project-wide release announcements remain
+  available through the official Telegram channel.
+
+* **Startup telemetry.** Opt-in telemetry now includes anonymous startup timing for the existing `playback_started`
+  event, using integer milliseconds and excluding media, path, network, and user data.
+
+### Changed
+
+* **More predictable playback boundaries.** Emby and Jellyfin-specific payload handling now stays in each provider
+  adapter, while shared playback policy handles common behavior. This keeps session handling and playback state
+  consistent across media servers.
+
+* **More reliable lifecycle transitions.** Media-server configuration, OPPO lifecycle, listener shutdown, and playback
+  handoff cleanup now each have a single coordination point. Playback events carry the canonical lifecycle facts that
+  asynchronous integrations need, including a separate handoff-finalized event after cleanup.
+
+* **Safer Home Assistant delivery.** Webhook delivery runs outside the playback critical path. Errors are isolated,
+  logged without exposing the webhook ID, and cannot fail playback. The setup screen also makes disabled connection
+  fields explicit while keeping the saved configuration visible.
+
+* **Consistent update delivery.** Update notifications are deduplicated per channel and delivered on a best-effort
+  basis. Unsupported TV notification capabilities remain unsupported instead of being reported as TV failures.
+
+* Existing web update banners, playback events, device control, and telemetry flows remain available alongside the new
+  Home Assistant and TV notification channels.
+
+### Fixed
+
+* Responsive action groups now wrap correctly on narrow screens, keeping diagnostic and playback controls inside their
+  panels.
+
+* Improved keyboard navigation on the Home Assistant screen: configuration fields now expose meaningful browser
+  metadata, and disabled advanced settings are removed from the tab order.
 
 ## [1.3.3] - 2026-10-09
 

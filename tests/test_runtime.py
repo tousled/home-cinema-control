@@ -62,7 +62,15 @@ class FakePlaybackListener:
         self.media_server_session.config = config
 
     def stop(self):
+        if self.playback_application_service is not None:
+            self.playback_application_service.stop_active_playback_and_wait()
         self.stopped = True
+
+    def get_playback_state(self):
+        return self.playback_state
+
+    def has_active_playback(self):
+        return self.playback_state.playstate in {"Loading", "Playing", "Paused", "Replay"}
 
     def play_from_command(self, data):
         self.played_data = data

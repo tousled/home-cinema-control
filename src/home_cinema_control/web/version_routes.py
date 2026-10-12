@@ -7,7 +7,7 @@ from home_cinema_control.web.version_responses import (
     rollback_version_response,
     update_version_response,
 )
-from home_cinema_control.web.version_update import display_version
+from home_cinema_control.versioning.checker import display_version
 
 
 def build_version_router(api_runtime: WebApiRuntime) -> APIRouter:
