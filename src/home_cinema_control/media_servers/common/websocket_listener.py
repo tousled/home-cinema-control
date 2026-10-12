@@ -22,7 +22,10 @@ from home_cinema_control.media_servers.common.websocket_events import (
     MediaServerWebsocketEventKind,
 )
 from home_cinema_control.playback.application import PlaybackApplicationService
-from home_cinema_control.playback.dispatch import PlaybackIntentDispatcher
+from home_cinema_control.playback.dispatch import (
+    PlaybackIntentDispatcher,
+    bridge_playback_is_active,
+)
 from home_cinema_control.playback.events import PlaybackEvent
 from home_cinema_control.playback.state import BridgePlaybackState
 
@@ -92,6 +95,13 @@ class MediaServerWebsocketListener:
             self.application_event_bus.shutdown(drain=True)
         if self._ws_app:
             self._ws_app.close()
+
+    def get_playback_state(self) -> BridgePlaybackState | None:
+        return self.playback_state
+
+    def has_active_playback(self) -> bool:
+        state = self.get_playback_state()
+        return state is not None and bridge_playback_is_active(state.playstate)
 
     def reload_config(self):
         logging.info("Reloading config")

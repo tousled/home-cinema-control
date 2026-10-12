@@ -15,7 +15,6 @@ from home_cinema_control.web.static_assets import load_json_asset
 from home_cinema_control.config.manager import is_configured, save_effective_config
 from home_cinema_control.media_servers.common.provider import MediaServerProviderFactory
 from home_cinema_control.playback.diagnostics import PlaybackDiagnostic
-from home_cinema_control.playback.dispatch import bridge_playback_is_active
 from home_cinema_control.application_events import ApplicationEventBus
 
 
@@ -204,9 +203,7 @@ class HomeCinemaControlRuntime:
     def has_active_playback(self) -> bool:
         if self.playback_listener is None:
             return False
-
-        playstate = getattr(self.playback_listener.playback_state, "playstate", None)
-        return bridge_playback_is_active(playstate)
+        return self.playback_listener.has_active_playback()
 
     def stop_playback_listener(self) -> None:
         """Cleanly stop the current listener, if any.
@@ -217,12 +214,6 @@ class HomeCinemaControlRuntime:
         """
         if self.playback_listener is None:
             return
-
-        app_service = getattr(
-            self.playback_listener, "playback_application_service", None
-        )
-        if app_service is not None:
-            app_service.stop_active_playback_and_wait()
 
         self.playback_listener.stop()
         if self.playback_listener_thread is not None:
@@ -245,8 +236,17 @@ class HomeCinemaControlRuntime:
     def get_state(self) -> dict:
         status = {"Version": self.version}
 
-        try:
-            state = self.playback_listener.playback_state
+        state = (
+            self.playback_listener.get_playback_state()
+            if self.playback_listener is not None
+            else None
+        )
+        if state is None:
+            status["Playstate"] = "Not_Connected"
+            status["ActiveSession"] = None
+            status["LastDiagnostic"] = None
+            status["DiagnosticHistory"] = []
+        else:
             status["Playstate"] = state.playstate
             active_session = getattr(state, "active_session", None)
             status["ActiveSession"] = (
@@ -260,11 +260,6 @@ class HomeCinemaControlRuntime:
             )
             history = getattr(state, "diagnostic_history_status", None)
             status["DiagnosticHistory"] = history(limit=5) if callable(history) else []
-        except AttributeError:
-            status["Playstate"] = "Not_Connected"
-            status["ActiveSession"] = None
-            status["LastDiagnostic"] = None
-            status["DiagnosticHistory"] = []
 
         status["cpu_perc"] = psutil.cpu_percent()
         status["mem_perc"] = psutil.virtual_memory().percent
@@ -273,26 +268,32 @@ class HomeCinemaControlRuntime:
         return status
 
     def set_last_diagnostic(self, diagnostic: PlaybackDiagnostic) -> None:
-        try:
-            state = self.playback_listener.playback_state
-            record = getattr(state, "record_diagnostic", None)
-            if callable(record):
-                record(diagnostic)
-            else:
-                state.last_diagnostic = diagnostic
-        except AttributeError:
-            pass
+        state = (
+            self.playback_listener.get_playback_state()
+            if self.playback_listener is not None
+            else None
+        )
+        if state is None:
+            return
+        record = getattr(state, "record_diagnostic", None)
+        if callable(record):
+            record(diagnostic)
+        else:
+            state.last_diagnostic = diagnostic
 
     def clear_last_diagnostic(self) -> None:
-        try:
-            state = self.playback_listener.playback_state
-            clear = getattr(state, "clear_last_diagnostic", None)
-            if callable(clear):
-                clear()
-            else:
-                state.last_diagnostic = None
-        except AttributeError:
-            pass
+        state = (
+            self.playback_listener.get_playback_state()
+            if self.playback_listener is not None
+            else None
+        )
+        if state is None:
+            return
+        clear = getattr(state, "clear_last_diagnostic", None)
+        if callable(clear):
+            clear()
+        else:
+            state.last_diagnostic = None
 
     def get_support_summary(self) -> dict:
         state = self.get_state()

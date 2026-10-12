@@ -17,6 +17,8 @@ visibility into the startup and integration paths that keep playback reliable.
   secret preservation, provider verification, active-playback confirmation, draft saves, and listener restarts.
 * Centralized OPPO lifecycle policy for startup preparation, availability checks, observed-event wiring, QPL logging,
   replacement stops, and post-playback power-down.
+* Clarified media-server listener ownership: listener shutdown now owns clean playback termination and runtime status
+  access goes through the listener contract instead of nested listener internals.
 
 ### Highlights
 
