@@ -7,11 +7,10 @@ from home_cinema_control.notifications.models import (
     UpdateAvailableEvent,
     UpdateNotification,
 )
-from home_cinema_control.playback.event_dispatcher import PlaybackEventDispatcher
 from home_cinema_control.playback.events import PlaybackEvent, PlaybackEventType
 
 
-class PlaybackEventDispatcherTest(unittest.TestCase):
+class ApplicationEventBusTest(unittest.TestCase):
     def test_typed_subscriptions_route_without_global_event_coupling(self):
         playback = RecordingConsumer("playback")
         updates = RecordingConsumer("updates")
@@ -44,9 +43,17 @@ class PlaybackEventDispatcherTest(unittest.TestCase):
     def test_consumers_receive_events_independently_in_order(self):
         fast = RecordingConsumer("fast")
         slow = RecordingConsumer("slow", wait=True)
-        dispatcher = PlaybackEventDispatcher(queue_size=4)
-        dispatcher.register(fast)
-        dispatcher.register(slow)
+        dispatcher = ApplicationEventBus(queue_size=4)
+        dispatcher.subscribe(
+            PlaybackEvent,
+            fast,
+            ordering_key=lambda event: event.session_id,
+        )
+        dispatcher.subscribe(
+            PlaybackEvent,
+            slow,
+            ordering_key=lambda event: event.session_id,
+        )
 
         dispatcher.publish(_event("event-1"))
         dispatcher.publish(_event("event-2"))
@@ -120,9 +127,17 @@ class PlaybackEventDispatcherTest(unittest.TestCase):
     def test_consumer_failure_does_not_stop_other_consumers(self):
         failing = FailingConsumer()
         healthy = RecordingConsumer("healthy")
-        dispatcher = PlaybackEventDispatcher()
-        dispatcher.register(failing)
-        dispatcher.register(healthy)
+        dispatcher = ApplicationEventBus()
+        dispatcher.subscribe(
+            PlaybackEvent,
+            failing,
+            ordering_key=lambda event: event.session_id,
+        )
+        dispatcher.subscribe(
+            PlaybackEvent,
+            healthy,
+            ordering_key=lambda event: event.session_id,
+        )
 
         dispatcher.publish(_event("event-1"))
         dispatcher.shutdown(drain=True)

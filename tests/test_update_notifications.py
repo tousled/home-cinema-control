@@ -8,9 +8,12 @@ from home_cinema_control.notifications.models import (
     UpdateAvailableEvent,
     UpdateNotification,
 )
-from home_cinema_control.notifications.channels import TelevisionUpdateChannel
+from home_cinema_control.notifications.channels import (
+    HomeAssistantUpdateChannel,
+    TelevisionUpdateChannel,
+)
+from home_cinema_control.notifications.coordinator import UpdateNotificationCoordinator
 from home_cinema_control.notifications.monitor import UpdateMonitor
-from home_cinema_control.notifications.service import UpdateNotificationService
 from home_cinema_control.notifications.state import NotificationStateStore
 from home_cinema_control.playback.events import PlaybackEvent, PlaybackEventType
 from home_cinema_control.playback.startup.models import DeviceCommandResult
@@ -36,18 +39,22 @@ class NotificationStateStoreTest(unittest.TestCase):
             self.assertEqual("1.4.1", restored.last_notified_version("home_assistant"))
 
 
-class UpdateNotificationServiceTest(unittest.TestCase):
+class UpdateNotificationCoordinatorTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.store = NotificationStateStore(Path(self.temp_dir.name) / "state.sqlite")
         self.ha = FakeHomeAssistant()
         self.tv = FakeTv()
         self.config = {"tv": {"model": "LG", "enabled": True}}
-        self.service = UpdateNotificationService(
+        self.service = UpdateNotificationCoordinator(
             state_store=self.store,
-            home_assistant_consumer=self.ha,
-            television_factory=lambda _config: self.tv,
-            config_provider=lambda: self.config,
+            channels=[
+                HomeAssistantUpdateChannel(self.ha),
+                TelevisionUpdateChannel(
+                    channel_id="lg_tv",
+                    television_provider=lambda: self.tv,
+                ),
+            ],
         )
 
     def tearDown(self):

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from websocket import WebSocketConnectionClosedException
 
 from home_cinema_control import __version__
+from home_cinema_control.application_events import ApplicationEventBus
 from home_cinema_control.config.manager import (
     active_media_server_config,
     load_effective_config,
@@ -22,7 +23,7 @@ from home_cinema_control.media_servers.common.websocket_events import (
 )
 from home_cinema_control.playback.application import PlaybackApplicationService
 from home_cinema_control.playback.dispatch import PlaybackIntentDispatcher
-from home_cinema_control.playback.event_dispatcher import PlaybackEventDispatcher
+from home_cinema_control.playback.events import PlaybackEvent
 from home_cinema_control.playback.state import BridgePlaybackState
 
 
@@ -67,11 +68,11 @@ class MediaServerWebsocketListener:
         self._playback_event_publisher = playback_event_publisher
         self._ws_app = None
         self.playback_application_service = None
-        self._owns_playback_event_dispatcher = playback_event_publisher is None
-        self.playback_event_dispatcher = (
-            PlaybackEventDispatcher() if self._owns_playback_event_dispatcher else None
+        self._owns_application_event_bus = playback_event_publisher is None
+        self.application_event_bus = (
+            ApplicationEventBus() if self._owns_application_event_bus else None
         )
-        if self._owns_playback_event_dispatcher:
+        if self._owns_application_event_bus:
             self._register_home_assistant_consumer()
         self.playback_command_handler = None
         self._session_monitor = None
@@ -87,8 +88,8 @@ class MediaServerWebsocketListener:
         logging.info("%s websocket stop", self._provider_name)
         if self.playback_application_service is not None:
             self.playback_application_service.stop_active_playback_and_wait()
-        if self._owns_playback_event_dispatcher:
-            self.playback_event_dispatcher.shutdown(drain=True)
+        if self._owns_application_event_bus:
+            self.application_event_bus.shutdown(drain=True)
         if self._ws_app:
             self._ws_app.close()
 
@@ -107,12 +108,14 @@ class MediaServerWebsocketListener:
         if not base_url or not webhook_id:
             logging.warning("Home Assistant consumer is enabled but incomplete")
             return
-        self.playback_event_dispatcher.register(
+        self.application_event_bus.subscribe(
+            PlaybackEvent,
             HomeAssistantWebhookConsumer(
                 base_url=base_url,
                 webhook_id=webhook_id,
                 timeout_seconds=float(home_assistant.get("timeout_seconds", 3.0)),
-            )
+            ),
+            ordering_key=lambda event: event.session_id,
         )
 
     def update_config(self, config: dict) -> None:
@@ -268,7 +271,7 @@ class MediaServerWebsocketListener:
             reload_config=self.reload_config,
             media_server_playback_services=self._playback_services,
             playback_event_publisher=(
-                self._playback_event_publisher or self.playback_event_dispatcher
+                self._playback_event_publisher or self.application_event_bus
             ),
         )
         dispatcher = PlaybackIntentDispatcher(
