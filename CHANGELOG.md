@@ -13,6 +13,8 @@ visibility into the startup and integration paths that keep playback reliable.
 
 * Kept provider-specific media-server field names out of shared playback state and command policy. Emby and Jellyfin
   payload shapes remain localized in their own adapters.
+* Centralized media-server configuration transitions so patch, token, and connection-check routes share one policy for
+  secret preservation, provider verification, active-playback confirmation, draft saves, and listener restarts.
 
 ### Highlights
 
