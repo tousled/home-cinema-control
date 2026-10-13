@@ -8,6 +8,7 @@ from home_cinema_control.playback.events import (
     PlaybackDomainEvent,
     PlaybackEvent,
     PlaybackEventType,
+    PlaybackHandoffAttemptedEvent,
     PlaybackHandoffFinalizedEvent,
 )
 
@@ -26,6 +27,9 @@ class TelemetryConsumer:
         try:
             if isinstance(event, PlaybackEvent):
                 self._consume_playback_event(event)
+                return
+            if isinstance(event, PlaybackHandoffAttemptedEvent):
+                self._consume_handoff_attempted(event)
                 return
             if isinstance(event, PlaybackHandoffFinalizedEvent):
                 self._consume_handoff_finalized(event)
@@ -49,10 +53,13 @@ class TelemetryConsumer:
 
         attributes = {
             "session_id": event.session_id,
+            "attempt_id": event.attempt_id,
             "title": event.title,
             "source": event.source,
             "player": event.player,
         }
+        if event.attempt_id is None:
+            attributes.pop("attempt_id")
         if event.startup_metrics is not None:
             attributes["startup_metrics"] = dict(event.startup_metrics)
         self._telemetry_service.emit_async(
@@ -62,15 +69,26 @@ class TelemetryConsumer:
             occurred_at=None,
         )
 
+    def _consume_handoff_attempted(self, event: PlaybackHandoffAttemptedEvent) -> None:
+        self._telemetry_service.emit_async(
+            "playback_attempted",
+            event={"attempt_id": event.attempt_id},
+            event_id=event.event_id,
+            occurred_at=None,
+        )
+
     def _consume_handoff_finalized(self, event: PlaybackHandoffFinalizedEvent) -> None:
         if event.successful:
+            attributes = {
+                "handoff_id": event.handoff_id,
+                "media_item_id": event.media_item_id,
+                "media_source_id": event.media_source_id,
+            }
+            if event.attempt_id is not None:
+                attributes["attempt_id"] = event.attempt_id
             self._telemetry_service.emit_async(
                 "playback_finished",
-                event={
-                    "handoff_id": event.handoff_id,
-                    "media_item_id": event.media_item_id,
-                    "media_source_id": event.media_source_id,
-                },
+                event=attributes,
                 event_id=event.event_id,
                 occurred_at=None,
             )
@@ -82,8 +100,10 @@ class TelemetryConsumer:
             "media_item_id": event.media_item_id,
             "media_source_id": event.media_source_id,
         }
+        if event.attempt_id is not None:
+            attributes["attempt_id"] = event.attempt_id
         if event.diagnostic_code is not None:
-            attributes["code"] = event.diagnostic_code
+            attributes["error_code"] = event.diagnostic_code
         self._telemetry_service.emit_async(
             "playback_failed",
             event=attributes,

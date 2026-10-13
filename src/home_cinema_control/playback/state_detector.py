@@ -89,6 +89,7 @@ class PlaybackStateDetector:
         return PlaybackEvent(
             event_id=self._event_id_factory(),
             session_id=context.session_id,
+            attempt_id=context.attempt_id,
             event_type=event_type,
             media_type=context.media_type,
             title=context.title,

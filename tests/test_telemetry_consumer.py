@@ -3,6 +3,7 @@ from home_cinema_control.telemetry.events import TelemetryEvent
 from home_cinema_control.playback.events import (
     PlaybackEvent,
     PlaybackEventType,
+    PlaybackHandoffAttemptedEvent,
     PlaybackHandoffFinalizedEvent,
 )
 
@@ -81,9 +82,29 @@ def test_consumer_maps_failed_handoff_fact_to_telemetry():
                 "handoff_id": "handoff-1",
                 "media_item_id": "item-1",
                 "media_source_id": "source-1",
-                "code": "OPPO_UNAVAILABLE",
+                    "error_code": "OPPO_UNAVAILABLE",
             },
             "event-finalized",
+            None,
+        )
+    ]
+
+
+def test_consumer_maps_handoff_attempt_to_telemetry():
+    service = RecordingTelemetryService()
+    event = PlaybackHandoffAttemptedEvent(
+        event_id="event-attempted",
+        attempt_id="attempt-1",
+        origin="observed_tv_client",
+    )
+
+    TelemetryConsumer(service).consume(event)
+
+    assert service.calls == [
+        (
+            "playback_attempted",
+            {"attempt_id": "attempt-1"},
+            "event-attempted",
             None,
         )
     ]

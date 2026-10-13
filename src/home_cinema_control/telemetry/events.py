@@ -14,6 +14,7 @@ TelemetryEventName = Literal[
     "install_opt_in",
     "app_started",
     "heartbeat",
+    "playback_attempted",
     "playback_started",
     "playback_finished",
     "playback_failed",

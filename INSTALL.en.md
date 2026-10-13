@@ -553,9 +553,11 @@ information for rolling back if needed.
 
 Telemetry is optional and disabled by default. If enabled, HCC sends minimal anonymous data to understand adoption and
 prioritize development: active installation, version, language, Emby/Jellyfin provider, OPPO/TV/AV usage, NFS/SMB, and
-playback started/finished/failed events. If the telemetry backend is unavailable, HCC temporarily stores those
-anonymous events in `/config/telemetry_queue.json` and retries later. It does not send paths, IPs, tokens, URLs, server
-names, libraries, titles, logs, scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
+playback attempt, started, finished, and failed events. Playback events carry random anonymous event/attempt IDs plus
+the normalized failure component and diagnostic code so repeated failures can be analyzed per installation. If the
+telemetry backend is unavailable, HCC temporarily stores those anonymous events in `/config/telemetry_queue.json` and
+retries later. It does not send paths, IPs, tokens, URLs, server names, libraries, titles, media-server IDs, logs,
+scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
 
 ## 11. Readable Logs
 

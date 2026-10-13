@@ -605,9 +605,11 @@ verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
 
 La telemetría es opcional y viene desactivada. Si la activas, HCC envía datos anónimos mínimos para entender adopción y
 priorizar desarrollo: instalación activa, versión, idioma, proveedor Emby/Jellyfin, uso de OPPO, TV/AV, NFS/SMB y
-eventos de reproducción iniciada/finalizada/fallida. Si el backend de telemetría no está disponible, HCC guarda
-temporalmente esos eventos anónimos en `/config/telemetry_queue.json` y los reintenta después. No envía rutas, IPs,
-tokens, URLs, nombres de servidor, bibliotecas, títulos, logs, scripts ni comandos personalizados. Más detalle:
+eventos de intento, reproducción iniciada, finalizada y fallida. Los eventos llevan identificadores aleatorios y
+anónimos de evento/intento, además del componente y código diagnóstico normalizados, para poder analizar fallos
+repetidos por instalación. Si el backend de telemetría no está disponible, HCC guarda temporalmente esos eventos
+anónimos en `/config/telemetry_queue.json` y los reintenta después. No envía rutas, IPs, tokens, URLs, nombres de
+servidor, bibliotecas, títulos, IDs del servidor multimedia, logs, scripts ni comandos personalizados. Más detalle:
 [`docs/telemetry.md`](docs/telemetry.md).
 
 ## 11. Logs entendibles

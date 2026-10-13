@@ -73,8 +73,9 @@ def build_application_composition(
     event_bus.subscribe(
         PlaybackDomainEvent,
         telemetry_consumer,
-        ordering_key=lambda event: getattr(event, "session_id", None)
-        or getattr(event, "handoff_id", None),
+        ordering_key=lambda event: getattr(event, "attempt_id", None)
+        or getattr(event, "handoff_id", None)
+        or getattr(event, "session_id", None),
     )
     notification_state_path = paths.config_file.with_name("hcc_notifications.sqlite")
     notification_state_store = NotificationStateStore(notification_state_path)

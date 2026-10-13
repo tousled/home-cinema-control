@@ -30,3 +30,30 @@ def test_playback_started_flattens_only_safe_startup_metrics():
     }
     assert "Movie title" not in str(body)
     assert "/private/Movie.mkv" not in str(body)
+
+
+def test_playback_failed_sends_correlations_and_diagnostic_fields():
+    config = _config()
+    payload = build_telemetry_payload(
+        config,
+        "playback_failed",
+        event={
+            "attempt_id": "attempt-1",
+            "component": "oppo",
+            "error_code": "mount_timeout",
+            "title": "Movie title",
+            "path": "/private/Movie.mkv",
+        },
+    )
+
+    body = _to_event_body(payload)
+
+    assert body["attempt_id"] == "attempt-1"
+    assert body["event_id"] == payload.event_id
+    assert body["schema_version"] == 2
+    assert body["attributes"] == {
+        "component": "oppo",
+        "error_code": "MOUNT_TIMEOUT",
+    }
+    assert "Movie title" not in str(body)
+    assert "/private/Movie.mkv" not in str(body)

@@ -11,6 +11,11 @@ integration activity.
 
 ### Added
 
+* **Playback telemetry correlation.** Opt-in playback events now include anonymous event and attempt identifiers,
+  normalized failure components/codes, and a handoff-attempt event so the telemetry hub can distinguish repeated
+  failures on one installation from aggregate event counts. No media titles, paths, media-server IDs, or credentials
+  are sent.
+
 * **Home Assistant integration.** HCC can send neutral playback events to a configured Home Assistant webhook, so
   automations can react when playback starts, pauses, resumes, or stops. HCC sends the event; Home Assistant decides
   what the room should do.

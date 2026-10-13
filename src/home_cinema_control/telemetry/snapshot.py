@@ -114,17 +114,28 @@ def _normalize_model(
 
 
 def _normalize_event(event_name: str, event: dict[str, Any]) -> dict[str, Any]:
+    attempt_id = _safe_correlation_id(event.get("attempt_id"))
+    normalized_attempt = {"attempt_id": attempt_id} if attempt_id else {}
+    if event_name == "playback_attempted":
+        return normalized_attempt
     if event_name == "playback_started":
         startup_metrics = normalize_startup_metrics(event.get("startup_metrics"))
-        return {"startup_metrics": startup_metrics} if startup_metrics else {}
+        if startup_metrics:
+            normalized_attempt["startup_metrics"] = startup_metrics
+        return normalized_attempt
     if event_name == "playback_finished":
-        return {"result": "finished"}
+        normalized_attempt["result"] = "finished"
+        return normalized_attempt
     if event_name == "playback_failed":
         component = str(event.get("component") or "system")
         if component not in _FAILURE_COMPONENTS:
             component = "system"
-        result: dict[str, Any] = {"result": "failed", "component": component}
-        code = str(event.get("code") or "").strip().upper()
+        result: dict[str, Any] = {
+            **normalized_attempt,
+            "result": "failed",
+            "component": component,
+        }
+        code = str(event.get("error_code") or event.get("code") or "").strip().upper()
         if code:
             result["error_code"] = code
         return result
@@ -137,3 +148,10 @@ def _normalize_event(event_name: str, event: dict[str, Any]) -> dict[str, Any]:
                 interests.append(interest_id)
         return {"interests": interests}
     return {}
+
+
+def _safe_correlation_id(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value[:80] if value else None
