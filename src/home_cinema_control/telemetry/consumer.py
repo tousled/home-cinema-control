@@ -10,6 +10,7 @@ from home_cinema_control.playback.events import (
     PlaybackEventType,
     PlaybackHandoffAttemptedEvent,
     PlaybackHandoffFinalizedEvent,
+    PlaybackRejectedEvent,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,9 @@ class TelemetryConsumer:
                 return
             if isinstance(event, PlaybackHandoffFinalizedEvent):
                 self._consume_handoff_finalized(event)
+                return
+            if isinstance(event, PlaybackRejectedEvent):
+                self._consume_playback_rejected(event)
                 return
             self._telemetry_service.emit_async(
                 event.event_name,
@@ -107,6 +111,18 @@ class TelemetryConsumer:
         self._telemetry_service.emit_async(
             "playback_failed",
             event=attributes,
+            event_id=event.event_id,
+            occurred_at=None,
+        )
+
+    def _consume_playback_rejected(self, event: PlaybackRejectedEvent) -> None:
+        self._telemetry_service.emit_async(
+            "playback_rejected",
+            event={
+                "component": event.component,
+                "error_code": event.diagnostic_code,
+                "provider": event.provider,
+            },
             event_id=event.event_id,
             occurred_at=None,
         )

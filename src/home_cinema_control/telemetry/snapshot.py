@@ -38,6 +38,7 @@ _AV_MODEL_LABELS = {
 
 _FAILURE_COMPONENTS: set[str] = set(TelemetryFailureComponent.__args__)
 _ROADMAP_INTERESTS: set[str] = set(RoadmapInterest.__args__)
+_MEDIA_SERVER_PROVIDERS = {"emby", "jellyfin", "plex"}
 
 
 def build_telemetry_payload(
@@ -126,6 +127,18 @@ def _normalize_event(event_name: str, event: dict[str, Any]) -> dict[str, Any]:
     if event_name == "playback_finished":
         normalized_attempt["result"] = "finished"
         return normalized_attempt
+    if event_name == "playback_rejected":
+        component = str(event.get("component") or "system")
+        if component not in _FAILURE_COMPONENTS:
+            component = "system"
+        result: dict[str, Any] = {"component": component}
+        provider = str(event.get("provider") or "").strip().lower()
+        if provider in _MEDIA_SERVER_PROVIDERS:
+            result["provider"] = provider
+        code = str(event.get("error_code") or event.get("code") or "").strip().upper()
+        if code:
+            result["error_code"] = code
+        return result
     if event_name == "playback_failed":
         component = str(event.get("component") or "system")
         if component not in _FAILURE_COMPONENTS:

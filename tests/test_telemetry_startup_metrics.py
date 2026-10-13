@@ -57,3 +57,30 @@ def test_playback_failed_sends_correlations_and_diagnostic_fields():
     }
     assert "Movie title" not in str(body)
     assert "/private/Movie.mkv" not in str(body)
+
+
+def test_playback_rejected_sends_safe_diagnostic_fields_without_handoff_correlation():
+    config = _config()
+    payload = build_telemetry_payload(
+        config,
+        "playback_rejected",
+        event={
+            "component": "media_server",
+            "provider": "emby",
+            "error_code": "media_server_monitored_device_not_found",
+            "title": "Movie title",
+            "path": "/private/Movie.mkv",
+        },
+    )
+
+    body = _to_event_body(payload)
+
+    assert body["event_type"] == "playback_rejected"
+    assert body["attempt_id"] is None
+    assert body["attributes"] == {
+        "component": "media_server",
+        "provider": "emby",
+        "error_code": "MEDIA_SERVER_MONITORED_DEVICE_NOT_FOUND",
+    }
+    assert "Movie title" not in str(body)
+    assert "/private/Movie.mkv" not in str(body)

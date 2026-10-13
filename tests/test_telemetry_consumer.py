@@ -5,6 +5,7 @@ from home_cinema_control.playback.events import (
     PlaybackEventType,
     PlaybackHandoffAttemptedEvent,
     PlaybackHandoffFinalizedEvent,
+    PlaybackRejectedEvent,
 )
 
 
@@ -105,6 +106,31 @@ def test_consumer_maps_handoff_attempt_to_telemetry():
             "playback_attempted",
             {"attempt_id": "attempt-1"},
             "event-attempted",
+            None,
+        )
+    ]
+
+
+def test_consumer_maps_pre_handoff_rejection_to_privacy_safe_telemetry():
+    service = RecordingTelemetryService()
+    event = PlaybackRejectedEvent(
+        event_id="event-rejected",
+        component="path",
+        diagnostic_code="PATH_MAPPING_NOT_VERIFIED",
+        provider="jellyfin",
+    )
+
+    TelemetryConsumer(service).consume(event)
+
+    assert service.calls == [
+        (
+            "playback_rejected",
+            {
+                "component": "path",
+                "error_code": "PATH_MAPPING_NOT_VERIFIED",
+                "provider": "jellyfin",
+            },
+            "event-rejected",
             None,
         )
     ]

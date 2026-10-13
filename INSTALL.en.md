@@ -340,6 +340,11 @@ diagnostic, and save only when you know which route works.
 HCC does not silently switch between SMB and NFS. A mapping configured as SMB is tested and played over SMB; a mapping
 configured as NFS uses NFS.
 
+HCC checks complete directory names: `/media/Movies` matches `/media/Movies/Alien.mkv`, but not
+`/media/Movies-Old/Alien.mkv`. If paths are nested, such as `/media/Movies` and `/media/Movies/4K`, HCC uses the most
+specific one. That exact path must be verified; HCC does not try a broader path or send an unverified route to the OPPO.
+When playback is blocked, the Status screen explains which path is missing or needs to be tested and saved.
+
 ### 7.8 Why This Step Matters
 
 Emby or Jellyfin and the OPPO may refer to the same content with different paths. The path known by the media server
@@ -553,8 +558,9 @@ information for rolling back if needed.
 
 Telemetry is optional and disabled by default. If enabled, HCC sends minimal anonymous data to understand adoption and
 prioritize development: active installation, version, language, Emby/Jellyfin provider, OPPO/TV/AV usage, NFS/SMB, and
-playback attempt, started, finished, and failed events. Playback events carry random anonymous event/attempt IDs plus
-the normalized failure component and diagnostic code so repeated failures can be analyzed per installation. If the
+playback attempt, started, finished, pre-handoff rejection, and failed events. Playback events carry random anonymous
+event/attempt IDs plus the provider, normalized failure component, and diagnostic code so repeated failures can be
+analyzed per installation. If the
 telemetry backend is unavailable, HCC temporarily stores those anonymous events in `/config/telemetry_queue.json` and
 retries later. It does not send paths, IPs, tokens, URLs, server names, libraries, titles, media-server IDs, logs,
 scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).

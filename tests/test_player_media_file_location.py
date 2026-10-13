@@ -15,6 +15,7 @@ class PlayerMediaFileLocationTest(unittest.TestCase):
                 {
                     "source_path": "/volume1/Video/Movies",
                     "player_path": "/192.168.1.100/volume1/Video/Movies",
+                    "verified": True,
                 }
             ],
         )
@@ -34,6 +35,7 @@ class PlayerMediaFileLocationTest(unittest.TestCase):
                     "source_path": "/volume1/Video/Trailers",
                     "player_path": "/NAS/Video/Trailers",
                     "protocol": "cifs",
+                    "verified": True,
                 }
             ],
         )
@@ -51,6 +53,7 @@ class PlayerMediaFileLocationTest(unittest.TestCase):
                 {
                     "source_path": r"\\nas\Video",
                     "player_path": "/192.168.1.100/volume1/Video",
+                    "verified": True,
                 }
             ],
         )
@@ -75,6 +78,7 @@ class PlayerMediaFileLocationTest(unittest.TestCase):
                 {
                     "source_path": "/volume1/Video/Movies",
                     "player_path": "/192.168.1.100/volume1/Video/Movies",
+                    "verified": True,
                 }
             ],
         )

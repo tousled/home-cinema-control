@@ -23,7 +23,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
                             "server_url": "http://emby.local",
                             "playback": {
                                 "path_mappings": [
-                                    {"source_path": "/emby", "player_path": "/nas", "protocol": "nfs"}
+                                    {"source_path": "/emby", "player_path": "/nas", "protocol": "nfs", "verified": True}
                                 ]
                             }
                         }
@@ -97,6 +97,22 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
     def test_uses_safe_defaults_for_optional_output_devices(self):
         prepared = prepare_playback_requests(
             config={
+                "media_servers": {
+                    "active": "jellyfin",
+                    "providers": {
+                        "jellyfin": {
+                            "playback": {
+                                "path_mappings": [
+                                    {
+                                        "source_path": "/nas",
+                                        "player_path": "/nas",
+                                        "verified": True,
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                },
                 "oppo": {
                     "always_on": True,
                     "playback_start_timeout_seconds": 30,
@@ -131,7 +147,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
                         "emby": {
                             "playback": {
                                 "path_mappings": [
-                                    {"source_path": "/emby", "player_path": "/wrong"}
+                                    {"source_path": "/emby", "player_path": "/wrong", "verified": True}
                                 ]
                             }
                         },
@@ -139,7 +155,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
                             "server_url": "http://jf.local",
                             "playback": {
                                 "path_mappings": [
-                                    {"source_path": "/jf", "player_path": "/nas"}
+                                    {"source_path": "/jf", "player_path": "/nas", "verified": True}
                                 ]
                             }
                         },
@@ -170,7 +186,19 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
             config={
                 "media_servers": {
                     "active": "jellyfin",
-                    "providers": {"jellyfin": {}},
+                    "providers": {
+                        "jellyfin": {
+                            "playback": {
+                                "path_mappings": [
+                                    {
+                                        "source_path": "/nas",
+                                        "player_path": "/nas",
+                                        "verified": True,
+                                    }
+                                ]
+                            }
+                        }
+                    },
                 },
                 "oppo": {"always_on": True, "playback_start_timeout_seconds": 30},
             },

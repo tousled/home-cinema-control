@@ -82,6 +82,17 @@ class PlaybackHandoffAttemptedEvent(PlaybackDomainEvent):
     event_type: str = "handoff_attempted"
 
 
+@dataclass(frozen=True)
+class PlaybackRejectedEvent(PlaybackDomainEvent):
+    """Fact published when observed playback is rejected before handoff."""
+
+    event_id: str
+    component: str
+    diagnostic_code: str
+    provider: str
+    event_type: str = "playback_rejected"
+
+
 def new_playback_session_id() -> str:
     return uuid4().hex
 

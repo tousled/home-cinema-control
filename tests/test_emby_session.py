@@ -41,6 +41,25 @@ class SetCapabilitiesTest(unittest.TestCase):
         self.assertEqual(["Video"], client.capabilities_payload["PlayableMediaTypes"])
 
 
+class LibraryPathMembershipTest(unittest.TestCase):
+    def test_does_not_treat_sibling_directory_as_part_of_library(self):
+        client = FakeEmbyClient()
+        client.get_selectable_media_folders = lambda: [
+            {
+                "Id": "movies",
+                "SubFolders": [{"Path": "/media/Movies"}],
+            }
+        ]
+        session = _session_with_client(client)
+
+        self.assertTrue(
+            session.is_item_path_in_library("movies", "/media/Movies/Alien.mkv")
+        )
+        self.assertFalse(
+            session.is_item_path_in_library("movies", "/media/Movies-Old/Alien.mkv")
+        )
+
+
 class GetMediaSourceInfoTest(unittest.TestCase):
     def test_maps_matched_media_source_with_parent_item_metadata(self):
         session = _session_with_client(

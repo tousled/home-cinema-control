@@ -17,6 +17,7 @@ _EVENT_TYPE_MAP: dict[str, str] = {
     "install_opt_in": "install_opt_in",
     "app_started": "app_started",
     "playback_attempted": "playback_attempted",
+    "playback_rejected": "playback_rejected",
     "playback_started": "playback_started",
     "playback_finished": "playback_finished",
     "playback_failed": "playback_failed",
@@ -112,6 +113,14 @@ def _to_event_body(payload: TelemetryPayload) -> dict:
     attempt_id = _safe_correlation_id(payload.event.get("attempt_id"))
     if payload.event_name == "playback_failed":
         attributes["component"] = str(payload.event.get("component", "system"))
+        error_code = str(payload.event.get("error_code") or "").strip()
+        if error_code:
+            attributes["error_code"] = error_code
+    elif payload.event_name == "playback_rejected":
+        attributes["component"] = str(payload.event.get("component", "system"))
+        provider = str(payload.event.get("provider") or "").strip()
+        if provider:
+            attributes["provider"] = provider
         error_code = str(payload.event.get("error_code") or "").strip()
         if error_code:
             attributes["error_code"] = error_code

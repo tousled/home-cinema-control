@@ -367,6 +367,11 @@ diagnóstico y guardar solo cuando entiendes qué ruta funciona.
 HCC no cambia silenciosamente de SMB a NFS ni de NFS a SMB. Si una ruta está configurada como SMB, se prueba y reproduce
 como SMB. Esto evita errores invisibles cuando una biblioteca funciona con un protocolo y otra necesita otro.
 
+HCC comprueba las rutas por carpetas completas: `/media/Movies` coincide con `/media/Movies/Alien.mkv`, pero no con
+`/media/Movies-Old/Alien.mkv`. Si tienes rutas anidadas, como `/media/Movies` y `/media/Movies/4K`, utiliza la más
+específica. Esa ruta concreta debe estar verificada; HCC no prueba otra más amplia ni envía una ruta no verificada al
+OPPO. Si la reproducción se bloquea, la pantalla de estado indica qué ruta falta o necesita probarse y guardarse.
+
 ### 7.8 Por qué es importante este paso
 
 Emby o Jellyfin y el OPPO pueden referirse al mismo contenido con rutas distintas. La ruta que conoce el servidor
@@ -605,9 +610,10 @@ verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
 
 La telemetría es opcional y viene desactivada. Si la activas, HCC envía datos anónimos mínimos para entender adopción y
 priorizar desarrollo: instalación activa, versión, idioma, proveedor Emby/Jellyfin, uso de OPPO, TV/AV, NFS/SMB y
-eventos de intento, reproducción iniciada, finalizada y fallida. Los eventos llevan identificadores aleatorios y
-anónimos de evento/intento, además del componente y código diagnóstico normalizados, para poder analizar fallos
-repetidos por instalación. Si el backend de telemetría no está disponible, HCC guarda temporalmente esos eventos
+eventos de intento, reproducción iniciada, finalizada, rechazada antes del handoff y fallida. Los eventos llevan
+identificadores aleatorios y anónimos de evento/intento, además del proveedor, componente y código diagnóstico
+normalizados, para poder analizar fallos repetidos por instalación. Si el backend de telemetría no está disponible, HCC
+guarda temporalmente esos eventos
 anónimos en `/config/telemetry_queue.json` y los reintenta después. No envía rutas, IPs, tokens, URLs, nombres de
 servidor, bibliotecas, títulos, IDs del servidor multimedia, logs, scripts ni comandos personalizados. Más detalle:
 [`docs/telemetry.md`](docs/telemetry.md).

@@ -312,6 +312,9 @@ class MediaServerWebsocketListener:
             playback_state=self.playback_state,
             config_provider=lambda: self.config,
             dispatcher=dispatcher,
+            playback_event_publisher=(
+                self._playback_event_publisher or self.application_event_bus
+            ),
         )
         self._websocket_event_mapper = self._websocket_event_mapper_factory(session)
 
