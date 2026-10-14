@@ -143,6 +143,30 @@ class TestTelemetryPayload(unittest.TestCase):
         self.assertEqual("unknown", payload.product.tv_model)
         self.assertEqual("unknown", payload.product.av_model)
 
+    def test_playback_rejected_is_normalized_without_private_media_data(self):
+        payload = build_telemetry_payload(
+            _config(),
+            "playback_rejected",
+            event={
+                "component": "path",
+                "provider": "Jellyfin",
+                "error_code": "path_mapping_not_found",
+                "title": "Private movie",
+                "path": "/volume1/private/Movie.mkv",
+            },
+        )
+
+        self.assertEqual(
+            {
+                "component": "path",
+                "provider": "jellyfin",
+                "error_code": "PATH_MAPPING_NOT_FOUND",
+            },
+            payload.event,
+        )
+        self.assertNotIn("Private movie", payload.model_dump_json())
+        self.assertNotIn("/volume1/private/Movie.mkv", payload.model_dump_json())
+
     def test_disabled_devices_report_none_model(self):
         config = _config()
         config["tv"]["enabled"] = False

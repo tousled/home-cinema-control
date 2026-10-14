@@ -13,11 +13,16 @@ def find_monitored_session(
     monitored_device_id: str,
 ) -> MediaServerSession | None:
     """Inbound mapper: Jellyfin Sessions payload -> HCC ``MediaServerSession``."""
-    for session in sessions:
-        if session.get("DeviceId") == monitored_device_id:
-            return session_from_payload(session)
+    for session in sessions_from_payload(sessions):
+        if session.device_id == monitored_device_id:
+            return session
 
     return None
+
+
+def sessions_from_payload(sessions: list[dict[str, Any]]) -> list[MediaServerSession]:
+    """Map the complete Jellyfin Sessions snapshot at the provider boundary."""
+    return [session_from_payload(session) for session in sessions]
 
 
 def session_from_payload(session: dict[str, Any]) -> MediaServerSession:

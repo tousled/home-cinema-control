@@ -6,10 +6,15 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
-HCC 1.4.0 connects playback events to Home Assistant and improves the visibility and reliability of playback startup and
+HCC 1.4.1 connects playback events to Home Assistant and improves the visibility and reliability of playback startup and
 integration activity.
 
 ### Added
+
+* **Playback telemetry correlation.** Opt-in playback events now include anonymous event and attempt identifiers,
+  normalized failure components/codes, and a handoff-attempt event so the telemetry hub can distinguish repeated
+  failures on one installation from aggregate event counts. No media titles, paths, media-server IDs, or credentials
+  are sent.
 
 * **Home Assistant integration.** HCC can send neutral playback events to a configured Home Assistant webhook, so
   automations can react when playback starts, pauses, resumes, or stops. HCC sends the event; Home Assistant decides
@@ -21,6 +26,10 @@ integration activity.
 
 * **Startup telemetry.** Opt-in telemetry now includes anonymous startup timing for the existing `playback_started`
   event, using integer milliseconds and excluding media, path, network, and user data.
+
+* **Pre-handoff rejection telemetry.** When opt-in telemetry is enabled, HCC counts playback attempts that it rejects
+  before contacting the OPPO, using only the provider, diagnostic component, and normalized error code. It does not
+  send titles, paths, media-server IDs, or device IDs.
 
 ### Changed
 
@@ -40,6 +49,11 @@ integration activity.
   Home Assistant playback event integration.
 
 ### Fixed
+
+* **Safer media-server playback admission and diagnostics.** Emby and Jellyfin paths now respect complete directory
+  names, nested mappings use the most specific route, and HCC explains why playback was stopped when a library or
+  route is not ready. Session monitoring now shows the configured device and received candidates when no device
+  matches, while item lookup failures include enough provider context to investigate them without retries.
 
 * Responsive action groups now wrap correctly on narrow screens, keeping diagnostic and playback controls inside their
   panels.

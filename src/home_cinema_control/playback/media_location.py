@@ -1,12 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import Any
 
+from home_cinema_control.media_servers.common.path_matching import (
+    longest_matching_mapping,
+    normalize_path,
+)
 from home_cinema_control.playback.startup.models import PlayerMediaFileLocation
 
 
 class PlayerMediaFileLocationError(ValueError):
-    pass
+    diagnostic_code = "PATH_RESOLUTION_FAILED"
+    diagnostic_details: dict[str, Any] = {}
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        diagnostic_code: str = "PATH_RESOLUTION_FAILED",
+        diagnostic_details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.diagnostic_code = diagnostic_code
+        self.diagnostic_details = diagnostic_details or {}
 
 
 def resolve_player_media_file_location(
@@ -14,10 +31,10 @@ def resolve_player_media_file_location(
     emby_media_path: str,
     playback_file_format: str,
     playback_file_name: str | None = None,
-    path_mappings: Sequence[Mapping[str, str]],
+    path_mappings: Sequence[Mapping[str, Any]],
 ) -> PlayerMediaFileLocation:
     player_path, network_protocol = _apply_path_mappings(
-        _normalize_path_separators(emby_media_path), path_mappings
+        normalize_path(emby_media_path), path_mappings
     )
 
     return _parse_player_media_file_location(
@@ -30,31 +47,35 @@ def resolve_player_media_file_location(
 
 def _apply_path_mappings(
     media_path: str,
-    path_mappings: Sequence[Mapping[str, str]],
+    path_mappings: Sequence[Mapping[str, Any]],
 ) -> tuple[str, str | None]:
-    player_path = media_path
-    network_protocol = None
+    media_path = normalize_path(media_path)
+    mapping = longest_matching_mapping(media_path, path_mappings)
+    if mapping is None:
+        raise PlayerMediaFileLocationError(
+            f"No verified path mapping matches media path: {media_path}",
+            diagnostic_code="PATH_MAPPING_NOT_FOUND",
+            diagnostic_details={"item_path": media_path},
+        )
 
-    for mapping in path_mappings:
-        emby_path = _normalize_path_separators(mapping["source_path"])
-        if _path_mapping_matches(player_path, emby_path):
-            player_path = _replace_path_prefix(
-                player_path,
-                emby_path,
-                _normalize_path_separators(mapping["player_path"]),
-            )
-            network_protocol = mapping.get("protocol") or network_protocol
+    if mapping.get("verified") is not True:
+        source_path = normalize_path(mapping.get("source_path"))
+        raise PlayerMediaFileLocationError(
+            f"Path mapping is not verified for media path: {source_path}",
+            diagnostic_code="PATH_MAPPING_NOT_VERIFIED",
+            diagnostic_details={
+                "item_path": media_path,
+                "source_path": source_path,
+            },
+        )
 
-    return player_path, network_protocol
-
-
-def _normalize_path_separators(path: str) -> str:
-    return path.replace("\\\\", "\\").replace("\\", "/")
-
-
-def _path_mapping_matches(media_path: str, source_path: str) -> bool:
-    source_prefix = source_path.rstrip("/")
-    return media_path == source_prefix or media_path.startswith(source_prefix + "/")
+    source_path = normalize_path(mapping.get("source_path"))
+    player_path = _replace_path_prefix(
+        media_path,
+        source_path,
+        normalize_path(mapping.get("player_path")),
+    )
+    return player_path, mapping.get("protocol") or None
 
 
 def _replace_path_prefix(media_path: str, source_path: str, player_path: str) -> str:
