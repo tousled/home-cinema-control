@@ -6,26 +6,17 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
-HCC 1.4.1 connects playback events to Home Assistant and improves the visibility and reliability of playback startup and
-integration activity.
+HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing of room automation events.
 
 ### Added
+
+* **Home Assistant playback detection event.** HCC now sends a `detected` event when it accepts playback discovered
+  on the monitored device, before the OPPO startup completes, so Home Assistant can dim the room lights at handoff.
 
 * **Playback telemetry correlation.** Opt-in playback events now include anonymous event and attempt identifiers,
   normalized failure components/codes, and a handoff-attempt event so the telemetry hub can distinguish repeated
   failures on one installation from aggregate event counts. No media titles, paths, media-server IDs, or credentials
   are sent.
-
-* **Home Assistant integration.** HCC can send neutral playback events to a configured Home Assistant webhook, so
-  automations can react when playback starts, pauses, resumes, or stops. HCC sends the event; Home Assistant decides
-  what the room should do.
-
-* **Home Assistant setup and delivery status.** Added a dedicated setup screen with clear configuration status,
-  protected webhook credentials, and a configurable delivery timeout. The persisted “latest delivery” status is based
-  on a real playback event, survives HCC restarts, and resets when the URL or webhook changes.
-
-* **Startup telemetry.** Opt-in telemetry now includes anonymous startup timing for the existing `playback_started`
-  event, using integer milliseconds and excluding media, path, network, and user data.
 
 * **Pre-handoff rejection telemetry.** When opt-in telemetry is enabled, HCC counts playback attempts that it rejects
   before contacting the OPPO, using only the provider, diagnostic component, and normalized error code. It does not
@@ -38,6 +29,33 @@ integration activity.
   indices when Emby or an optional metadata plugin does not provide stream information. The installation guide now
   documents the optional Emby IsoMounter setup, which can help Emby display the available audio and subtitle tracks
   for Blu-ray and DVD ISOs.
+
+### Fixed
+
+* **Safer media-server playback admission and diagnostics.** Emby and Jellyfin paths now respect complete directory
+  names, nested mappings use the most specific route, and HCC explains why playback was stopped when a library or
+  route is not ready. Session monitoring now shows the configured device and received candidates when no device
+  matches, while item lookup failures include enough provider context to investigate them without retries.
+
+## [1.4.0] - 2026-10-12
+
+HCC 1.4.0 connects playback events to Home Assistant and improves the visibility and reliability of playback startup and
+integration activity.
+
+### Added
+
+* **Home Assistant integration.** HCC can send neutral playback events to a configured Home Assistant webhook, so
+  automations can react when playback starts, pauses, resumes, or stops. HCC sends the event; Home Assistant decides
+  what the room should do.
+
+* **Home Assistant setup and delivery status.** Added a dedicated setup screen with clear configuration status,
+  protected webhook credentials, and a configurable delivery timeout. The persisted “latest delivery” status is based
+  on a real playback event, survives HCC restarts, and resets when the URL or webhook changes.
+
+* **Startup telemetry.** Opt-in telemetry now includes anonymous startup timing for the existing `playback_started`
+  event, using integer milliseconds and excluding media, path, network, and user data.
+
+### Changed
 
 * **More predictable playback boundaries.** Emby and Jellyfin-specific payload handling now stays in each provider
   adapter, while shared playback policy handles common behavior. This keeps session handling and playback state
@@ -55,11 +73,6 @@ integration activity.
   Home Assistant playback event integration.
 
 ### Fixed
-
-* **Safer media-server playback admission and diagnostics.** Emby and Jellyfin paths now respect complete directory
-  names, nested mappings use the most specific route, and HCC explains why playback was stopped when a library or
-  route is not ready. Session monitoring now shows the configured device and received candidates when no device
-  matches, while item lookup failures include enough provider context to investigate them without retries.
 
 * Responsive action groups now wrap correctly on narrow screens, keeping diagnostic and playback controls inside their
   panels.

@@ -6,6 +6,7 @@ from home_cinema_control.playback.active_context import ActivePlaybackRuntimeCon
 from home_cinema_control.playback.events import (
     PlaybackEvent,
     PlaybackEventContext,
+    PlaybackEventType,
     PlaybackHandoffFinalizedEvent,
 )
 from home_cinema_control.playback.handoff import PlaybackHandoffService
@@ -49,6 +50,26 @@ class PlaybackHandoffServiceTest(unittest.TestCase):
 
         self.assertEqual([MediaContentKind.CONCERT], actions)
         self.assertEqual("Playing", handoff._state.playstate)
+
+    def test_startup_completion_reuses_detected_playback_session_id(self):
+        handoff = self._startup_handoff()
+        messaging = SimpleNamespace(action=lambda content_kind: None)
+
+        handoff._on_startup_completed(
+            None,
+            intent=_intent(),
+            playback_session_id="playback-1",
+            movie="/movies/aquaman.mkv",
+            messaging=messaging,
+            content_kind=MediaContentKind.MOVIE,
+            playback_wiring=SimpleNamespace(
+                playback_event_publisher=None,
+                during_playback_orchestrator=SimpleNamespace(),
+            ),
+            startup_timer=PlaybackStartupTimer(),
+        )
+
+        self.assertEqual("playback-1", handoff._playback_state_detector.session_id)
 
     def test_startup_metric_serialization_failure_does_not_interrupt_playback(self):
         handoff = self._startup_handoff()
@@ -195,6 +216,37 @@ class PlaybackHandoffServiceTest(unittest.TestCase):
         self.assertIsInstance(finalized, PlaybackHandoffFinalizedEvent)
         self.assertFalse(finalized.successful)
 
+    def test_detected_event_is_published_for_monitored_playback(self):
+        publisher = RecordingPublisher()
+        handoff = self._handoff_with_publisher(publisher)
+        handoff._run_handoff = Mock(return_value=(None, ""))
+
+        handoff.run(_intent(), origin=PlaybackOrigin.OBSERVED_TV_CLIENT)
+
+        detected = next(
+            event
+            for event in publisher.events
+            if isinstance(event, PlaybackEvent)
+            and event.event_type == PlaybackEventType.DETECTED
+        )
+        self.assertIsNotNone(detected.attempt_id)
+        self.assertEqual("oppo", detected.player)
+
+    def test_detected_event_is_not_published_for_remote_control_playback(self):
+        publisher = RecordingPublisher()
+        handoff = self._handoff_with_publisher(publisher)
+        handoff._run_handoff = Mock(return_value=(None, ""))
+
+        handoff.run(_intent(), origin=PlaybackOrigin.REMOTE_CONTROL_COMMAND)
+
+        self.assertFalse(
+            any(
+                isinstance(event, PlaybackEvent)
+                and event.event_type == PlaybackEventType.DETECTED
+                for event in publisher.events
+            )
+        )
+
     def _handoff(self, *, replacement_requested=False):
         return PlaybackHandoffService(
             playback_session=SimpleNamespace(config={}),
@@ -202,6 +254,16 @@ class PlaybackHandoffServiceTest(unittest.TestCase):
             media_server_playback_services=None,
             oppo_lifecycle=SimpleNamespace(finish_playback=Mock()),
             replacement_requested=lambda: replacement_requested,
+        )
+
+    def _handoff_with_publisher(self, publisher):
+        return PlaybackHandoffService(
+            playback_session=SimpleNamespace(config={}),
+            playback_state=BridgePlaybackState(),
+            media_server_playback_services=None,
+            oppo_lifecycle=SimpleNamespace(finish_playback=Mock()),
+            playback_event_publisher=publisher,
+            replacement_requested=lambda: False,
         )
 
     def _startup_handoff(self):

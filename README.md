@@ -167,7 +167,8 @@ está en exploración antes que vender compatibilidad no validada.
 
 ## Home Assistant
 
-HCC puede avisar a Home Assistant cuando una reproducción empieza, se pausa, continúa o termina. Home Assistant decide
+HCC puede avisar a Home Assistant cuando detecta una reproducción, empieza, se pausa, continúa o termina. Home Assistant
+decide
 qué
 hacer con cada evento: activar una escena, controlar luces, enviar un aviso o guardarlo en el registro.
 

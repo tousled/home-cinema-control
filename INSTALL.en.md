@@ -419,7 +419,8 @@ server's.
 
 ## 9. Connect HCC to Home Assistant
 
-With this integration, HCC tells Home Assistant when playback starts, pauses, resumes, or stops. Home Assistant then
+With this integration, HCC tells Home Assistant when it detects playback, starts it, pauses, resumes, or stops. Home
+Assistant then
 decides
 what to do: turn on lights, activate a scene, send an alert, or simply record the event. HCC does not create automations
 on
@@ -446,9 +447,17 @@ triggers:
 conditions:
   - condition: template
     value_template: >-
-      {{ trigger.json.event | default('') in ['started', 'paused', 'resumed', 'stopped'] }}
+      {{ trigger.json.event | default('') in ['detected', 'started', 'paused', 'resumed', 'stopped'] }}
 actions:
   - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'detected' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Playback detected: {{ trigger.json.title | default('') }}"
       - conditions:
           - condition: template
             value_template: "{{ trigger.json.event == 'started' }}"
@@ -515,8 +524,9 @@ usual to respond.
 
 ### 9.3 Check that it works
 
-HCC sends four playback events:
+HCC sends five playback events:
 
+- `detected`: HCC detected valid playback on the monitored device and accepted the handoff.
 - `started`: playback has started.
 - `paused`: playback is paused.
 - `resumed`: playback has resumed.

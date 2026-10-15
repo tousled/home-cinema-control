@@ -13,7 +13,9 @@ from home_cinema_control.playback.diagnostics import (
     diagnose_path_error,
 )
 from home_cinema_control.playback.events import (
+    PlaybackEvent,
     PlaybackEventContext,
+    PlaybackEventType,
     PlaybackHandoffAttemptedEvent,
     PlaybackHandoffFinalizedEvent,
     PlaybackObservation,
@@ -99,16 +101,29 @@ class PlaybackHandoffService:
         origin: PlaybackOrigin,
     ):
         handoff_id = new_playback_handoff_id()
+        playback_session_id = new_playback_session_id()
         movie = ""
         lifecycle = {"orchestration_started": False}
         result = None
 
         self._state.start_loading(intent)
         self._publish_handoff_attempted(attempt_id=handoff_id, origin=origin)
+        if origin == PlaybackOrigin.OBSERVED_TV_CLIENT:
+            self._publish_playback_event(
+                PlaybackEvent(
+                    event_id=new_playback_event_id(),
+                    session_id=playback_session_id,
+                    attempt_id=handoff_id,
+                    event_type=PlaybackEventType.DETECTED,
+                    source=_media_server_source_name(self._playback_session),
+                    player="oppo",
+                )
+            )
         try:
             result, movie = self._run_handoff(
                 intent,
                 attempt_id=handoff_id,
+                playback_session_id=playback_session_id,
                 origin=origin,
                 lifecycle=lifecycle,
             )
@@ -135,6 +150,7 @@ class PlaybackHandoffService:
         intent: PlaybackIntent,
         *,
         attempt_id: str,
+        playback_session_id: str,
         origin: PlaybackOrigin,
         lifecycle: dict[str, bool],
     ) -> tuple[object | None, str]:
@@ -258,6 +274,7 @@ class PlaybackHandoffService:
                     r,
                     intent=intent,
                     attempt_id=attempt_id,
+                    playback_session_id=playback_session_id,
                     movie=movie,
                     messaging=messaging,
                     content_kind=item_info.content_kind,
@@ -336,6 +353,7 @@ class PlaybackHandoffService:
         _result,
         *,
         intent: PlaybackIntent,
+        playback_session_id: str | None = None,
         attempt_id: str | None = None,
         movie: str,
         messaging: PlaybackStartupMessagingService,
@@ -359,7 +377,7 @@ class PlaybackHandoffService:
 
         active_session = self._state.active_session
         context = PlaybackEventContext(
-            session_id=new_playback_session_id(),
+            session_id=playback_session_id or new_playback_session_id(),
             attempt_id=attempt_id,
             media_type=content_kind.value,
             title=active_session.title if active_session is not None else movie,
