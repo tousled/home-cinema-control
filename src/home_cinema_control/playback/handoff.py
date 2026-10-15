@@ -14,6 +14,7 @@ from home_cinema_control.playback.diagnostics import (
 )
 from home_cinema_control.playback.events import (
     PlaybackEventContext,
+    PlaybackHandoffAttemptedEvent,
     PlaybackHandoffFinalizedEvent,
     PlaybackObservation,
     PlaybackObservedState,
@@ -103,9 +104,11 @@ class PlaybackHandoffService:
         result = None
 
         self._state.start_loading(intent)
+        self._publish_handoff_attempted(attempt_id=handoff_id, origin=origin)
         try:
             result, movie = self._run_handoff(
                 intent,
+                attempt_id=handoff_id,
                 origin=origin,
                 lifecycle=lifecycle,
             )
@@ -113,6 +116,7 @@ class PlaybackHandoffService:
         finally:
             self._finalize_handoff(
                 handoff_id=handoff_id,
+                attempt_id=handoff_id,
                 intent=intent,
                 origin=origin,
                 movie=movie,
@@ -130,6 +134,7 @@ class PlaybackHandoffService:
         self,
         intent: PlaybackIntent,
         *,
+        attempt_id: str,
         origin: PlaybackOrigin,
         lifecycle: dict[str, bool],
     ) -> tuple[object | None, str]:
@@ -252,6 +257,7 @@ class PlaybackHandoffService:
                 on_startup_completed=lambda r: self._on_startup_completed(
                     r,
                     intent=intent,
+                    attempt_id=attempt_id,
                     movie=movie,
                     messaging=messaging,
                     content_kind=item_info.content_kind,
@@ -286,6 +292,7 @@ class PlaybackHandoffService:
         self,
         *,
         handoff_id: str,
+        attempt_id: str | None = None,
         intent: PlaybackIntent,
         origin: PlaybackOrigin,
         movie: str,
@@ -313,6 +320,7 @@ class PlaybackHandoffService:
             _reset_bridge_playback_state(self._state, movie)
             self._publish_handoff_finalized(
                 handoff_id=handoff_id,
+                attempt_id=attempt_id or handoff_id,
                 intent=intent,
                 origin=origin,
                 result=result,
@@ -328,6 +336,7 @@ class PlaybackHandoffService:
         _result,
         *,
         intent: PlaybackIntent,
+        attempt_id: str | None = None,
         movie: str,
         messaging: PlaybackStartupMessagingService,
         content_kind: MediaContentKind,
@@ -351,6 +360,7 @@ class PlaybackHandoffService:
         active_session = self._state.active_session
         context = PlaybackEventContext(
             session_id=new_playback_session_id(),
+            attempt_id=attempt_id,
             media_type=content_kind.value,
             title=active_session.title if active_session is not None else movie,
             source=_media_server_source_name(self._playback_session),
@@ -399,6 +409,7 @@ class PlaybackHandoffService:
         self,
         *,
         handoff_id: str,
+        attempt_id: str,
         intent: PlaybackIntent,
         origin: PlaybackOrigin,
         result,
@@ -416,6 +427,7 @@ class PlaybackHandoffService:
             media_item_id=intent.media_item_id,
             media_source_id=intent.media_source_id,
             playback_session_id=playback_session_id,
+            attempt_id=attempt_id,
             diagnostic_component=_telemetry_component(
                 getattr(diagnostic, "component", "")
             ),
@@ -425,6 +437,24 @@ class PlaybackHandoffService:
             self._playback_event_publisher.publish(event)
         except Exception:
             logger.exception("Playback handoff finalized event dispatch failed.")
+
+    def _publish_handoff_attempted(
+        self,
+        *,
+        attempt_id: str,
+        origin: PlaybackOrigin,
+    ) -> None:
+        if self._playback_event_publisher is None:
+            return
+        event = PlaybackHandoffAttemptedEvent(
+            event_id=new_playback_event_id(),
+            attempt_id=attempt_id,
+            origin=origin.value,
+        )
+        try:
+            self._playback_event_publisher.publish(event)
+        except Exception:
+            logger.exception("Playback handoff attempted event dispatch failed.")
 
     def _record_diagnostic(self, diagnostic) -> None:
         record = getattr(self._state, "record_diagnostic", None)

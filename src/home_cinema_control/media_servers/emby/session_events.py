@@ -43,11 +43,16 @@ def find_monitored_session(
     monitored_device_id: str,
 ) -> MediaServerSession | None:
     """Inbound mapper: Emby Sessions payload -> HCC ``MediaServerSession``."""
-    for session in sessions:
-        if session.get("DeviceId") == monitored_device_id:
-            return session_from_payload(session)
+    for session in sessions_from_payload(sessions):
+        if session.device_id == monitored_device_id:
+            return session
 
     return None
+
+
+def sessions_from_payload(sessions: list[dict[str, Any]]) -> list[MediaServerSession]:
+    """Map the complete Emby Sessions snapshot at the provider boundary."""
+    return [session_from_payload(session) for session in sessions]
 
 
 def session_from_payload(session: dict[str, Any]) -> MediaServerSession:
@@ -68,6 +73,7 @@ def session_from_payload(session: dict[str, Any]) -> MediaServerSession:
     return MediaServerSession(
         device_id=session.get("DeviceId", "") or "",
         device_name=session.get("DeviceName", "") or "",
+        client_name=session.get("Client", "") or "",
         user_id=session.get("UserId", "") or "",
         client_session_id=session.get("Id"),
         last_activity_at=session.get("LastActivityDate", "") or "",

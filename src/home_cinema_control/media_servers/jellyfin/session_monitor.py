@@ -8,7 +8,7 @@ from home_cinema_control.media_servers.common.session_monitor import (
     is_ambient_theme_audio,
 )
 from home_cinema_control.media_servers.jellyfin.session_events import (
-    find_monitored_session,
+    sessions_from_payload,
 )
 
 
@@ -32,7 +32,7 @@ class JellyfinSessionMonitor(MediaServerSessionMonitor):
             self._provider_name,
             len(sessions),
         )
-        session = find_monitored_session(sessions, device_id)
+        session = self.select_monitored_session(sessions_from_payload(sessions), device_id)
         if session is not None and is_ambient_theme_audio(session.now_playing):
             self.on_monitored_session(session, None, config=config)
             return
@@ -45,11 +45,14 @@ class JellyfinSessionMonitor(MediaServerSessionMonitor):
         if session is None or session.now_playing is None:
             return None
         try:
-            return self._jellyfin_session.get_item_playback_info(
+            item_playback_info = self._jellyfin_session.get_item_playback_info(
                 session.user_id,
                 session.now_playing.item_id,
                 session.media_source_id,
             )
-        except Exception:
+            self.clear_item_lookup_failure()
+            return item_playback_info
+        except Exception as exc:
             logging.exception("%s ws: could not load monitored item details", self._provider_name)
+            self.record_item_lookup_failure(session, exc)
             return None

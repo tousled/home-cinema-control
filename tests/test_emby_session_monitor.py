@@ -88,12 +88,13 @@ class EmbySessionMonitorTest(unittest.TestCase):
         self.dispatcher = MagicMock()
         self.config = _config()
 
-    def _monitor(self, config=None):
+    def _monitor(self, config=None, playback_event_publisher=None):
         return EmbySessionMonitor(
             emby_session=self.emby_session,
             playback_state=self.playback_state,
             config_provider=lambda: config or self.config,
             dispatcher=self.dispatcher,
+            playback_event_publisher=playback_event_publisher,
         )
 
     # -------------------------------------------------------------------------
@@ -106,9 +107,18 @@ class EmbySessionMonitorTest(unittest.TestCase):
         self.dispatcher.dispatch.assert_not_called()
 
     def test_no_matching_session_does_nothing(self):
-        monitor = self._monitor()
+        playback_event_publisher = MagicMock()
+        monitor = self._monitor(playback_event_publisher=playback_event_publisher)
         monitor.on_sessions_update([_make_session(device_id="other-device")])
         self.dispatcher.dispatch.assert_not_called()
+        self.assertEqual(
+            "MEDIA_SERVER_MONITORED_DEVICE_NOT_FOUND",
+            self.playback_state.last_diagnostic.code,
+        )
+
+        monitor.on_sessions_update([_make_session(device_id="other-device")])
+        self.assertEqual(1, len(self.playback_state.diagnostic_history))
+        playback_event_publisher.publish.assert_not_called()
 
     def test_item_not_in_library_does_not_dispatch(self):
         self.emby_session.is_item_path_in_library.return_value = False
@@ -141,6 +151,11 @@ class EmbySessionMonitorTest(unittest.TestCase):
         self.emby_session.is_item_path_in_library.assert_not_called()
         self.dispatcher.dispatch.assert_not_called()
         self.assertEqual("", monitor._monitored_state)
+        diagnostic = self.playback_state.last_diagnostic
+        self.assertEqual("MEDIA_SERVER_ITEM_UNAVAILABLE", diagnostic.code)
+        self.assertEqual("emby", diagnostic.details["provider"])
+        self.assertEqual("42", diagnostic.details["item_id"])
+        self.assertEqual("RuntimeError", diagnostic.details["error_type"])
 
     def test_theme_mp3_does_not_dispatch_or_load_item_details(self):
         monitor = self._monitor()

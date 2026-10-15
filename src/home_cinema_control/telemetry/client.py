@@ -11,10 +11,13 @@ logger = logging.getLogger(__name__)
 
 _PING_PATH = "/api/v1/telemetry/ping"
 _EVENT_PATH = "/api/v1/telemetry/event"
+_EVENT_SCHEMA_VERSION = 2
 
 _EVENT_TYPE_MAP: dict[str, str] = {
     "install_opt_in": "install_opt_in",
     "app_started": "app_started",
+    "playback_attempted": "playback_attempted",
+    "playback_rejected": "playback_rejected",
     "playback_started": "playback_started",
     "playback_finished": "playback_finished",
     "playback_failed": "playback_failed",
@@ -107,8 +110,20 @@ def _to_ping_body(payload: TelemetryPayload) -> dict:
 def _to_event_body(payload: TelemetryPayload) -> dict:
     event_type = _EVENT_TYPE_MAP.get(payload.event_name, "app_started")
     attributes: dict[str, str | int | float | bool] = {}
+    attempt_id = _safe_correlation_id(payload.event.get("attempt_id"))
     if payload.event_name == "playback_failed":
-        attributes["error_category"] = str(payload.event.get("component", "system"))
+        attributes["component"] = str(payload.event.get("component", "system"))
+        error_code = str(payload.event.get("error_code") or "").strip()
+        if error_code:
+            attributes["error_code"] = error_code
+    elif payload.event_name == "playback_rejected":
+        attributes["component"] = str(payload.event.get("component", "system"))
+        provider = str(payload.event.get("provider") or "").strip()
+        if provider:
+            attributes["provider"] = provider
+        error_code = str(payload.event.get("error_code") or "").strip()
+        if error_code:
+            attributes["error_code"] = error_code
     elif payload.event_name == "roadmap_interest_submitted":
         interests = payload.event.get("interests", [])
         attributes["interests"] = ",".join(str(i) for i in interests)
@@ -120,12 +135,22 @@ def _to_event_body(payload: TelemetryPayload) -> dict:
                 if isinstance(value, (str, int)) and not isinstance(value, bool):
                     attributes[attribute_name] = value
     return {
+        "event_id": payload.event_id,
+        "schema_version": _EVENT_SCHEMA_VERSION,
         "instance_id": payload.installation_id,
         "event_type": event_type,
         "hcc_version": payload.hcc_version,
         "install_type": "docker" if payload.deployment.docker else "native",
+        "attempt_id": attempt_id,
         "attributes": attributes,
     }
+
+
+def _safe_correlation_id(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value[:80] if value else None
 
 
 _STARTUP_ATTRIBUTE_NAMES = {

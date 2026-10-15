@@ -221,6 +221,17 @@ class DiagnosePathErrorTest(unittest.TestCase):
         self.assertEqual("error", diag.severity)
         self.assertIn("server, folder and file", diag.reason)
 
+    def test_unverified_path_mapping_has_specific_diagnostic(self):
+        exc = ValueError("unverified mapping")
+        exc.diagnostic_code = "PATH_MAPPING_NOT_VERIFIED"
+        exc.diagnostic_details = {"source_path": "/movies", "item_path": "/movies/a.mkv"}
+
+        diag = diagnose_path_error(exc)
+
+        self.assertEqual("PATH_MAPPING_NOT_VERIFIED", diag.code)
+        self.assertIn("/movies", diag.details["source_path"])
+        self.assertIn("unverified", diag.suggestion)
+
 
 class DiagnosePathTestFailedTest(unittest.TestCase):
     def test_stale_mount_path_test_diagnostic(self):
