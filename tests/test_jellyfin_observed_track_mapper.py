@@ -46,7 +46,7 @@ class JellyfinObservedTrackMapperTest(unittest.TestCase):
 
 
 class FakeJellyfinSession:
-    def get_item_tracks(self, user_id, item_id):
+    def get_item_tracks(self, user_id, item_id, media_source_id=None):
         if user_id != "user-1" or item_id != "3092":
             raise AssertionError((user_id, item_id))
 

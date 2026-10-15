@@ -33,6 +33,12 @@ integration activity.
 
 ### Changed
 
+* **More reliable Emby track selection.** HCC now queries Emby's `PlaybackInfo` for audio and subtitle streams,
+  selects metadata from the active media source, and falls back to the existing item metadata and default track
+  indices when Emby or an optional metadata plugin does not provide stream information. The installation guide now
+  documents the optional Emby IsoMounter setup, which can help Emby display the available audio and subtitle tracks
+  for Blu-ray and DVD ISOs.
+
 * **More predictable playback boundaries.** Emby and Jellyfin-specific payload handling now stays in each provider
   adapter, while shared playback policy handles common behavior. This keeps session handling and playback state
   consistent across media servers.

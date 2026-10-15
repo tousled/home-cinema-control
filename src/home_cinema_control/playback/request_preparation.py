@@ -68,6 +68,7 @@ def prepare_playback_requests(
         expected_duration_seconds=item_info.duration_seconds,
         source_user_id=intent.source_user_id,
         media_item_id=intent.media_item_id,
+        media_source_id=intent.media_source_id,
         selected_source_audio_track_id=intent.selected_audio_track_id,
         selected_source_subtitle_track_id=intent.selected_subtitle_track_id,
     )

@@ -31,6 +31,8 @@ class EmbySession:
         self.client = EmbyClient.from_config(config)
         self.user_info = self.client.authenticate()
         self.lang = None
+        self._item_info_cache: dict[tuple[str, str], dict] = {}
+        self._track_cache: dict[tuple[str, str, str], list[MediaTrack]] = {}
         logging.info("EmbySession started")
 
     def stop_session_playback(self, session_id):
@@ -119,6 +121,9 @@ class EmbySession:
 
     def get_media_source_info(self, user_id, item_id, mediasource_id) -> MediaServerPlaybackSource:
         item_data = self.client.get_item_info(user_id, item_id)
+        item_key = (user_id, item_id)
+        self._item_info_cache[item_key] = item_data
+        self._clear_track_cache(item_key)
         return media_server_playback_source_from_item(item_data, mediasource_id)
 
     def get_item_playback_info(
@@ -133,9 +138,37 @@ class EmbySession:
             media_source_id=media_source_id,
         )
 
-    def get_item_tracks(self, user_id, item_id) -> list[MediaTrack]:
-        item_data = self.client.get_item_info(user_id, item_id)
-        return media_tracks_from_item(item_data)
+    def get_item_tracks(
+        self,
+        user_id,
+        item_id,
+        media_source_id: str | None = None,
+    ) -> list[MediaTrack]:
+        item_key = (user_id, item_id)
+        track_key = (user_id, item_id, media_source_id or "")
+        if track_key in self._track_cache:
+            return self._track_cache[track_key]
+
+        try:
+            playback_info = self.client.get_item_playback_info(user_id, item_id)
+        except Exception:
+            logging.warning(
+                "Could not retrieve Emby PlaybackInfo; using item metadata fallback | item_id=%s",
+                item_id,
+                exc_info=True,
+            )
+            playback_info = {}
+
+        tracks = media_tracks_from_item(playback_info, media_source_id)
+        if not tracks:
+            item_data = self._item_info_cache.get(item_key)
+            if item_data is None:
+                item_data = self.client.get_item_info(user_id, item_id)
+                self._item_info_cache[item_key] = item_data
+            tracks = media_tracks_from_item(item_data, media_source_id)
+
+        self._track_cache[track_key] = tracks
+        return tracks
 
     def is_item_path_in_library(self, view_id, item_path):
         media_folders = self.client.get_selectable_media_folders()
@@ -148,14 +181,34 @@ class EmbySession:
 
         return False
 
-    def resolve_audio_track_index(self, user_id, item_id, index):
-        return source_audio_to_player_index(self.get_item_tracks(user_id, item_id), index)
-
-    def resolve_subtitle_track_index(self, user_id, item_id, index):
-        return source_subtitle_to_player_index(
-            self.get_item_tracks(user_id, item_id),
+    def resolve_audio_track_index(
+        self,
+        user_id,
+        item_id,
+        index,
+        media_source_id: str | None = None,
+    ):
+        return source_audio_to_player_index(
+            self.get_item_tracks(user_id, item_id, media_source_id),
             index,
         )
+
+    def resolve_subtitle_track_index(
+        self,
+        user_id,
+        item_id,
+        index,
+        media_source_id: str | None = None,
+    ):
+        return source_subtitle_to_player_index(
+            self.get_item_tracks(user_id, item_id, media_source_id),
+            index,
+        )
+
+    def _clear_track_cache(self, item_key: tuple[str, str]) -> None:
+        for track_key in list(self._track_cache):
+            if track_key[:2] == item_key:
+                del self._track_cache[track_key]
 
     def _session_info(self):
         session_info = (self.user_info or {}).get("SessionInfo")

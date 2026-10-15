@@ -9,6 +9,43 @@ from home_cinema_control.media_servers.emby.item_mapper import (
 
 
 class EmbyItemMapperTest(unittest.TestCase):
+    def test_maps_tracks_from_selected_nested_media_source(self):
+        tracks = media_tracks_from_item(
+            {
+                "MediaStreams": [{"Type": "Audio", "Index": 99}],
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "MediaStreams": [{"Type": "Audio", "Index": 1}],
+                    },
+                    {
+                        "Id": "source-2",
+                        "MediaStreams": [
+                            {"Type": "Audio", "Index": 4},
+                            {"Type": "Subtitle", "Index": 7},
+                        ],
+                    },
+                ],
+            },
+            media_source_id="source-2",
+        )
+
+        self.assertEqual(
+            [(MediaTrackKind.AUDIO, 4), (MediaTrackKind.SUBTITLE, 7)],
+            [(track.kind, track.source_index) for track in tracks],
+        )
+
+    def test_falls_back_to_top_level_tracks_when_source_has_no_streams(self):
+        tracks = media_tracks_from_item(
+            {
+                "MediaStreams": [{"Type": "Audio", "Index": 3}],
+                "MediaSources": [{"Id": "source-1", "MediaStreams": []}],
+            },
+            media_source_id="source-1",
+        )
+
+        self.assertEqual([3], [track.source_index for track in tracks])
+
     def test_maps_normal_playback_source_without_overriding_filename(self):
         source = media_server_playback_source_from_item(
             {

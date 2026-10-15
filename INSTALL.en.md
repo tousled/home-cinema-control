@@ -153,6 +153,19 @@ the configuration panels instead of being repeated in the header.
 This screen avoids manual token editing, reloads the media server's devices, and prepares library discovery for path
 mapping.
 
+### 5.1 Recommended Emby setup for Blu-ray and DVD ISOs
+
+This setup is **optional** and HCC works without it. If your library contains Blu-ray or DVD ISO files, we recommend
+installing **IsoMounter** from Emby's plugin catalog, restarting Emby, and refreshing the library or existing ISO items.
+
+The plugin lets Emby inspect the disc contents and return its audio and subtitle streams. This helps the Emby screen
+show a selector with the available tracks before or during playback. HCC also reads that information when available and
+keeps a compatible fallback when the plugin is not installed.
+
+The language is shown only when Emby returns it in the stream metadata. If Emby cannot identify it, the available
+technical description is shown instead — for example, `DTS-HD MA 5.1` for audio or `PGSSUB` for subtitles — but
+the language such as `ES`, `CAT`, `GA`, or `JA` cannot be displayed reliably. Playback and track changes still work.
+
 If you use Jellyfin, the account you authorize HCC with must be an **administrator** for device and library reload
 to work — see [Frequent Issues](#14-frequent-issues).
 

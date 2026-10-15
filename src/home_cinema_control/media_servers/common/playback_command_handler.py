@@ -108,6 +108,7 @@ class MediaServerPlaybackCommandHandler:
             active_session.source_user_id,
             active_session.media_item_id,
             source_audio_index,
+            active_session.media_source_id,
         )
         logging.info(
             "Mapped %s audio index to OPPO audio index | source_index=%s | oppo_index=%s",
@@ -132,6 +133,7 @@ class MediaServerPlaybackCommandHandler:
             active_session.source_user_id,
             active_session.media_item_id,
             source_subtitle_index,
+            active_session.media_source_id,
         )
         logging.info(
             "Mapped %s subtitle index to OPPO subtitle index | source_index=%s | oppo_index=%s",

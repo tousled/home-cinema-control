@@ -5,13 +5,21 @@ from home_cinema_control.media_servers.emby.session import EmbySession
 
 
 class FakeEmbyClient:
-    def __init__(self, item_data=None, sessions_by_user=None):
+    def __init__(self, item_data=None, sessions_by_user=None, playback_info=None):
         self._item_data = item_data
         self._sessions_by_user = sessions_by_user
+        self._playback_info = playback_info if playback_info is not None else {}
+        self.playback_info_calls = 0
+        self.item_info_calls = 0
         self.capabilities_payload = None
 
     def get_item_info(self, user_id, item_id):
+        self.item_info_calls += 1
         return self._item_data
+
+    def get_item_playback_info(self, user_id, item_id):
+        self.playback_info_calls += 1
+        return self._playback_info
 
     def get_sessions_by_user(self, user_id):
         return self._sessions_by_user
@@ -28,6 +36,8 @@ class FakeResponse:
 def _session_with_client(client) -> EmbySession:
     session = EmbySession.__new__(EmbySession)
     session.client = client
+    session._item_info_cache = {}
+    session._track_cache = {}
     session._refresh_session_info = lambda: None
     return session
 
@@ -107,6 +117,54 @@ class GetMediaSourceInfoTest(unittest.TestCase):
         self.assertEqual("/tv/show/episode1.mkv", media_source.path)
         self.assertEqual("Pilot", media_source.title)
         self.assertEqual(MediaContentKind.EPISODE, media_source.content_kind)
+
+
+class GetItemTracksTest(unittest.TestCase):
+    def test_uses_playback_info_for_the_active_media_source_and_reuses_it(self):
+        client = FakeEmbyClient(
+            item_data={"MediaStreams": [{"Type": "Audio", "Index": 99}]},
+            playback_info={
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "MediaStreams": [{"Type": "Audio", "Index": 1}],
+                    },
+                    {
+                        "Id": "source-2",
+                        "MediaStreams": [{"Type": "Audio", "Index": 4}],
+                    },
+                ]
+            },
+        )
+        session = _session_with_client(client)
+
+        tracks = session.get_item_tracks("user-1", "item-1", "source-2")
+        cached_tracks = session.get_item_tracks("user-1", "item-1", "source-2")
+
+        self.assertEqual([4], [track.source_index for track in tracks])
+        self.assertIs(tracks, cached_tracks)
+        self.assertEqual(1, client.playback_info_calls)
+        self.assertEqual(0, client.item_info_calls)
+
+    def test_falls_back_to_existing_item_metadata_when_playback_info_has_no_tracks(self):
+        client = FakeEmbyClient(
+            item_data={
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "MediaStreams": [{"Type": "Subtitle", "Index": 6}],
+                    }
+                ]
+            },
+            playback_info={"MediaSources": [{"Id": "source-1", "MediaStreams": []}]},
+        )
+        session = _session_with_client(client)
+
+        tracks = session.get_item_tracks("user-1", "item-1", "source-1")
+
+        self.assertEqual([6], [track.source_index for track in tracks])
+        self.assertEqual(1, client.playback_info_calls)
+        self.assertEqual(1, client.item_info_calls)
 
 
 class FindControllingSessionIdTest(unittest.TestCase):

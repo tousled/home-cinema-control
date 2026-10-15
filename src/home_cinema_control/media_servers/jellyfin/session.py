@@ -109,7 +109,12 @@ class JellyfinSession:
             media_source_id=media_source_id,
         )
 
-    def get_item_tracks(self, user_id, item_id) -> list[MediaTrack]:
+    def get_item_tracks(
+        self,
+        user_id,
+        item_id,
+        media_source_id: str | None = None,
+    ) -> list[MediaTrack]:
         item_data = self.client.get_item_info(user_id, item_id)
         return media_tracks_from_item(item_data)
 
@@ -123,12 +128,27 @@ class JellyfinSession:
                     return True
         return False
 
-    def resolve_audio_track_index(self, user_id, item_id, index):
-        return source_audio_to_player_index(self.get_item_tracks(user_id, item_id), index)
+    def resolve_audio_track_index(
+        self,
+        user_id,
+        item_id,
+        index,
+        media_source_id: str | None = None,
+    ):
+        return source_audio_to_player_index(
+            self.get_item_tracks(user_id, item_id, media_source_id),
+            index,
+        )
 
-    def resolve_subtitle_track_index(self, user_id, item_id, index):
+    def resolve_subtitle_track_index(
+        self,
+        user_id,
+        item_id,
+        index,
+        media_source_id: str | None = None,
+    ):
         return source_subtitle_to_player_index(
-            self.get_item_tracks(user_id, item_id),
+            self.get_item_tracks(user_id, item_id, media_source_id),
             index,
         )
 
