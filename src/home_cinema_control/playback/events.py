@@ -7,6 +7,7 @@ from uuid import uuid4
 
 
 class PlaybackEventType(StrEnum):
+    DETECTED = "detected"
     STARTED = "started"
     PAUSED = "paused"
     RESUMED = "resumed"

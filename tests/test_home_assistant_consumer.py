@@ -47,6 +47,28 @@ class HomeAssistantWebhookConsumerTest(unittest.TestCase):
         self.assertEqual("started", http.kwargs["json"]["event"])
         self.assertEqual("event-1", http.kwargs["json"]["event_id"])
 
+    def test_posts_detected_event_payload(self):
+        http = FakeHttp()
+        consumer = HomeAssistantWebhookConsumer(
+            base_url="http://ha.local:8123",
+            webhook_id="secret/id",
+            http_session=http,
+        )
+
+        consumer.consume(
+            PlaybackEvent(
+                event_id="event-detected",
+                session_id="session-1",
+                attempt_id="attempt-1",
+                event_type=PlaybackEventType.DETECTED,
+                source="emby",
+                player="oppo",
+            )
+        )
+
+        self.assertEqual("detected", http.kwargs["json"]["event"])
+        self.assertEqual("session-1", http.kwargs["json"]["session_id"])
+
     def test_posts_compact_update_payload(self):
         http = FakeHttp()
         consumer = HomeAssistantWebhookConsumer(

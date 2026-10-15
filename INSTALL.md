@@ -465,7 +465,8 @@ pero si el AVR o la TV fuerzan otra fuente por CEC, la automatización será ine
 
 ## 9. Conecta HCC con Home Assistant
 
-Con esta integración, HCC avisa a Home Assistant cuando una reproducción empieza, se pausa, continúa o termina. Después,
+Con esta integración, HCC avisa a Home Assistant cuando detecta una reproducción, empieza, se pausa, continúa o termina.
+Después,
 Home Assistant decide qué hacer: encender luces, activar una escena, enviar un aviso o simplemente guardar el evento en
 el
 registro. HCC no crea automatizaciones por su cuenta; tú eliges la reacción en Home Assistant.
@@ -491,9 +492,17 @@ triggers:
 conditions:
   - condition: template
     value_template: >-
-      {{ trigger.json.event | default('') in ['started', 'paused', 'resumed', 'stopped'] }}
+      {{ trigger.json.event | default('') in ['detected', 'started', 'paused', 'resumed', 'stopped'] }}
 actions:
   - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'detected' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción detectada: {{ trigger.json.title | default('') }}"
       - conditions:
           - condition: template
             value_template: "{{ trigger.json.event == 'started' }}"
@@ -559,8 +568,9 @@ de lo normal en responder.
 
 ### 9.3 Comprueba que funciona
 
-HCC envía estos cuatro eventos:
+HCC envía estos cinco eventos:
 
+- `detected`: HCC ha detectado una reproducción válida en el dispositivo monitorizado y ha aceptado el handoff.
 - `started`: la reproducción ha comenzado.
 - `paused`: la reproducción está pausada.
 - `resumed`: la reproducción continúa.
