@@ -171,6 +171,21 @@ Qué resuelve esta pantalla:
 
 El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo.
 
+### 5.1 Configuración recomendada de Emby para ISO Blu-ray y DVD
+
+Esta configuración es **opcional** y HCC funciona sin ella. Si tienes Blu-ray o DVD en formato ISO, te recomendamos
+instalar **IsoMounter** desde el catálogo de plugins de Emby, reiniciar Emby y actualizar la biblioteca o los elementos
+ISO existentes.
+
+El plugin permite que Emby analice el contenido del disco y devuelva sus pistas de audio y subtítulos. Así, la pantalla
+de Emby puede mostrar un selector con las diferentes pistas disponibles antes o durante la reproducción. HCC también
+consulta esa información cuando está disponible y conserva un fallback compatible si el plugin no está instalado.
+
+El idioma solo aparecerá si Emby lo devuelve en los metadatos de la pista. Si Emby no identifica el idioma, se mostrará
+la información técnica disponible —por ejemplo, `DTS-HD MA 5.1` para audio o `PGSSUB` para subtítulos—, pero no se
+podrá mostrar de forma fiable el idioma como: `ES`, `CAT`, `GA` o `JA`. La reproducción y el cambio de pistas seguirán
+funcionando.
+
 Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
 dispositivos
 y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).

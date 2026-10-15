@@ -91,6 +91,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
         self.assertEqual(456, completion_request.expected_duration_seconds)
         self.assertEqual("user-1", completion_request.source_user_id)
         self.assertEqual("media-1", completion_request.media_item_id)
+        self.assertEqual("source-1", completion_request.media_source_id)
         self.assertEqual(2, completion_request.selected_source_audio_track_id)
         self.assertEqual(-1, completion_request.selected_source_subtitle_track_id)
 

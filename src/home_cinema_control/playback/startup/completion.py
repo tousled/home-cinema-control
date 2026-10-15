@@ -49,6 +49,7 @@ class PlayMediaItemRequest:
     start_position_seconds: int
     source_user_id: str
     media_item_id: str
+    media_source_id: str = ""
     expected_duration_seconds: int = 0
     selected_source_audio_track_id: int | None = None
     selected_source_subtitle_track_id: int | None = None
@@ -146,6 +147,7 @@ class PlaybackStartupCompletionService:
                 source_user_id=request.source_user_id,
                 media_item_id=request.media_item_id,
                 selected_source_track_id=request.selected_source_audio_track_id,
+                media_source_id=request.media_source_id or None,
             )
             return audio_track_id, self._player.select_audio_track(audio_track_id)
         except Exception as exc:
@@ -171,6 +173,7 @@ class PlaybackStartupCompletionService:
                     source_user_id=request.source_user_id,
                     media_item_id=request.media_item_id,
                     selected_source_track_id=request.selected_source_subtitle_track_id,
+                    media_source_id=request.media_source_id or None,
                 ),
             )
             if subtitle_track_id is None or subtitle_track_id < 0:

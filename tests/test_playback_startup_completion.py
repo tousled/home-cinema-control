@@ -49,9 +49,15 @@ class RecordingTrackResolver:
         source_user_id,
         media_item_id,
         selected_source_track_id,
+        media_source_id=None,
     ):
         self.audio_requests.append(
-            (source_user_id, media_item_id, selected_source_track_id)
+            (
+                source_user_id,
+                media_item_id,
+                selected_source_track_id,
+                media_source_id,
+            )
         )
         return self.audio_track
 
@@ -61,9 +67,15 @@ class RecordingTrackResolver:
         source_user_id,
         media_item_id,
         selected_source_track_id,
+        media_source_id=None,
     ):
         self.subtitle_requests.append(
-            (source_user_id, media_item_id, selected_source_track_id)
+            (
+                source_user_id,
+                media_item_id,
+                selected_source_track_id,
+                media_source_id,
+            )
         )
         return self.subtitle_track
 
@@ -110,6 +122,7 @@ class PlaybackStartupCompletionTest(unittest.TestCase):
                 start_position_seconds=759,
                 source_user_id="user-1",
                 media_item_id="movie-1",
+                media_source_id="source-1",
                 selected_source_audio_track_id=1,
                 selected_source_subtitle_track_id=7,
             )
@@ -121,8 +134,12 @@ class PlaybackStartupCompletionTest(unittest.TestCase):
         self.assertEqual([5], player.subtitle_tracks)
         self.assertEqual(759, result.start_position_seconds)
         self.assertTrue(result.seek_result.successful)
-        self.assertEqual([("user-1", "movie-1", 1)], resolver.audio_requests)
-        self.assertEqual([("user-1", "movie-1", 7)], resolver.subtitle_requests)
+        self.assertEqual(
+            [("user-1", "movie-1", 1, "source-1")], resolver.audio_requests
+        )
+        self.assertEqual(
+            [("user-1", "movie-1", 7, "source-1")], resolver.subtitle_requests
+        )
 
     def test_disabled_subtitles_are_not_resolved_or_selected(self):
         reporter = RecordingStartedReporter()

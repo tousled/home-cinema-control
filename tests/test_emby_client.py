@@ -235,6 +235,26 @@ class EmbyClientTest(unittest.TestCase):
         self.assertEqual("token", headers["X-Emby-Token"])
         self.assertEqual('{"ok":true}', text)
 
+    def test_gets_item_playback_info_with_encoded_user_id(self):
+        http = RecordingHttpSession()
+        client = EmbyClient(
+            "http://emby.local:8096",
+            access_token="token",
+            user_id="user1",
+            http_session=http,
+        )
+        client.authenticate()
+
+        client.get_item_playback_info("user/1", "movie1")
+
+        method, url, headers = http.calls[0]
+        self.assertEqual("get", method)
+        self.assertEqual(
+            "http://emby.local:8096/emby/Items/movie1/PlaybackInfo?UserId=user%2F1",
+            url,
+        )
+        self.assertEqual("token", headers["X-Emby-Token"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -134,6 +134,11 @@ class EmbyClient:
     def get_item_info(self, user_id, item_id):
         return self.get_json(f"/emby/Users/{user_id}/Items/{item_id}")
 
+    def get_item_playback_info(self, user_id, item_id):
+        return self.get_json(
+            f"/emby/Items/{item_id}/PlaybackInfo?UserId={quote(user_id, safe='')}"
+        )
+
     def get_item_ancestors(self, item_id):
         return self.get_json(f"/emby/Items/{item_id}/Ancestors")
 

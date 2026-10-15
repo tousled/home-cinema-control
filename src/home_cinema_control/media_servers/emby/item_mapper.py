@@ -89,10 +89,18 @@ def media_server_item_playback_info_from_item(
     )
 
 
-def media_tracks_from_item(item_data: dict | None) -> list[MediaTrack]:
+def media_tracks_from_item(
+    item_data: dict | None,
+    media_source_id: str | None = None,
+) -> list[MediaTrack]:
     item_data = item_data or {}
+    media_source = _selected_media_source(
+        item_data.get("MediaSources") or [],
+        media_source_id,
+    )
+    streams = (media_source or {}).get("MediaStreams") or item_data.get("MediaStreams") or []
     tracks: list[MediaTrack] = []
-    for stream in item_data.get("MediaStreams") or []:
+    for stream in streams:
         try:
             source_index = int(stream.get("Index", -1))
         except (TypeError, ValueError):

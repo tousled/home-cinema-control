@@ -225,7 +225,10 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         )
 
         self.assertIn(("audio", "config", 2), controls)
-        self.assertEqual([("user-1", "item-1", 2)], session.audio_track_calls)
+        self.assertEqual(
+            [("user-1", "item-1", 2, "media-source-1")],
+            session.audio_track_calls,
+        )
         self.assertEqual(2, state.active_session.selected_audio_track_id)
         self.assertEqual("AudioTrackChange", publisher.events[-1]["event_name"])
         self.assertEqual(2, publisher.events[-1]["audio_track_id"])
@@ -300,7 +303,10 @@ class EmbyPlaybackCommandHandlerTest(unittest.TestCase):
         )
 
         self.assertIn(("subtitle", "config", 1), controls)
-        self.assertEqual([("user-1", "item-1", 3)], session.subtitle_track_calls)
+        self.assertEqual(
+            [("user-1", "item-1", 3, "media-source-1")],
+            session.subtitle_track_calls,
+        )
         self.assertEqual(3, state.active_session.selected_subtitle_track_id)
         self.assertEqual("SubtitleTrackChange", publisher.events[-1]["event_name"])
         self.assertEqual(3, publisher.events[-1]["subtitle_track_id"])
@@ -510,8 +516,8 @@ class RecordingEmbySession:
             ]
         }
 
-    def resolve_audio_track_index(self, user_id, item_id, index):
-        self.audio_track_calls.append((user_id, item_id, index))
+    def resolve_audio_track_index(self, user_id, item_id, index, media_source_id=None):
+        self.audio_track_calls.append((user_id, item_id, index, media_source_id))
         info = self.get_item_info(user_id, item_id)
         oppo_index = 0
         for stream in info["MediaStreams"]:
@@ -521,8 +527,8 @@ class RecordingEmbySession:
                     return oppo_index
         return 1
 
-    def resolve_subtitle_track_index(self, user_id, item_id, index):
-        self.subtitle_track_calls.append((user_id, item_id, index))
+    def resolve_subtitle_track_index(self, user_id, item_id, index, media_source_id=None):
+        self.subtitle_track_calls.append((user_id, item_id, index, media_source_id))
         if index < 0:
             return 0
         info = self.get_item_info(user_id, item_id)
