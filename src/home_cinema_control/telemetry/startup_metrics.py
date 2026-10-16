@@ -28,6 +28,8 @@ _OPPO_PREPARE_STEPS = (
 _POST_START_STEPS = (
     "notify_media_server_playback_started",
     "apply_resume_position",
+    "track_menu_readiness_audio",
+    "track_menu_readiness_subtitle",
     "apply_audio_track",
     "apply_subtitle_track",
 )

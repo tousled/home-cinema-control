@@ -20,11 +20,16 @@ class RecordingStartedReporter:
 class RecordingPlayer:
     def __init__(self):
         self.seeks = []
+        self.readiness_requests = []
         self.audio_tracks = []
         self.subtitle_tracks = []
 
     def seek_to_seconds(self, position_seconds):
         self.seeks.append(position_seconds)
+        return DeviceCommandResult.success()
+
+    def prepare_track_menu_readiness(self, *, audio_track_id, subtitle_track_id):
+        self.readiness_requests.append((audio_track_id, subtitle_track_id))
         return DeviceCommandResult.success()
 
     def select_audio_track(self, audio_track_id):
@@ -130,6 +135,7 @@ class PlaybackStartupCompletionTest(unittest.TestCase):
 
         self.assertEqual(1, reporter.calls)
         self.assertEqual([759], player.seeks)
+        self.assertEqual([(3, 5)], player.readiness_requests)
         self.assertEqual([3], player.audio_tracks)
         self.assertEqual([5], player.subtitle_tracks)
         self.assertEqual(759, result.start_position_seconds)
