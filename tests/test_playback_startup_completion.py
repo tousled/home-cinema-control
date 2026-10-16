@@ -147,7 +147,7 @@ class PlaybackStartupCompletionTest(unittest.TestCase):
             [("user-1", "movie-1", 7, "source-1")], resolver.subtitle_requests
         )
 
-    def test_disabled_subtitles_are_not_resolved_or_selected(self):
+    def test_zero_position_resets_player_to_beginning(self):
         reporter = RecordingStartedReporter()
         player = RecordingPlayer()
         resolver = RecordingTrackResolver()
@@ -167,7 +167,7 @@ class PlaybackStartupCompletionTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual([], player.seeks)
+        self.assertEqual([0], player.seeks)
         self.assertEqual([], player.audio_tracks)
         self.assertEqual([], player.subtitle_tracks)
         self.assertEqual([], resolver.subtitle_requests)
