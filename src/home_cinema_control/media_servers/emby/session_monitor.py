@@ -33,6 +33,7 @@ class EmbySessionMonitor(MediaServerSessionMonitor):
             len(sessions),
         )
         session = self.select_monitored_session(sessions_from_payload(sessions), device_id)
+        session = self._with_library_path(session)
         if session is not None and is_ambient_theme_audio(session.now_playing):
             self.on_monitored_session(session, None, config=config)
             return
@@ -40,6 +41,17 @@ class EmbySessionMonitor(MediaServerSessionMonitor):
         if session is not None and session.now_playing is not None and item_playback_info is None:
             return
         self.on_monitored_session(session, item_playback_info, config=config)
+
+    def _with_library_path(self, session):
+        if session is None or session.now_playing is None:
+            return session
+
+        path = self._emby_session.to_library_path(session.now_playing.path)
+        if path == session.now_playing.path:
+            return session
+
+        now_playing = session.now_playing.model_copy(update={"path": path})
+        return session.model_copy(update={"now_playing": now_playing})
 
     def _load_item_playback_info(self, session):
         if session is None or session.now_playing is None:

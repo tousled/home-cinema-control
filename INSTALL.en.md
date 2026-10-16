@@ -202,6 +202,11 @@ OPPO over SMB:    Video/Movies/Dune (2021).mkv
 HCC saves:        this library uses this OPPO path and this protocol
 ```
 
+If Emby has **Shared network folder** configured, it can report an alternate network path during playback instead of
+the library path. HCC automatically translates it back to Emby's canonical path before applying the OPPO mapping, so
+you do not need a second mapping for the alternate path. Jellyfin does not currently expose an equivalent field in its
+API; map the canonical path returned in its `Locations`.
+
 Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the same names. HCC starts from the active
 provider's libraries, asks for the equivalent player-visible path, and tests it before a real viewing session. The
 screen shows an Emby/Jellyfin badge so you can tell which server you are mapping.

@@ -1,6 +1,7 @@
 import unittest
 
 from home_cinema_control.playback.content_kind import MediaContentKind
+from home_cinema_control.media_servers.emby.network_paths import EmbyNetworkPathResolver
 from home_cinema_control.media_servers.emby.session import EmbySession
 
 
@@ -12,6 +13,9 @@ class FakeEmbyClient:
         self.playback_info_calls = 0
         self.item_info_calls = 0
         self.capabilities_payload = None
+
+    def get_virtual_folders(self):
+        return []
 
     def get_item_info(self, user_id, item_id):
         self.item_info_calls += 1
@@ -38,6 +42,7 @@ def _session_with_client(client) -> EmbySession:
     session.client = client
     session._item_info_cache = {}
     session._track_cache = {}
+    session._network_path_resolver = EmbyNetworkPathResolver(client.get_virtual_folders)
     session._refresh_session_info = lambda: None
     return session
 
