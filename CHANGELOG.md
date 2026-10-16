@@ -24,9 +24,13 @@ HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing o
 
 ### Changed
 
-* **Player-neutral media control foundation.** Media-player selection and output
-  routing now use generic contracts, keeping existing OPPO configuration compatible
-  while leaving room for Kodi and other Kodi-capable hardware targets.
+* **Player-neutral media control foundation.** Playback selection and output routing
+  now use generic contracts (`hdmi`, `tv_app`, or `none`), keeping existing OPPO
+  configuration compatible. Kodi and other player adapters are not enabled yet.
+
+* **Per-player path mappings.** A path mapping can now optionally declare its
+  `media_player_type`; existing unscoped mappings remain compatible and continue
+  to apply to the active player.
 
 * **Faster and cleaner playback resume.** Fresh playback no longer sends an unnecessary zero-position seek. Resumed
   OPPO playback now attempts and verifies its seek while the player is starting, retaining the existing post-start
