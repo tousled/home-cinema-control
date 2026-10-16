@@ -62,8 +62,8 @@ class PlaybackRestorationService:
     ) -> DeviceCommandResult:
         return self._cleanup_media_player_after_playback(
             idle_confirmation_result,
-            log_context="OPPO playback finish cleanup",
-            failure_context="OPPO playback finish cleanup",
+            log_context="Media-player finish cleanup",
+            failure_context="Media-player finish cleanup",
         )
 
     def cleanup_after_player_stop(
@@ -72,8 +72,8 @@ class PlaybackRestorationService:
     ) -> DeviceCommandResult:
         return self._cleanup_media_player_after_playback(
             stop_result,
-            log_context="OPPO playback error cleanup",
-            failure_context="OPPO playback error cleanup",
+            log_context="Media-player error cleanup",
+            failure_context="Media-player error cleanup",
         )
 
     def restore_outputs(
@@ -138,12 +138,12 @@ class PlaybackRestorationService:
 
         if _player_is_in_screen_saver(request):
             logger.info(
-                "Skipping TV app restore during %s: OPPO is in screen saver, "
+                "Skipping TV app restore during %s: media player is in screen saver, "
                 "the player is likely still paused rather than finished.",
                 request.log_context,
             )
             return DeviceCommandResult.skipped(
-                "OPPO is in screen saver; treating as still paused."
+                "Media player is in screen saver; treating as still paused."
             )
 
         if self._television is None:
@@ -179,12 +179,12 @@ class PlaybackRestorationService:
 
         if _player_is_in_screen_saver(request):
             logger.info(
-                "Skipping AV audio restore during %s: OPPO is in screen saver, "
+                "Skipping AV audio restore during %s: media player is in screen saver, "
                 "the player is likely still paused rather than finished.",
                 request.log_context,
             )
             return DeviceCommandResult.skipped(
-                "OPPO is in screen saver; treating as still paused."
+                "Media player is in screen saver; treating as still paused."
             )
 
         if self._av_receiver is None:
@@ -201,7 +201,7 @@ class PlaybackRestorationService:
 
 
 def _player_is_in_screen_saver(request: PlaybackOutputRestorationRequest) -> bool:
-    # Defense in depth: a SCREEN_SAVER final state means the OPPO went idle
+    # Defense in depth: a SCREEN_SAVER final state means the player went idle
     # while monitoring gave up, not that the user actually stopped. Restoring
     # the room here would interrupt a session that is, in practice, still
     # paused. See the screen-saver carve-out in polling_observation_strategy.py.

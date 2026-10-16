@@ -283,7 +283,7 @@ class SVM3PlaybackObservationStrategyTest(unittest.TestCase):
 
         self.assertTrue(
             any(
-                "Observed OPPO event report result" in message
+                "Observed media-player event report result" in message
                 and "event=PositionUpdate" in message
                 for message in logs.output
             )

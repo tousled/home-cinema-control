@@ -10,9 +10,98 @@ from home_cinema_control.playback.request_preparation import (
     PLAYBACK_START_POLL_INTERVAL_SECONDS,
     prepare_playback_requests,
 )
+from home_cinema_control.playback.startup.models import PlaybackOutputRoute
 
 
 class PlaybackRequestPreparationTest(unittest.TestCase):
+    def test_uses_mappings_scoped_to_the_selected_media_player(self):
+        prepared = prepare_playback_requests(
+            config={
+                "media_player": {"type": "kodi"},
+                "media_servers": {
+                    "active": "emby",
+                    "providers": {
+                        "emby": {
+                            "playback": {
+                                "path_mappings": [
+                                    {
+                                        "source_path": "/media",
+                                        "player_path": "/oppo",
+                                        "verified": True,
+                                        "media_player_type": "oppo",
+                                    },
+                                    {
+                                        "source_path": "/media",
+                                        "player_path": "/kodi",
+                                        "verified": True,
+                                        "media_player_type": "kodi",
+                                    },
+                                ]
+                            }
+                        }
+                    },
+                },
+            },
+            intent=_intent(),
+            item_info=MediaServerPlaybackSource(
+                path="/media/Movies/Movie.mkv",
+                container="mkv",
+                duration_seconds=456,
+                production_year=None,
+                title="",
+                content_kind=MediaContentKind.MOVIE,
+            ),
+            previous_tv_app_id_override=None,
+        )
+
+        self.assertEqual("kodi", prepared.media_location.content_server)
+
+    def test_prepares_tv_app_output_route_from_media_player_config(self):
+        prepared = prepare_playback_requests(
+            config={
+                "media_player": {
+                    "type": "kodi",
+                    "output_route": "tv_app",
+                    "app_id": "org.kodi.webos",
+                },
+                "media_servers": {
+                    "active": "emby",
+                    "providers": {
+                        "emby": {
+                            "playback": {
+                                "path_mappings": [
+                                    {
+                                        "source_path": "/nas",
+                                        "player_path": "/nas",
+                                        "verified": True,
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                },
+            },
+            intent=_intent(),
+            item_info=MediaServerPlaybackSource(
+                path="/nas/Movies/Movie.mkv",
+                container="mkv",
+                duration_seconds=456,
+                production_year=None,
+                title="",
+                content_kind=MediaContentKind.MOVIE,
+            ),
+            previous_tv_app_id_override=None,
+        )
+
+        self.assertEqual(
+            PlaybackOutputRoute.TV_APP,
+            prepared.output_switch_request.route,
+        )
+        self.assertEqual(
+            "org.kodi.webos",
+            prepared.output_switch_request.player_app_id,
+        )
+
     def test_prepares_playback_requests_from_config_intent_and_item_info(self):
         prepared = prepare_playback_requests(
             config={
@@ -79,6 +168,7 @@ class PlaybackRequestPreparationTest(unittest.TestCase):
 
         oppo_request = prepared.media_player_start_request
         self.assertFalse(oppo_request.assume_player_already_on)
+        self.assertEqual(12, oppo_request.requested_start_position_seconds)
         self.assertEqual("nfs", oppo_request.network_protocol)
         self.assertEqual(42, oppo_request.startup_timeout_seconds)
         self.assertEqual(

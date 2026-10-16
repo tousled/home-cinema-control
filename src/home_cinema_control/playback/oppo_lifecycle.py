@@ -10,13 +10,19 @@ from home_cinema_control.playback.device_runtime import (
     stop_active_player_playback_before_replacement,
 )
 from home_cinema_control.playback.observed_event_adapter import (
-    configure_oppo_observed_event_reporting,
+    configure_media_player_observed_event_reporting,
+)
+from home_cinema_control.playback.media_player_factory import (
+    MediaPlayerType,
+    configured_media_player_type,
 )
 from home_cinema_control.playback.state import BridgePlaybackState
 
+configure_oppo_observed_event_reporting = configure_media_player_observed_event_reporting
 
-class OppoPlaybackLifecycleService:
-    """Own the OPPO-specific actions around the playback lifecycle.
+
+class MediaPlayerLifecycleService:
+    """Own player lifecycle hooks while keeping protocol details in adapters.
 
     Low-level OPPO clients remain in the device adapters. This service owns
     when those operations happen relative to playback startup, observation,
@@ -24,10 +30,14 @@ class OppoPlaybackLifecycleService:
     """
 
     def prepare_playback_start(self, config: dict[str, Any]) -> None:
+        if not _is_oppo(config):
+            return
         prepare_oppo_observation_mode(config)
         log_oppo_qpl_state(config, "playback_application_start")
 
     def ensure_control_api_available(self, config: dict[str, Any]) -> bool:
+        if not _is_oppo(config):
+            return True
         return ensure_oppo_control_api_available(config)
 
     def stop_active_playback_before_replacement(
@@ -35,6 +45,8 @@ class OppoPlaybackLifecycleService:
         state: BridgePlaybackState,
         config: dict[str, Any],
     ) -> None:
+        if not _is_oppo(config):
+            return
         stop_active_player_playback_before_replacement(state, config)
 
     def configure_observed_event_reporting(
@@ -60,7 +72,19 @@ class OppoPlaybackLifecycleService:
         )
 
     def record_playback_started(self, config: dict[str, Any]) -> None:
+        if not _is_oppo(config):
+            return
         log_oppo_qpl_state(config, "after_oppo_playback_start")
 
     def finish_playback(self, config: dict[str, Any]) -> None:
+        if not _is_oppo(config):
+            return
         power_down_after_playback_if_configured(config)
+
+
+class OppoPlaybackLifecycleService(MediaPlayerLifecycleService):
+    """Compatibility name for integrations that still inject the OPPO service."""
+
+
+def _is_oppo(config: dict[str, Any]) -> bool:
+    return configured_media_player_type(config) == MediaPlayerType.OPPO

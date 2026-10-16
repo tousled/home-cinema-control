@@ -151,7 +151,7 @@ class PlaybackRestorationServiceTest(unittest.TestCase):
 
         self.assertEqual(DeviceCommandStatus.FAILED, result.status)
         self.assertEqual(
-            "OPPO playback error cleanup failed: RuntimeError: boom",
+            "Media-player error cleanup failed: RuntimeError: boom",
             result.detail,
         )
 

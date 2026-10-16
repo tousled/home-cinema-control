@@ -3,23 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from home_cinema_control.devices.oppo.playback_command_control import (
-    create_oppo_total_seconds_reader,
-)
-from home_cinema_control.devices.oppo.observation_mode import (
-    OppoObservationMode,
-    resolve_oppo_observation_mode,
-)
 from home_cinema_control.playback.time_units import TICKS_PER_SECOND
-from home_cinema_control.playback.during import (
-    DuringPlaybackOrchestrator,
-    PollingPlaybackObservationStrategy,
-)
+from home_cinema_control.playback.during import DuringPlaybackOrchestrator
 from home_cinema_control.playback.error_handling import create_playback_error_handler
 from home_cinema_control.playback.finish.factory import create_finish_playback_orchestrator
 from home_cinema_control.playback.orchestrator import PlaybackOrchestrator
 from home_cinema_control.playback.startup.completion import (
-    OppoStartupCompletionPlayer,
+    MediaPlayerStartupCompletionPlayer,
     PlaybackTrackResolver,
     PlaybackStartupCompletionService,
     StartupStepTimer,
@@ -28,6 +18,9 @@ from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.startup.factory import (
     PlaybackStartupWiring,
     create_playback_startup_wiring,
+)
+from home_cinema_control.playback.media_player_factory import (
+    create_media_player_observation_orchestrator,
 )
 
 
@@ -40,7 +33,7 @@ class PlaybackOrchestratorWiring:
 
 
 class PlaybackSessionStateSyncProgressReporter:
-    """Keeps bridge playstate aligned with OPPO progress reports."""
+    """Keeps bridge playstate aligned with media-player progress reports."""
 
     def __init__(self, *, playback_state: BridgePlaybackState, progress_reporter) -> None:
         self._state = playback_state
@@ -116,7 +109,7 @@ def create_playback_orchestrator_wiring(
     )
     startup_completion_service = PlaybackStartupCompletionService(
         started_reporter=playback_event_publisher,
-        player=OppoStartupCompletionPlayer(startup_wiring.startup_orchestrator),
+        player=MediaPlayerStartupCompletionPlayer(startup_wiring.media_player),
         track_resolver=track_resolver,
         step_timer=step_timer,
     )
@@ -146,19 +139,9 @@ def create_during_playback_orchestrator(
     progress_reporter,
     playback_state_observer=None,
 ) -> DuringPlaybackOrchestrator:
-    polling_orchestrator = PollingPlaybackObservationStrategy(
+    return create_media_player_observation_orchestrator(
+        config=config,
         media_player=media_player,
         progress_reporter=progress_reporter,
         playback_state_observer=playback_state_observer,
-    )
-
-    if resolve_oppo_observation_mode(config) == OppoObservationMode.POLLING:
-        return polling_orchestrator
-
-    return DuringPlaybackOrchestrator(
-        config=config,
-        polling_orchestrator=polling_orchestrator,
-        progress_reporter=progress_reporter,
-        playback_state_observer=playback_state_observer,
-        oppo_total_provider=create_oppo_total_seconds_reader(config),
     )

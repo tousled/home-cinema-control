@@ -33,7 +33,8 @@ class MediaServerPlaybackCommandHandler:
         config_provider: Callable[[], dict[str, Any]],
         playback_intent_dispatcher_factory: Callable,
         active_publisher_provider: Callable[[], Any],
-        oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerCommandPort],
+        media_player_factory: Callable[[dict[str, Any]], MediaPlayerCommandPort] | None = None,
+        oppo_control_factory: Callable[[dict[str, Any]], MediaPlayerCommandPort] | None = None,
         playback_state_observer: Callable[[PlaybackObservedState], None] | None = None,
     ) -> None:
         self._provider_name = provider_name
@@ -41,7 +42,9 @@ class MediaServerPlaybackCommandHandler:
         self._state = playback_state
         self._config_provider = config_provider
         self._playback_intent_dispatcher_factory = playback_intent_dispatcher_factory
-        self._oppo_control_factory = oppo_control_factory
+        self._media_player_factory = media_player_factory or oppo_control_factory
+        if self._media_player_factory is None:
+            raise ValueError("A media-player factory is required.")
         self._active_publisher_provider = active_publisher_provider
         self._playback_state_observer = playback_state_observer
 
@@ -94,7 +97,7 @@ class MediaServerPlaybackCommandHandler:
             )
             return
 
-        result = operation(self._oppo_control)
+        result = operation(self._media_player)
         if not result.successful:
             logging.error(
                 "Media-player playstate command failed | name=%s | result=%s",
@@ -111,14 +114,14 @@ class MediaServerPlaybackCommandHandler:
             active_session.media_source_id,
         )
         logging.info(
-            "Mapped %s audio index to OPPO audio index | source_index=%s | oppo_index=%s",
+            "Mapped %s audio index to media-player audio index | source_index=%s | player_index=%s",
             self._provider_name,
             source_audio_index,
             audio_index,
         )
-        result = self._oppo_control.select_audio_track(audio_index)
+        result = self._media_player.select_audio_track(audio_index)
         if not result.successful:
-            logging.error("OPPO audio track change failed | result=%s", result)
+            logging.error("Media-player audio track change failed | result=%s", result)
             return
 
         self._state.update_active_tracks(audio_track_id=source_audio_index)
@@ -136,14 +139,14 @@ class MediaServerPlaybackCommandHandler:
             active_session.media_source_id,
         )
         logging.info(
-            "Mapped %s subtitle index to OPPO subtitle index | source_index=%s | oppo_index=%s",
+            "Mapped %s subtitle index to media-player subtitle index | source_index=%s | player_index=%s",
             self._provider_name,
             source_subtitle_index,
             subtitle_index,
         )
-        result = self._oppo_control.select_subtitle_track(subtitle_index)
+        result = self._media_player.select_subtitle_track(subtitle_index)
         if not result.successful:
-            logging.error("OPPO subtitle track change failed | result=%s", result)
+            logging.error("Media-player subtitle track change failed | result=%s", result)
             return
 
         self._state.update_active_tracks(subtitle_track_id=source_subtitle_index)
@@ -153,16 +156,16 @@ class MediaServerPlaybackCommandHandler:
         )
 
     def _handle_play_pause_command(self, kind: MediaServerCommandKind) -> None:
-        oppo_state = None
+        media_player_state = None
         if self._active_publisher() is None:
-            oppo_state = self._current_oppo_state_or_none()
+            media_player_state = self._current_media_player_state_or_none()
 
-        if self._play_pause_command_is_already_satisfied(kind, oppo_state):
+        if self._play_pause_command_is_already_satisfied(kind, media_player_state):
             logging.info(
-                "Skipping OPPO play/pause command because requested state is already active | "
-                "command=%s | oppo_state=%s | bridge_playstate=%s",
+                "Skipping media-player play/pause command because requested state is already active | "
+                "command=%s | player_state=%s | bridge_playstate=%s",
                 kind.value,
-                oppo_state.status.value if oppo_state is not None else None,
+                media_player_state.status.value if media_player_state is not None else None,
                 self._state.playstate,
             )
             self._report_playstate_interaction_from_current_state(kind)
@@ -182,7 +185,7 @@ class MediaServerPlaybackCommandHandler:
                 "Playing" if self._state.playstate == "Paused" else "Paused"
             )
 
-        result = operation(self._oppo_control)
+        result = operation(self._media_player)
         if not result.successful:
             logging.error(
                 "Media-player play/pause command failed | command=%s | result=%s",
@@ -197,53 +200,53 @@ class MediaServerPlaybackCommandHandler:
     def _play_pause_command_is_already_satisfied(
         self,
         kind: MediaServerCommandKind,
-        oppo_state,
+        media_player_state,
     ) -> bool:
         if kind == _Kind.PAUSE:
             return (
-                oppo_state is not None and oppo_state.is_paused
+                media_player_state is not None and media_player_state.is_paused
             ) or self._state.playstate == "Paused"
 
         if kind == _Kind.UNPAUSE:
             return (
-                oppo_state is not None and oppo_state.is_playing
+                media_player_state is not None and media_player_state.is_playing
             ) or self._state.playstate != "Paused"
 
         return False
 
-    def _current_oppo_state_or_none(self):
+    def _current_media_player_state_or_none(self):
         try:
-            return self._oppo_control.get_playback_state()
+            return self._media_player.get_playback_state()
         except Exception:
-            logging.exception("Could not read OPPO state before play/pause command.")
+            logging.exception("Could not read media-player state before play/pause command.")
             return None
 
     def _seek_to_absolute_position(self, position_ticks: int) -> None:
         logging.info(
-            "Seeking OPPO playback to absolute media-server position | "
+            "Seeking media-player playback to absolute media-server position | "
             "position_ticks=%s",
             position_ticks,
         )
-        self._oppo_control.seek_to_position_ticks(position_ticks)
+        self._media_player.seek_to_position_ticks(position_ticks)
 
     def _seek_to_relative_position(self, offset_ticks: int) -> None:
-        current_ticks = self._current_oppo_position_ticks()
+        current_ticks = self._current_media_player_position_ticks()
         target_ticks = max(0, current_ticks + offset_ticks)
 
         logging.info(
-            "Seeking OPPO playback to relative media-server position | "
+            "Seeking media-player playback to relative media-server position | "
             "current_ticks=%s | offset_ticks=%s | target_ticks=%s",
             current_ticks,
             offset_ticks,
             target_ticks,
         )
-        self._oppo_control.seek_to_position_ticks(target_ticks)
+        self._media_player.seek_to_position_ticks(target_ticks)
 
     def _report_playstate_interaction_from_current_state(
         self, kind: MediaServerCommandKind
     ) -> None:
         if kind == _Kind.PLAY_PAUSE:
-            pause_event = self._pause_event_from_current_oppo_state()
+            pause_event = self._pause_event_from_current_media_player_state()
         else:
             pause_event = _pause_event_for_kind(kind)
 
@@ -260,16 +263,16 @@ class MediaServerPlaybackCommandHandler:
                 else PlaybackObservedState.PLAYING
             )
 
-    def _pause_event_from_current_oppo_state(self) -> tuple[str, bool] | None:
+    def _pause_event_from_current_media_player_state(self) -> tuple[str, bool] | None:
         if self._active_publisher() is not None:
             if self._state.playstate == "Paused":
                 return "Pause", True
             return "Unpause", False
 
         try:
-            state = self._oppo_control.get_playback_state()
+            state = self._media_player.get_playback_state()
         except Exception:
-            logging.exception("Could not read OPPO state after PlayPause command.")
+            logging.exception("Could not read media-player state after PlayPause command.")
             return None
 
         if state.is_paused:
@@ -332,8 +335,8 @@ class MediaServerPlaybackCommandHandler:
     def _is_currently_paused(self) -> bool:
         return self._state.playstate == "Paused"
 
-    def _current_oppo_position_ticks(self) -> int:
-        return self._oppo_control.current_position_ticks()
+    def _current_media_player_position_ticks(self) -> int:
+        return self._media_player.current_position_ticks()
 
     def _require_active_playback_session(self) -> ActivePlaybackSession:
         active_session = self._state.active_session
@@ -349,8 +352,8 @@ class MediaServerPlaybackCommandHandler:
         return self._active_publisher_provider()
 
     @property
-    def _oppo_control(self) -> MediaPlayerCommandPort:
-        return self._oppo_control_factory(self._config)
+    def _media_player(self) -> MediaPlayerCommandPort:
+        return self._media_player_factory(self._config)
 
 
 def _media_player_command_for_kind(

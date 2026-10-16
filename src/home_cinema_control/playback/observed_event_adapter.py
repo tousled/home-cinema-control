@@ -9,13 +9,13 @@ from home_cinema_control.playback.observed_event_reporter import (
 logger = logging.getLogger(__name__)
 
 
-def configure_oppo_observed_event_reporting(
+def configure_media_player_observed_event_reporting(
     *,
     playback_wiring,
     observed_event_sink,
     track_mapper,
 ) -> bool:
-    """Wire OPPO observed-event reporting into the active during-playback flow."""
+    """Wire player-neutral observed-event reporting into playback observation."""
     reporter = ObservedPlaybackEventReporter(
         sink=observed_event_sink,
         track_mapper=track_mapper,
@@ -27,8 +27,11 @@ def configure_oppo_observed_event_reporting(
     )
     if during_set_reporter is not None:
         during_set_reporter(reporter)
-        logger.info("OPPO observed event reporting configured")
+        logger.info("Media-player observed event reporting configured")
         return True
 
-    logger.warning("OPPO observed event reporting is not supported by playback wiring.")
+    logger.warning("Media-player observed event reporting is not supported by playback wiring.")
     return False
+
+
+configure_oppo_observed_event_reporting = configure_media_player_observed_event_reporting

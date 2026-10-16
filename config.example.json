@@ -1,4 +1,12 @@
 {
+  "media_player": {
+    "type": "oppo",
+    "output_route": "hdmi",
+    "app_id": "",
+    "always_on": true,
+    "playback_start_timeout_seconds": 30,
+    "start_poll_interval_seconds": 0.5
+  },
     "oppo": {
         "ip": "",
         "connection_timeout_seconds": 10,
@@ -50,7 +58,15 @@
     "playback": {
         "hcc_controlled_device": "",
         "use_all_libraries": true,
-        "path_mappings": [],
+      "path_mappings": [
+        {
+          "source_path": "",
+          "player_path": "",
+          "protocol": "",
+          "verified": false,
+          "media_player_type": ""
+        }
+      ],
         "libraries": []
     },
     "media_server": {

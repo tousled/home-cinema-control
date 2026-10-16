@@ -13,6 +13,12 @@ class DeviceCommandStatus(Enum):
     FAILED = "failed"
 
 
+class PlaybackOutputRoute(Enum):
+    HDMI = "hdmi"
+    TV_APP = "tv_app"
+    NONE = "none"
+
+
 @dataclass(frozen=True)
 class DeviceCommandResult:
     status: DeviceCommandStatus
@@ -39,6 +45,8 @@ class DeviceCommandResult:
 class PlaybackOutputSwitchRequest:
     tv_input: TvInputTarget
     av_input_id: str | None
+    route: PlaybackOutputRoute = PlaybackOutputRoute.HDMI
+    player_app_id: str | None = None
     tv_enabled: bool = True
     av_enabled: bool = True
     previous_tv_app_id_override: str | None = None
@@ -60,6 +68,11 @@ class PlaybackOutputSwitchResult:
             and self.av_input_result.status != DeviceCommandStatus.FAILED
         )
 
+    @property
+    def output_result(self) -> DeviceCommandResult:
+        """Result of the selected media-player output route."""
+        return self.tv_input_result
+
 
 @dataclass(frozen=True)
 class PlayerMediaFileLocation:
@@ -68,6 +81,7 @@ class PlayerMediaFileLocation:
     playback_file_name: str
     playback_file_format: str
     network_protocol: str | None = None
+    player_uri: str | None = None
 
 
 @dataclass(frozen=True)
@@ -77,6 +91,7 @@ class MediaPlayerStartRequest:
     assume_player_already_on: bool = True
     startup_timeout_seconds: int | float = 30
     poll_interval_seconds: float = 0.5
+    requested_start_position_seconds: int = 0
 
 
 @dataclass(frozen=True)

@@ -70,7 +70,7 @@ class FinishPlaybackOrchestrator:
             request
         )
 
-        # Player cleanup (OPPO autoscript unmount) and the Emby "stopped"
+        # Player cleanup and the media-server "stopped"
         # report are independent — run them concurrently so a slow/unverified
         # unmount attempt never delays the user-facing stop notification.
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -144,11 +144,11 @@ class FinishPlaybackOrchestrator:
 
         if self._media_player is None:
             return DeviceCommandResult.skipped(
-                "No OPPO playback adapter configured for media-end close."
+                "No media-player adapter configured for media-end close."
             )
 
         logger.info(
-            "Closing OPPO playback after natural media end | state=%s | lifecycle_phase=%s",
+            "Closing media-player playback after natural media end | state=%s | lifecycle_phase=%s",
             request.final_player_state.status.value,
             request.final_player_state.lifecycle_phase.value,
         )
@@ -179,7 +179,7 @@ class FinishPlaybackOrchestrator:
                 state = self._media_player.get_playback_state()
             except Exception as exc:
                 logger.exception(
-                    "Unable to confirm OPPO idle state during playback finish; "
+                "Unable to confirm media-player idle state during playback finish; "
                     "continuing with last known state | state=%s | lifecycle_phase=%s",
                     state.status.value,
                     state.lifecycle_phase.value,
@@ -189,7 +189,7 @@ class FinishPlaybackOrchestrator:
                 )
 
             logger.info(
-                "OPPO finish idle confirmation | poll=%s | state=%s | lifecycle_phase=%s",
+                "Media-player finish idle confirmation | poll=%s | state=%s | lifecycle_phase=%s",
                 poll_number,
                 state.status.value,
                 state.lifecycle_phase.value,
@@ -201,7 +201,7 @@ class FinishPlaybackOrchestrator:
                 )
 
         logger.warning(
-            "OPPO did not report idle before finish continuation | state=%s | "
+            "Media player did not report idle before finish continuation | state=%s | "
             "lifecycle_phase=%s",
             state.status.value,
             state.lifecycle_phase.value,

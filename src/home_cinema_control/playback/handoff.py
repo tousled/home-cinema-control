@@ -31,7 +31,11 @@ from home_cinema_control.playback.notification_sender import (
     send_playback_message,
     send_stop_with_delivery_reliability,
 )
-from home_cinema_control.playback.oppo_lifecycle import OppoPlaybackLifecycleService
+from home_cinema_control.playback.oppo_lifecycle import (
+    MediaPlayerLifecycleService,
+    OppoPlaybackLifecycleService,
+)
+from home_cinema_control.playback.media_player_factory import configured_media_player_type
 from home_cinema_control.playback.orchestrator import PlaybackOrchestrationRequest
 from home_cinema_control.playback.request_preparation import prepare_playback_requests
 from home_cinema_control.playback.result_reporting import report_orchestration_result
@@ -64,7 +68,8 @@ class PlaybackHandoffService:
         playback_session,
         playback_state: BridgePlaybackState,
         media_server_playback_services: MediaServerPlaybackServices | None,
-        oppo_lifecycle: OppoPlaybackLifecycleService,
+        media_player_lifecycle: MediaPlayerLifecycleService | None = None,
+        oppo_lifecycle: OppoPlaybackLifecycleService | None = None,
         playback_event_publisher=None,
         playback_state_detector: PlaybackStateDetector | None = None,
         active_context: ActivePlaybackRuntimeContext | None = None,
@@ -73,7 +78,11 @@ class PlaybackHandoffService:
         self._playback_session = playback_session
         self._state = playback_state
         self._media_server_playback_services = media_server_playback_services
-        self._oppo_lifecycle = oppo_lifecycle
+        self._media_player_lifecycle = (
+            media_player_lifecycle
+            or oppo_lifecycle
+            or MediaPlayerLifecycleService()
+        )
         self._playback_event_publisher = playback_event_publisher
         self._playback_state_detector = playback_state_detector or PlaybackStateDetector()
         self._active_context = active_context or ActivePlaybackRuntimeContext()
@@ -89,7 +98,7 @@ class PlaybackHandoffService:
         return self._active_context.media_player
 
     def stop_active_playback_before_replacement(self) -> None:
-        self._oppo_lifecycle.stop_active_playback_before_replacement(
+        self._media_player_lifecycle.stop_active_playback_before_replacement(
             self._state,
             self._playback_session.config,
         )
@@ -116,7 +125,9 @@ class PlaybackHandoffService:
                     attempt_id=handoff_id,
                     event_type=PlaybackEventType.DETECTED,
                     source=_media_server_source_name(self._playback_session),
-                    player="oppo",
+                player=configured_media_player_type(
+                    self._playback_session.config
+                ).value,
                 )
             )
         try:
@@ -167,7 +178,7 @@ class PlaybackHandoffService:
         with startup_timer.measure_step("notify_received"):
             messaging.received()
 
-        self._oppo_lifecycle.prepare_playback_start(playback_session.config)
+        self._media_player_lifecycle.prepare_playback_start(playback_session.config)
         logger.info("playback origin: %s", origin.value)
 
         media_server_services = self._media_server_services()
@@ -189,8 +200,8 @@ class PlaybackHandoffService:
                 self._record_diagnostic(diagnostic)
                 return None, movie
 
-        with startup_timer.measure_step("ensure_oppo_control_api_available"):
-            control_api_available = self._oppo_lifecycle.ensure_control_api_available(
+        with startup_timer.measure_step("ensure_media_player_available"):
+            control_api_available = self._media_player_lifecycle.ensure_control_api_available(
                 playback_session.config
             )
 
@@ -321,7 +332,7 @@ class PlaybackHandoffService:
         try:
             if orchestration_started:
                 try:
-                    self._oppo_lifecycle.finish_playback(self._playback_session.config)
+                    self._media_player_lifecycle.finish_playback(self._playback_session.config)
                 except Exception as exc:
                     cleanup_error = exc
                     logger.exception("Playback OPPO cleanup failed.")
@@ -382,7 +393,7 @@ class PlaybackHandoffService:
             media_type=content_kind.value,
             title=active_session.title if active_session is not None else movie,
             source=_media_server_source_name(self._playback_session),
-            player="oppo",
+            player=configured_media_player_type(self._playback_session.config).value,
             startup_metrics=startup_metrics,
         )
         self._playback_state_detector.start_session(
@@ -391,9 +402,9 @@ class PlaybackHandoffService:
         )
         logger.info("Reprodución iniciada: %s", movie)
 
-        self._oppo_lifecycle.record_playback_started(self._playback_session.config)
+        self._media_player_lifecycle.record_playback_started(self._playback_session.config)
         startup_timer.log_summary()
-        self._oppo_lifecycle.configure_observed_event_reporting(
+        self._media_player_lifecycle.configure_observed_event_reporting(
             playback_wiring=playback_wiring,
             media_server_services=self._media_server_services(),
             playback_session=self._playback_session,

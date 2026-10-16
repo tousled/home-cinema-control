@@ -4,10 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from home_cinema_control.devices.av.factory import create_av_receiver_or_none
-from home_cinema_control.devices.oppo.playback_adapters import (
-    create_oppo_playback_adapter,
-)
 from home_cinema_control.devices.tv.factory import create_tv_controller_or_none
+from home_cinema_control.playback.media_player_factory import create_media_player_adapter
 from home_cinema_control.playback.ports import MediaPlayerPort
 from home_cinema_control.playback.startup.orchestrator import (
     PlaybackStartupOrchestrator,
@@ -25,7 +23,7 @@ def create_playback_startup_wiring(
     *,
     step_timer=None,
 ) -> PlaybackStartupWiring:
-    media_player = create_oppo_playback_adapter(config, step_timer=step_timer)
+    media_player = create_media_player_adapter(config, step_timer=step_timer)
     startup_orchestrator = PlaybackStartupOrchestrator(
         television=create_tv_controller_or_none(config),
         av_receiver=create_av_receiver_or_none(config),

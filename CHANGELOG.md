@@ -24,6 +24,15 @@ HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing o
 
 ### Changed
 
+* **Player-neutral media control foundation.** Media-player selection and output
+  routing now use generic contracts, keeping existing OPPO configuration compatible
+  while leaving room for Kodi and other Kodi-capable hardware targets.
+
+* **Faster and cleaner playback resume.** Fresh playback no longer sends an unnecessary zero-position seek. Resumed
+  OPPO playback now attempts and verifies its seek while the player is starting, retaining the existing post-start
+  fallback when the device does not apply it. The startup contract keeps this intent player-neutral for future Kodi
+  support.
+
 * **More reliable Emby track selection.** HCC now queries Emby's `PlaybackInfo` for audio and subtitle streams,
   selects metadata from the active media source, and falls back to the existing item metadata and default track
   indices when Emby or an optional metadata plugin does not provide stream information. The installation guide now

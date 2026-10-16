@@ -4,6 +4,11 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
+from home_cinema_control.playback.player_state import (
+    PlaybackStartPositionResult,
+    PlaybackStartPositionStatus,
+)
+from home_cinema_control.playback.ports import MediaPlayerPort
 from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.startup.models import DeviceCommandResult
 
@@ -53,6 +58,7 @@ class PlayMediaItemRequest:
     expected_duration_seconds: int = 0
     selected_source_audio_track_id: int | None = None
     selected_source_subtitle_track_id: int | None = None
+    start_position_result: PlaybackStartPositionResult | None = None
 
 
 @dataclass(frozen=True)
@@ -66,21 +72,21 @@ class PlayMediaItemResponse:
     pending_audio_track_index: int | None = None
 
 
-class OppoStartupCompletionPlayer:
-    """Adapts the startup orchestrator to post-start playback controls."""
+class MediaPlayerStartupCompletionPlayer:
+    """Adapts the media-player port to post-start playback controls."""
 
-    def __init__(self, startup_orchestrator) -> None:
-        self._startup_orchestrator = startup_orchestrator
+    def __init__(self, media_player: MediaPlayerPort) -> None:
+        self._media_player = media_player
 
     def seek_to_seconds(self, position_seconds: int) -> DeviceCommandResult:
         position_units = max(0, position_seconds) * TICKS_PER_SECOND
-        return self._startup_orchestrator.seek_oppo_to(position_units)
+        return self._media_player.seek_to(position_units)
 
     def select_audio_track(self, audio_track_id: int) -> DeviceCommandResult:
-        return self._startup_orchestrator.select_oppo_audio_track(audio_track_id)
+        return self._media_player.select_audio_track(audio_track_id)
 
     def select_subtitle_track(self, subtitle_track_id: int) -> DeviceCommandResult:
-        return self._startup_orchestrator.select_oppo_subtitle_track(subtitle_track_id)
+        return self._media_player.select_subtitle_track(subtitle_track_id)
 
 
 class PlaybackStartupCompletionService:
@@ -110,7 +116,7 @@ class PlaybackStartupCompletionService:
         start_position_seconds = max(0, request.start_position_seconds)
         seek_result = self._measure(
             "apply_resume_position",
-            lambda: self._player.seek_to_seconds(start_position_seconds),
+            lambda: self._apply_resume_position(request, start_position_seconds),
         )
         resolved_audio_id, audio_result = self._measure(
             "apply_audio_track",
@@ -134,6 +140,36 @@ class PlaybackStartupCompletionService:
                 else None
             ),
         )
+
+    def _apply_resume_position(
+        self,
+        request: PlayMediaItemRequest,
+        start_position_seconds: int,
+    ) -> DeviceCommandResult:
+        if start_position_seconds == 0:
+            logger.info(
+                "Skipping resume seek because requested position is zero."
+            )
+            return DeviceCommandResult.skipped(
+                "Playback starts at beginning; no seek required."
+            )
+
+        start_position_result = request.start_position_result
+        if (
+            start_position_result is not None
+            and start_position_result.status == PlaybackStartPositionStatus.APPLIED
+        ):
+            logger.info(
+                "Skipping resume seek because startup position was already verified | "
+                "target_seconds=%s | observed_seconds=%s",
+                start_position_seconds,
+                start_position_result.observed_seconds,
+            )
+            return DeviceCommandResult.skipped(
+                "Resume already verified during player startup."
+            )
+
+        return self._player.seek_to_seconds(start_position_seconds)
 
     def _select_audio_track(
         self,
@@ -168,7 +204,7 @@ class PlaybackStartupCompletionService:
 
         try:
             subtitle_track_id = self._measure(
-                "subtitle_resolve_media_server_to_oppo_index",
+                "subtitle_resolve_media_server_to_player_index",
                 lambda: self._track_resolver.resolve_subtitle_track(
                     source_user_id=request.source_user_id,
                     media_item_id=request.media_item_id,
@@ -177,10 +213,10 @@ class PlaybackStartupCompletionService:
                 ),
             )
             if subtitle_track_id is None or subtitle_track_id < 0:
-                return DeviceCommandResult.skipped("No matching OPPO subtitle track.")
+                return DeviceCommandResult.skipped("No matching media-player subtitle track.")
 
             return self._measure(
-                "subtitle_set_oppo_track",
+                "subtitle_set_media_player_track",
                 lambda: self._player.select_subtitle_track(subtitle_track_id),
             )
         except Exception as exc:

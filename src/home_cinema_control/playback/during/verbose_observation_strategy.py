@@ -19,9 +19,7 @@ from home_cinema_control.playback.during.models import (
     PlaybackMonitoringResult,
     PlaybackMonitoringStopReason,
 )
-from home_cinema_control.playback.during.natural_end import (
-    is_oppo_end_of_content,
-)
+from home_cinema_control.playback.during.natural_end import is_end_of_content
 from home_cinema_control.playback.observed_events import (
     ObservedPlaybackEvent,
     ObservedPlaybackEventType,
@@ -33,7 +31,7 @@ from home_cinema_control.playback.startup.models import (
 
 logger = logging.getLogger(__name__)
 
-# The OPPO reports the real title duration (``total_time``) over HTTP, not in
+# Some players report the real title duration over a separate query, not in
 # the SVM3 event stream, so it is fetched once and cached. These bound how
 # often the lookup is retried before a valid (>= floor) total is latched, so a
 # disc that never reports one cannot drive an unbounded request loop.
@@ -73,7 +71,7 @@ class ObservedPlaybackEventReporter(Protocol):
 
 
 class VerbosePlaybackObservationStrategy:
-    """Monitor playback through one persistent OPPO SVM 3 event stream."""
+    """Monitor playback through one persistent player event stream."""
 
     def __init__(
         self,
@@ -103,12 +101,12 @@ class VerbosePlaybackObservationStrategy:
     ) -> None:
         self._deferred_audio_selector = selector
 
-    def _maybe_latch_oppo_total(
+    def _maybe_latch_total(
             self,
             state: "_MonitoringState",
             request: PlaybackMonitoringRequest,
     ) -> None:
-        """Latch the OPPO-reported title total once it is a feature-sized value.
+        """Latch the player-reported title total once it is feature-sized.
 
         ``total_time`` is stable for the whole title and only available over
         HTTP, so it is fetched at most once and reused. Retries are throttled
@@ -134,15 +132,15 @@ class VerbosePlaybackObservationStrategy:
         try:
             total_seconds = int(self._oppo_total_provider())
         except Exception:
-            logger.warning("SVM3 OPPO total lookup failed.", exc_info=True)
+            logger.warning("Player total lookup failed during event observation.", exc_info=True)
             return
 
         if total_seconds >= request.natural_end_minimum_total_seconds:
             state.latched_total_seconds = total_seconds
             state.duration_seconds = total_seconds
-            logger.info("SVM3 latched OPPO total | total=%s", total_seconds)
+            logger.info("Latched media-player total | total=%s", total_seconds)
 
-    def _reached_oppo_end_of_content(
+    def _reached_end_of_content(
             self,
             state: "_MonitoringState",
             request: PlaybackMonitoringRequest,
@@ -150,7 +148,7 @@ class VerbosePlaybackObservationStrategy:
         if state.latched_total_seconds is None:
             return False
 
-        return is_oppo_end_of_content(
+        return is_end_of_content(
             current_seconds=state.last_position_seconds,
             total_seconds=state.latched_total_seconds,
             tolerance_seconds=request.natural_end_tolerance_seconds,
@@ -180,7 +178,7 @@ class VerbosePlaybackObservationStrategy:
         ):
             state.near_end_diagnostic_logged = True
             logger.info(
-                "SVM3 OPPO near-end position observed | position=%s | "
+                "Player event near-end position observed | position=%s | "
                 "total=%s | remaining=%s | tolerance=%s",
                 state.last_position_seconds,
                 state.latched_total_seconds,
@@ -194,7 +192,7 @@ class VerbosePlaybackObservationStrategy:
         ):
             state.active_tolerance_logged = True
             logger.info(
-                "SVM3 OPPO active natural-end tolerance reached | position=%s | "
+                "Player event active natural-end tolerance reached | position=%s | "
                 "total=%s | remaining=%s | tolerance=%s",
                 state.last_position_seconds,
                 state.latched_total_seconds,
@@ -256,7 +254,7 @@ class VerbosePlaybackObservationStrategy:
 
                 if _is_terminal_idle_event(event):
                     logger.info(
-                        "SVM3 playback monitoring stopped after OPPO idle event | "
+                        "Player event monitoring stopped after idle event | "
                         "stop_raw=%s | idle_raw=%s | position=%s",
                         state.pending_stop_event.raw,
                         event.raw,
@@ -278,9 +276,9 @@ class VerbosePlaybackObservationStrategy:
                 if state.last_position_seconds > 0:
                     state.last_nonzero_position_seconds = state.last_position_seconds
 
-                self._maybe_latch_oppo_total(state, request)
+                self._maybe_latch_total(state, request)
                 self._log_near_end_position(state, request)
-                if self._reached_oppo_end_of_content(state, request):
+                if self._reached_end_of_content(state, request):
                     stop_reason = PlaybackMonitoringStopReason.NATURAL_END
                     final_player_state = _player_state(
                         PlayerPlaybackStatus.PLAY,
@@ -288,7 +286,7 @@ class VerbosePlaybackObservationStrategy:
                         raw_response=event.raw,
                     )
                     logger.info(
-                        "SVM3 detected end of content via OPPO total | "
+                        "Event observation detected end of content via player total | "
                         "position=%s | total=%s | raw=%s",
                         state.last_position_seconds,
                         state.latched_total_seconds,
@@ -345,7 +343,7 @@ class VerbosePlaybackObservationStrategy:
 
             if _is_terminal_idle_event(event):
                 logger.info(
-                    "SVM3 playback monitoring stopped at idle event | raw=%s | "
+                    "Player event monitoring stopped at idle event | raw=%s | "
                     "position=%s",
                     event.raw,
                     state.final_position_seconds,
@@ -384,7 +382,7 @@ class VerbosePlaybackObservationStrategy:
         result = self._observed_event_reporter.report(event)
         log = logger.debug if result.event_name == "PositionUpdate" else logger.info
         log(
-            "Observed OPPO event report result | raw=%s | reported=%s | "
+            "Observed media-player event report result | raw=%s | reported=%s | "
             "event=%s | detail=%s",
             event.raw,
             result.reported,
