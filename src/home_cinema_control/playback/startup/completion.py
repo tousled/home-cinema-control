@@ -36,13 +36,6 @@ class PlaybackTrackResolver(Protocol):
 class PlaybackStartupCompletionPlayer(Protocol):
     def seek_to_seconds(self, position_seconds: int) -> DeviceCommandResult: ...
 
-    def prepare_track_menu_readiness(
-        self,
-        *,
-        audio_track_id: int | None,
-        subtitle_track_id: int | None,
-    ) -> DeviceCommandResult: ...
-
     def select_audio_track(self, audio_track_id: int) -> DeviceCommandResult: ...
 
     def select_subtitle_track(self, subtitle_track_id: int) -> DeviceCommandResult: ...
@@ -84,22 +77,6 @@ class MediaPlayerStartupCompletionPlayer:
         position_units = max(0, position_seconds) * TICKS_PER_SECOND
         return self._media_player.seek_to(position_units)
 
-    def prepare_track_menu_readiness(
-        self,
-        *,
-        audio_track_id: int | None,
-        subtitle_track_id: int | None,
-    ) -> DeviceCommandResult:
-        prepare = getattr(self._media_player, "prepare_track_menu_readiness", None)
-        if prepare is None:
-            return DeviceCommandResult.skipped(
-                "Media player has no track-menu readiness capability."
-            )
-        return prepare(
-            audio_track_id=audio_track_id,
-            subtitle_track_id=subtitle_track_id,
-        )
-
     def select_audio_track(self, audio_track_id: int) -> DeviceCommandResult:
         return self._media_player.select_audio_track(audio_track_id)
 
@@ -137,16 +114,12 @@ class PlaybackStartupCompletionService:
             lambda: self._apply_resume_position(request, start_position_seconds),
         )
         resolved_audio_id, audio_resolution_result = self._resolve_audio_track(request)
-        resolved_subtitle_id, subtitle_resolution_result = self._resolve_subtitle_track(
-            request
-        )
-        self._prepare_track_menu_readiness(
-            audio_track_id=resolved_audio_id,
-            subtitle_track_id=resolved_subtitle_id,
-        )
         audio_result = audio_resolution_result or self._measure(
             "apply_audio_track",
             lambda: self._apply_audio_track(resolved_audio_id),
+        )
+        resolved_subtitle_id, subtitle_resolution_result = self._resolve_subtitle_track(
+            request
         )
         subtitle_result = subtitle_resolution_result or self._measure(
             "apply_subtitle_track",
@@ -228,23 +201,6 @@ class PlaybackStartupCompletionService:
             logger.exception("Unable to resolve selected subtitle track.")
             return None, DeviceCommandResult.failed(
                 f"Subtitle track resolution failed: {type(exc).__name__}: {exc}"
-            )
-
-    def _prepare_track_menu_readiness(
-        self,
-        *,
-        audio_track_id: int | None,
-        subtitle_track_id: int | None,
-    ) -> DeviceCommandResult:
-        try:
-            return self._player.prepare_track_menu_readiness(
-                audio_track_id=audio_track_id,
-                subtitle_track_id=subtitle_track_id,
-            )
-        except Exception as exc:
-            logger.exception("Unable to prepare track-menu readiness.")
-            return DeviceCommandResult.failed(
-                f"Track-menu readiness failed: {type(exc).__name__}: {exc}"
             )
 
     def _apply_audio_track(self, audio_track_id: int | None) -> DeviceCommandResult:

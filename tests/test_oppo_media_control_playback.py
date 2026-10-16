@@ -539,69 +539,6 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             client.calls,
         )
 
-    def test_reuses_each_menu_response_after_track_readiness(self):
-        step_timer = RecordingStepTimer()
-        client = RecordingMediaControlClient(
-            audio_menu_responses=[
-                '{"audio_list":[]}',
-                '{"audio_list":[{"index":1,"selected":true},{"index":2,"selected":false}]}',
-                '{"audio_list":[{"index":1,"selected":false},{"index":2,"selected":true}]}',
-            ],
-            audio_selection_response='{"success":true,"msg":""}',
-            subtitle_menu_responses=[
-                '{"subtitle_list":[{"index":0,"selected":true},{"index":1,"selected":false},{"index":2,"selected":false}]}',
-                '{"subtitle_list":[{"index":0,"selected":false},{"index":1,"selected":true},{"index":2,"selected":false}]}',
-                '{"subtitle_list":[{"index":0,"selected":false},{"index":1,"selected":false},{"index":2,"selected":true}]}',
-            ],
-        )
-        playback = OppoMediaControlPlayback(
-            {
-                "oppo": {
-                    "track_selection_applied_timeout_seconds": 0,
-                }
-            },
-            client=client,
-            playback_state_waiter=_started_playback,
-            sleep=lambda _: None,
-            step_timer=step_timer,
-        )
-
-        readiness = playback.prepare_track_menu_readiness(
-            audio_index=2,
-            subtitle_index=2,
-        )
-
-        self.assertTrue(readiness.successful)
-        self.assertTrue(playback.select_audio_track(2).successful)
-        self.assertTrue(playback.select_subtitle_track(2).successful)
-        self.assertEqual(
-            [
-                ("get_audio_menu", 1.0),
-                ("get_audio_menu", 1.0),
-                ("get_subtitle_menu", 1.0),
-                ("select_audio_track", 2),
-                ("get_audio_menu", 1.0),
-                ("select_subtitle_track", 2),
-                ("get_subtitle_menu", 1.0),
-                ("select_subtitle_track", 2),
-                ("get_subtitle_menu", 1.0),
-            ],
-            client.calls,
-        )
-        self.assertEqual(
-            [
-                "track_menu_readiness_audio",
-                "track_menu_readiness_subtitle",
-                "audio_set_command",
-                "audio_wait_selection_after_set",
-                "subtitle_set_command",
-                "subtitle_wait_selection_after_first_set",
-                "subtitle_set_command_retry",
-                "subtitle_wait_selection_after_retry",
-            ],
-            step_timer.measured_steps,
-        )
-
     def test_times_out_empty_audio_menu_retries_with_exponential_backoff(self):
         client = RecordingMediaControlClient(
             audio_menu_responses=['{"success":true,"audio_list":[]}']
