@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 
 @dataclass(frozen=True)
@@ -39,9 +40,22 @@ class EmbyPlaybackPayloadMapper:
             payload["RunTimeTicks"] = runtime_ticks
         return payload
 
-    def restore_resume_position_payload(self, *, position_ticks: int) -> dict:
+    def restore_resume_position_payload(
+        self,
+        *,
+        position_ticks: int,
+        last_played_at: datetime | None = None,
+    ) -> dict:
+        if last_played_at is None:
+            last_played_at = datetime.now(timezone.utc)
+        elif last_played_at.tzinfo is None:
+            last_played_at = last_played_at.replace(tzinfo=timezone.utc)
+        else:
+            last_played_at = last_played_at.astimezone(timezone.utc)
+
         return {
             "ItemId": self.context.media_library_item_id,
             "PlaybackPositionTicks": position_ticks,
             "Played": False,
+            "LastPlayedDate": last_played_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
         }

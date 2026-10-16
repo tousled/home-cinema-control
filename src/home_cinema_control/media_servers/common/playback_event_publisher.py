@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from home_cinema_control.playback.notification_sender import (
@@ -63,7 +64,12 @@ class PlaybackPayloadMapper(Protocol):
         subtitle_track_id: int,
     ) -> dict: ...
 
-    def restore_resume_position_payload(self, *, position_ticks: int) -> dict: ...
+    def restore_resume_position_payload(
+        self,
+        *,
+        position_ticks: int,
+        last_played_at: datetime | None = None,
+    ) -> dict: ...
 
 
 class MediaServerPlaybackEventPublisher:

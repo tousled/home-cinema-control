@@ -42,6 +42,10 @@ HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing o
 
 ### Fixed
 
+* **Resume entries now keep their “Continue Watching” metadata after a manual stop.** HCC restores `LastPlayedDate`
+  together with the resume position after marking an item as unwatched. Thanks to [@revin34](https://github.com/revin34)
+  for finding and reporting this issue in [#85](https://github.com/tousled/home-cinema-control/issues/85).
+
 * **OPPO playback now honors “start from beginning”.** A zero start position sends an explicit seek to
   `0` after the player becomes active, preventing the OPPO from reusing its previous playback position.
 
