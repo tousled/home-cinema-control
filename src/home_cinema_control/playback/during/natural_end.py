@@ -5,17 +5,17 @@ DEFAULT_NATURAL_END_MINIMUM_TOTAL_SECONDS = 300
 DEFAULT_PLAYED_FRACTION_THRESHOLD = 0.90
 
 
-def is_oppo_end_of_content(
+def is_end_of_content(
     *,
         current_seconds: int,
         total_seconds: int,
         tolerance_seconds: int = DEFAULT_NATURAL_END_TOLERANCE_SECONDS,
         minimum_total_seconds: int = DEFAULT_NATURAL_END_MINIMUM_TOTAL_SECONDS,
 ) -> bool:
-    """Report whether the OPPO has reached the end of the played content.
+    """Report whether the media player has reached the end of the content.
 
     The media server's runtime is not a reliable duration source (it is
-    missing or zero for many ISO/Blu-ray items), so the OPPO is the single
+    missing or zero for many ISO/Blu-ray items), so the media player is the
     source of truth. ``total_seconds`` is the full title length and
     ``current_seconds`` the cumulative title position, both as reported by
     ``getplayingtime`` (``total_time`` / ``cur_time``). They are title-level
@@ -32,7 +32,7 @@ def is_oppo_end_of_content(
     return current_seconds >= total_seconds - max(0, tolerance_seconds)
 
 
-def is_oppo_next_title_started(
+def is_next_title_started(
     *,
         previous_position_seconds: int,
         previous_total_seconds: int,
@@ -42,7 +42,7 @@ def is_oppo_next_title_started(
 ) -> bool:
     """Report that the player rolled from a finished feature onto other content.
 
-    Safety net for the OPPO auto-advancing to the next file in the folder once a
+    Safety net for a player auto-advancing to the next file in the folder once a
     feature ends: the previous title was feature-length and at/near its end, and
     the reported total has changed (a different title/file is now playing). The
     previous title is then treated as finished so playback stops before the next
@@ -52,7 +52,7 @@ def is_oppo_next_title_started(
     if current_total_seconds == previous_total_seconds:
         return False
 
-    return is_oppo_end_of_content(
+    return is_end_of_content(
         current_seconds=previous_position_seconds,
         total_seconds=previous_total_seconds,
         tolerance_seconds=tolerance_seconds,
@@ -69,7 +69,7 @@ def was_content_played(
 ) -> bool:
     """Report whether enough of the content was played to mark it watched.
 
-    Unlike :func:`is_oppo_end_of_content` (which must be near the literal end to
+    Unlike :func:`is_end_of_content` (which must be near the literal end to
     auto-stop the disc without cutting credits), this decides the media-server
     "played" flag when playback stops *before* the literal end -- typically the
     user stopping with the remote during the credits. ``fraction_threshold``
@@ -84,3 +84,9 @@ def was_content_played(
         return False
 
     return (current_seconds / total_seconds) >= fraction_threshold
+
+
+# Compatibility aliases for integrations written before the player-neutral
+# natural-end contract was introduced.
+is_oppo_end_of_content = is_end_of_content
+is_oppo_next_title_started = is_next_title_started

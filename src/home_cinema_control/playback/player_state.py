@@ -91,6 +91,21 @@ class PlayerPlaybackPosition:
         return self.total_seconds > 0 and self.current_seconds > 0
 
 
+class PlaybackStartPositionStatus(str, Enum):
+    NOT_REQUIRED = "not_required"
+    APPLIED = "applied"
+    FALLBACK_REQUIRED = "fallback_required"
+
+
+@dataclass(frozen=True)
+class PlaybackStartPositionResult:
+    requested_seconds: int
+    status: PlaybackStartPositionStatus
+    attempted: bool = False
+    command_succeeded: bool = False
+    observed_seconds: int | None = None
+
+
 @dataclass(frozen=True)
 class PlayerPlaybackStartResult:
     media_mounted: bool
@@ -100,6 +115,7 @@ class PlayerPlaybackStartResult:
     mounted_path: str | None = None
     playback_state: PlayerPlaybackState | None = None
     mount_protocol: str | None = None
+    start_position_result: PlaybackStartPositionResult | None = None
 
     @property
     def successful(self) -> bool:

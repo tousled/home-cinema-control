@@ -11,8 +11,8 @@ from home_cinema_control.config.manager import (
     active_media_server_config,
     load_effective_config,
 )
-from home_cinema_control.devices.oppo.playback_command_control import (
-    create_oppo_playback_command_control,
+from home_cinema_control.playback.media_player_factory import (
+    create_media_player_command_control,
 )
 from home_cinema_control.media_servers.common.constants import DEVICE_ID
 from home_cinema_control.home_automation.home_assistant_consumer import (
@@ -292,7 +292,7 @@ class MediaServerWebsocketListener:
             playback_state=self.playback_state,
             config_provider=lambda: self.config,
             playback_intent_dispatcher_factory=lambda: dispatcher,
-            oppo_control_factory=lambda config: create_oppo_playback_command_control(
+            media_player_factory=lambda config: create_media_player_command_control(
                 config,
                 on_verbose_preamble=getattr(
                     self.playback_application_service.active_media_player,

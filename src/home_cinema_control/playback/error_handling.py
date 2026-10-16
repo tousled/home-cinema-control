@@ -90,7 +90,7 @@ class PlaybackErrorHandler:
             av_audio_result=output_restoration_result.av_audio_result,
         )
 
-        # OPPO_ERROR_RECOVERY_FAILED / TV_ERROR_RECOVERY_FAILED / AV_ERROR_RECOVERY_FAILED
+        # PLAYER_ERROR_RECOVERY_FAILED / TV_ERROR_RECOVERY_FAILED / AV_ERROR_RECOVERY_FAILED
         # are real diagnostics — recovery failing on top of the original failure is
         # not routine narration.
         log = logger.info if result.successful else logger.error
@@ -106,15 +106,15 @@ class PlaybackErrorHandler:
 
     def _stop_player_playback(self) -> DeviceCommandResult:
         if self._media_player is None:
-            return DeviceCommandResult.skipped("No OPPO playback adapter configured.")
+            return DeviceCommandResult.skipped("No media-player adapter configured.")
 
-        logger.info("Stopping OPPO playback during error recovery.")
+        logger.info("Stopping media-player playback during error recovery.")
         try:
             stop_result = self._media_player.stop()
         except Exception as exc:
-            logger.exception("Unable to stop OPPO playback during error recovery.")
+            logger.exception("Unable to stop media-player playback during error recovery.")
             stop_result = DeviceCommandResult.failed(
-                f"OPPO playback stop failed: {type(exc).__name__}: {exc}"
+                f"Media-player playback stop failed: {type(exc).__name__}: {exc}"
             )
 
         return self._restoration.cleanup_after_player_stop(stop_result)

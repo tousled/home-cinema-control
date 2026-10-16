@@ -1,9 +1,13 @@
 import unittest
 
 from home_cinema_control.playback.startup.completion import (
-    OppoStartupCompletionPlayer,
+    MediaPlayerStartupCompletionPlayer,
     PlayMediaItemRequest,
     PlaybackStartupCompletionService,
+)
+from home_cinema_control.playback.player_state import (
+    PlaybackStartPositionResult,
+    PlaybackStartPositionStatus,
 )
 from home_cinema_control.playback.startup.models import DeviceCommandResult
 
@@ -91,18 +95,18 @@ class FailingAudioPlayer(RecordingPlayer):
         return DeviceCommandResult.failed("audio menu not ready")
 
 
-class RecordingStartupOrchestrator:
+class RecordingMediaPlayer:
     def __init__(self):
         self.seek_positions = []
 
-    def seek_oppo_to(self, position_units):
+    def seek_to(self, position_units):
         self.seek_positions.append(position_units)
         return DeviceCommandResult.success()
 
-    def select_oppo_audio_track(self, audio_index):
+    def select_audio_track(self, audio_index):
         return DeviceCommandResult.success()
 
-    def select_oppo_subtitle_track(self, subtitle_index):
+    def select_subtitle_track(self, subtitle_index):
         return DeviceCommandResult.success()
 
 
@@ -161,11 +165,61 @@ class PlaybackStartupCompletionTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual([0], player.seeks)
+        self.assertEqual([], player.seeks)
         self.assertEqual([], player.audio_tracks)
         self.assertEqual([], player.subtitle_tracks)
         self.assertEqual([], resolver.subtitle_requests)
         self.assertEqual("skipped", result.subtitle_result.status.value)
+
+    def test_verified_start_position_skips_post_start_seek(self):
+        player = RecordingPlayer()
+        service = PlaybackStartupCompletionService(
+            started_reporter=RecordingStartedReporter(),
+            player=player,
+            track_resolver=RecordingTrackResolver(),
+        )
+
+        result = service.complete(
+            PlayMediaItemRequest(
+                start_position_seconds=12,
+                source_user_id="user-1",
+                media_item_id="movie-1",
+                start_position_result=PlaybackStartPositionResult(
+                    requested_seconds=12,
+                    status=PlaybackStartPositionStatus.APPLIED,
+                    attempted=True,
+                    command_succeeded=True,
+                    observed_seconds=13,
+                ),
+            )
+        )
+
+        self.assertEqual([], player.seeks)
+        self.assertEqual("skipped", result.seek_result.status.value)
+
+    def test_unverified_start_position_uses_post_start_fallback(self):
+        player = RecordingPlayer()
+        service = PlaybackStartupCompletionService(
+            started_reporter=RecordingStartedReporter(),
+            player=player,
+            track_resolver=RecordingTrackResolver(),
+        )
+
+        result = service.complete(
+            PlayMediaItemRequest(
+                start_position_seconds=12,
+                source_user_id="user-1",
+                media_item_id="movie-1",
+                start_position_result=PlaybackStartPositionResult(
+                    requested_seconds=12,
+                    status=PlaybackStartPositionStatus.FALLBACK_REQUIRED,
+                    attempted=True,
+                ),
+            )
+        )
+
+        self.assertEqual([12], player.seeks)
+        self.assertTrue(result.seek_result.successful)
 
     def test_audio_resolution_failure_is_reported_without_stopping_completion(self):
         reporter = RecordingStartedReporter()
@@ -260,12 +314,12 @@ class PlaybackStartupCompletionTest(unittest.TestCase):
         self.assertIsNone(result.pending_audio_track_index)
 
     def test_oppo_adapter_converts_seconds_to_player_seek_units(self):
-        startup_orchestrator = RecordingStartupOrchestrator()
-        player = OppoStartupCompletionPlayer(startup_orchestrator)
+        media_player = RecordingMediaPlayer()
+        player = MediaPlayerStartupCompletionPlayer(media_player)
 
         player.seek_to_seconds(66)
 
-        self.assertEqual([660_000_000], startup_orchestrator.seek_positions)
+        self.assertEqual([660_000_000], media_player.seek_positions)
 
 
 if __name__ == "__main__":

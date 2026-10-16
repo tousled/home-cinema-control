@@ -17,7 +17,12 @@ class ActivePlaybackRuntimeContext:
         return self._media_player
 
     @property
+    def media_player_playback(self):
+        return self._media_player
+
+    @property
     def oppo_playback(self):
+        """Compatibility alias for the pre-player-neutral runtime context."""
         return self._media_player
 
     def activate(self, playback_wiring) -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 from home_cinema_control.playback.during import (
@@ -22,6 +22,7 @@ from home_cinema_control.playback.finish import (
     PlaybackFinishResult,
 )
 from home_cinema_control.playback.startup.models import (
+    PlaybackOutputRoute,
     PlaybackOutputSwitchResult,
     PlaybackStartupRequest,
     PlaybackStartupResult,
@@ -95,7 +96,7 @@ class PlaybackOrchestrator:
 
         if not startup_result.successful:
             recovery_result = self._recover(
-                "oppo_startup_failed",
+                "media_player_startup_failed",
                 request,
                 startup_result.output_switch_result,
             )
@@ -108,8 +109,14 @@ class PlaybackOrchestrator:
             if request.on_tracks_applying is not None:
                 request.on_tracks_applying()
 
+            startup_completion_request = replace(
+                request.startup_completion_request,
+                start_position_result=(
+                    startup_result.media_player_start_result.start_position_result
+                ),
+            )
             startup_completion_result = self._startup_completion_service.complete(
-                request.startup_completion_request
+                startup_completion_request
             )
             if request.on_startup_completed is not None:
                 request.on_startup_completed(startup_result)
@@ -176,10 +183,14 @@ class PlaybackOrchestrator:
                     ),
                     tv_enabled=(
                         restore_outputs_on_finish
+                        and request.startup_request.output_switch_request.route
+                        != PlaybackOutputRoute.NONE
                         and request.startup_request.output_switch_request.tv_enabled
                     ),
                     av_enabled=(
                         restore_outputs_on_finish
+                        and request.startup_request.output_switch_request.route
+                        == PlaybackOutputRoute.HDMI
                         and request.startup_request.output_switch_request.av_enabled
                     ),
                     max_idle_confirmation_polls=finish_idle_confirmation_polls,
@@ -199,7 +210,7 @@ class PlaybackOrchestrator:
                 monitoring_result=monitoring_result,
                 error_recovery_result=recovery_result,
             )
-        # OPPO_FINISH_IDLE_FAILED / TV_APP_RESTORE_FAILED / AV_AUDIO_RESTORE_FAILED
+        # PLAYER_FINISH_IDLE_FAILED / TV_APP_RESTORE_FAILED / AV_AUDIO_RESTORE_FAILED
         # are all "warning"-severity diagnostics.
         log = logger.info if finish_result.successful else logger.warning
         log(
@@ -250,7 +261,9 @@ class PlaybackOrchestrator:
             pending_index,
         )
         set_deferred(
-            lambda: self._startup_orchestrator.select_oppo_audio_track(pending_index)
+            lambda: self._startup_orchestrator.select_media_player_audio_track(
+                pending_index
+            )
         )
 
     def _recover(
@@ -289,12 +302,12 @@ class PlaybackOrchestrator:
         self._log_output_switch_result(startup_result.output_switch_result)
         media_player_start_result = startup_result.media_player_start_result
         playback_state = media_player_start_result.playback_state
-        # OPPO_MOUNT_FAILED / OPPO_PLAY_FAILED / OPPO_PLAYBACK_TIMEOUT are all
-        # "error"-severity diagnostics — a failed OPPO startup is a real failure,
+        # Player startup diagnostics are all
+        # "error"-severity diagnostics — a failed player startup is a real failure,
         # not routine narration.
         log = logger.info if media_player_start_result.successful else logger.error
         log(
-            "OPPO playback startup result | successful=%s | media_mounted=%s | "
+            "Media-player playback startup result | successful=%s | media_mounted=%s | "
             "playback_command_accepted=%s | playback_started_on_device=%s | "
             "status=%s | lifecycle_phase=%s | detail=%s",
             media_player_start_result.successful,

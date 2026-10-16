@@ -19,8 +19,8 @@ from home_cinema_control.playback.during.models import (
     PlaybackMonitoringStopReason,
 )
 from home_cinema_control.playback.during.natural_end import (
-    is_oppo_end_of_content,
-    is_oppo_next_title_started,
+    is_end_of_content,
+    is_next_title_started,
 )
 from home_cinema_control.playback.ports import MediaPlayerPort
 logger = logging.getLogger(__name__)
@@ -39,14 +39,13 @@ class PlaybackProgressReporter(Protocol):
 
 
 class PollingPlaybackObservationStrategy:
-    """Monitor active OPPO playback and report media-server progress.
+    """Monitor active media-player playback and report media-server progress.
 
-    QPL is the source of truth for player state and is polled frequently.
-    getplayingtime is only used as a progress checkpoint and is intentionally
-    polled less often because the OPPO HTTP API can become temporarily
-    unavailable during title transitions.
+    Player state is polled frequently. Position is only used as a progress
+    checkpoint and is intentionally polled less often because player APIs can
+    become temporarily unavailable during title transitions.
 
-    A paused OPPO can eventually report SCREEN_SAVER through QPL. That must not
+    A paused player can eventually report SCREEN_SAVER. That must not
     be treated as playback completion by itself: it is a long-pause state. We
     keep monitoring it until the player reports a real resume state or another
     idle state such as HOME_MENU / MEDIA_CENTER.
@@ -100,7 +99,7 @@ class PollingPlaybackObservationStrategy:
 
                 if not paused_screensaver_logged:
                     logger.info(
-                        "OPPO entered screen saver while paused; keeping playback "
+                        "Media player entered screen saver while paused; keeping playback "
                         "monitoring alive | last_position=%s | last_duration=%s",
                         last_position_seconds,
                         last_duration_seconds,
@@ -133,14 +132,14 @@ class PollingPlaybackObservationStrategy:
             last_active_state = _active_state_or_none(final_state) or last_active_state
 
             if final_state.lifecycle_phase != PlayerPlaybackLifecyclePhase.ACTIVE:
-                if is_oppo_end_of_content(
+                if is_end_of_content(
                         current_seconds=last_position_seconds,
                         total_seconds=last_duration_seconds,
                         tolerance_seconds=request.natural_end_tolerance_seconds,
                         minimum_total_seconds=request.natural_end_minimum_total_seconds,
                 ):
                     logger.info(
-                        "OPPO polling detected transition at end of content | "
+                        "Media-player polling detected transition at end of content | "
                         "last_position=%s | total=%s | state=%s | lifecycle_phase=%s",
                         last_position_seconds,
                         last_duration_seconds,
@@ -153,7 +152,7 @@ class PollingPlaybackObservationStrategy:
                 transition_polls += 1
                 if transition_polls >= request.max_transition_polls:
                     logger.warning(
-                        "OPPO playback monitoring stopped after transition grace | "
+                        "Media-player monitoring stopped after transition grace | "
                         "polls=%s | state=%s | lifecycle_phase=%s",
                         transition_polls,
                         final_state.status.value,
@@ -199,7 +198,7 @@ class PollingPlaybackObservationStrategy:
             except Exception:
                 position_read_failures += 1
                 logger.warning(
-                    "OPPO playback position read failed while QPL still reports "
+                    "Media-player position read failed while state still reports "
                     "active playback | failures=%s | state=%s | lifecycle_phase=%s | "
                     "last_position=%s | last_duration=%s",
                     position_read_failures,
@@ -223,7 +222,7 @@ class PollingPlaybackObservationStrategy:
             normalized_position = _normalize_playback_position(position)
 
             logger.debug(
-                "OPPO playback position | current=%s | total=%s | state=%s",
+                "Media-player position | current=%s | total=%s | state=%s",
                 position.current_seconds,
                 position.total_seconds,
                 final_state.status.value,
@@ -250,7 +249,7 @@ class PollingPlaybackObservationStrategy:
                 active_tolerance_logged=active_tolerance_logged,
             )
 
-            if is_oppo_next_title_started(
+            if is_next_title_started(
                     previous_position_seconds=last_position_seconds,
                     previous_total_seconds=last_duration_seconds,
                     current_total_seconds=normalized_position.total_seconds,
@@ -258,7 +257,7 @@ class PollingPlaybackObservationStrategy:
                     minimum_total_seconds=request.natural_end_minimum_total_seconds,
             ):
                 logger.info(
-                    "OPPO polling detected next title after feature end | "
+                    "Media-player polling detected next title after feature end | "
                     "last_position=%s | last_total=%s | new_total=%s | state=%s",
                     last_position_seconds,
                     last_duration_seconds,
@@ -271,7 +270,7 @@ class PollingPlaybackObservationStrategy:
             last_position_seconds = normalized_position.current_seconds
             last_duration_seconds = normalized_position.total_seconds
 
-            if is_oppo_end_of_content(
+            if is_end_of_content(
                     current_seconds=normalized_position.current_seconds,
                     total_seconds=normalized_position.total_seconds,
                     tolerance_seconds=request.natural_end_tolerance_seconds,
@@ -280,7 +279,7 @@ class PollingPlaybackObservationStrategy:
                 end_of_media_polls += 1
                 if end_of_media_polls >= request.max_end_of_media_polls:
                     logger.info(
-                        "OPPO playback monitoring stopped at natural media end | "
+                        "Media-player monitoring stopped at natural media end | "
                         "polls=%s | position=%s | duration=%s | state=%s",
                         end_of_media_polls,
                         normalized_position.current_seconds,
@@ -403,7 +402,7 @@ def _is_paused_screensaver_state(
         and last_active_state is not None
         # The bridge may miss the PAUSE state between poll intervals before
         # screen saver activates. STOP → SCREEN_SAVER cannot occur within
-        # a monitoring session: OPPO always shows HOME_MENU for minutes
+        # a monitoring session: the current player shows HOME_MENU for minutes
         # between them, and the loop exits at HOME_MENU (IDLE, not SCREEN_SAVER).
         and last_active_state.status in ACTIVE_PLAYBACK_STATUSES
     )
@@ -470,7 +469,7 @@ def _log_near_end_position(
     ):
         near_end_diagnostic_logged = True
         logger.info(
-            "OPPO polling near-end position observed | position=%s | "
+            "Media-player polling near-end position observed | position=%s | "
             "total=%s | remaining=%s | tolerance=%s",
             position.current_seconds,
             position.total_seconds,
@@ -481,7 +480,7 @@ def _log_near_end_position(
     if remaining_seconds <= tolerance_seconds and not active_tolerance_logged:
         active_tolerance_logged = True
         logger.info(
-            "OPPO polling active natural-end tolerance reached | position=%s | "
+            "Media-player polling active natural-end tolerance reached | position=%s | "
             "total=%s | remaining=%s | tolerance=%s",
             position.current_seconds,
             position.total_seconds,
