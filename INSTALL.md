@@ -232,6 +232,11 @@ OPPO ve por SMB:  Video/Peliculas/Dune (2021).mkv
 HCC guarda:       esta biblioteca usa esta ruta OPPO y este protocolo
 ```
 
+Si Emby tiene configurado **Shared network folder**, puede informar durante la reproducción una ruta de red alternativa
+en lugar de la ruta de biblioteca. HCC la traduce automáticamente a la ruta canónica de Emby antes de aplicar el
+mapeo hacia el OPPO. No hace falta crear un segundo mapeo para esa ruta alternativa. Jellyfin no expone actualmente
+ese campo equivalente en su API; sus `Locations` siguen siendo la ruta canónica que debes mapear.
+
 No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos nombres. Por eso HCC parte de las
 bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
 real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qué servidor estás mapeando.

@@ -50,6 +50,10 @@ HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing o
   route is not ready. Session monitoring now shows the configured device and received candidates when no device
   matches, while item lookup failures include enough provider context to investigate them without retries.
 
+* **Emby shared network folder paths now reach the OPPO.** HCC translates Emby's alternate shared-network path back to
+  the configured library path before applying the OPPO mapping. Thanks to [@revin34](https://github.com/revin34) for
+  finding and reporting this bug in issue [#82](https://github.com/tousled/home-cinema-control/issues/82).
+
 ## [1.4.0] - 2026-10-12
 
 HCC 1.4.0 connects playback events to Home Assistant and improves the visibility and reliability of playback startup and

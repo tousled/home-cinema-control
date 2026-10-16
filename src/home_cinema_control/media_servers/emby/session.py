@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 
 from home_cinema_control.media_servers.common.models import (
     MediaServerItemPlaybackInfo,
@@ -19,6 +20,7 @@ from home_cinema_control.media_servers.emby.item_mapper import (
     media_server_playback_source_from_item,
     media_tracks_from_item,
 )
+from home_cinema_control.media_servers.emby.network_paths import EmbyNetworkPathResolver
 from home_cinema_control.media_servers.common.path_matching import path_prefix_matches
 from home_cinema_control.media_servers.emby.session_events import session_from_payload
 from home_cinema_control.playback.state import BridgePlaybackState
@@ -33,6 +35,9 @@ class EmbySession:
         self.lang = None
         self._item_info_cache: dict[tuple[str, str], dict] = {}
         self._track_cache: dict[tuple[str, str, str], list[MediaTrack]] = {}
+        self._network_path_resolver = EmbyNetworkPathResolver(
+            self.client.get_virtual_folders
+        )
         logging.info("EmbySession started")
 
     def stop_session_playback(self, session_id):
@@ -124,7 +129,11 @@ class EmbySession:
         item_key = (user_id, item_id)
         self._item_info_cache[item_key] = item_data
         self._clear_track_cache(item_key)
-        return media_server_playback_source_from_item(item_data, mediasource_id)
+        source = media_server_playback_source_from_item(item_data, mediasource_id)
+        return replace(source, path=self.to_library_path(source.path))
+
+    def to_library_path(self, path: str | None) -> str | None:
+        return self._network_path_resolver.to_library_path(path)
 
     def get_item_playback_info(
         self,
