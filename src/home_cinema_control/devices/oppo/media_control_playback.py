@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import replace
 from collections.abc import Callable
 from typing import Any, Protocol
 
@@ -10,10 +9,7 @@ from home_cinema_control.playback.player_state import (
     PlayerPlaybackPosition,
     PlayerPlaybackStartResult,
     PlayerPlaybackState,
-    PlaybackStartPositionResult,
-    PlaybackStartPositionStatus,
 )
-from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     MediaPlayerStartRequest,
@@ -39,8 +35,6 @@ DEFAULT_TRACK_MENU_READY_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_TRACK_MENU_QUERY_TIMEOUT_SECONDS = 1.0
 DEFAULT_TRACK_SELECTION_APPLIED_TIMEOUT_SECONDS = 2.0
 DEFAULT_TRACK_SELECTION_APPLIED_POLL_INTERVAL_SECONDS = 0.25
-RESUME_POSITION_LOWER_TOLERANCE_SECONDS = 2
-RESUME_POSITION_UPPER_TOLERANCE_SECONDS = 5
 
 
 class StartupStepTimer(Protocol):
@@ -139,8 +133,6 @@ class OppoMediaControlPlayback:
                     mounted_path=mounted_share.mount_path,
                 )
 
-            start_position_result = self._initial_start_position_result(request)
-
             startup_result = self._measure(
                 "wait_for_oppo_playback_active",
                 lambda: self._playback_state_waiter(
@@ -150,14 +142,6 @@ class OppoMediaControlPlayback:
                     on_playback_waiting=on_waiting,
                 ),
             )
-
-            if startup_result.started and start_position_result.command_succeeded:
-                start_position_result = self._measure(
-                    "verify_resume_position_early",
-                    lambda: self._verify_early_resume_position(
-                        start_position_result
-                    ),
-                )
 
             playback_state = PlayerPlaybackState(
                 status=startup_result.status,
@@ -175,7 +159,6 @@ class OppoMediaControlPlayback:
                 else "Timed out waiting for OPPO active playback.",
                 mounted_path=mounted_share.mount_path,
                 playback_state=playback_state,
-                start_position_result=start_position_result,
             )
         except Exception as exc:
             logger.exception("OPPO MediaControl playback startup failed.")
@@ -196,94 +179,6 @@ class OppoMediaControlPlayback:
             current_seconds=int(response.payload.get("cur_time", 0)),
             total_seconds=int(response.payload.get("total_time", 0)),
             raw_response=response.raw_text,
-        )
-
-    def _initial_start_position_result(
-        self,
-        request: MediaPlayerStartRequest,
-    ) -> PlaybackStartPositionResult:
-        requested_seconds = max(0, request.requested_start_position_seconds)
-        if requested_seconds == 0:
-            return PlaybackStartPositionResult(
-                requested_seconds=0,
-                status=PlaybackStartPositionStatus.NOT_REQUIRED,
-            )
-
-        result = self._measure(
-            "attempt_resume_position_early",
-            lambda: self.seek_to(requested_seconds * TICKS_PER_SECOND),
-        )
-        if not result.successful:
-            logger.warning(
-                "OPPO early resume command result | successful=%s | "
-                "target_seconds=%s | fallback=required | detail=%s",
-                result.successful,
-                requested_seconds,
-                result.detail,
-            )
-            return PlaybackStartPositionResult(
-                requested_seconds=requested_seconds,
-                status=PlaybackStartPositionStatus.FALLBACK_REQUIRED,
-                attempted=True,
-            )
-
-        logger.info(
-            "OPPO early resume command result | successful=%s | "
-            "target_seconds=%s | fallback=verification_required | detail=%s",
-            result.successful,
-            requested_seconds,
-            result.detail,
-        )
-        return PlaybackStartPositionResult(
-            requested_seconds=requested_seconds,
-            status=PlaybackStartPositionStatus.FALLBACK_REQUIRED,
-            attempted=True,
-            command_succeeded=True,
-        )
-
-    def _verify_early_resume_position(
-        self,
-        start_position_result: PlaybackStartPositionResult,
-    ) -> PlaybackStartPositionResult:
-        try:
-            position = self.get_playback_position()
-        except Exception as exc:
-            logger.warning(
-                "OPPO early resume position verification failed; fallback will run | "
-                "target_seconds=%s | error_type=%s | error=%s",
-                start_position_result.requested_seconds,
-                type(exc).__name__,
-                exc,
-            )
-            return start_position_result
-
-        target_seconds = start_position_result.requested_seconds
-        lower_bound = target_seconds - RESUME_POSITION_LOWER_TOLERANCE_SECONDS
-        upper_bound = target_seconds + RESUME_POSITION_UPPER_TOLERANCE_SECONDS
-        if position.total_seconds <= 0 or not (
-            lower_bound <= position.current_seconds <= upper_bound
-        ):
-            logger.warning(
-                "OPPO early resume not verified; fallback will run after ACTIVE | "
-                "target_seconds=%s | observed_seconds=%s | total_seconds=%s",
-                target_seconds,
-                position.current_seconds,
-                position.total_seconds,
-            )
-            return replace(
-                start_position_result,
-                observed_seconds=position.current_seconds,
-            )
-
-        logger.info(
-            "OPPO early resume verified | target_seconds=%s | observed_seconds=%s",
-            target_seconds,
-            position.current_seconds,
-        )
-        return replace(
-            start_position_result,
-            status=PlaybackStartPositionStatus.APPLIED,
-            observed_seconds=position.current_seconds,
         )
 
     def seek_to(self, position_ticks: int) -> DeviceCommandResult:
@@ -729,14 +624,6 @@ class OppoMediaControlPlayback:
             detail="Mount request failed, but OPPO reported active playback.",
             mounted_path=None,
             playback_state=playback_state,
-            start_position_result=PlaybackStartPositionResult(
-                requested_seconds=max(0, request.requested_start_position_seconds),
-                status=(
-                    PlaybackStartPositionStatus.NOT_REQUIRED
-                    if request.requested_start_position_seconds <= 0
-                    else PlaybackStartPositionStatus.FALLBACK_REQUIRED
-                ),
-            ),
         )
 
     def _start_mounted_share_playback(

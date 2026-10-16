@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Callable
 
 from home_cinema_control.playback.during import (
@@ -109,14 +109,8 @@ class PlaybackOrchestrator:
             if request.on_tracks_applying is not None:
                 request.on_tracks_applying()
 
-            startup_completion_request = replace(
-                request.startup_completion_request,
-                start_position_result=(
-                    startup_result.media_player_start_result.start_position_result
-                ),
-            )
             startup_completion_result = self._startup_completion_service.complete(
-                startup_completion_request
+                request.startup_completion_request
             )
             if request.on_startup_completed is not None:
                 request.on_startup_completed(startup_result)

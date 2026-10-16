@@ -4,10 +4,6 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
-from home_cinema_control.playback.player_state import (
-    PlaybackStartPositionResult,
-    PlaybackStartPositionStatus,
-)
 from home_cinema_control.playback.ports import MediaPlayerPort
 from home_cinema_control.playback.time_units import TICKS_PER_SECOND
 from home_cinema_control.playback.startup.models import DeviceCommandResult
@@ -58,7 +54,6 @@ class PlayMediaItemRequest:
     expected_duration_seconds: int = 0
     selected_source_audio_track_id: int | None = None
     selected_source_subtitle_track_id: int | None = None
-    start_position_result: PlaybackStartPositionResult | None = None
 
 
 @dataclass(frozen=True)
@@ -152,21 +147,6 @@ class PlaybackStartupCompletionService:
             )
             return DeviceCommandResult.skipped(
                 "Playback starts at beginning; no seek required."
-            )
-
-        start_position_result = request.start_position_result
-        if (
-            start_position_result is not None
-            and start_position_result.status == PlaybackStartPositionStatus.APPLIED
-        ):
-            logger.info(
-                "Skipping resume seek because startup position was already verified | "
-                "target_seconds=%s | observed_seconds=%s",
-                start_position_seconds,
-                start_position_result.observed_seconds,
-            )
-            return DeviceCommandResult.skipped(
-                "Resume already verified during player startup."
             )
 
         return self._player.seek_to_seconds(start_position_seconds)

@@ -2,8 +2,6 @@ from home_cinema_control.playback.player_state import (
     PlayerPlaybackPosition,
     PlayerPlaybackStartResult,
     PlayerPlaybackState,
-    PlaybackStartPositionResult,
-    PlaybackStartPositionStatus,
 )
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
@@ -23,8 +21,6 @@ __all__ = [
     "MediaPlayerStartRequest",
     "PlayerPlaybackStartResult",
     "PlayerPlaybackState",
-    "PlaybackStartPositionResult",
-    "PlaybackStartPositionStatus",
     "PlaybackStartupRequest",
     "PlaybackStartupResult",
     "PlaybackOutputSwitchRequest",

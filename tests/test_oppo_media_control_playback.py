@@ -18,7 +18,6 @@ from home_cinema_control.playback.startup.models import (
 )
 from home_cinema_control.devices.oppo.models import OppoCommandResponse
 from home_cinema_control.devices.oppo.playback_state_waiter import PlaybackStartupWaitResult
-from home_cinema_control.playback.player_state import PlaybackStartPositionStatus
 
 
 class RecordingMediaControlClient:
@@ -251,59 +250,8 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
             client.calls,
         )
 
-    def test_verifies_early_resume_before_completing_startup(self):
-        client = RecordingMediaControlClient(
-            set_play_time_response='{"success":true}',
-            playing_time_response='{"cur_time":12,"total_time":120}',
-        )
-        mount_service = FakeNetworkMountService(
-            _mounted(mount_path="/mnt/nfs1", server="NAS", folder="Movies", is_nfs=True)
-        )
-        wait_calls = []
-
-        def waiter(**kwargs):
-            wait_calls.append(tuple(client.calls))
-            return _started_playback(**kwargs)
-
-        playback = OppoMediaControlPlayback(
-            {"oppo": {"playback_start_timeout_seconds": 30}},
-            client=client,
-            playback_state_waiter=waiter,
-            network_mount_service=mount_service,
-        )
-
-        result = playback.start_playback(
-            MediaPlayerStartRequest(
-                requested_start_position_seconds=12,
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.mkv",
-                    playback_file_format="mkv",
-                ),
-            )
-        )
-
-        self.assertTrue(result.successful)
-        self.assertEqual(
-            PlaybackStartPositionStatus.APPLIED,
-            result.start_position_result.status,
-        )
-        self.assertEqual(12, result.start_position_result.observed_seconds)
-        self.assertEqual(
-            [
-                ("play_normal_file", "/mnt/nfs1", "NAS", "Movie.mkv", "0", 30),
-                ("set_play_time", 120_000_000),
-            ],
-            list(wait_calls[0]),
-        )
-        self.assertEqual("get_playing_time", client.calls[-1])
-
-    def test_early_resume_outside_tolerance_preserves_success_and_requires_fallback(self):
-        client = RecordingMediaControlClient(
-            set_play_time_response='{"success":true}',
-            playing_time_response='{"cur_time":0,"total_time":120}',
-        )
+    def test_defers_resume_seek_until_after_active_playback(self):
+        client = RecordingMediaControlClient(set_play_time_response='{"success":true}')
         mount_service = FakeNetworkMountService(
             _mounted(mount_path="/mnt/nfs1", server="NAS", folder="Movies", is_nfs=True)
         )
@@ -327,42 +275,7 @@ class OppoMediaControlPlaybackTest(unittest.TestCase):
         )
 
         self.assertTrue(result.successful)
-        self.assertEqual(
-            PlaybackStartPositionStatus.FALLBACK_REQUIRED,
-            result.start_position_result.status,
-        )
-        self.assertEqual(0, result.start_position_result.observed_seconds)
-
-    def test_early_resume_command_failure_preserves_startup(self):
-        client = RecordingMediaControlClient()
-        mount_service = FakeNetworkMountService(
-            _mounted(mount_path="/mnt/nfs1", server="NAS", folder="Movies", is_nfs=True)
-        )
-        playback = OppoMediaControlPlayback(
-            {"oppo": {"playback_start_timeout_seconds": 30}},
-            client=client,
-            playback_state_waiter=_started_playback,
-            network_mount_service=mount_service,
-        )
-
-        result = playback.start_playback(
-            MediaPlayerStartRequest(
-                requested_start_position_seconds=12,
-                media_location=PlayerMediaFileLocation(
-                    content_server="NAS",
-                    content_directory="Movies",
-                    playback_file_name="Movie.mkv",
-                    playback_file_format="mkv",
-                ),
-            )
-        )
-
-        self.assertTrue(result.successful)
-        self.assertEqual(
-            PlaybackStartPositionStatus.FALLBACK_REQUIRED,
-            result.start_position_result.status,
-        )
-        self.assertNotIn("get_playing_time", client.calls)
+        self.assertNotIn(("set_play_time", 120_000_000), client.calls)
 
     def test_starts_samba_playback_when_smb_is_active(self):
         client = RecordingMediaControlClient()
