@@ -65,9 +65,6 @@ class OppoMediaControlPlayback:
             OppoNetworkMountService(config, control_api_client=self._client)
         )
         self._step_timer = step_timer
-        self._prepared_track_menus: dict[
-            str, tuple[int, OppoCommandResponse | DeviceCommandResult]
-        ] = {}
 
     def _measure(self, step_name: str, operation):
         if self._step_timer is None:
@@ -82,7 +79,6 @@ class OppoMediaControlPlayback:
         *,
         on_waiting: Callable[[int], None] | None = None,
     ) -> PlayerPlaybackStartResult:
-        self._prepared_track_menus.clear()
         try:
             location = request.media_location
             network_folder = OppoNetworkFolder(
@@ -195,61 +191,14 @@ class OppoMediaControlPlayback:
                 f"OPPO seek failed: {type(exc).__name__}: {exc}"
             )
 
-    def prepare_track_menu_readiness(
-        self,
-        *,
-        audio_index: int | None,
-        subtitle_index: int | None,
-    ) -> DeviceCommandResult:
-        self._prepared_track_menus.clear()
-        readiness_failures: list[DeviceCommandResult] = []
-
-        if audio_index is not None:
-            audio_menu = self._measure(
-                "track_menu_readiness_audio",
-                lambda: self._wait_for_menu_track(
-                    menu_name="audio",
-                    payload_key="audio_list",
-                    requested_index=audio_index,
-                    get_menu=self._client.get_audio_menu,
-                ),
-            )
-            self._prepared_track_menus["audio"] = (audio_index, audio_menu)
-            if isinstance(audio_menu, DeviceCommandResult):
-                readiness_failures.append(audio_menu)
-
-        if subtitle_index is not None:
-            subtitle_menu = self._measure(
-                "track_menu_readiness_subtitle",
-                lambda: self._wait_for_menu_track(
-                    menu_name="subtitle",
-                    payload_key="subtitle_list",
-                    requested_index=subtitle_index,
-                    get_menu=self._client.get_subtitle_menu,
-                ),
-            )
-            self._prepared_track_menus["subtitle"] = (subtitle_index, subtitle_menu)
-            if isinstance(subtitle_menu, DeviceCommandResult):
-                readiness_failures.append(subtitle_menu)
-
-        if readiness_failures:
-            return readiness_failures[0]
-
-        if audio_index is None and subtitle_index is None:
-            return DeviceCommandResult.skipped("No track menus require preparation.")
-
-        return DeviceCommandResult.success("OPPO track menus are ready.")
-
     def select_audio_track(self, audio_index: int) -> DeviceCommandResult:
         try:
-            menu_result = self._take_prepared_track_menu("audio", audio_index)
-            if menu_result is None:
-                menu_result = self._wait_for_menu_track(
-                    menu_name="audio",
-                    payload_key="audio_list",
-                    requested_index=audio_index,
-                    get_menu=self._client.get_audio_menu,
-                )
+            menu_result = self._wait_for_menu_track(
+                menu_name="audio",
+                payload_key="audio_list",
+                requested_index=audio_index,
+                get_menu=self._client.get_audio_menu,
+            )
             if isinstance(menu_result, DeviceCommandResult):
                 return menu_result
 
@@ -325,14 +274,12 @@ class OppoMediaControlPlayback:
 
     def select_subtitle_track(self, subtitle_index: int) -> DeviceCommandResult:
         try:
-            menu_result = self._take_prepared_track_menu("subtitle", subtitle_index)
-            if menu_result is None:
-                menu_result = self._wait_for_menu_track(
-                    menu_name="subtitle",
-                    payload_key="subtitle_list",
-                    requested_index=subtitle_index,
-                    get_menu=self._client.get_subtitle_menu,
-                )
+            menu_result = self._wait_for_menu_track(
+                menu_name="subtitle",
+                payload_key="subtitle_list",
+                requested_index=subtitle_index,
+                get_menu=self._client.get_subtitle_menu,
+            )
             if isinstance(menu_result, DeviceCommandResult):
                 return menu_result
 
@@ -645,16 +592,6 @@ class OppoMediaControlPlayback:
             return None
 
         return retry_menu
-
-    def _take_prepared_track_menu(
-        self,
-        menu_name: str,
-        requested_index: int,
-    ) -> OppoCommandResponse | DeviceCommandResult | None:
-        prepared = self._prepared_track_menus.pop(menu_name, None)
-        if prepared is None or prepared[0] != requested_index:
-            return None
-        return prepared[1]
 
     def _track_menu_ready_timeout_seconds(self) -> float:
         return float(
