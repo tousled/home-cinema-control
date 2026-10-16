@@ -172,14 +172,6 @@ class PlaybackStartupCompletionService:
         request: PlayMediaItemRequest,
         start_position_seconds: int,
     ) -> DeviceCommandResult:
-        if start_position_seconds == 0:
-            logger.info(
-                "Skipping resume seek because requested position is zero."
-            )
-            return DeviceCommandResult.skipped(
-                "Playback starts at beginning; no seek required."
-            )
-
         return self._player.seek_to_seconds(start_position_seconds)
 
     def _resolve_audio_track(

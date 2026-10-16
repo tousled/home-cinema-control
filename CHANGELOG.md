@@ -45,6 +45,9 @@ HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing o
 
 ### Fixed
 
+* **OPPO playback now honors “start from beginning”.** A zero start position sends an explicit seek to
+  `0` after the player becomes active, preventing the OPPO from reusing its previous playback position.
+
 * **Safer media-server playback admission and diagnostics.** Emby and Jellyfin paths now respect complete directory
   names, nested mappings use the most specific route, and HCC explains why playback was stopped when a library or
   route is not ready. Session monitoring now shows the configured device and received candidates when no device
