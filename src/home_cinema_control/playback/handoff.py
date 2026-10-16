@@ -112,7 +112,12 @@ class PlaybackHandoffService:
         handoff_id = new_playback_handoff_id()
         playback_session_id = new_playback_session_id()
         movie = ""
-        lifecycle = {"orchestration_started": False}
+        lifecycle = {
+            "orchestration_started": False,
+            "source_client_stopped": False,
+            "playback_started": False,
+            "resume_position_restorer": None,
+        }
         result = None
 
         self._state.start_loading(intent)
@@ -147,7 +152,7 @@ class PlaybackHandoffService:
                 origin=origin,
                 movie=movie,
                 result=result,
-                orchestration_started=lifecycle["orchestration_started"],
+                lifecycle=lifecycle,
             )
 
     def observe_playback_state(self, state: PlaybackObservedState) -> None:
@@ -222,6 +227,7 @@ class PlaybackHandoffService:
                     playback_session.stop_session_playback,
                     session_id,
                 )
+            lifecycle["source_client_stopped"] = True
             logger.debug("stop source client response: %s", response_data)
 
         playback_wiring = create_playback_orchestrator_wiring(
@@ -237,6 +243,7 @@ class PlaybackHandoffService:
             step_timer=startup_timer,
             playback_state_observer=self.observe_playback_state,
         )
+        lifecycle["resume_position_restorer"] = playback_wiring.playback_event_publisher
 
         with startup_timer.measure_step("notify_locating"):
             messaging.locating()
@@ -281,16 +288,19 @@ class PlaybackHandoffService:
                 finish_idle_confirmation_polls=self._finish_idle_confirmation_polls,
                 on_startup_waiting=messaging.notify_waiting,
                 on_tracks_applying=messaging.tracks_applying,
-                on_startup_completed=lambda r: self._on_startup_completed(
-                    r,
-                    intent=intent,
-                    attempt_id=attempt_id,
-                    playback_session_id=playback_session_id,
-                    movie=movie,
-                    messaging=messaging,
-                    content_kind=item_info.content_kind,
-                    playback_wiring=playback_wiring,
-                    startup_timer=startup_timer,
+                on_startup_completed=lambda r: (
+                    self._on_startup_completed_with_lifecycle(
+                        r,
+                        lifecycle=lifecycle,
+                        intent=intent,
+                        attempt_id=attempt_id,
+                        playback_session_id=playback_session_id,
+                        movie=movie,
+                        messaging=messaging,
+                        content_kind=item_info.content_kind,
+                        playback_wiring=playback_wiring,
+                        startup_timer=startup_timer,
+                    )
                 ),
             )
         )
@@ -325,12 +335,19 @@ class PlaybackHandoffService:
         origin: PlaybackOrigin,
         movie: str,
         result,
-        orchestration_started: bool,
+        lifecycle: dict | None = None,
+        orchestration_started: bool | None = None,
     ) -> None:
+        lifecycle = lifecycle or {
+            "orchestration_started": bool(orchestration_started),
+            "source_client_stopped": False,
+            "playback_started": False,
+            "resume_position_restorer": None,
+        }
         playback_session_id = self._playback_state_detector.session_id
         cleanup_error = None
         try:
-            if orchestration_started:
+            if lifecycle["orchestration_started"]:
                 try:
                     self._media_player_lifecycle.finish_playback(self._playback_session.config)
                 except Exception as exc:
@@ -344,6 +361,7 @@ class PlaybackHandoffService:
                     cleanup_error = cleanup_error or exc
                     logger.exception("Playback event session cleanup failed.")
         finally:
+            self._restore_resume_position_after_failed_handoff(lifecycle)
             self._active_context.clear()
             _reset_bridge_playback_state(self._state, movie)
             self._publish_handoff_finalized(
@@ -358,6 +376,22 @@ class PlaybackHandoffService:
 
         if cleanup_error is not None:
             raise cleanup_error
+
+    def _on_startup_completed_with_lifecycle(
+        self,
+        result,
+        *,
+        lifecycle: dict,
+        **kwargs,
+    ) -> None:
+        lifecycle["playback_started"] = True
+        self._on_startup_completed(result, **kwargs)
+
+    def _restore_resume_position_after_failed_handoff(self, lifecycle: dict) -> None:
+        if lifecycle["source_client_stopped"] and not lifecycle["playback_started"]:
+            restorer = lifecycle["resume_position_restorer"]
+            if restorer is not None:
+                restorer.restore_resume_position_after_failed_handoff()
 
     def _on_startup_completed(
         self,

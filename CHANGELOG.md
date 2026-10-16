@@ -6,6 +6,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+### Fixed
+
+* **Failed playback handoffs preserve the resume position.** If HCC stops the source client and the OPPO handoff later
+  fails before playback starts, the original media-server resume position is restored.
+
 ## [1.4.1] - 2026-10-16
 
 HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing of room automation events.
