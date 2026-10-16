@@ -70,6 +70,17 @@ class OppoMediaPlayerAdapter(MediaPlayerPort):
     def select_audio_track(self, audio_index: int) -> DeviceCommandResult:
         return self._playback.select_audio_track(audio_index)
 
+    def prepare_track_menu_readiness(
+        self,
+        *,
+        audio_track_id: int | None,
+        subtitle_track_id: int | None,
+    ) -> DeviceCommandResult:
+        return self._playback.prepare_track_menu_readiness(
+            audio_index=audio_track_id,
+            subtitle_index=subtitle_track_id,
+        )
+
     def select_subtitle_track(self, subtitle_index: int) -> DeviceCommandResult:
         return self._playback.select_subtitle_track(subtitle_index)
 
