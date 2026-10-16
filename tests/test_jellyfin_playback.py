@@ -101,6 +101,22 @@ class JellyfinPlaybackEventPublisherTest(unittest.TestCase):
         self.assertEqual("source-1", payload["MediaSourceId"])
         self.assertEqual(["Video"], payload["QueueableMediaTypes"])
 
+    def test_failed_handoff_restores_resume_position(self):
+        client = RecordingJellyfinClient()
+        publisher = JellyfinPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(start_position_ticks=660_000_000),
+        )
+
+        publisher.restore_resume_position_after_failed_handoff()
+
+        self.assertEqual(["set_position"], [call[0] for call in client.calls])
+        self.assertEqual(
+            660_000_000,
+            client.calls[0][1]["payload"]["PlaybackPositionTicks"],
+        )
+
     def test_progress_uses_time_update_and_reports_every_configured_interval(self):
         client = RecordingJellyfinClient()
         publisher = JellyfinPlaybackEventPublisher(

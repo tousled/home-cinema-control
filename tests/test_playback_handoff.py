@@ -216,6 +216,46 @@ class PlaybackHandoffServiceTest(unittest.TestCase):
         self.assertIsInstance(finalized, PlaybackHandoffFinalizedEvent)
         self.assertFalse(finalized.successful)
 
+    def test_failed_handoff_restores_resume_position_after_source_stop(self):
+        restorer = Mock()
+        handoff = self._handoff()
+
+        handoff._finalize_handoff(
+            handoff_id="handoff-1",
+            intent=_intent(start_position_seconds=66),
+            origin=PlaybackOrigin.OBSERVED_TV_CLIENT,
+            movie="",
+            result=None,
+            lifecycle={
+                "orchestration_started": False,
+                "source_client_stopped": True,
+                "playback_started": False,
+                "resume_position_restorer": restorer,
+            },
+        )
+
+        restorer.restore_resume_position_after_failed_handoff.assert_called_once_with()
+
+    def test_successful_start_does_not_restore_resume_position(self):
+        restorer = Mock()
+        handoff = self._handoff()
+
+        handoff._finalize_handoff(
+            handoff_id="handoff-1",
+            intent=_intent(start_position_seconds=66),
+            origin=PlaybackOrigin.OBSERVED_TV_CLIENT,
+            movie="",
+            result=None,
+            lifecycle={
+                "orchestration_started": False,
+                "source_client_stopped": True,
+                "playback_started": True,
+                "resume_position_restorer": restorer,
+            },
+        )
+
+        restorer.restore_resume_position_after_failed_handoff.assert_not_called()
+
     def test_detected_event_is_published_for_monitored_playback(self):
         publisher = RecordingPublisher()
         handoff = self._handoff_with_publisher(publisher)
@@ -283,7 +323,7 @@ class PlaybackHandoffServiceTest(unittest.TestCase):
         )
 
 
-def _intent() -> PlaybackIntent:
+def _intent(*, start_position_seconds=0) -> PlaybackIntent:
     return PlaybackIntent(
         media_item_id="item-1",
         media_source_id="source-1",
@@ -291,7 +331,7 @@ def _intent() -> PlaybackIntent:
         source_client_session_id="client-1",
         source_device_id="device-1",
         source_device_name="Living room",
-        start_position_seconds=0,
+        start_position_seconds=start_position_seconds,
         selected_audio_track_id=1,
         selected_subtitle_track_id=-1,
     )

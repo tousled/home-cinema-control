@@ -227,6 +227,31 @@ class MediaServerPlaybackEventPublisher:
         self._stop_stale_source_client_session()
         return response
 
+    def restore_resume_position_after_failed_handoff(self):
+        position_ticks = self.context.start_position_ticks
+        if position_ticks <= 0:
+            return None
+
+        try:
+            response = self._set_resume_position(position_ticks)
+            logging.info(
+                "%s failed handoff resume position restored | "
+                "media_library_item_id=%s | position_ticks=%s",
+                self._provider_name,
+                self.context.media_library_item_id,
+                position_ticks,
+            )
+            return response
+        except Exception:
+            logging.exception(
+                "Unable to restore %s resume position after failed handoff | "
+                "media_library_item_id=%s | position_ticks=%s",
+                self._provider_name,
+                self.context.media_library_item_id,
+                position_ticks,
+            )
+            return None
+
     def _stop_stale_source_client_session(self) -> None:
         """Best-effort cleanup of the original TV/app session's player screen.
 
@@ -257,13 +282,7 @@ class MediaServerPlaybackEventPublisher:
                 self.context.media_server_user_id,
                 self.context.media_library_item_id,
             )
-            self._client.set_item_playback_position(
-                self.context.media_server_user_id,
-                self.context.media_library_item_id,
-                self._payload_mapper.restore_resume_position_payload(
-                    position_ticks=position_ticks,
-                ),
-            )
+            self._set_resume_position(position_ticks)
         except Exception:
             logging.exception(
                 "Unable to restore %s unwatched resume state | "
@@ -272,6 +291,15 @@ class MediaServerPlaybackEventPublisher:
                 self.context.media_library_item_id,
                 position_ticks,
             )
+
+    def _set_resume_position(self, position_ticks: int):
+        return self._client.set_item_playback_position(
+            self.context.media_server_user_id,
+            self.context.media_library_item_id,
+            self._payload_mapper.restore_resume_position_payload(
+                position_ticks=position_ticks,
+            ),
+        )
 
     def _should_report_progress(self, position_seconds: int) -> bool:
         if position_seconds <= 0:
