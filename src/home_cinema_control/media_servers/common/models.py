@@ -230,6 +230,7 @@ class MediaServerItemPlaybackInfo(BaseModel):
     played: bool | None = None
     play_count: int | None = None
     playback_percentage: float | None = None
+    media_source_path: str | None = None
     media_source_container: str | None = None
     media_source_video_type: str | None = None
 

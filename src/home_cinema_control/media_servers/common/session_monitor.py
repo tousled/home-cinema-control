@@ -206,7 +206,11 @@ class MediaServerSessionMonitor:
         config: dict,
     ) -> None:
         item_name = session.now_playing.name
-        item_path = session.now_playing.path
+        item_path = (
+            item_playback_info.media_source_path
+            if item_playback_info and item_playback_info.media_source_path
+            else session.now_playing.path
+        )
 
         library_name, found = self._find_matching_library(item_path, config)
 
@@ -269,6 +273,7 @@ class MediaServerSessionMonitor:
             "item_id=%s | name=%s | item_type=%s | "
             "item_container=%s | item_video_type=%s | "
             "media_source_id=%s | media_source_container=%s | "
+            "media_source_path=%s | "
             "media_source_video_type=%s | "
             "session_position_present=%s | "
             "session_position_ticks=%s | "
@@ -283,6 +288,7 @@ class MediaServerSessionMonitor:
             playback_source["item_video_type"],
             playback_source["media_source_id"],
             playback_source["media_source_container"],
+            playback_source["media_source_path"],
             playback_source["media_source_video_type"],
             playback_source["session_position_ticks_present"],
             playback_source["session_position_ticks"],
@@ -437,6 +443,7 @@ def describe_session_playback_source(
         "item_container": now_playing.container if now_playing else None,
         "item_video_type": now_playing.video_type if now_playing else None,
         "media_source_id": session.media_source_id or None,
+        "media_source_path": item_playback_info.media_source_path,
         "media_source_container": item_playback_info.media_source_container,
         "media_source_video_type": item_playback_info.media_source_video_type,
         "session_position_ticks_present": session.position_ticks is not None,

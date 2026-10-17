@@ -75,6 +75,10 @@ def media_server_item_playback_info_from_item(
         item_data.get("MediaSources") or [],
         media_source_id,
     )
+    matched_media_source = _matched_media_source(
+        item_data.get("MediaSources") or [],
+        media_source_id,
+    )
     saved_position_ticks = user_data.get("PlaybackPositionTicks")
 
     return MediaServerItemPlaybackInfo(
@@ -84,6 +88,7 @@ def media_server_item_playback_info_from_item(
         played=user_data.get("Played"),
         play_count=user_data.get("PlayCount"),
         playback_percentage=user_data.get("PlayedPercentage"),
+        media_source_path=(matched_media_source or {}).get("Path"),
         media_source_container=(media_source or {}).get("Container"),
         media_source_video_type=(media_source or {}).get("VideoType"),
     )
@@ -130,6 +135,23 @@ def _selected_media_source(
         return media_sources[0]
 
     return None
+
+
+def _matched_media_source(
+    media_sources: list[dict],
+    media_source_id: str | None,
+) -> dict | None:
+    if not media_source_id:
+        return None
+
+    return next(
+        (
+            media_source
+            for media_source in media_sources
+            if media_source.get("Id") == media_source_id
+        ),
+        None,
+    )
 
 
 def _physical_media_path(

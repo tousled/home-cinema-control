@@ -50,6 +50,33 @@ class JellyfinItemMapperTest(unittest.TestCase):
         self.assertEqual("mp4", info.media_source_container)
         self.assertEqual("VideoFile", info.media_source_video_type)
 
+    def test_maps_path_only_from_the_exactly_selected_media_source(self):
+        info = media_server_item_playback_info_from_item(
+            {
+                "Path": "/media/primary/movie.mkv",
+                "MediaSources": [
+                    {"Id": "primary", "Path": "/media/primary/movie.mkv"},
+                    {"Id": "uhd", "Path": "/media/uhd/movie.mkv"},
+                ],
+            },
+            media_source_id="uhd",
+        )
+
+        self.assertEqual("/media/uhd/movie.mkv", info.media_source_path)
+
+    def test_does_not_guess_path_when_media_source_id_is_missing(self):
+        info = media_server_item_playback_info_from_item(
+            {
+                "Path": "/media/primary/movie.mkv",
+                "MediaSources": [
+                    {"Id": "primary", "Path": "/media/primary/movie.mkv"},
+                ],
+            },
+            media_source_id=None,
+        )
+
+        self.assertIsNone(info.media_source_path)
+
     def test_maps_media_streams_to_tracks(self):
         tracks = media_tracks_from_item(
             {

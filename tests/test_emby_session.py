@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock
 
 from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.media_servers.emby.network_paths import EmbyNetworkPathResolver
@@ -122,6 +123,34 @@ class GetMediaSourceInfoTest(unittest.TestCase):
         self.assertEqual("/tv/show/episode1.mkv", media_source.path)
         self.assertEqual("Pilot", media_source.title)
         self.assertEqual(MediaContentKind.EPISODE, media_source.content_kind)
+
+
+class GetItemPlaybackInfoTest(unittest.TestCase):
+    def test_translates_selected_media_source_path_to_library_path(self):
+        session = _session_with_client(
+            FakeEmbyClient(
+                {
+                    "Path": r"\\as-1080p\Movies\Movie.mkv",
+                    "MediaSources": [
+                        {
+                            "Id": "source-uhd",
+                            "Path": r"\\as-uhd\Movies\Movie.mkv",
+                            "Container": "mkv",
+                        }
+                    ],
+                }
+            )
+        )
+        session.to_library_path = MagicMock(
+            return_value="/share/Movies/Movie.mkv"
+        )
+
+        info = session.get_item_playback_info("user-1", "item-1", "source-uhd")
+
+        self.assertEqual("/share/Movies/Movie.mkv", info.media_source_path)
+        session.to_library_path.assert_called_once_with(
+            r"\\as-uhd\Movies\Movie.mkv"
+        )
 
 
 class GetItemTracksTest(unittest.TestCase):
