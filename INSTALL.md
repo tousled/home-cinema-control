@@ -392,6 +392,11 @@ HCC comprueba las rutas por carpetas completas: `/media/Movies` coincide con `/m
 específica. Esa ruta concreta debe estar verificada; HCC no prueba otra más amplia ni envía una ruta no verificada al
 OPPO. Si la reproducción se bloquea, la pantalla de estado indica qué ruta falta o necesita probarse y guardarse.
 
+Si un elemento tiene varias versiones, HCC usa la versión que el usuario ha seleccionado en Emby o Jellyfin. El servidor
+identifica esa versión con `MediaSourceId`; HCC busca la ruta correspondiente en `MediaSources` y aplica el mapeo a esa
+ruta, en lugar de asumir siempre la ruta de la versión principal. Si el servidor no devuelve una coincidencia exacta,
+HCC conserva la ruta principal como fallback compatible.
+
 ### 7.8 Por qué es importante este paso
 
 Emby o Jellyfin y el OPPO pueden referirse al mismo contenido con rutas distintas. La ruta que conoce el servidor

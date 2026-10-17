@@ -11,6 +11,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 * **Failed playback handoffs preserve the resume position.** If HCC stops the source client and the OPPO handoff later
   fails before playback starts, the original media-server resume position is restored.
 
+* **Selected media versions now use their own server path.** When Emby or Jellyfin reports multiple versions of an item,
+  HCC matches the selected `MediaSourceId` to its exact `MediaSources[].Path` before checking libraries and path
+  mappings.
+  If that metadata is unavailable, HCC keeps the previous primary-item-path fallback. Thanks
+  to [@revin34](https://github.com/revin34)
+  for finding and proposing the fix in [#87](https://github.com/tousled/home-cinema-control/issues/87).
+
 ## [1.4.1] - 2026-10-16
 
 HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing of room automation events.

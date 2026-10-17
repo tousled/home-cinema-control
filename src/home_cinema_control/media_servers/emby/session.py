@@ -142,9 +142,16 @@ class EmbySession:
         media_source_id,
     ) -> MediaServerItemPlaybackInfo:
         item_data = self.client.get_item_info(user_id, item_id)
-        return media_server_item_playback_info_from_item(
+        playback_info = media_server_item_playback_info_from_item(
             item_data,
             media_source_id=media_source_id,
+        )
+        return playback_info.model_copy(
+            update={
+                "media_source_path": self.to_library_path(
+                    playback_info.media_source_path
+                )
+            },
         )
 
     def get_item_tracks(

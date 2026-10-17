@@ -363,6 +363,11 @@ HCC checks complete directory names: `/media/Movies` matches `/media/Movies/Alie
 specific one. That exact path must be verified; HCC does not try a broader path or send an unverified route to the OPPO.
 When playback is blocked, the Status screen explains which path is missing or needs to be tested and saved.
 
+If an item has multiple versions, HCC uses the version the user selected in Emby or Jellyfin. The server identifies that
+version with `MediaSourceId`; HCC finds the matching path in `MediaSources` and applies the mapping to that path instead
+of always assuming the primary version's path. If the server does not return an exact match, HCC keeps the primary item
+path as a compatible fallback.
+
 ### 7.8 Why This Step Matters
 
 Emby or Jellyfin and the OPPO may refer to the same content with different paths. The path known by the media server

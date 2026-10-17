@@ -59,6 +59,26 @@ class MediaServerSessionMonitorTest(unittest.TestCase):
         self.assertIsInstance(rejected, PlaybackRejectedEvent)
         self.assertEqual("PATH_MAPPING_NOT_VERIFIED", rejected.diagnostic_code)
 
+    def test_uses_selected_media_source_path_for_admission(self):
+        self.monitor._is_item_path_in_library = MagicMock(return_value=True)
+        session = self._session()
+        session.now_playing.path = "/offline-primary/movie.mkv"
+
+        self.monitor.on_monitored_session(
+            session,
+            MediaServerItemPlaybackInfo(
+                played=False,
+                play_count=0,
+                media_source_path="/movies/movie.mkv",
+            ),
+            config=self._config(),
+        )
+
+        self.monitor._is_item_path_in_library.assert_called_once_with(
+            "library-1", "/movies/movie.mkv"
+        )
+        self.dispatcher.dispatch.assert_called_once()
+
     def test_uses_the_most_specific_mapping_without_falling_back(self):
         config = self._config()
         config["media_servers"]["providers"]["emby"]["playback"]["path_mappings"] = [
