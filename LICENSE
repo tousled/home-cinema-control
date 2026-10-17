@@ -1,109 +1,261 @@
-Home Cinema Control Source Available License 1.0
+Home Cinema Control Proprietary Software License 2.0
 
-Copyright (c) 2026 Pedro / Home Cinema Control.
+Copyright (c) 2026 Llorente Software Solutions, S.L.
 All rights reserved except as expressly granted below.
 
-This license applies to the Home Cinema Control source code, documentation,
-configuration examples, images, screenshots, and other project assets included in
-this repository, unless a file or third-party notice states otherwise.
+Home Cinema Control is developed and distributed by Llorente Software Solutions, S.L.,
+operating under the Bytehund brand.
 
-1. Definitions
+IMPORTANT: This is a proprietary software license. Home Cinema Control is not
+open-source software, and this License does not grant any right to the source code
+except where mandatory applicable law provides otherwise.
 
-"HCC" means Home Cinema Control.
+1. Scope
 
-"You" means any individual or legal entity receiving or accessing the project.
+This License is granted by Llorente Software Solutions, S.L. ("Licensor").
 
-"Non-commercial use" means use that is not primarily intended for commercial
-advantage, monetary compensation, paid service delivery, resale, hosting for
-third parties, or operation as part of a paid product or paid support offering.
+This License applies to the Home Cinema Control software ("HCC" or the "Software")
+distributed with this License, including its executable code, container images,
+compiled components, web interface assets, documentation, configuration examples,
+updates, and other project assets, except for third-party components that are
+subject to their own licenses.
 
-"Commercial use" includes, without limitation, selling HCC, selling modified
-versions of HCC, offering HCC as a hosted service, bundling HCC with paid
-hardware or services, using HCC to provide paid installation or support services,
-or using HCC inside a business product or commercial service.
+This License applies only to versions or copies of HCC distributed with this
+License. Versions or copies previously distributed under a different license
+remain governed by the license that accompanied those versions or copies when
+they were distributed.
 
-2. Permissions Granted
+2. Definitions
 
-Subject to this license, you may:
+"Free Features" means functionality that the Licensor makes available without a
+paid entitlement.
 
-- view and study the source code;
-- clone or fork the repository using normal GitHub functionality;
-- run HCC for your own personal, non-commercial home-cinema use;
-- make local modifications for your own personal, non-commercial use;
-- use HCC internally for evaluation, testing, security review, or compatibility
-  assessment.
+"Premium Features" means functionality that the Licensor designates as requiring
+a paid subscription, license, entitlement, purchase, or other authorization.
 
-3. Restrictions
+"Entitlement" means a valid authorization issued or recognized by the Licensor
+that permits access to specified Premium Features.
 
-You may not, without prior written permission from the copyright holder:
+"Personal Use" means use by an individual for that individual's own
+non-commercial household or home-cinema purposes.
 
-- use HCC for commercial use;
-- sell, rent, sublicense, or otherwise monetize HCC or modified versions of HCC;
-- distribute HCC or modified versions of HCC outside normal GitHub fork
-  functionality;
-- publish container images, packages, binaries, installers, hosted deployments,
-  or other redistributed builds of HCC;
-- offer HCC as software-as-a-service, managed hosting, hosted control panel, or
-  any similar network-accessible service for third parties;
-- remove or obscure copyright notices, license notices, attribution notices, or
-  branding notices;
-- use the Home Cinema Control name, HCC name, logos, screenshots, or other brand
-  assets to imply endorsement, partnership, sponsorship, or official status.
+"Commercial Use" means use primarily intended for commercial advantage,
+monetary compensation, resale, paid installation or support, managed service
+delivery, hosting for third parties, bundling with paid products or services,
+OEM use, or use as part of a commercial product or service.
 
-4. Contributions
+3. License Grant
 
-This public repository does not grant an automatic right to have contributions
-accepted. Contributions are accepted only under the contribution terms published
-by the project or under a separate written agreement.
+Subject to compliance with this License, the Licensor grants you a limited,
+non-exclusive, non-transferable, non-sublicensable license to:
 
-Unless a separate written agreement says otherwise, by submitting a contribution
-you represent that you own or have the right to submit it, and you grant the
-project maintainer a perpetual, worldwide, irrevocable, royalty-free right to
-use, copy, modify, distribute, sublicense, and relicense that contribution as
-part of HCC.
+a. install and run the Software for Personal Use on devices under your control;
 
-5. Third-Party Components
+b. use the Free Features made available in the Software;
 
-Third-party dependencies remain governed by their own licenses. This license
-does not change the terms of Python packages, JavaScript packages, fonts, tools,
-or other third-party components used by HCC.
+c. use Premium Features only while you hold a valid Entitlement for those
+   features and comply with any applicable purchase, subscription, or service
+   terms; and
 
-References to Emby, OPPO, Chinoppo, LG, Denon, Marantz, Yamaha, NAD, Onkyo, or
-other third-party products are descriptive only. This license does not grant any
-rights in third-party names, trademarks, firmware, APIs, or services.
+d. make backup copies where reasonably necessary for lawful use of the Software.
 
-6. No Warranty
+No rights are granted except those expressly stated in this License.
 
-HCC is provided "AS IS", without warranty of any kind, express or implied,
-including but not limited to warranties of merchantability, fitness for a
-particular purpose, title, non-infringement, availability, compatibility,
-security, or error-free operation.
+Commercial Use requires a separate written commercial license or other express
+written authorization from the Licensor.
 
-You are responsible for verifying that HCC is appropriate for your own devices,
-network, media server, NAS, player, TV, AV receiver, and local laws.
+4. Premium Features and Entitlements
 
-7. Limitation of Liability
+Availability of Premium Features may depend on a valid Entitlement.
 
-To the maximum extent permitted by law, the copyright holder and project
-maintainer will not be liable for any claim, damages, lost data, lost profits,
-service interruption, device malfunction, media library damage, network failure,
-or other liability arising from or related to HCC, whether under contract, tort,
-negligence, strict liability, or any other legal theory.
+You may not:
 
-8. Commercial Licensing
+a. bypass, disable, tamper with, emulate, forge, or circumvent licensing,
+   entitlement, subscription, feature-access, activation, or technical
+   protection mechanisms;
 
-Commercial use, redistribution, managed hosting, paid support bundles, OEM use,
-or other uses outside this license require prior written permission from the
-copyright holder.
+b. share, sell, transfer, publish, or make available license credentials,
+   entitlement tokens, activation data, or other access credentials except as
+   expressly permitted by the Licensor; or
 
-9. No Open Source Representation
+c. access Premium Features without the Entitlement required for those features.
 
-This license is source-available, not an open-source license approved by the Open
-Source Initiative. Do not describe HCC as open source unless the project later
-adopts a separate open-source license.
+The designation of a feature as Free or Premium may be stated in the Software,
+official documentation, website, purchase terms, or other official materials
+published by the Licensor.
 
-10. Termination
+Changes to the designation of Free or Premium Features apply prospectively and
+remain subject to any mandatory rights and any separate purchase, subscription,
+or service terms already agreed with the user.
 
-Any rights granted under this license terminate automatically if you violate its
-terms. Upon termination, you must stop using HCC and delete any copies obtained
-under this license, except where retention is required by law.
+5. Restrictions
+
+Except where expressly permitted by this License or required by applicable law,
+you may not:
+
+a. copy, reproduce, publish, distribute, redistribute, sell, rent, lease,
+   sublicense, lend, or otherwise make the Software or copies of it available
+   to third parties;
+
+b. publish or distribute container images, packages, binaries, installers,
+   modified builds, mirrors, or other redistributed copies of HCC;
+
+c. modify, adapt, translate, patch, alter, or create derivative works based on
+   the Software;
+
+d. reverse engineer, decompile, disassemble, decode, reconstruct, or otherwise
+   attempt to derive source code, internal implementation, non-public
+   interfaces, or protected components from the Software;
+
+e. use unauthorized copies of HCC source code, non-public implementation
+   details, or protected components to create or distribute a derivative or
+   competing implementation in a manner that infringes the Licensor's or other
+   applicable rightsholders' rights;
+
+f. remove, obscure, alter, or falsify copyright notices, license notices,
+   attribution notices, trademarks, branding, or proprietary notices;
+
+g. use the Home Cinema Control, HCC, or Bytehund names, logos, screenshots, or
+   other brand assets to imply endorsement, partnership, sponsorship, or
+   official status without written permission from the Licensor; or
+
+h. use the Software for Commercial Use without a separate written commercial
+   license or other express written authorization from the Licensor.
+
+Nothing in this section limits rights that applicable law expressly provides
+and does not permit to be waived or restricted by contract, including any
+mandatory rights relating to necessary backup copies, observation or study of
+lawfully used software, or interoperability.
+
+6. No Source-Code License
+
+Possession of, access to, or discovery of any HCC source code does not grant a
+license to copy, modify, distribute, publish, sublicense, or create derivative
+works from that source code unless a separate written agreement expressly grants
+those rights.
+
+No right to receive, access, inspect, or obtain source code is granted by this
+License.
+
+Source code made available under an earlier HCC license remains governed by the
+license that applied to that copy when it was distributed.
+
+7. Ownership
+
+HCC is licensed, not sold.
+
+All title, copyright, intellectual-property rights, and other proprietary rights
+in HCC and its original components remain with Llorente Software Solutions,
+S.L. and any other applicable rightsholders.
+
+This License grants only a limited right to use the Software. It does not
+transfer ownership of HCC or any intellectual-property rights.
+
+8. Third-Party Components
+
+Third-party libraries, packages, fonts, tools, codecs, APIs, and other
+third-party components remain governed by their respective licenses and terms.
+
+Where a third-party license grants rights that differ from this License, that
+third-party license controls only for the relevant third-party component.
+
+References to Emby, Jellyfin, OPPO, Chinoppo, Kodi, CoreELEC, LG, Home
+Assistant, Denon, Marantz, Yamaha, NAD, Onkyo, Zidoo, Dune, or other third-party
+products and services are descriptive only. This License grants no rights in
+third-party trademarks, firmware, APIs, services, or products.
+
+9. Updates, Compatibility, and Services
+
+The Licensor may release updates, fixes, new versions, or changes to the
+Software from time to time.
+
+No particular feature, integration, device, third-party service, Free Feature,
+or Premium Feature is guaranteed to remain available indefinitely unless a
+separate written agreement expressly states otherwise.
+
+Use of third-party services remains subject to the availability, compatibility,
+and terms of those third parties.
+
+10. Privacy and Network Features
+
+Some optional HCC functionality may communicate with services operated by the
+Licensor or by third parties.
+
+Any collection or processing of personal data is governed by the applicable
+privacy notice or privacy policy, not by this License.
+
+11. Termination
+
+Your rights under this License terminate automatically if you materially breach
+its terms.
+
+Upon termination, you must stop using the affected Software and delete copies
+that you are no longer legally entitled to retain, except where retention is
+required or permitted by applicable law.
+
+Termination does not affect rights or obligations that by their nature should
+survive termination, including ownership, restrictions on unauthorized
+distribution, disclaimers, and limitations of liability.
+
+12. Disclaimer of Warranty
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, HCC IS PROVIDED "AS IS" AND
+"AS AVAILABLE", WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR
+STATUTORY, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, TITLE, NON-INFRINGEMENT, AVAILABILITY, COMPATIBILITY, SECURITY, OR
+ERROR-FREE OPERATION.
+
+You are responsible for verifying that HCC is appropriate for your devices,
+network, media server, NAS, player, television, AV receiver, automation system,
+and intended use.
+
+Nothing in this section excludes or limits rights that cannot lawfully be
+excluded or limited, including mandatory consumer rights where applicable.
+
+13. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSOR, MAINTAINER,
+AND CONTRIBUTORS WILL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL,
+CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR LOSS OF DATA, LOSS OF
+PROFITS, LOSS OF USE, SERVICE INTERRUPTION, DEVICE MALFUNCTION, MEDIA LIBRARY
+DAMAGE, NETWORK FAILURE, OR SIMILAR LOSS ARISING FROM OR RELATED TO HCC.
+
+Nothing in this section excludes or limits liability that cannot lawfully be
+excluded or limited.
+
+14. Governing Law and Mandatory Rights
+
+This License is governed by the laws of Spain, without prejudice to mandatory
+consumer-protection rules, conflict-of-law rules, or other mandatory rights that
+apply to you under applicable law.
+
+Any contractual restriction in this License applies only to the extent permitted
+by applicable law.
+
+15. Separate Terms
+
+Purchases, subscriptions, Premium Features, commercial licenses, support plans,
+or services may be subject to additional terms presented at the time of
+purchase, subscription, activation, or contracting.
+
+If separate written terms expressly conflict with this License, those separate
+terms control only for the subject matter they specifically address.
+
+16. Severability
+
+If any provision of this License is held invalid or unenforceable, that
+provision will be enforced to the maximum extent permitted by law and the
+remaining provisions will continue in effect.
+
+17. No Waiver
+
+Failure to enforce any provision of this License does not waive the right to
+enforce that provision or any other provision later.
+
+18. Entire License
+
+This License, together with any applicable purchase, subscription, commercial,
+support, or service terms, constitutes the agreement governing the licensed use
+of the Software distributed with it.
+
+Home Cinema Control Proprietary Software License 2.0
