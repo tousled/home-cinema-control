@@ -102,6 +102,78 @@ def list_smb_share_folders(config):
 
 
 def _parse_oppo_folder_entries(response_content: bytes) -> list[dict]:
+    folder_names = _parse_oppo_listing_records(response_content)
+    if folder_names is not None:
+        files = [{"Id": 0, "Foldername": ".."}]
+        files.extend(
+            {"Id": index, "Foldername": folder_name}
+            for index, folder_name in enumerate(folder_names, start=1)
+        )
+        return files
+
+    return _parse_oppo_folder_entries_by_markers(response_content)
+
+
+_OPPO_LISTING_HEADER = b"FLAG"
+_OPPO_ENTRY_FOLDER = 1
+_OPPO_ENTRY_FILE = 2
+_OPPO_MAX_NAME_LENGTH = 4096
+_OPPO_NAME_LENGTH_FIELD_BYTES = 4
+_OPPO_ENTRY_TYPE_FIELD_BYTES = 4
+_OPPO_ENTRY_EXTRA_FIELD_BYTES = 4
+_OPPO_LISTING_RECORD_FIXED_BYTES = (
+    _OPPO_NAME_LENGTH_FIELD_BYTES
+    + _OPPO_ENTRY_TYPE_FIELD_BYTES
+    + _OPPO_ENTRY_EXTRA_FIELD_BYTES
+)
+_OPPO_LISTING_TRAILER_MAX_BYTES = 8
+
+
+def _parse_oppo_listing_records(response_content: bytes) -> list[str] | None:
+    """Parse [length][name][type][extra] records and an optional counter trailer."""
+    data = response_content
+    offset = len(_OPPO_LISTING_HEADER) if data.startswith(_OPPO_LISTING_HEADER) else 0
+    folder_names: list[str] = []
+    record_count = 0
+
+    while len(data) - offset > _OPPO_LISTING_TRAILER_MAX_BYTES:
+        remaining = len(data) - offset
+        if remaining < _OPPO_LISTING_RECORD_FIXED_BYTES:
+            return None
+
+        name_length_end = offset + _OPPO_NAME_LENGTH_FIELD_BYTES
+        name_length = int.from_bytes(data[offset:name_length_end], "little")
+        if not 0 < name_length <= _OPPO_MAX_NAME_LENGTH:
+            return None
+
+        name_start = name_length_end
+        name_end = name_start + name_length
+        entry_type_end = name_end + _OPPO_ENTRY_TYPE_FIELD_BYTES
+        record_end = entry_type_end + _OPPO_ENTRY_EXTRA_FIELD_BYTES
+        if record_end > len(data):
+            return None
+
+        entry_type = int.from_bytes(data[name_end:entry_type_end], "little")
+        if entry_type not in (_OPPO_ENTRY_FOLDER, _OPPO_ENTRY_FILE):
+            return None
+
+        try:
+            folder_name = data[name_start:name_end].decode("utf-8")
+        except UnicodeDecodeError:
+            return None
+
+        if entry_type == _OPPO_ENTRY_FOLDER:
+            folder_names.append(folder_name)
+        record_count += 1
+        offset = record_end
+
+    if record_count == 0:
+        return None
+
+    return folder_names
+
+
+def _parse_oppo_folder_entries_by_markers(response_content: bytes) -> list[dict]:
     files = [{"Id": 0, "Foldername": ".."}]
 
     for chunk in response_content.rsplit(b"\x01"):

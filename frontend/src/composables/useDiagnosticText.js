@@ -18,6 +18,12 @@ export function useDiagnosticText() {
         if ('detail' in details) params.detail = detailParam(diag)
         if ('result' in details) params.result = details.result
         if ('error' in details) params.error = details.error
+        if ('source_path' in details) params.source_path = details.source_path
+        if ('item_path' in details) params.item_path = details.item_path
+        if ('configured_device_id' in details) {
+            params.configured_device_id = details.configured_device_id
+        }
+        if ('candidate_summary' in details) params.candidates = details.candidate_summary
         return params
     }
 

@@ -4,6 +4,7 @@ from home_cinema_control.devices.tv.models import TvInputTarget
 from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     PlaybackOutputSwitchRequest,
+    PlaybackOutputRoute,
 )
 from home_cinema_control.playback.startup.orchestrator import (
     PlaybackStartupOrchestrator,
@@ -11,6 +12,28 @@ from home_cinema_control.playback.startup.orchestrator import (
 
 
 class PlaybackStartupOrchestratorTest(unittest.TestCase):
+    def test_tv_app_route_launches_player_app_without_switching_av(self):
+        television = RecordingTelevisionOutput(current_app_id="com.emby.app")
+        av_receiver = RecordingAvReceiverOutput()
+        orchestrator = PlaybackStartupOrchestrator(
+            television=television,
+            av_receiver=av_receiver,
+            media_player=UnusedOppoPlayback(),
+        )
+
+        result = orchestrator.switch_playback_output(
+            PlaybackOutputSwitchRequest(
+                tv_input=TvInputTarget(input_id="HDMI_3"),
+                av_input_id="SIMPLAY",
+                route=PlaybackOutputRoute.TV_APP,
+                player_app_id="org.kodi.webos",
+            )
+        )
+
+        self.assertTrue(result.successful)
+        self.assertEqual(["org.kodi.webos"], television.app_launches)
+        self.assertEqual([], television.input_switches)
+
     def test_output_switch_uses_the_shared_startup_timer(self):
         step_timer = RecordingStepTimer()
         orchestrator = PlaybackStartupOrchestrator(
@@ -30,9 +53,9 @@ class PlaybackStartupOrchestratorTest(unittest.TestCase):
         self.assertEqual(
             [
                 "read_current_tv_app",
-                "switch_tv_to_oppo_input",
+                "switch_tv_to_player_input",
                 "power_on_av_receiver",
-                "switch_av_receiver_to_oppo_input",
+                "switch_av_receiver_to_player_input",
             ],
             step_timer.measured_steps,
         )
@@ -142,6 +165,7 @@ class RecordingTelevisionOutput:
         self._current_app_id = current_app_id
         self.current_app_reads = 0
         self.input_switches = []
+        self.app_launches = []
         self.media_server_app_id_calls = []
 
     def get_current_app_id(self):
@@ -160,6 +184,7 @@ class RecordingTelevisionOutput:
         }.get(provider_type)
 
     def launch_app(self, app_id=None):
+        self.app_launches.append(app_id)
         return DeviceCommandResult.success()
 
 

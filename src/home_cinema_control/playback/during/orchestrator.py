@@ -111,7 +111,7 @@ class DuringPlaybackOrchestrator:
                     return result
 
                 logger.warning(
-                    "OPPO SVM3 observation watchdog expired; continuing with "
+                    "Media-player event observation watchdog expired; continuing with "
                     "bounded polling before retry | position=%s | duration=%s | "
                     "retry_delay=%s",
                     result.position_seconds,
@@ -134,7 +134,7 @@ class DuringPlaybackOrchestrator:
                 return polling_result
 
             logger.info(
-                "OPPO polling observation window expired; retrying SVM3 "
+                "Media-player polling observation window expired; retrying event "
                 "observation | position=%s | duration=%s | retry_delay=%s",
                 polling_result.position_seconds,
                 polling_result.duration_seconds,
@@ -152,7 +152,7 @@ class DuringPlaybackOrchestrator:
         start_result = self._svm3_runtime.start()
         if not start_result.successful:
             logger.warning(
-                "OPPO SVM3 observation unavailable; using bounded polling | "
+                "Player event observation unavailable; using bounded polling | "
                 "detail=%s",
                 start_result.detail,
             )
@@ -166,7 +166,7 @@ class DuringPlaybackOrchestrator:
             )
         except Exception:
             logger.exception(
-                "OPPO SVM3 observation failed; using bounded polling before retry."
+                "Player event observation failed; using bounded polling before retry."
             )
             return None
         finally:
@@ -180,7 +180,7 @@ class DuringPlaybackOrchestrator:
         try:
             self._restore_svm0()
         except Exception:
-            logger.exception("Failed to restore OPPO SVM 0 after SVM3 observation.")
+            logger.exception("Failed to restore player observation mode after event observation.")
 
 
 def _create_svm3_runtime(config: dict) -> OppoSVM3PlaybackRuntime:

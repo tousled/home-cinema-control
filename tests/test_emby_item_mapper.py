@@ -9,6 +9,43 @@ from home_cinema_control.media_servers.emby.item_mapper import (
 
 
 class EmbyItemMapperTest(unittest.TestCase):
+    def test_maps_tracks_from_selected_nested_media_source(self):
+        tracks = media_tracks_from_item(
+            {
+                "MediaStreams": [{"Type": "Audio", "Index": 99}],
+                "MediaSources": [
+                    {
+                        "Id": "source-1",
+                        "MediaStreams": [{"Type": "Audio", "Index": 1}],
+                    },
+                    {
+                        "Id": "source-2",
+                        "MediaStreams": [
+                            {"Type": "Audio", "Index": 4},
+                            {"Type": "Subtitle", "Index": 7},
+                        ],
+                    },
+                ],
+            },
+            media_source_id="source-2",
+        )
+
+        self.assertEqual(
+            [(MediaTrackKind.AUDIO, 4), (MediaTrackKind.SUBTITLE, 7)],
+            [(track.kind, track.source_index) for track in tracks],
+        )
+
+    def test_falls_back_to_top_level_tracks_when_source_has_no_streams(self):
+        tracks = media_tracks_from_item(
+            {
+                "MediaStreams": [{"Type": "Audio", "Index": 3}],
+                "MediaSources": [{"Id": "source-1", "MediaStreams": []}],
+            },
+            media_source_id="source-1",
+        )
+
+        self.assertEqual([3], [track.source_index for track in tracks])
+
     def test_maps_normal_playback_source_without_overriding_filename(self):
         source = media_server_playback_source_from_item(
             {
@@ -155,7 +192,12 @@ class EmbyItemMapperTest(unittest.TestCase):
                     "PlayedPercentage": 50.5,
                 },
                 "MediaSources": [
-                    {"Id": "source-1", "Container": "mkv", "VideoType": "VideoFile"},
+                    {
+                        "Id": "source-1",
+                        "Path": "/media/primary/movie.mkv",
+                        "Container": "mkv",
+                        "VideoType": "VideoFile",
+                    },
                 ],
             },
             media_source_id="source-1",
@@ -165,8 +207,22 @@ class EmbyItemMapperTest(unittest.TestCase):
         self.assertFalse(info.played)
         self.assertEqual(2, info.play_count)
         self.assertEqual(50.5, info.playback_percentage)
+        self.assertEqual("/media/primary/movie.mkv", info.media_source_path)
         self.assertEqual("mkv", info.media_source_container)
         self.assertEqual("VideoFile", info.media_source_video_type)
+
+    def test_does_not_guess_media_source_path_when_id_is_unmatched(self):
+        info = media_server_item_playback_info_from_item(
+            {
+                "Path": "/media/primary/movie.mkv",
+                "MediaSources": [
+                    {"Id": "other-source", "Path": "/media/other/movie.mkv"}
+                ],
+            },
+            media_source_id="missing-source",
+        )
+
+        self.assertIsNone(info.media_source_path)
 
     def test_item_playback_info_falls_back_to_first_media_source_when_id_unmatched(self):
         info = media_server_item_playback_info_from_item(

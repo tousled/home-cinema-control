@@ -156,7 +156,8 @@ These items are roadmap direction, not current compatibility claims.
 
 ## Home Assistant
 
-HCC can tell Home Assistant when playback starts, pauses, resumes, or stops. Home Assistant decides what to do with each
+HCC can tell Home Assistant when it detects playback, starts it, pauses, resumes, or stops. Home Assistant decides what
+to do with each
 event: activate a scene, control lights, send an alert, or record it in the logbook.
 
 To set it up, create an automation with a webhook, copy its **Webhook ID** into HCC's **Home Assistant** screen, enable

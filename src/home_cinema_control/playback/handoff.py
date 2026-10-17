@@ -13,7 +13,10 @@ from home_cinema_control.playback.diagnostics import (
     diagnose_path_error,
 )
 from home_cinema_control.playback.events import (
+    PlaybackEvent,
     PlaybackEventContext,
+    PlaybackEventType,
+    PlaybackHandoffAttemptedEvent,
     PlaybackHandoffFinalizedEvent,
     PlaybackObservation,
     PlaybackObservedState,
@@ -28,7 +31,11 @@ from home_cinema_control.playback.notification_sender import (
     send_playback_message,
     send_stop_with_delivery_reliability,
 )
-from home_cinema_control.playback.oppo_lifecycle import OppoPlaybackLifecycleService
+from home_cinema_control.playback.oppo_lifecycle import (
+    MediaPlayerLifecycleService,
+    OppoPlaybackLifecycleService,
+)
+from home_cinema_control.playback.media_player_factory import configured_media_player_type
 from home_cinema_control.playback.orchestrator import PlaybackOrchestrationRequest
 from home_cinema_control.playback.request_preparation import prepare_playback_requests
 from home_cinema_control.playback.result_reporting import report_orchestration_result
@@ -61,7 +68,8 @@ class PlaybackHandoffService:
         playback_session,
         playback_state: BridgePlaybackState,
         media_server_playback_services: MediaServerPlaybackServices | None,
-        oppo_lifecycle: OppoPlaybackLifecycleService,
+        media_player_lifecycle: MediaPlayerLifecycleService | None = None,
+        oppo_lifecycle: OppoPlaybackLifecycleService | None = None,
         playback_event_publisher=None,
         playback_state_detector: PlaybackStateDetector | None = None,
         active_context: ActivePlaybackRuntimeContext | None = None,
@@ -70,7 +78,11 @@ class PlaybackHandoffService:
         self._playback_session = playback_session
         self._state = playback_state
         self._media_server_playback_services = media_server_playback_services
-        self._oppo_lifecycle = oppo_lifecycle
+        self._media_player_lifecycle = (
+            media_player_lifecycle
+            or oppo_lifecycle
+            or MediaPlayerLifecycleService()
+        )
         self._playback_event_publisher = playback_event_publisher
         self._playback_state_detector = playback_state_detector or PlaybackStateDetector()
         self._active_context = active_context or ActivePlaybackRuntimeContext()
@@ -86,7 +98,7 @@ class PlaybackHandoffService:
         return self._active_context.media_player
 
     def stop_active_playback_before_replacement(self) -> None:
-        self._oppo_lifecycle.stop_active_playback_before_replacement(
+        self._media_player_lifecycle.stop_active_playback_before_replacement(
             self._state,
             self._playback_session.config,
         )
@@ -98,14 +110,36 @@ class PlaybackHandoffService:
         origin: PlaybackOrigin,
     ):
         handoff_id = new_playback_handoff_id()
+        playback_session_id = new_playback_session_id()
         movie = ""
-        lifecycle = {"orchestration_started": False}
+        lifecycle = {
+            "orchestration_started": False,
+            "source_client_stopped": False,
+            "playback_started": False,
+            "resume_position_restorer": None,
+        }
         result = None
 
         self._state.start_loading(intent)
+        self._publish_handoff_attempted(attempt_id=handoff_id, origin=origin)
+        if origin == PlaybackOrigin.OBSERVED_TV_CLIENT:
+            self._publish_playback_event(
+                PlaybackEvent(
+                    event_id=new_playback_event_id(),
+                    session_id=playback_session_id,
+                    attempt_id=handoff_id,
+                    event_type=PlaybackEventType.DETECTED,
+                    source=_media_server_source_name(self._playback_session),
+                player=configured_media_player_type(
+                    self._playback_session.config
+                ).value,
+                )
+            )
         try:
             result, movie = self._run_handoff(
                 intent,
+                attempt_id=handoff_id,
+                playback_session_id=playback_session_id,
                 origin=origin,
                 lifecycle=lifecycle,
             )
@@ -113,11 +147,12 @@ class PlaybackHandoffService:
         finally:
             self._finalize_handoff(
                 handoff_id=handoff_id,
+                attempt_id=handoff_id,
                 intent=intent,
                 origin=origin,
                 movie=movie,
                 result=result,
-                orchestration_started=lifecycle["orchestration_started"],
+                lifecycle=lifecycle,
             )
 
     def observe_playback_state(self, state: PlaybackObservedState) -> None:
@@ -130,6 +165,8 @@ class PlaybackHandoffService:
         self,
         intent: PlaybackIntent,
         *,
+        attempt_id: str,
+        playback_session_id: str,
         origin: PlaybackOrigin,
         lifecycle: dict[str, bool],
     ) -> tuple[object | None, str]:
@@ -146,7 +183,7 @@ class PlaybackHandoffService:
         with startup_timer.measure_step("notify_received"):
             messaging.received()
 
-        self._oppo_lifecycle.prepare_playback_start(playback_session.config)
+        self._media_player_lifecycle.prepare_playback_start(playback_session.config)
         logger.info("playback origin: %s", origin.value)
 
         media_server_services = self._media_server_services()
@@ -168,8 +205,8 @@ class PlaybackHandoffService:
                 self._record_diagnostic(diagnostic)
                 return None, movie
 
-        with startup_timer.measure_step("ensure_oppo_control_api_available"):
-            control_api_available = self._oppo_lifecycle.ensure_control_api_available(
+        with startup_timer.measure_step("ensure_media_player_available"):
+            control_api_available = self._media_player_lifecycle.ensure_control_api_available(
                 playback_session.config
             )
 
@@ -190,6 +227,7 @@ class PlaybackHandoffService:
                     playback_session.stop_session_playback,
                     session_id,
                 )
+            lifecycle["source_client_stopped"] = True
             logger.debug("stop source client response: %s", response_data)
 
         playback_wiring = create_playback_orchestrator_wiring(
@@ -205,6 +243,7 @@ class PlaybackHandoffService:
             step_timer=startup_timer,
             playback_state_observer=self.observe_playback_state,
         )
+        lifecycle["resume_position_restorer"] = playback_wiring.playback_event_publisher
 
         with startup_timer.measure_step("notify_locating"):
             messaging.locating()
@@ -249,14 +288,19 @@ class PlaybackHandoffService:
                 finish_idle_confirmation_polls=self._finish_idle_confirmation_polls,
                 on_startup_waiting=messaging.notify_waiting,
                 on_tracks_applying=messaging.tracks_applying,
-                on_startup_completed=lambda r: self._on_startup_completed(
-                    r,
-                    intent=intent,
-                    movie=movie,
-                    messaging=messaging,
-                    content_kind=item_info.content_kind,
-                    playback_wiring=playback_wiring,
-                    startup_timer=startup_timer,
+                on_startup_completed=lambda r: (
+                    self._on_startup_completed_with_lifecycle(
+                        r,
+                        lifecycle=lifecycle,
+                        intent=intent,
+                        attempt_id=attempt_id,
+                        playback_session_id=playback_session_id,
+                        movie=movie,
+                        messaging=messaging,
+                        content_kind=item_info.content_kind,
+                        playback_wiring=playback_wiring,
+                        startup_timer=startup_timer,
+                    )
                 ),
             )
         )
@@ -286,18 +330,26 @@ class PlaybackHandoffService:
         self,
         *,
         handoff_id: str,
+        attempt_id: str | None = None,
         intent: PlaybackIntent,
         origin: PlaybackOrigin,
         movie: str,
         result,
-        orchestration_started: bool,
+        lifecycle: dict | None = None,
+        orchestration_started: bool | None = None,
     ) -> None:
+        lifecycle = lifecycle or {
+            "orchestration_started": bool(orchestration_started),
+            "source_client_stopped": False,
+            "playback_started": False,
+            "resume_position_restorer": None,
+        }
         playback_session_id = self._playback_state_detector.session_id
         cleanup_error = None
         try:
-            if orchestration_started:
+            if lifecycle["orchestration_started"]:
                 try:
-                    self._oppo_lifecycle.finish_playback(self._playback_session.config)
+                    self._media_player_lifecycle.finish_playback(self._playback_session.config)
                 except Exception as exc:
                     cleanup_error = exc
                     logger.exception("Playback OPPO cleanup failed.")
@@ -309,10 +361,12 @@ class PlaybackHandoffService:
                     cleanup_error = cleanup_error or exc
                     logger.exception("Playback event session cleanup failed.")
         finally:
+            self._restore_resume_position_after_failed_handoff(lifecycle)
             self._active_context.clear()
             _reset_bridge_playback_state(self._state, movie)
             self._publish_handoff_finalized(
                 handoff_id=handoff_id,
+                attempt_id=attempt_id or handoff_id,
                 intent=intent,
                 origin=origin,
                 result=result,
@@ -323,11 +377,29 @@ class PlaybackHandoffService:
         if cleanup_error is not None:
             raise cleanup_error
 
+    def _on_startup_completed_with_lifecycle(
+        self,
+        result,
+        *,
+        lifecycle: dict,
+        **kwargs,
+    ) -> None:
+        lifecycle["playback_started"] = True
+        self._on_startup_completed(result, **kwargs)
+
+    def _restore_resume_position_after_failed_handoff(self, lifecycle: dict) -> None:
+        if lifecycle["source_client_stopped"] and not lifecycle["playback_started"]:
+            restorer = lifecycle["resume_position_restorer"]
+            if restorer is not None:
+                restorer.restore_resume_position_after_failed_handoff()
+
     def _on_startup_completed(
         self,
         _result,
         *,
         intent: PlaybackIntent,
+        playback_session_id: str | None = None,
+        attempt_id: str | None = None,
         movie: str,
         messaging: PlaybackStartupMessagingService,
         content_kind: MediaContentKind,
@@ -350,11 +422,12 @@ class PlaybackHandoffService:
 
         active_session = self._state.active_session
         context = PlaybackEventContext(
-            session_id=new_playback_session_id(),
+            session_id=playback_session_id or new_playback_session_id(),
+            attempt_id=attempt_id,
             media_type=content_kind.value,
             title=active_session.title if active_session is not None else movie,
             source=_media_server_source_name(self._playback_session),
-            player="oppo",
+            player=configured_media_player_type(self._playback_session.config).value,
             startup_metrics=startup_metrics,
         )
         self._playback_state_detector.start_session(
@@ -363,9 +436,9 @@ class PlaybackHandoffService:
         )
         logger.info("Reprodución iniciada: %s", movie)
 
-        self._oppo_lifecycle.record_playback_started(self._playback_session.config)
+        self._media_player_lifecycle.record_playback_started(self._playback_session.config)
         startup_timer.log_summary()
-        self._oppo_lifecycle.configure_observed_event_reporting(
+        self._media_player_lifecycle.configure_observed_event_reporting(
             playback_wiring=playback_wiring,
             media_server_services=self._media_server_services(),
             playback_session=self._playback_session,
@@ -399,6 +472,7 @@ class PlaybackHandoffService:
         self,
         *,
         handoff_id: str,
+        attempt_id: str,
         intent: PlaybackIntent,
         origin: PlaybackOrigin,
         result,
@@ -416,6 +490,7 @@ class PlaybackHandoffService:
             media_item_id=intent.media_item_id,
             media_source_id=intent.media_source_id,
             playback_session_id=playback_session_id,
+            attempt_id=attempt_id,
             diagnostic_component=_telemetry_component(
                 getattr(diagnostic, "component", "")
             ),
@@ -425,6 +500,24 @@ class PlaybackHandoffService:
             self._playback_event_publisher.publish(event)
         except Exception:
             logger.exception("Playback handoff finalized event dispatch failed.")
+
+    def _publish_handoff_attempted(
+        self,
+        *,
+        attempt_id: str,
+        origin: PlaybackOrigin,
+    ) -> None:
+        if self._playback_event_publisher is None:
+            return
+        event = PlaybackHandoffAttemptedEvent(
+            event_id=new_playback_event_id(),
+            attempt_id=attempt_id,
+            origin=origin.value,
+        )
+        try:
+            self._playback_event_publisher.publish(event)
+        except Exception:
+            logger.exception("Playback handoff attempted event dispatch failed.")
 
     def _record_diagnostic(self, diagnostic) -> None:
         record = getattr(self._state, "record_diagnostic", None)

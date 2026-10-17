@@ -212,19 +212,41 @@ class OppoMediaControlPlayback:
                 before_menu.payload.get("audio_list", [])
             )
             if current_audio_index == audio_index:
-                return DeviceCommandResult.success(
-                    f"OPPO audio track already selected: {audio_index}"
+                return self._measure(
+                    "audio_already_selected",
+                    lambda: DeviceCommandResult.success(
+                        f"OPPO audio track already selected: {audio_index}"
+                    ),
                 )
-            response = self._client.select_audio_track(audio_index)
+            selection_started_at = self._now()
+            logger.info(
+                "OPPO audio track SET sent | phase=first | requested_index=%s | elapsed=%.3fs",
+                audio_index,
+                0.0,
+            )
+            response = self._measure(
+                "audio_set_command",
+                lambda: self._client.select_audio_track(audio_index),
+            )
+            logger.info(
+                "OPPO audio track SET completed | phase=first | requested_index=%s | elapsed=%.3fs | response=%s",
+                audio_index,
+                self._now() - selection_started_at,
+                response.raw_text,
+            )
             result = _command_sent_result("select OPPO audio track", response)
             if not result.successful:
                 return result
 
-            after_menu = self._wait_for_menu_selection(
-                menu_name="audio",
-                payload_key="audio_list",
-                requested_index=audio_index,
-                get_menu=self._client.get_audio_menu,
+            after_menu = self._measure(
+                "audio_wait_selection_after_set",
+                lambda: self._wait_for_menu_selection(
+                    menu_name="audio",
+                    payload_key="audio_list",
+                    requested_index=audio_index,
+                    get_menu=self._client.get_audio_menu,
+                    phase="after_first_set",
+                ),
             )
             if isinstance(after_menu, DeviceCommandResult):
                 return after_menu
@@ -272,19 +294,43 @@ class OppoMediaControlPlayback:
             )
 
             if current_subtitle_index == subtitle_index:
-                return DeviceCommandResult.success(
-                    f"OPPO subtitle track already selected: {subtitle_index}"
+                return self._measure(
+                    "subtitle_already_selected",
+                    lambda: DeviceCommandResult.success(
+                        f"OPPO subtitle track already selected: {subtitle_index}"
+                    ),
                 )
-            response = self._client.select_subtitle_track(subtitle_index)
+            selection_started_at = self._now()
+            logger.info(
+                "OPPO subtitle track SET sent | phase=first | current_index=%s | requested_index=%s | elapsed=%.3fs",
+                current_subtitle_index,
+                subtitle_index,
+                0.0,
+            )
+            response = self._measure(
+                "subtitle_set_command",
+                lambda: self._client.select_subtitle_track(subtitle_index),
+            )
+            logger.info(
+                "OPPO subtitle track SET completed | phase=first | current_index=%s | requested_index=%s | elapsed=%.3fs | response=%s",
+                current_subtitle_index,
+                subtitle_index,
+                self._now() - selection_started_at,
+                response.raw_text,
+            )
             result = _command_sent_result("select OPPO subtitle track", response)
             if not result.successful:
                 return result
 
-            after_menu = self._wait_for_menu_selection(
-                menu_name="subtitle",
-                payload_key="subtitle_list",
-                requested_index=subtitle_index,
-                get_menu=self._client.get_subtitle_menu,
+            after_menu = self._measure(
+                "subtitle_wait_selection_after_first_set",
+                lambda: self._wait_for_menu_selection(
+                    menu_name="subtitle",
+                    payload_key="subtitle_list",
+                    requested_index=subtitle_index,
+                    get_menu=self._client.get_subtitle_menu,
+                    phase="after_first_set",
+                ),
             )
             if (
                 isinstance(after_menu, DeviceCommandResult)
@@ -410,6 +456,7 @@ class OppoMediaControlPlayback:
         payload_key: str,
         requested_index: int,
         get_menu: Callable[..., OppoCommandResponse],
+        phase: str = "selection",
     ) -> OppoCommandResponse | DeviceCommandResult:
         timeout = self._track_selection_applied_timeout_seconds()
         poll_interval = self._track_selection_applied_poll_interval_seconds()
@@ -419,6 +466,7 @@ class OppoMediaControlPlayback:
         last_response: OppoCommandResponse | None = None
         last_error = ""
         selected_index = None
+        started_at = self._now()
 
         while True:
             if attempts > 0 and self._now() >= deadline:
@@ -433,6 +481,16 @@ class OppoMediaControlPlayback:
                 last_response = response
                 selected_index = _selected_menu_index(
                     response.payload.get(payload_key, [])
+                )
+                logger.info(
+                    "OPPO %s track selection query | phase=%s | requested_index=%s | attempt=%s | elapsed=%.3fs | selected_index=%s | response=%s",
+                    menu_name,
+                    phase,
+                    requested_index,
+                    attempts,
+                    self._now() - started_at,
+                    selected_index,
+                    response.raw_text,
                 )
 
                 if selected_index == requested_index:
@@ -449,10 +507,12 @@ class OppoMediaControlPlayback:
                 last_error = f"{type(exc).__name__}: {exc}"
                 logger.info(
                     "OPPO %s menu query failed while waiting for applied selection | "
-                    "requested_index=%s | attempts=%s | error=%s",
+                    "phase=%s | requested_index=%s | attempts=%s | elapsed=%.3fs | error=%s",
                     menu_name,
+                    phase,
                     requested_index,
                     attempts,
+                    self._now() - started_at,
                     last_error,
                 )
 
@@ -488,7 +548,22 @@ class OppoMediaControlPlayback:
             "Retrying OPPO subtitle selection after subtitle activation | requested_index=%s",
             subtitle_index,
         )
-        response = self._client.select_subtitle_track(subtitle_index)
+        retry_started_at = self._now()
+        logger.info(
+            "OPPO subtitle track SET sent | phase=retry_after_activation | requested_index=%s | elapsed=%.3fs",
+            subtitle_index,
+            0.0,
+        )
+        response = self._measure(
+            "subtitle_set_command_retry",
+            lambda: self._client.select_subtitle_track(subtitle_index),
+        )
+        logger.info(
+            "OPPO subtitle track SET completed | phase=retry_after_activation | requested_index=%s | elapsed=%.3fs | response=%s",
+            subtitle_index,
+            self._now() - retry_started_at,
+            response.raw_text,
+        )
         retry_result = _command_sent_result("select OPPO subtitle track retry", response)
         if not retry_result.successful:
             logger.warning(
@@ -498,11 +573,15 @@ class OppoMediaControlPlayback:
             )
             return None
 
-        retry_menu = self._wait_for_menu_selection(
-            menu_name="subtitle",
-            payload_key="subtitle_list",
-            requested_index=subtitle_index,
-            get_menu=self._client.get_subtitle_menu,
+        retry_menu = self._measure(
+            "subtitle_wait_selection_after_retry",
+            lambda: self._wait_for_menu_selection(
+                menu_name="subtitle",
+                payload_key="subtitle_list",
+                requested_index=subtitle_index,
+                get_menu=self._client.get_subtitle_menu,
+                phase="after_retry_set",
+            ),
         )
         if isinstance(retry_menu, DeviceCommandResult):
             logger.warning(

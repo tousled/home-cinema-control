@@ -57,6 +57,7 @@ class EmbySessionEventsTest(unittest.TestCase):
                     "DeviceId": "lg-tv",
                     "Id": "session-1",
                     "DeviceName": "LG TV",
+                    "Client": "Emby for LG",
                     "UserId": "user-1",
                     "NowPlayingItem": {"Id": "11136", "Name": "Aquaman"},
                     "PlayState": {"MediaSourceId": "source-1"},
@@ -70,6 +71,7 @@ class EmbySessionEventsTest(unittest.TestCase):
         self.assertEqual("session-1", session.client_session_id)
         self.assertEqual("11136", session.now_playing.item_id)
         self.assertEqual("source-1", session.media_source_id)
+        self.assertEqual("Emby for LG", session.client_name)
 
     def test_unknown_device_maps_to_none(self):
         self.assertIsNone(find_monitored_session([{"DeviceId": "phone"}], "lg-tv"))

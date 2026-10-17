@@ -83,17 +83,19 @@ class EmbySessionMonitorTest(unittest.TestCase):
             _make_item_playback_info()
         )
         self.emby_session.is_item_path_in_library.return_value = True
+        self.emby_session.to_library_path.side_effect = lambda path: path
         self.playback_state = BridgePlaybackState()
 
         self.dispatcher = MagicMock()
         self.config = _config()
 
-    def _monitor(self, config=None):
+    def _monitor(self, config=None, playback_event_publisher=None):
         return EmbySessionMonitor(
             emby_session=self.emby_session,
             playback_state=self.playback_state,
             config_provider=lambda: config or self.config,
             dispatcher=self.dispatcher,
+            playback_event_publisher=playback_event_publisher,
         )
 
     # -------------------------------------------------------------------------
@@ -106,15 +108,51 @@ class EmbySessionMonitorTest(unittest.TestCase):
         self.dispatcher.dispatch.assert_not_called()
 
     def test_no_matching_session_does_nothing(self):
-        monitor = self._monitor()
+        playback_event_publisher = MagicMock()
+        monitor = self._monitor(playback_event_publisher=playback_event_publisher)
         monitor.on_sessions_update([_make_session(device_id="other-device")])
         self.dispatcher.dispatch.assert_not_called()
+        self.assertEqual(
+            "MEDIA_SERVER_MONITORED_DEVICE_NOT_FOUND",
+            self.playback_state.last_diagnostic.code,
+        )
+
+        monitor.on_sessions_update([_make_session(device_id="other-device")])
+        self.assertEqual(1, len(self.playback_state.diagnostic_history))
+        playback_event_publisher.publish.assert_not_called()
 
     def test_item_not_in_library_does_not_dispatch(self):
         self.emby_session.is_item_path_in_library.return_value = False
         monitor = self._monitor()
         monitor.on_sessions_update([_make_session()])
         self.dispatcher.dispatch.assert_not_called()
+
+    def test_shared_network_path_is_normalized_before_library_matching(self):
+        shared_path = r"\\192.168.50.110\volume1\Video\Movies\Dune.mkv"
+        library_path = "/sharefolder/Video/Movies/Dune.mkv"
+        self.emby_session.to_library_path.side_effect = lambda path: (
+            library_path if path == shared_path else path
+        )
+        monitor = self._monitor(
+            config=_config(
+                libraries=[{"id": "lib-1", "name": "Movies", "active": True}],
+                path_mappings=[
+                    {
+                        "source_path": "/sharefolder/Video/Movies",
+                        "player_path": "/192.168.50.110/volume1/Video/Movies",
+                        "protocol": "nfs",
+                        "verified": True,
+                    }
+                ],
+            )
+        )
+
+        monitor.on_sessions_update([_make_session(item_path=shared_path)])
+
+        self.emby_session.is_item_path_in_library.assert_called_once_with(
+            "lib-1", library_path
+        )
+        self.dispatcher.dispatch.assert_called_once()
 
     def test_item_in_active_library_without_verified_path_mapping_does_not_dispatch(self):
         monitor = self._monitor(config=_config(path_mappings=[
@@ -141,6 +179,11 @@ class EmbySessionMonitorTest(unittest.TestCase):
         self.emby_session.is_item_path_in_library.assert_not_called()
         self.dispatcher.dispatch.assert_not_called()
         self.assertEqual("", monitor._monitored_state)
+        diagnostic = self.playback_state.last_diagnostic
+        self.assertEqual("MEDIA_SERVER_ITEM_UNAVAILABLE", diagnostic.code)
+        self.assertEqual("emby", diagnostic.details["provider"])
+        self.assertEqual("42", diagnostic.details["item_id"])
+        self.assertEqual("RuntimeError", diagnostic.details["error_type"])
 
     def test_theme_mp3_does_not_dispatch_or_load_item_details(self):
         monitor = self._monitor()

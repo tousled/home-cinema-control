@@ -5,6 +5,8 @@ from home_cinema_control.devices.oppo.models import OppoCommandResponse
 from home_cinema_control.devices.oppo.mounted_share import OppoMountedShare
 from home_cinema_control.devices.oppo.network_mount_service import OppoMountResult
 from home_cinema_control.devices.oppo.setup_control import (
+    _parse_oppo_folder_entries,
+    _parse_oppo_listing_records,
     browse_network_folder,
     list_mounted_folder_files,
     list_nfs_share_folders,
@@ -23,6 +25,61 @@ class FakeHttpSession:
     def get(self, url, headers):
         self.urls.append(url)
         return FakeHttpResponse()
+
+
+def _oppo_record(name, entry_type, extra=1):
+    raw_name = name.encode("utf-8")
+    return (
+        len(raw_name).to_bytes(4, "little")
+        + raw_name
+        + entry_type.to_bytes(4, "little")
+        + extra.to_bytes(4, "little")
+    )
+
+
+class OppoListingRecordsTest(unittest.TestCase):
+    def _folder_names(self, content):
+        return [
+            entry["Foldername"]
+            for entry in _parse_oppo_folder_entries(content)
+        ]
+
+    def test_lists_one_and_two_character_folder_names(self):
+        listing = (
+            b"FLAG"
+            + _oppo_record("BR", 1)
+            + _oppo_record("DVD", 1)
+            + _oppo_record("HD", 1)
+            + _oppo_record("X", 1)
+            + _oppo_record("movie.mkv", 2)
+            + (4).to_bytes(4, "little")
+            + (4).to_bytes(4, "little")
+        )
+
+        self.assertEqual(
+            ["..", "BR", "DVD", "HD", "X"],
+            self._folder_names(listing),
+        )
+
+    def test_parses_share_listing_without_optional_header(self):
+        listing = (
+            b"\t\x00\x00\x00e/library"
+            + b"\x01\x00\x00\x00\x05\x00\x00\x00"
+        )
+
+        self.assertEqual(["..", "e/library"], self._folder_names(listing))
+
+    def test_falls_back_to_marker_parser_for_unknown_payloads(self):
+        self.assertEqual(
+            ["..", "Movies", "Series"],
+            self._folder_names(b"\x00Movies\x01\x00Series\x01"),
+        )
+
+    def test_falls_back_when_structured_record_is_truncated(self):
+        malformed_listing = b"FLAG" + (3).to_bytes(4, "little") + b"BR"
+
+        self.assertIsNone(_parse_oppo_listing_records(malformed_listing))
+        self.assertEqual(["..", "BR"], self._folder_names(malformed_listing))
 
 
 class OppoFolderBrowsingTest(unittest.TestCase):

@@ -4,14 +4,18 @@ from home_cinema_control.media_servers.jellyfin.session import JellyfinSession
 
 
 class FakeJellyfinClient:
-    def __init__(self, sessions=None):
+    def __init__(self, sessions=None, virtual_folders=None):
         self._sessions = sessions
+        self._virtual_folders = virtual_folders or []
         self.get_sessions_by_user_calls = []
         self.capabilities_payload = None
 
     def get_sessions_by_user(self, user_id):
         self.get_sessions_by_user_calls.append(user_id)
         return self._sessions
+
+    def get_virtual_folders(self):
+        return self._virtual_folders
 
     def set_capabilities(self, payload):
         self.capabilities_payload = payload
@@ -36,6 +40,24 @@ class SetCapabilitiesTest(unittest.TestCase):
         _session_with_client(client).set_capabilities()
 
         self.assertEqual(["Video"], client.capabilities_payload["PlayableMediaTypes"])
+
+
+class LibraryPathMembershipTest(unittest.TestCase):
+    def test_does_not_treat_sibling_directory_as_part_of_library(self):
+        session = _session_with_client(
+            FakeJellyfinClient(
+                virtual_folders=[
+                    {"ItemId": "movies", "Locations": ["/media/Movies"]}
+                ]
+            )
+        )
+
+        self.assertTrue(
+            session.is_item_path_in_library("movies", "/media/Movies/Alien.mkv")
+        )
+        self.assertFalse(
+            session.is_item_path_in_library("movies", "/media/Movies-Old/Alien.mkv")
+        )
 
 
 class FindControllingSessionIdTest(unittest.TestCase):

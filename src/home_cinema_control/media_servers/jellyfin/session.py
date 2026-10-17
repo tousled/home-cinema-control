@@ -19,6 +19,7 @@ from home_cinema_control.media_servers.jellyfin.item_mapper import (
     media_server_playback_source_from_item,
     media_tracks_from_item,
 )
+from home_cinema_control.media_servers.common.path_matching import path_prefix_matches
 from home_cinema_control.media_servers.jellyfin.session_events import session_from_payload
 from home_cinema_control.playback.state import BridgePlaybackState
 
@@ -108,7 +109,12 @@ class JellyfinSession:
             media_source_id=media_source_id,
         )
 
-    def get_item_tracks(self, user_id, item_id) -> list[MediaTrack]:
+    def get_item_tracks(
+        self,
+        user_id,
+        item_id,
+        media_source_id: str | None = None,
+    ) -> list[MediaTrack]:
         item_data = self.client.get_item_info(user_id, item_id)
         return media_tracks_from_item(item_data)
 
@@ -118,16 +124,31 @@ class JellyfinSession:
                 if folder.get("Name") != view_id:
                     continue
             for location in folder.get("Locations", []):
-                if item_path.startswith(location):
+                if path_prefix_matches(item_path, location):
                     return True
         return False
 
-    def resolve_audio_track_index(self, user_id, item_id, index):
-        return source_audio_to_player_index(self.get_item_tracks(user_id, item_id), index)
+    def resolve_audio_track_index(
+        self,
+        user_id,
+        item_id,
+        index,
+        media_source_id: str | None = None,
+    ):
+        return source_audio_to_player_index(
+            self.get_item_tracks(user_id, item_id, media_source_id),
+            index,
+        )
 
-    def resolve_subtitle_track_index(self, user_id, item_id, index):
+    def resolve_subtitle_track_index(
+        self,
+        user_id,
+        item_id,
+        index,
+        media_source_id: str | None = None,
+    ):
         return source_subtitle_to_player_index(
-            self.get_item_tracks(user_id, item_id),
+            self.get_item_tracks(user_id, item_id, media_source_id),
             index,
         )
 

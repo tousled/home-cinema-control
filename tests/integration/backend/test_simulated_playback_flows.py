@@ -272,6 +272,9 @@ class FakeEmbySession:
     def __init__(self, *, library_membership):
         self._library_membership = library_membership
 
+    def to_library_path(self, path):
+        return path
+
     def get_item_playback_info(self, user_id, item_id, media_source_id):
         return MediaServerItemPlaybackInfo(played=False, play_count=0)
 

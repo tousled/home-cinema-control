@@ -16,6 +16,7 @@ class ResolvePlayerMediaFileLocationTest(unittest.TestCase):
                     "source_path": "/media/library",
                     "player_path": "/nas",
                     "protocol": "nfs",
+                    "verified": True,
                 }
             ],
         )
@@ -74,6 +75,7 @@ class ResolvePlayerMediaFileLocationTest(unittest.TestCase):
                             "source_path": case["source_path"],
                             "player_path": case["player_path"],
                             "protocol": "nfs",
+                            "verified": True,
                         }
                     ],
                 )
@@ -82,31 +84,82 @@ class ResolvePlayerMediaFileLocationTest(unittest.TestCase):
                 self.assertEqual(case["expected"][1], location.content_directory)
                 self.assertEqual(case["expected"][2], location.playback_file_name)
 
-    def test_does_not_apply_a_mapping_when_the_source_is_not_a_path_prefix(self):
+    def test_rejects_a_media_path_without_a_matching_mapping(self):
         cases = [
-            ("linux source mismatch", "/emby/Movies/Movie.mkv", "/jf", "emby"),
-            ("windows source mismatch", r"Z:\Movies\Movie.mkv", "Y:\\", "Z:"),
+            ("linux source mismatch", "/emby/Movies/Movie.mkv", "/jf"),
+            ("windows source mismatch", r"Z:\Movies\Movie.mkv", "Y:\\"),
         ]
 
-        for name, media_path, source_path, expected_server in cases:
+        for name, media_path, source_path in cases:
             with self.subTest(name):
-                location = resolve_player_media_file_location(
-                    emby_media_path=media_path,
-                    playback_file_format="mkv",
-                    path_mappings=[
-                        {
-                            "source_path": source_path,
-                            "player_path": "/nas",
-                            "protocol": "nfs",
-                        }
-                    ],
-                )
+                with self.assertRaisesRegex(
+                    ValueError, "No verified path mapping matches"
+                ):
+                    resolve_player_media_file_location(
+                        emby_media_path=media_path,
+                        playback_file_format="mkv",
+                        path_mappings=[
+                            {
+                                "source_path": source_path,
+                                "player_path": "/nas",
+                                "protocol": "nfs",
+                                "verified": True,
+                            }
+                        ],
+                    )
 
-                self.assertEqual(
-                    expected_server,
-                    location.content_server,
+    def test_selects_the_longest_verified_nested_mapping(self):
+        location = resolve_player_media_file_location(
+            emby_media_path="/media/Movies/4K/Alien.mkv",
+            playback_file_format="mkv",
+            path_mappings=[
+                {
+                    "source_path": "/media/Movies/4K",
+                    "player_path": "/nas/Movies4K",
+                    "verified": True,
+                },
+                {
+                    "source_path": "/media/Movies",
+                    "player_path": "/nas/Movies",
+                    "verified": True,
+                },
+            ],
+        )
+
+        self.assertEqual("Movies4K/Alien.mkv", location.content_directory + "/" + location.playback_file_name)
+
+    def test_rejects_unverified_specific_mapping_without_falling_back(self):
+        with self.assertRaisesRegex(ValueError, "not verified"):
+            resolve_player_media_file_location(
+                emby_media_path="/media/Movies/4K/Alien.mkv",
+                playback_file_format="mkv",
+                path_mappings=[
+                    {
+                        "source_path": "/media/Movies",
+                        "player_path": "/nas/Movies",
+                        "verified": True,
+                    },
+                    {
+                        "source_path": "/media/Movies/4K",
+                        "player_path": "/nas/Movies4K",
+                        "verified": False,
+                    },
+                ],
+            )
+
+    def test_does_not_match_a_sibling_directory_with_a_common_prefix(self):
+        with self.assertRaisesRegex(ValueError, "No verified path mapping matches"):
+            resolve_player_media_file_location(
+                emby_media_path="/media/Movies-Old/Alien.mkv",
+                playback_file_format="mkv",
+                path_mappings=[
+                    {
+                        "source_path": "/media/Movies",
+                        "player_path": "/nas/Movies",
+                        "verified": True,
+                    }
+                ],
                 )
-                self.assertIsNone(location.network_protocol)
 
     def test_rejects_an_unusable_destination_for_linux_and_windows_mappings(self):
         cases = [
@@ -131,10 +184,11 @@ class ResolvePlayerMediaFileLocationTest(unittest.TestCase):
                         emby_media_path=case["media_path"],
                         playback_file_format="mkv",
                         path_mappings=[
-                            {
-                                "source_path": case["source_path"],
-                                "player_path": case["player_path"],
-                                "protocol": "nfs",
+                        {
+                            "source_path": case["source_path"],
+                            "player_path": case["player_path"],
+                            "protocol": "nfs",
+                            "verified": True,
                             }
                         ],
                     )

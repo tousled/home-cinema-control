@@ -300,17 +300,32 @@ def diagnose_orchestration_result(
 
 
 def diagnose_path_error(exc: Exception) -> PlaybackDiagnostic:
+    code = getattr(exc, "diagnostic_code", "PATH_RESOLUTION_FAILED")
+    details = {"error": str(exc)}
+    details.update(getattr(exc, "diagnostic_details", {}))
+    if code == "PATH_MAPPING_NOT_VERIFIED":
+        suggestion = (
+            "Test and save the matching Media Paths mapping before starting playback. "
+            "HCC will not send an unverified route to the OPPO."
+        )
+    elif code == "PATH_MAPPING_NOT_FOUND":
+        suggestion = (
+            "Add a Media Paths mapping for the media server path and test it before "
+            "starting playback."
+        )
+    else:
+        suggestion = (
+            "Check Media Paths configuration and ensure source paths match the "
+            "media server's library paths."
+        )
     return PlaybackDiagnostic(
-        code="PATH_RESOLUTION_FAILED",
+        code=code,
         severity="error",
         component="path",
         operation="media_path_resolution",
         reason=f"Media path could not be resolved: {exc}",
-        suggestion=(
-            "Check Media Paths configuration and ensure source paths match the "
-            "media server's library paths."
-        ),
-        details={"error": str(exc)},
+        suggestion=suggestion,
+        details=details,
     )
 
 
@@ -325,7 +340,27 @@ def diagnose_media_server_library_paths_unavailable(reason: str) -> PlaybackDiag
     )
 
 
-def diagnose_media_server_item_unavailable(reason: str) -> PlaybackDiagnostic:
+def diagnose_media_server_item_unavailable(
+    reason: str,
+    *,
+    provider: str | None = None,
+    session=None,
+    error_type: str | None = None,
+) -> PlaybackDiagnostic:
+    details: dict[str, Any] = {"error": reason}
+    if provider:
+        details["provider"] = provider.lower()
+    if session is not None:
+        details.update(
+            {
+                "device_id": session.device_id,
+                "device_name": session.device_name,
+                "item_id": session.now_playing.item_id if session.now_playing else "",
+                "media_source_id": session.media_source_id,
+            }
+        )
+    if error_type:
+        details["error_type"] = error_type
     return PlaybackDiagnostic(
         code="MEDIA_SERVER_ITEM_UNAVAILABLE",
         severity="error",
@@ -333,6 +368,115 @@ def diagnose_media_server_item_unavailable(reason: str) -> PlaybackDiagnostic:
         operation="media_item_lookup",
         reason=f"Media server item details could not be loaded: {reason}",
         suggestion="Check the media server connection and token in Media Server settings.",
+        details=details,
+    )
+
+
+def diagnose_media_server_monitored_device_not_found(
+    *, provider: str, configured_device_id: str, candidates: list[dict[str, Any]]
+) -> PlaybackDiagnostic:
+    candidate_summary = "; ".join(
+        "id={id}, name={name}, client={client}, now_playing={now_playing}".format(
+            id=candidate.get("device_id") or "<empty>",
+            name=candidate.get("device_name") or "<unnamed>",
+            client=candidate.get("client_name") or "<unknown>",
+            now_playing="yes" if candidate.get("has_now_playing") else "no",
+        )
+        for candidate in candidates
+    ) or "<no sessions>"
+    return PlaybackDiagnostic(
+        code="MEDIA_SERVER_MONITORED_DEVICE_NOT_FOUND",
+        severity="warning",
+        component="media_server",
+        operation="session_device_selection",
+        reason=(
+            f"{provider} did not report the configured monitored device "
+            f"'{configured_device_id}'. Sessions received: {candidate_summary}."
+        ),
+        suggestion=(
+            "Check that the selected TV/client is the same device shown by the media "
+            "server and that it is connected. Refresh the device list and save the "
+            "correct device if its ID changed."
+        ),
+        details={
+            "provider": provider.lower(),
+            "configured_device_id": configured_device_id,
+            "candidates": candidates,
+            "candidate_summary": candidate_summary,
+        },
+    )
+
+
+def diagnose_media_server_library_not_matched(
+    *, provider: str, item_name: str, item_path: str
+) -> PlaybackDiagnostic:
+    return PlaybackDiagnostic(
+        code="MEDIA_SERVER_LIBRARY_NOT_MATCHED",
+        severity="warning",
+        component="media_server",
+        operation="library_admission",
+        reason=(
+            f"{provider} item '{item_name}' is not under an active HCC library "
+            f"mapping: {item_path}"
+        ),
+        suggestion=(
+            "Enable the library in Media Paths or configure its exact server path. "
+            "HCC did not send this item to the OPPO."
+        ),
+        details={
+            "provider": provider.lower(),
+            "item_name": item_name,
+            "item_path": item_path,
+        },
+    )
+
+
+def diagnose_path_mapping_not_verified(
+    *, provider: str, item_name: str, item_path: str, source_path: str
+) -> PlaybackDiagnostic:
+    return PlaybackDiagnostic(
+        code="PATH_MAPPING_NOT_VERIFIED",
+        severity="warning",
+        component="path",
+        operation="mapping_admission",
+        reason=(
+            f"{provider} item '{item_name}' matches the unverified mapping "
+            f"'{source_path}': {item_path}"
+        ),
+        suggestion=(
+            "Test and save that Media Paths mapping before playback. HCC will not "
+            "send an unverified route to the OPPO."
+        ),
+        details={
+            "provider": provider.lower(),
+            "item_name": item_name,
+            "item_path": item_path,
+            "source_path": source_path,
+        },
+    )
+
+
+def diagnose_path_mapping_not_found(
+    *, provider: str, item_name: str, item_path: str
+) -> PlaybackDiagnostic:
+    return PlaybackDiagnostic(
+        code="PATH_MAPPING_NOT_FOUND",
+        severity="warning",
+        component="path",
+        operation="mapping_admission",
+        reason=(
+            f"{provider} item '{item_name}' has no matching Media Paths mapping: "
+            f"{item_path}"
+        ),
+        suggestion=(
+            "Add the media server library path in Media Paths, test it and save it. "
+            "HCC did not send this item to the OPPO."
+        ),
+        details={
+            "provider": provider.lower(),
+            "item_name": item_name,
+            "item_path": item_path,
+        },
     )
 
 

@@ -117,6 +117,19 @@ class OppoConfig(BaseModel):
     use_smb: bool = False
 
 
+class MediaPlayerConfig(BaseModel):
+    """Selected playback implementation and its output route."""
+
+    model_config = ConfigDict(extra="allow")
+
+    type: str = "oppo"
+    output_route: str = "hdmi"
+    app_id: str = ""
+    always_on: bool | None = None
+    playback_start_timeout_seconds: float | None = None
+    start_poll_interval_seconds: float | None = None
+
+
 class SmbConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -214,6 +227,7 @@ class HccConfig(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     av: AvConfig = Field(default_factory=AvConfig)
     tv: TvConfig = Field(default_factory=TvConfig)
+    media_player: MediaPlayerConfig = Field(default_factory=MediaPlayerConfig)
     oppo: OppoConfig = Field(default_factory=OppoConfig)
     media_servers: MediaServersConfig = Field(default_factory=MediaServersConfig)
     smb: SmbConfig = Field(default_factory=SmbConfig)

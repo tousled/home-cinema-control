@@ -7,6 +7,7 @@ from uuid import uuid4
 
 
 class PlaybackEventType(StrEnum):
+    DETECTED = "detected"
     STARTED = "started"
     PAUSED = "paused"
     RESUMED = "resumed"
@@ -33,6 +34,7 @@ class PlaybackEventContext:
     source: str | None = None
     player: str | None = None
     startup_metrics: dict[str, Any] | None = None
+    attempt_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,7 @@ class PlaybackEvent(PlaybackDomainEvent):
     source: str | None = None
     player: str | None = None
     startup_metrics: dict[str, Any] | None = None
+    attempt_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -67,6 +70,28 @@ class PlaybackHandoffFinalizedEvent(PlaybackDomainEvent):
     diagnostic_component: str | None = None
     diagnostic_code: str | None = None
     event_type: str = "handoff_finalized"
+    attempt_id: str | None = None
+
+
+@dataclass(frozen=True)
+class PlaybackHandoffAttemptedEvent(PlaybackDomainEvent):
+    """Fact published when a playback handoff is admitted for execution."""
+
+    event_id: str
+    attempt_id: str
+    origin: str
+    event_type: str = "handoff_attempted"
+
+
+@dataclass(frozen=True)
+class PlaybackRejectedEvent(PlaybackDomainEvent):
+    """Fact published when observed playback is rejected before handoff."""
+
+    event_id: str
+    component: str
+    diagnostic_code: str
+    provider: str
+    event_type: str = "playback_rejected"
 
 
 def new_playback_session_id() -> str:

@@ -1,10 +1,14 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from home_cinema_control.media_servers.common.playback_event_publisher import (
     MediaServerPlaybackContext,
 )
 from home_cinema_control.media_servers.emby.item_mapper import (
     media_server_playback_source_from_item,
+)
+from home_cinema_control.media_servers.emby.playback_mapper import (
+    EmbyPlaybackPayloadMapper,
 )
 from home_cinema_control.playback.content_kind import MediaContentKind
 from home_cinema_control.media_servers.emby.playback import EmbyPlaybackEventPublisher
@@ -173,6 +177,34 @@ class EmbyPlaybackEventPublisherTest(unittest.TestCase):
         self.assertEqual("bridge-session", payload["SessionId"])
         self.assertEqual(["Video"], payload["QueueableMediaTypes"])
 
+    def test_failed_handoff_restores_resume_position(self):
+        client = RecordingEmbyClient()
+        publisher = EmbyPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(start_position_ticks=660_000_000),
+        )
+
+        publisher.restore_resume_position_after_failed_handoff()
+
+        self.assertEqual(["set_position"], [call[0] for call in client.calls])
+        self.assertEqual(
+            660_000_000,
+            client.calls[0][1]["payload"]["PlaybackPositionTicks"],
+        )
+
+    def test_failed_handoff_does_not_restore_zero_position(self):
+        client = RecordingEmbyClient()
+        publisher = EmbyPlaybackEventPublisher(
+            client,
+            bridge_session_id="bridge-session",
+            context=_context(start_position_ticks=0),
+        )
+
+        publisher.restore_resume_position_after_failed_handoff()
+
+        self.assertEqual([], client.calls)
+
     def test_progress_uses_time_update_and_reports_every_configured_interval(self):
         client = RecordingEmbyClient()
         publisher = EmbyPlaybackEventPublisher(
@@ -241,17 +273,47 @@ class EmbyPlaybackEventPublisherTest(unittest.TestCase):
             client.calls[1][1],
         )
         self.assertEqual(
-            {
-                "user_id": "tv-user",
-                "item_id": "movie-1",
-                "payload": {
-                    "ItemId": "movie-1",
-                    "PlaybackPositionTicks": 660_000_000,
-                    "Played": False,
-                },
-            },
-            client.calls[2][1],
+            {"user_id": "tv-user", "item_id": "movie-1"},
+            {key: client.calls[2][1][key] for key in ("user_id", "item_id")},
         )
+        self.assertEqual(
+            {
+                "ItemId": "movie-1",
+                "PlaybackPositionTicks": 660_000_000,
+                "Played": False,
+            },
+            {
+                key: client.calls[2][1]["payload"][key]
+                for key in ("ItemId", "PlaybackPositionTicks", "Played")
+            },
+        )
+        restored_at = datetime.strptime(
+            client.calls[2][1]["payload"]["LastPlayedDate"],
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+        ).replace(tzinfo=timezone.utc)
+        self.assertLessEqual(datetime.now(timezone.utc) - restored_at, timedelta(seconds=1))
+
+    def test_restore_resume_position_payload_normalizes_last_played_date_to_utc(self):
+        mapper = EmbyPlaybackPayloadMapper(
+            bridge_session_id="bridge-session",
+            context=_context(),
+        )
+
+        payload = mapper.restore_resume_position_payload(
+            position_ticks=660_000_000,
+            last_played_at=datetime(
+                2026,
+                10,
+                16,
+                14,
+                30,
+                45,
+                123456,
+                tzinfo=timezone(timedelta(hours=2)),
+            ),
+        )
+
+        self.assertEqual("2026-10-16T12:30:45.123456Z", payload["LastPlayedDate"])
 
     def test_stopped_does_not_mark_item_unplayed_without_resume_position(self):
         client = RecordingEmbyClient()

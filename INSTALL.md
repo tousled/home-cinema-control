@@ -171,6 +171,21 @@ Qué resuelve esta pantalla:
 
 El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo.
 
+### 5.1 Configuración recomendada de Emby para ISO Blu-ray y DVD
+
+Esta configuración es **opcional** y HCC funciona sin ella. Si tienes Blu-ray o DVD en formato ISO, te recomendamos
+instalar **IsoMounter** desde el catálogo de plugins de Emby, reiniciar Emby y actualizar la biblioteca o los elementos
+ISO existentes.
+
+El plugin permite que Emby analice el contenido del disco y devuelva sus pistas de audio y subtítulos. Así, la pantalla
+de Emby puede mostrar un selector con las diferentes pistas disponibles antes o durante la reproducción. HCC también
+consulta esa información cuando está disponible y conserva un fallback compatible si el plugin no está instalado.
+
+El idioma solo aparecerá si Emby lo devuelve en los metadatos de la pista. Si Emby no identifica el idioma, se mostrará
+la información técnica disponible —por ejemplo, `DTS-HD MA 5.1` para audio o `PGSSUB` para subtítulos—, pero no se
+podrá mostrar de forma fiable el idioma como: `ES`, `CAT`, `GA` o `JA`. La reproducción y el cambio de pistas seguirán
+funcionando.
+
 Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
 dispositivos
 y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
@@ -216,6 +231,11 @@ OPPO ve por NFS:  volume1/Video/Peliculas/Dune (2021).mkv
 OPPO ve por SMB:  Video/Peliculas/Dune (2021).mkv
 HCC guarda:       esta biblioteca usa esta ruta OPPO y este protocolo
 ```
+
+Si Emby tiene configurado **Shared network folder**, puede informar durante la reproducción una ruta de red alternativa
+en lugar de la ruta de biblioteca. HCC la traduce automáticamente a la ruta canónica de Emby antes de aplicar el
+mapeo hacia el OPPO. No hace falta crear un segundo mapeo para esa ruta alternativa. Jellyfin no expone actualmente
+ese campo equivalente en su API; sus `Locations` siguen siendo la ruta canónica que debes mapear.
 
 No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos nombres. Por eso HCC parte de las
 bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
@@ -367,6 +387,16 @@ diagnóstico y guardar solo cuando entiendes qué ruta funciona.
 HCC no cambia silenciosamente de SMB a NFS ni de NFS a SMB. Si una ruta está configurada como SMB, se prueba y reproduce
 como SMB. Esto evita errores invisibles cuando una biblioteca funciona con un protocolo y otra necesita otro.
 
+HCC comprueba las rutas por carpetas completas: `/media/Movies` coincide con `/media/Movies/Alien.mkv`, pero no con
+`/media/Movies-Old/Alien.mkv`. Si tienes rutas anidadas, como `/media/Movies` y `/media/Movies/4K`, utiliza la más
+específica. Esa ruta concreta debe estar verificada; HCC no prueba otra más amplia ni envía una ruta no verificada al
+OPPO. Si la reproducción se bloquea, la pantalla de estado indica qué ruta falta o necesita probarse y guardarse.
+
+Si un elemento tiene varias versiones, HCC usa la versión que el usuario ha seleccionado en Emby o Jellyfin. El servidor
+identifica esa versión con `MediaSourceId`; HCC busca la ruta correspondiente en `MediaSources` y aplica el mapeo a esa
+ruta, en lugar de asumir siempre la ruta de la versión principal. Si el servidor no devuelve una coincidencia exacta,
+HCC conserva la ruta principal como fallback compatible.
+
 ### 7.8 Por qué es importante este paso
 
 Emby o Jellyfin y el OPPO pueden referirse al mismo contenido con rutas distintas. La ruta que conoce el servidor
@@ -445,7 +475,8 @@ pero si el AVR o la TV fuerzan otra fuente por CEC, la automatización será ine
 
 ## 9. Conecta HCC con Home Assistant
 
-Con esta integración, HCC avisa a Home Assistant cuando una reproducción empieza, se pausa, continúa o termina. Después,
+Con esta integración, HCC avisa a Home Assistant cuando detecta una reproducción, empieza, se pausa, continúa o termina.
+Después,
 Home Assistant decide qué hacer: encender luces, activar una escena, enviar un aviso o simplemente guardar el evento en
 el
 registro. HCC no crea automatizaciones por su cuenta; tú eliges la reacción en Home Assistant.
@@ -471,9 +502,17 @@ triggers:
 conditions:
   - condition: template
     value_template: >-
-      {{ trigger.json.event | default('') in ['started', 'paused', 'resumed', 'stopped'] }}
+      {{ trigger.json.event | default('') in ['detected', 'started', 'paused', 'resumed', 'stopped'] }}
 actions:
   - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'detected' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción detectada: {{ trigger.json.title | default('') }}"
       - conditions:
           - condition: template
             value_template: "{{ trigger.json.event == 'started' }}"
@@ -539,8 +578,9 @@ de lo normal en responder.
 
 ### 9.3 Comprueba que funciona
 
-HCC envía estos cuatro eventos:
+HCC envía estos cinco eventos:
 
+- `detected`: HCC ha detectado una reproducción válida en el dispositivo monitorizado y ha aceptado el handoff.
 - `started`: la reproducción ha comenzado.
 - `paused`: la reproducción está pausada.
 - `resumed`: la reproducción continúa.
@@ -605,9 +645,12 @@ verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
 
 La telemetría es opcional y viene desactivada. Si la activas, HCC envía datos anónimos mínimos para entender adopción y
 priorizar desarrollo: instalación activa, versión, idioma, proveedor Emby/Jellyfin, uso de OPPO, TV/AV, NFS/SMB y
-eventos de reproducción iniciada/finalizada/fallida. Si el backend de telemetría no está disponible, HCC guarda
-temporalmente esos eventos anónimos en `/config/telemetry_queue.json` y los reintenta después. No envía rutas, IPs,
-tokens, URLs, nombres de servidor, bibliotecas, títulos, logs, scripts ni comandos personalizados. Más detalle:
+eventos de intento, reproducción iniciada, finalizada, rechazada antes del handoff y fallida. Los eventos llevan
+identificadores aleatorios y anónimos de evento/intento, además del proveedor, componente y código diagnóstico
+normalizados, para poder analizar fallos repetidos por instalación. Si el backend de telemetría no está disponible, HCC
+guarda temporalmente esos eventos
+anónimos en `/config/telemetry_queue.json` y los reintenta después. No envía rutas, IPs, tokens, URLs, nombres de
+servidor, bibliotecas, títulos, IDs del servidor multimedia, logs, scripts ni comandos personalizados. Más detalle:
 [`docs/telemetry.md`](docs/telemetry.md).
 
 ## 11. Logs entendibles

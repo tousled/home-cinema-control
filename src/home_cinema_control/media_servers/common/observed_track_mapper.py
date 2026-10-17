@@ -46,6 +46,7 @@ class MediaServerObservedTrackMapper:
         self._tracks = self._session.get_item_tracks(
             active_session.source_user_id,
             active_session.media_item_id,
+            active_session.media_source_id,
         )
         return self._tracks
 

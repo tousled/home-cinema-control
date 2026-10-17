@@ -153,6 +153,19 @@ the configuration panels instead of being repeated in the header.
 This screen avoids manual token editing, reloads the media server's devices, and prepares library discovery for path
 mapping.
 
+### 5.1 Recommended Emby setup for Blu-ray and DVD ISOs
+
+This setup is **optional** and HCC works without it. If your library contains Blu-ray or DVD ISO files, we recommend
+installing **IsoMounter** from Emby's plugin catalog, restarting Emby, and refreshing the library or existing ISO items.
+
+The plugin lets Emby inspect the disc contents and return its audio and subtitle streams. This helps the Emby screen
+show a selector with the available tracks before or during playback. HCC also reads that information when available and
+keeps a compatible fallback when the plugin is not installed.
+
+The language is shown only when Emby returns it in the stream metadata. If Emby cannot identify it, the available
+technical description is shown instead — for example, `DTS-HD MA 5.1` for audio or `PGSSUB` for subtitles — but
+the language such as `ES`, `CAT`, `GA`, or `JA` cannot be displayed reliably. Playback and track changes still work.
+
 If you use Jellyfin, the account you authorize HCC with must be an **administrator** for device and library reload
 to work — see [Frequent Issues](#14-frequent-issues).
 
@@ -188,6 +201,11 @@ OPPO over NFS:    volume1/Video/Movies/Dune (2021).mkv
 OPPO over SMB:    Video/Movies/Dune (2021).mkv
 HCC saves:        this library uses this OPPO path and this protocol
 ```
+
+If Emby has **Shared network folder** configured, it can report an alternate network path during playback instead of
+the library path. HCC automatically translates it back to Emby's canonical path before applying the OPPO mapping, so
+you do not need a second mapping for the alternate path. Jellyfin does not currently expose an equivalent field in its
+API; map the canonical path returned in its `Locations`.
 
 Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the same names. HCC starts from the active
 provider's libraries, asks for the equivalent player-visible path, and tests it before a real viewing session. The
@@ -340,6 +358,16 @@ diagnostic, and save only when you know which route works.
 HCC does not silently switch between SMB and NFS. A mapping configured as SMB is tested and played over SMB; a mapping
 configured as NFS uses NFS.
 
+HCC checks complete directory names: `/media/Movies` matches `/media/Movies/Alien.mkv`, but not
+`/media/Movies-Old/Alien.mkv`. If paths are nested, such as `/media/Movies` and `/media/Movies/4K`, HCC uses the most
+specific one. That exact path must be verified; HCC does not try a broader path or send an unverified route to the OPPO.
+When playback is blocked, the Status screen explains which path is missing or needs to be tested and saved.
+
+If an item has multiple versions, HCC uses the version the user selected in Emby or Jellyfin. The server identifies that
+version with `MediaSourceId`; HCC finds the matching path in `MediaSources` and applies the mapping to that path instead
+of always assuming the primary version's path. If the server does not return an exact match, HCC keeps the primary item
+path as a compatible fallback.
+
 ### 7.8 Why This Step Matters
 
 Emby or Jellyfin and the OPPO may refer to the same content with different paths. The path known by the media server
@@ -401,7 +429,8 @@ server's.
 
 ## 9. Connect HCC to Home Assistant
 
-With this integration, HCC tells Home Assistant when playback starts, pauses, resumes, or stops. Home Assistant then
+With this integration, HCC tells Home Assistant when it detects playback, starts it, pauses, resumes, or stops. Home
+Assistant then
 decides
 what to do: turn on lights, activate a scene, send an alert, or simply record the event. HCC does not create automations
 on
@@ -428,9 +457,17 @@ triggers:
 conditions:
   - condition: template
     value_template: >-
-      {{ trigger.json.event | default('') in ['started', 'paused', 'resumed', 'stopped'] }}
+      {{ trigger.json.event | default('') in ['detected', 'started', 'paused', 'resumed', 'stopped'] }}
 actions:
   - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'detected' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Playback detected: {{ trigger.json.title | default('') }}"
       - conditions:
           - condition: template
             value_template: "{{ trigger.json.event == 'started' }}"
@@ -497,8 +534,9 @@ usual to respond.
 
 ### 9.3 Check that it works
 
-HCC sends four playback events:
+HCC sends five playback events:
 
+- `detected`: HCC detected valid playback on the monitored device and accepted the handoff.
 - `started`: playback has started.
 - `paused`: playback is paused.
 - `resumed`: playback has resumed.
@@ -553,9 +591,12 @@ information for rolling back if needed.
 
 Telemetry is optional and disabled by default. If enabled, HCC sends minimal anonymous data to understand adoption and
 prioritize development: active installation, version, language, Emby/Jellyfin provider, OPPO/TV/AV usage, NFS/SMB, and
-playback started/finished/failed events. If the telemetry backend is unavailable, HCC temporarily stores those
-anonymous events in `/config/telemetry_queue.json` and retries later. It does not send paths, IPs, tokens, URLs, server
-names, libraries, titles, logs, scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
+playback attempt, started, finished, pre-handoff rejection, and failed events. Playback events carry random anonymous
+event/attempt IDs plus the provider, normalized failure component, and diagnostic code so repeated failures can be
+analyzed per installation. If the
+telemetry backend is unavailable, HCC temporarily stores those anonymous events in `/config/telemetry_queue.json` and
+retries later. It does not send paths, IPs, tokens, URLs, server names, libraries, titles, media-server IDs, logs,
+scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
 
 ## 11. Readable Logs
 

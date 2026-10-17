@@ -10,6 +10,7 @@ from home_cinema_control.playback.startup.models import (
     PlaybackStartupRequest,
     PlaybackStartupResult,
     PlaybackOutputSwitchRequest,
+    PlaybackOutputRoute,
     PlaybackOutputSwitchResult,
     PlayerMediaFileLocation,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "PlaybackStartupRequest",
     "PlaybackStartupResult",
     "PlaybackOutputSwitchRequest",
+    "PlaybackOutputRoute",
     "PlaybackOutputSwitchResult",
     "PlayerMediaFileLocation",
 ]

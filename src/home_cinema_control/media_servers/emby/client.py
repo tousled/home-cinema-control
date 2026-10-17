@@ -134,6 +134,11 @@ class EmbyClient:
     def get_item_info(self, user_id, item_id):
         return self.get_json(f"/emby/Users/{user_id}/Items/{item_id}")
 
+    def get_item_playback_info(self, user_id, item_id):
+        return self.get_json(
+            f"/emby/Items/{item_id}/PlaybackInfo?UserId={quote(user_id, safe='')}"
+        )
+
     def get_item_ancestors(self, item_id):
         return self.get_json(f"/emby/Items/{item_id}/Ancestors")
 
@@ -156,13 +161,14 @@ class EmbyClient:
     def get_selectable_media_folders(self):
         return self.get_json("/emby/Library/SelectableMediaFolders?")
 
+    def get_virtual_folders(self):
+        folders = self.get_json("/emby/Library/VirtualFolders")
+        return folders if isinstance(folders, list) else []
+
     def get_library_paths(self) -> list[dict]:
         """Return [{library_name, source_path}] for each Emby virtual folder location."""
-        folders = self.get_json("/emby/Library/VirtualFolders")
-        if not isinstance(folders, list):
-            folders = []
         result = []
-        for folder in folders:
+        for folder in self.get_virtual_folders():
             name = folder.get("Name", "")
             for loc in folder.get("Locations", []):
                 result.append({"library_name": name, "source_path": loc})

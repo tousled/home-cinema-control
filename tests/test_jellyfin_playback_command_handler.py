@@ -81,7 +81,10 @@ class JellyfinPlaybackCommandHandlerTest(unittest.TestCase):
         )
 
         self.assertEqual([("audio", "config", 20)], controls)
-        self.assertEqual([("user-1", "item-1", 2)], session.audio_track_calls)
+        self.assertEqual(
+            [("user-1", "item-1", 2, "source-1")],
+            session.audio_track_calls,
+        )
         self.assertEqual(2, state.active_session.selected_audio_track_id)
         self.assertEqual("AudioTrackChange", publisher.events[-1]["event_name"])
         self.assertEqual(2, publisher.events[-1]["audio_track_id"])
@@ -120,12 +123,12 @@ class RecordingJellyfinSession:
     def get_item_info(self, user_id, item_id):
         return {"UserData": {"PlaybackPositionTicks": 0}}
 
-    def resolve_audio_track_index(self, user_id, item_id, index):
-        self.audio_track_calls.append((user_id, item_id, index))
+    def resolve_audio_track_index(self, user_id, item_id, index, media_source_id=None):
+        self.audio_track_calls.append((user_id, item_id, index, media_source_id))
         return index * 10
 
-    def resolve_subtitle_track_index(self, user_id, item_id, index):
-        self.subtitle_track_calls.append((user_id, item_id, index))
+    def resolve_subtitle_track_index(self, user_id, item_id, index, media_source_id=None):
+        self.subtitle_track_calls.append((user_id, item_id, index, media_source_id))
         return index * 10
 
 

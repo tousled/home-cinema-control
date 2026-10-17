@@ -9,7 +9,10 @@ from home_cinema_control.playback.handoff import (
     _should_stop_source_client_before_handoff as _handoff_should_stop_source_client,
 )
 from home_cinema_control.playback.intent import PlaybackIntent, PlaybackOrigin
-from home_cinema_control.playback.oppo_lifecycle import OppoPlaybackLifecycleService
+from home_cinema_control.playback.oppo_lifecycle import (
+    MediaPlayerLifecycleService,
+    OppoPlaybackLifecycleService,
+)
 from home_cinema_control.playback.state import BridgePlaybackState
 from home_cinema_control.playback.state_detector import PlaybackStateDetector
 from home_cinema_control.playback.thread_lifecycle import PlaybackThreadLifecycle
@@ -34,6 +37,7 @@ class PlaybackApplicationService:
         playback_state: BridgePlaybackState,
         reload_config,
         media_server_playback_services=None,
+        media_player_lifecycle: MediaPlayerLifecycleService | None = None,
         oppo_lifecycle: OppoPlaybackLifecycleService | None = None,
         playback_event_dispatcher=None,
         playback_event_publisher=None,
@@ -44,7 +48,11 @@ class PlaybackApplicationService:
         self._playback_session = playback_session
         self._state = playback_state
         self._reload_config = reload_config
-        self._oppo_lifecycle = oppo_lifecycle or OppoPlaybackLifecycleService()
+        self._media_player_lifecycle = (
+            media_player_lifecycle
+            or oppo_lifecycle
+            or MediaPlayerLifecycleService()
+        )
         self._playback_event_publisher = playback_event_publisher or playback_event_dispatcher
         self._sleep = sleep
         self._thread_lifecycle = None
@@ -52,7 +60,7 @@ class PlaybackApplicationService:
             playback_session=playback_session,
             playback_state=playback_state,
             media_server_playback_services=media_server_playback_services,
-            oppo_lifecycle=self._oppo_lifecycle,
+            media_player_lifecycle=self._media_player_lifecycle,
             playback_event_publisher=self._playback_event_publisher,
             playback_state_detector=playback_state_detector,
             replacement_requested=lambda: self._thread_lifecycle.replacement_requested,

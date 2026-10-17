@@ -340,7 +340,7 @@ class PlaybackOrchestratorTest(unittest.TestCase):
         self.assertEqual([], startup_completion.requests)
         self.assertEqual([], during.requests)
         self.assertEqual([], finish.requests)
-        self.assertEqual("oppo_startup_failed", error_handler.requests[0].reason)
+        self.assertEqual("media_player_startup_failed", error_handler.requests[0].reason)
         self.assertEqual("com.emby.app", error_handler.requests[0].previous_tv_app_id)
 
     def test_logs_startup_result_at_error_level_when_startup_fails(self):
@@ -369,7 +369,7 @@ class PlaybackOrchestratorTest(unittest.TestCase):
             )
 
         self.assertTrue(
-            any("OPPO playback startup result" in line for line in captured.output)
+            any("Media-player playback startup result" in line for line in captured.output)
         )
 
     def test_finish_failure_runs_central_recovery(self):

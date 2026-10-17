@@ -13,6 +13,7 @@ from home_cinema_control.playback.startup.models import (
     DeviceCommandResult,
     DeviceCommandStatus,
     PlaybackOutputSwitchRequest,
+    PlaybackOutputRoute,
     PlaybackOutputSwitchResult,
     PlaybackStartupRequest,
     PlaybackStartupResult,
@@ -47,7 +48,7 @@ class PlaybackStartupOrchestrator:
         *,
         on_waiting: Callable[[int], None] | None = None,
     ) -> PlaybackStartupResult:
-        output_switch_result = self.switch_playback_output_to_oppo(
+        output_switch_result = self.switch_playback_output(
             request.output_switch_request
         )
         logger.info(
@@ -59,7 +60,7 @@ class PlaybackStartupOrchestrator:
             output_switch_result.av_input_result.status.value,
         )
 
-        media_player_start_result = self.start_oppo_playback(
+        media_player_start_result = self.start_media_player(
             request=request.media_player_start_request,
             on_waiting=on_waiting,
         )
@@ -69,14 +70,31 @@ class PlaybackStartupOrchestrator:
             media_player_start_result=media_player_start_result,
         )
 
-    def switch_playback_output_to_oppo(
+    def switch_playback_output(
         self,
         request: PlaybackOutputSwitchRequest,
     ) -> PlaybackOutputSwitchResult:
         previous_tv_app_id = self._previous_tv_app_id(request)
+        if request.route == PlaybackOutputRoute.NONE:
+            return PlaybackOutputSwitchResult(
+                previous_tv_app_id=previous_tv_app_id,
+                tv_input_result=DeviceCommandResult.skipped(
+                    "Media-player output switching is disabled."
+                ),
+                av_power_result=DeviceCommandResult.skipped(
+                    "Media-player output switching is disabled."
+                ),
+                av_input_result=DeviceCommandResult.skipped(
+                    "Media-player output switching is disabled."
+                ),
+            )
+
+        if request.route == PlaybackOutputRoute.TV_APP:
+            return self._switch_to_media_player_app(request, previous_tv_app_id)
+
         tv_input_result = self._measure_output_switch_step(
-            "switch_tv_to_oppo_input",
-            lambda: self._switch_tv_to_oppo_input(request),
+            "switch_tv_to_player_input",
+            lambda: self._switch_tv_to_player_input(request),
         )
 
         if tv_input_result.status == DeviceCommandStatus.FAILED:
@@ -97,8 +115,8 @@ class PlaybackStartupOrchestrator:
             lambda: self._power_on_av_receiver(request),
         )
         av_input_result = self._measure_output_switch_step(
-            "switch_av_receiver_to_oppo_input",
-            lambda: self._switch_av_receiver_to_oppo_input(
+            "switch_av_receiver_to_player_input",
+            lambda: self._switch_av_receiver_to_player_input(
                 request,
                 av_power_result,
             ),
@@ -111,7 +129,14 @@ class PlaybackStartupOrchestrator:
             av_input_result=av_input_result,
         )
 
-    def start_oppo_playback(
+    def switch_playback_output_to_oppo(
+        self,
+        request: PlaybackOutputSwitchRequest,
+    ) -> PlaybackOutputSwitchResult:
+        """Compatibility alias for callers from the OPPO-only API."""
+        return self.switch_playback_output(request)
+
+    def start_media_player(
         self,
         *,
         request: MediaPlayerStartRequest,
@@ -122,19 +147,21 @@ class PlaybackStartupOrchestrator:
             on_waiting=on_waiting,
         )
 
-    def get_oppo_playback_position(self) -> PlayerPlaybackPosition:
+    def get_media_player_position(self) -> PlayerPlaybackPosition:
         return self._media_player.get_playback_position()
 
-    def get_oppo_playback_state(self) -> PlayerPlaybackState:
+    def get_media_player_state(self) -> PlayerPlaybackState:
         return self._media_player.get_playback_state()
 
-    def seek_oppo_to(self, position_ticks: int) -> DeviceCommandResult:
+    def seek_media_player_to(self, position_ticks: int) -> DeviceCommandResult:
         return self._media_player.seek_to(position_ticks)
 
-    def select_oppo_audio_track(self, audio_index: int) -> DeviceCommandResult:
+    def select_media_player_audio_track(self, audio_index: int) -> DeviceCommandResult:
         return self._media_player.select_audio_track(audio_index)
 
-    def select_oppo_subtitle_track(self, subtitle_index: int) -> DeviceCommandResult:
+    def select_media_player_subtitle_track(
+        self, subtitle_index: int
+    ) -> DeviceCommandResult:
         return self._media_player.select_subtitle_track(subtitle_index)
 
     def _get_current_tv_app_id(self) -> str | None:
@@ -218,7 +245,7 @@ class PlaybackStartupOrchestrator:
         )
         return result
 
-    def _switch_tv_to_oppo_input(
+    def _switch_tv_to_player_input(
         self,
         request: PlaybackOutputSwitchRequest,
     ) -> DeviceCommandResult:
@@ -231,7 +258,8 @@ class PlaybackStartupOrchestrator:
             return DeviceCommandResult.skipped("TV adapter not configured.")
 
         logger.info(
-            "Switching TV to OPPO input | input_id=%s", request.tv_input.input_id
+            "Switching TV to media-player input | input_id=%s",
+            request.tv_input.input_id,
         )
         return self._television.switch_to_input(request.tv_input)
 
@@ -249,7 +277,7 @@ class PlaybackStartupOrchestrator:
         logger.info("Ensuring AV receiver is powered on.")
         return self._av_receiver.power_on()
 
-    def _switch_av_receiver_to_oppo_input(
+    def _switch_av_receiver_to_player_input(
         self,
         request: PlaybackOutputSwitchRequest,
         av_power_result: DeviceCommandResult,
@@ -270,7 +298,45 @@ class PlaybackStartupOrchestrator:
             )
 
         logger.info(
-            "Switching AV receiver to OPPO input | input_id=%s",
+            "Switching AV receiver to media-player input | input_id=%s",
             request.av_input_id,
         )
         return self._av_receiver.switch_to_input(request.av_input_id)
+
+    def _switch_to_media_player_app(
+        self,
+        request: PlaybackOutputSwitchRequest,
+        previous_tv_app_id: str | None,
+    ) -> PlaybackOutputSwitchResult:
+        if not request.tv_enabled:
+            tv_result = DeviceCommandResult.skipped(
+                "TV app switching is disabled."
+            )
+        elif self._television is None:
+            tv_result = DeviceCommandResult.skipped(
+                "TV adapter not configured."
+            )
+        elif not request.player_app_id:
+            tv_result = DeviceCommandResult.skipped(
+                "No media-player TV app configured."
+            )
+        else:
+            logger.info(
+                "Launching media-player TV app | app_id=%s",
+                request.player_app_id,
+            )
+            tv_result = self._measure_output_switch_step(
+                "launch_media_player_tv_app",
+                lambda: self._television.launch_app(request.player_app_id),
+            )
+
+        return PlaybackOutputSwitchResult(
+            previous_tv_app_id=previous_tv_app_id,
+            tv_input_result=tv_result,
+            av_power_result=DeviceCommandResult.skipped(
+                "AV switching is not used for a TV-app media-player route."
+            ),
+            av_input_result=DeviceCommandResult.skipped(
+                "AV switching is not used for a TV-app media-player route."
+            ),
+        )

@@ -6,6 +6,75 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+## [1.4.1] - 2026-10-17
+
+HCC 1.4.1 improves playback reliability and diagnostics, media-track selection, Home Assistant integration, and OPPO
+path handling.
+
+### Added
+
+* **Home Assistant playback detection event.** HCC now sends a `detected` event when it accepts playback discovered
+  on the monitored device, before the OPPO startup completes, so Home Assistant can dim the room lights at handoff.
+
+* **Playback telemetry correlation.** Opt-in playback events now include anonymous event and attempt identifiers,
+  normalized failure components/codes, and a handoff-attempt event so the telemetry hub can distinguish repeated
+  failures on one installation from aggregate event counts. No media titles, paths, media-server IDs, or credentials
+  are sent.
+
+* **Pre-handoff rejection telemetry.** When opt-in telemetry is enabled, HCC counts playback attempts that it rejects
+  before contacting the OPPO, using only the provider, diagnostic component, and normalized error code. It does not
+  send titles, paths, media-server IDs, or device IDs.
+
+### Changed
+
+* **Player-neutral media control foundation.** Playback selection and output routing
+  now use generic contracts (`hdmi`, `tv_app`, or `none`), keeping existing OPPO
+  configuration compatible. Kodi and other player adapters are not enabled yet.
+
+* **Per-player path mappings.** A path mapping can now optionally declare its
+  `media_player_type`; existing unscoped mappings remain compatible and continue
+  to apply to the active player.
+
+* **More reliable Emby track selection.** HCC now queries Emby's `PlaybackInfo` for audio and subtitle streams,
+  selects metadata from the active media source, and falls back to the existing item metadata and default track
+  indices when Emby or an optional metadata plugin does not provide stream information. The installation guide now
+  documents the optional Emby IsoMounter setup, which can help Emby display the available audio and subtitle tracks
+  for Blu-ray and DVD ISOs.
+
+### Fixed
+
+* **Resume entries now keep their “Continue Watching” metadata after a manual stop.** HCC restores `LastPlayedDate`
+  together with the resume position after marking an item as unwatched. Thanks to [@revin34](https://github.com/revin34)
+  for finding and reporting this issue in [#85](https://github.com/tousled/home-cinema-control/issues/85).
+
+* **Failed playback handoffs preserve the resume position.** If HCC stops the source client and the OPPO handoff later
+  fails before playback starts, HCC restores the original media-server resume position.
+
+* **OPPO playback now honors “start from beginning”.** A zero start position sends an explicit seek to
+  `0` after the player becomes active, preventing the OPPO from reusing its previous playback position.
+
+* **Safer media-server playback admission and diagnostics.** Emby and Jellyfin paths now respect complete directory
+  names, nested mappings use the most specific route, and HCC explains why playback was stopped when a library or
+  route is not ready. Session monitoring now shows the configured device and received candidates when no device
+  matches, while item lookup failures include enough provider context to investigate them without retries.
+
+* **Emby shared network folder paths now reach the OPPO.** HCC translates Emby's alternate shared-network path back to
+  the configured library path before applying the OPPO mapping. Thanks to [@revin34](https://github.com/revin34) for
+  finding and reporting this bug in issue [#82](https://github.com/tousled/home-cinema-control/issues/82).
+
+* **Selected media versions now use their own server path.** When Emby or Jellyfin reports multiple versions of an item,
+  HCC matches the selected `MediaSourceId` to its exact `MediaSources[].Path` before checking libraries and path
+  mappings. If that metadata is unavailable, HCC keeps the previous primary-item-path fallback. Thanks to
+  [@revin34](https://github.com/revin34) for finding and proposing the fix in
+  [#87](https://github.com/tousled/home-cinema-control/issues/87).
+
+* **OPPO path browsing now recognizes short folder names.** The path wizard parses the OPPO's length-prefixed listing
+  records correctly, so folders such as `BR`, `HD`, and `4K` are no longer mistaken for binary separators or file
+  markers. Thanks to [@revin34](https://github.com/revin34) for finding and proposing the fix in
+  [#88](https://github.com/tousled/home-cinema-control/issues/88).
+
+## [1.4.0] - 2026-10-12
+
 HCC 1.4.0 connects playback events to Home Assistant and improves the visibility and reliability of playback startup and
 integration activity.
 

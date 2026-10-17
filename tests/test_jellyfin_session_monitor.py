@@ -153,6 +153,28 @@ class JellyfinSessionMonitorTest(unittest.TestCase):
         monitor.on_sessions_update([_make_session(device_id="other-device")])
 
         self.dispatcher.dispatch.assert_not_called()
+        self.assertEqual(
+            "MEDIA_SERVER_MONITORED_DEVICE_NOT_FOUND",
+            self.playback_state.last_diagnostic.code,
+        )
+
+        monitor.on_sessions_update([_make_session(device_id="other-device")])
+        self.assertEqual(1, len(self.playback_state.diagnostic_history))
+
+    def test_item_details_failure_records_diagnostic_without_dispatch(self):
+        self.jellyfin_session.get_item_playback_info.side_effect = TimeoutError(
+            "Jellyfin request timed out"
+        )
+        monitor = self._monitor()
+
+        monitor.on_sessions_update([_make_session()])
+
+        self.dispatcher.dispatch.assert_not_called()
+        diagnostic = self.playback_state.last_diagnostic
+        self.assertEqual("MEDIA_SERVER_ITEM_UNAVAILABLE", diagnostic.code)
+        self.assertEqual("jellyfin", diagnostic.details["provider"])
+        self.assertEqual("42", diagnostic.details["item_id"])
+        self.assertEqual("TimeoutError", diagnostic.details["error_type"])
 
     def test_item_not_in_library_does_not_dispatch(self):
         self.jellyfin_session.is_item_path_in_library.return_value = False
