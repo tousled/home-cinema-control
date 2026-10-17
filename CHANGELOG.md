@@ -6,27 +6,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
-### Fixed
+## [1.4.1] - 2026-10-17
 
-* **Failed playback handoffs preserve the resume position.** If HCC stops the source client and the OPPO handoff later
-  fails before playback starts, the original media-server resume position is restored.
-
-* **Selected media versions now use their own server path.** When Emby or Jellyfin reports multiple versions of an item,
-  HCC matches the selected `MediaSourceId` to its exact `MediaSources[].Path` before checking libraries and path
-  mappings.
-  If that metadata is unavailable, HCC keeps the previous primary-item-path fallback. Thanks
-  to [@revin34](https://github.com/revin34)
-  for finding and proposing the fix in [#87](https://github.com/tousled/home-cinema-control/issues/87).
-
-* **OPPO path browsing now shows short folder names.** The path wizard parses the OPPO's length-prefixed listing
-  records,
-  so folders such as `BR`, `HD`, and `4K` are no longer mistaken for binary separators or file markers. Thanks to
-  [@revin34](https://github.com/revin34) for finding and proposing the fix
-  in [#88](https://github.com/tousled/home-cinema-control/issues/88).
-
-## [1.4.1] - 2026-10-16
-
-HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing of room automation events.
+HCC 1.4.1 improves playback reliability and diagnostics, media-track selection, Home Assistant integration, and OPPO
+path handling.
 
 ### Added
 
@@ -64,6 +47,9 @@ HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing o
   together with the resume position after marking an item as unwatched. Thanks to [@revin34](https://github.com/revin34)
   for finding and reporting this issue in [#85](https://github.com/tousled/home-cinema-control/issues/85).
 
+* **Failed playback handoffs preserve the resume position.** If HCC stops the source client and the OPPO handoff later
+  fails before playback starts, HCC restores the original media-server resume position.
+
 * **OPPO playback now honors “start from beginning”.** A zero start position sends an explicit seek to
   `0` after the player becomes active, preventing the OPPO from reusing its previous playback position.
 
@@ -75,6 +61,17 @@ HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing o
 * **Emby shared network folder paths now reach the OPPO.** HCC translates Emby's alternate shared-network path back to
   the configured library path before applying the OPPO mapping. Thanks to [@revin34](https://github.com/revin34) for
   finding and reporting this bug in issue [#82](https://github.com/tousled/home-cinema-control/issues/82).
+
+* **Selected media versions now use their own server path.** When Emby or Jellyfin reports multiple versions of an item,
+  HCC matches the selected `MediaSourceId` to its exact `MediaSources[].Path` before checking libraries and path
+  mappings. If that metadata is unavailable, HCC keeps the previous primary-item-path fallback. Thanks to
+  [@revin34](https://github.com/revin34) for finding and proposing the fix in
+  [#87](https://github.com/tousled/home-cinema-control/issues/87).
+
+* **OPPO path browsing now recognizes short folder names.** The path wizard parses the OPPO's length-prefixed listing
+  records correctly, so folders such as `BR`, `HD`, and `4K` are no longer mistaken for binary separators or file
+  markers. Thanks to [@revin34](https://github.com/revin34) for finding and proposing the fix in
+  [#88](https://github.com/tousled/home-cinema-control/issues/88).
 
 ## [1.4.0] - 2026-10-12
 
