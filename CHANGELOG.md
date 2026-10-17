@@ -18,6 +18,12 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
   to [@revin34](https://github.com/revin34)
   for finding and proposing the fix in [#87](https://github.com/tousled/home-cinema-control/issues/87).
 
+* **OPPO path browsing now shows short folder names.** The path wizard parses the OPPO's length-prefixed listing
+  records,
+  so folders such as `BR`, `HD`, and `4K` are no longer mistaken for binary separators or file markers. Thanks to
+  [@revin34](https://github.com/revin34) for finding and proposing the fix
+  in [#88](https://github.com/tousled/home-cinema-control/issues/88).
+
 ## [1.4.1] - 2026-10-16
 
 HCC 1.4.1 improves playback diagnostics, media-track selection, and the timing of room automation events.
