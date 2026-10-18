@@ -6,6 +6,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+### Changed
+
+* Restored the complete user-facing installation, compatibility, Docker, telemetry, update, rollback, and troubleshooting documentation in the public product repository.
+* Corrected public configuration examples to use the current provider-scoped media-server and playback structure, and aligned the product documentation with current Emby and Jellyfin support.
+
 ## [1.4.1] - 2026-10-17
 
 HCC 1.4.1 improves playback reliability and diagnostics, media-track selection, Home Assistant integration, and OPPO
