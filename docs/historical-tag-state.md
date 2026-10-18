@@ -8,3 +8,12 @@ not Git objects imported into this repository.
 No source code is represented by these tags. The original GitHub Release
 association is recorded so release-bearing and tag-only history remain
 distinct.
+
+## `1.0.0-rc.1`
+
+- Historical tag date: `2026-06-19T16:21:32+02:00`
+- Historical tag type: `lightweight`
+- Historical ref SHA: `35634cd7c201d7234112a6dc2cfbf7716285fbf3`
+- Historical commit SHA: `35634cd7c201d7234112a6dc2cfbf7716285fbf3`
+- Historical GitHub Release: `no`
+- Documentary state: public documentation only
