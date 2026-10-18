@@ -11,10 +11,11 @@ verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics,
 - Mounts NFS or SMB/CIFS shares per library mapping.
 - Starts playback on OPPO UDP-203/205 and compatible Chinoppo players.
 - Optionally switches TV and AV receiver inputs, including Trinnov Altitude source/profile control.
-- Reports playback progress and state back to Emby when supported by the device flow.
+- Reports playback progress and state back to the active media server (Emby or Jellyfin) when supported by that provider's
+  device flow.
 - Exposes diagnostics, structured logs with copy/download support, version checks, update hooks, and rollback guidance.
 - Keeps the current web update banner available so releases can be reviewed before updating the deployment.
-- Offers opt-in anonymous telemetry and roadmap feedback; disabled by default and never sending paths, IPs, tokens,
+- Offers opt-in anonymous telemetry; disabled by default and never sending paths, IPs, tokens,
   server names, titles, logs, scripts, or custom commands.
 
 ## Quick start
@@ -78,6 +79,7 @@ Docker Compose is the better option for long-running installs, version pinning, 
 ## Image tags
 
 - `latest`: latest stable release.
+- `1.4.1`: current stable release.
 - `1.0.0`, `1.0.1`, ...: pinned stable releases.
 - `rc`: latest release candidate.
 - `1.0.0-rc.1`, ...: pinned release candidates.
@@ -94,8 +96,8 @@ Images are published for `linux/amd64` and `linux/arm64`.
 - Optional TV and AV receiver control.
 - Optional Home Assistant webhook for provider-neutral playback events. Configure it from HCC's Home Assistant screen;
   the webhook ID is stored in `/config/secrets.json`.
-- Trinnov Altitude support is contract-tested and pending real-hardware validation; power actions require a configured
-  or network-detected MAC address and same-subnet reachability.
+- Trinnov Altitude support is available in the configuration, with validation depending on the hardware available; power
+  actions require a configured or network-detected MAC address and same-subnet reachability.
 
 ## Documentation
 

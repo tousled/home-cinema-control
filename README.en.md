@@ -1,10 +1,10 @@
 <div align="center">
   <img src="assets/brand/hcc-logo.png" alt="Home Cinema Control" width="920"/>
 
-<h3>The integrated experience for Emby, OPPO/Chinoppo, and your cinema room.</h3>
+<h3>The integrated experience for Emby or Jellyfin, OPPO/Chinoppo, and your cinema room.</h3>
 
   <p>
-    HCC turns one <strong>Play</strong> action in Emby into a complete room-ready sequence:
+    HCC turns one <strong>Play</strong> action in Emby or Jellyfin into a complete room-ready sequence:
     path resolution, player mount, playback, input switching, room control, and progress sync.
   </p>
 
@@ -26,65 +26,66 @@
 
 Home Cinema Control exists so a home cinema stops feeling like a pile of disconnected devices.
 
-Emby is a great media library. OPPO UDP-203/205 and Chinoppo M9xxx players are excellent for local high-bitrate files,
+Emby and Jellyfin are great media libraries. OPPO UDP-203/205 and Chinoppo M9xxx players are excellent for local high-bitrate files,
 ISOs, Blu-ray/UHD folders, and NAS playback. The missing piece is the integrated experience: correct paths, HDMI inputs,
 NFS/SMB mounts, room automation, diagnostics, and progress tracking working as one flow.
 
-HCC connects those pieces. You pick a movie in Emby; the room prepares itself for playback.
+HCC connects those pieces. You pick a movie in Emby or Jellyfin; the room prepares itself for playback.
 
 ## Problems HCC Tries To Solve
 
-HCC builds on years of real-world use, repeated forum questions, and hard-to-diagnose failures in setups involving Emby,
+HCC builds on years of real-world use, repeated forum questions, and hard-to-diagnose failures in setups involving Emby or Jellyfin,
 NAS shares, OPPO/Chinoppo players, TVs, and AV receivers. The goal is to reduce the places where users had to guess.
 
 - **Clearer install and migration**: Docker-first deployment, `HCC_*` variables, separated secrets, and a migration
   screen for older configurations.
-- **Less manual path typing**: Emby library discovery, guided mapping, and manual mode when a specific setup needs it.
+- **Less manual path typing**: Emby or Jellyfin library discovery, guided mapping, and manual mode when a specific setup needs it.
 - **NFS and SMB/CIFS per library**: each mapping declares the protocol the player should use.
 - **Testing before playback**: HCC tests mappings through the OPPO/Chinoppo before a real viewing session.
 - **Easier device discovery**: when `arp-scan` is available, the UI suggests detected LAN IP addresses.
 - **Truly optional TV and AV**: disabled room devices do not enter the playback flow.
 - **More predictable startup and exit**: HCC separates authentication, path, mount, player, TV, and AV failures instead
   of leaving users with a black screen or a generic playback failure.
-- **Better Emby/OPPO synchronization**: HCC observes player state so pause, play, stop, natural end, progress, and track
+- **Better media-server/OPPO synchronization**: HCC observes player state so pause, play, stop, natural end, progress, and track
   selection can be reflected back when firmware support allows it.
 - **Readable logs and diagnostics**: severity, latest failure, suggestions, and support summary are visible in the UI.
-- **Fewer manual regressions**: simulated tests cover path selection, protocol decisions, and disabled TV/AV flows.
+- **More predictable compatibility**: the UI shows the state of routes, optional devices, and failures that need attention
+  before a real viewing session.
 
 ## What Happens When You Press Play
 
-1. Emby starts a playback session.
+1. Emby or Jellyfin starts a playback session.
 2. HCC checks whether the selected library should be intercepted.
-3. HCC resolves the verified mapping from the Emby path to the player-visible path.
+3. HCC resolves the verified mapping from the media-server path to the player-visible path.
 4. The OPPO/Chinoppo mounts the selected NFS or SMB share.
 5. The hardware player starts the real file.
 6. TV and AV control run only if configured.
 7. HCC observes progress, pause, stop, natural end, errors, and session cleanup.
-8. Emby receives the state needed to keep watched/resume behavior coherent.
+8. The media server receives the state needed to keep watched/resume behavior coherent.
 
-Emby remains the library. The OPPO/Chinoppo remains the player. HCC coordinates the room.
+Emby or Jellyfin remains the library. The OPPO/Chinoppo remains the player. HCC coordinates the room.
 
 ## Diagnostics Instead Of Guesswork
 
 The Status screen is where HCC shows readiness, current playback state, failures, logs, version status, and support
 information.
 
-The purpose is to turn “try again” into actionable information: Emby issue, unverified route, OPPO mount failure,
+The purpose is to turn “try again” into actionable information: media-server issue, unverified route, OPPO mount failure,
 disabled room device, or deployment/update problem.
 
-It also includes an optional telemetry section, disabled by default, to help decide HCC's roadmap: active
+It also includes an optional telemetry section, disabled by default, to understand real-world HCC usage: active
 installations, selected provider, TV/AV usage, and basic playback events. Telemetry uses a random anonymous
 installation ID and never sends paths, IPs, tokens, servers, libraries, titles, logs, scripts, or custom commands. See
 [docs/telemetry.md](docs/telemetry.md).
 
 ## Optional Room Control
 
-Some rooms only need Emby and the player. Others need TV input switching, AV receiver power/input control, ARC/CEC
+Some rooms only need Emby or Jellyfin and the player. Others need TV input switching, AV receiver power/input control, ARC/CEC
 mitigation, and return-to-app behavior after playback.
 
 TV and AV are configured separately. If disabled, HCC does not instantiate them and does not put them into the playback
 flow. Trinnov Altitude is configured here with IP address, MAC address for Wake-on-LAN, and the OPPO source/profile
-instead of generic HDMI input names. Automated tests cover this behavior to prevent regressions.
+instead of generic HDMI input names. Compatibility depends on the model and available hardware validation.
 
 ## Improvements You Feel Even When You Do Not See Them
 
@@ -93,12 +94,12 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 | Improvement                        | User benefit                                                                                                                                                                                        |
 |------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | SVM3 observation by default        | HCC tries to listen to OPPO events instead of always asking for state every second. The player sees less noise, and HCC still keeps a bounded polling fallback when firmware support is not enough. |
-| Less aggressive progress reporting | Playback position is reported to Emby on a controlled cadence, not through unnecessary constant queries.                                                                                            |
+| Less aggressive progress reporting | Playback position is reported to the media server on a controlled cadence, not through unnecessary constant queries.                                                                                                 |
 | Explicit NFS/SMB routes            | Each library uses the protocol you tested. There is no silent switch that works once and fails during the important session.                                                                        |
-| Section-scoped saves               | Changing room setup does not overwrite Emby settings, and saving paths does not rewrite secrets unnecessarily.                                                                                      |
+| Section-scoped saves               | Changing room setup does not overwrite media-server settings, and saving paths does not rewrite secrets unnecessarily.                                                                            |
 | Credentials kept out of logs       | SMB passwords are not exposed in logged request URLs or support traces.                                                                                                                             |
-| Diagnostics before mystery         | When something fails, HCC tries to name the failing component: Emby, path, OPPO, TV, AV, update, or cleanup.                                                                                        |
-| Wiring tests                       | Disabled TV/AV, per-library protocols, and partial setup saves have automated tests to prevent regressions.                                                                                         |
+| Diagnostics before mystery         | When something fails, HCC tries to name the failing component: media server, path, OPPO, TV, AV, update, or cleanup.                                                                                             |
+| Compatibility status               | The setup distinguishes active features, optional devices, and routes that still need verification.                                                                                                         |
 
 ## Current Scope
 
@@ -110,10 +111,10 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 | Chinoppo M9702/M9201/M9203/M9205 | Supported when the OPPO-compatible API is exposed.                                                                                      |
 | Per-library paths                | NFS or SMB/CIFS per mapping, with verification.                                                                                         |
 | LG WebOS TV                      | Input switching and app restore when configured.                                                                                        |
-| Sony BRAVIA TV (2013+)           | Input switching and app launch via local REST API (Pre-Shared Key). Contract-tested, pending real-hardware validation.                  |
-| AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude, and custom scripts. Trinnov is contract-tested, pending real-hardware validation. |
+| Sony BRAVIA TV (2013+)           | Input switching and app launch via local REST API (Pre-Shared Key), pending real-hardware validation.                              |
+| AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude, and custom scripts; validation depends on available hardware.                 |
 | Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.                                                                     |
-| Telemetry                        | Opt-in, anonymous, documented, and used to prioritize roadmap work.                                                                     |
+| Telemetry                        | Opt-in, anonymous, and documented; helps understand real-world product usage.                                                         |
 | Docker                           | Primary deployment path with host networking and persistent `/config`.                                                                  |
 
 ## What Defines 1.0.0
@@ -130,19 +131,6 @@ the point where setup, support, and updates become part of the product.
 | Hardware compatibility      | OPPO/Chinoppo, TV, and AVR support documented with clear validated/untested/out-of-scope lines.                |
 | Exportable support evidence | Diagnostics, filterable logs, latest failure, support summary, and redacted diagnostic reports sent to GitHub. |
 | Docker release path         | Versioned images, rollback, update policy, and proprietary licensing clarity.                                 |
-
-## Roadmap Direction
-
-After 1.0.0, the architecture is intended to grow without mixing future integrations into the playback core.
-
-| Future area       | Intent                                                                                         |
-|-------------------|------------------------------------------------------------------------------------------------|
-| Plex              | Explore feasibility after the provider boundary is proven.                                     |
-| More TV brands    | Research Samsung, Android TV/Sony, and other ecosystems when hardware validation is possible.  |
-| Multiroom         | Explore multiple rooms/players without compromising the current single-room reliability model. |
-| Lights and scenes | Possible future room automation, not a requirement for playback.                               |
-
-These items are roadmap direction, not current compatibility claims.
 
 ## Home Assistant
 
@@ -166,7 +154,8 @@ The complete setup, JSON payload, and a conditional automation example are in th
 
 ## Quick Install
 
-HCC runs as a Docker container with host networking.
+HCC runs as a Docker container with host networking so it can talk directly to Emby or Jellyfin, the player, the TV, the
+AV receiver, and local network discovery tools.
 
 Quick start:
 

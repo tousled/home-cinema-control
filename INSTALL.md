@@ -137,12 +137,11 @@ autenticar, y el indicador de Media Server en el menú lateral te avisará en na
 desde su pantalla. Si no tienes un `config.json` de XNOPPO o prefieres no importarlo, elige "Configurar desde cero" y
 sigue el asistente normal.
 
-<!-- TODO: captura de pantalla del modal de importación XNOPPO en instalación nueva -->
-
 ## 5. Media Server: conecta Emby o Jellyfin
 
 En **Media Server** eliges el tipo de servidor (Emby o Jellyfin) y configuras su URL, el usuario y el dispositivo que
-HCC debe monitorizar. Las capturas de esta guía muestran Emby, pero el flujo es el mismo con Jellyfin.
+HCC debe monitorizar. El flujo de configuración es el mismo para ambos proveedores, con las diferencias indicadas en
+esta guía.
 
 En la cabecera de esta pantalla verás el logo del proveedor seleccionado, por ejemplo Emby o Jellyfin. Ese logo sirve
 para reconocer de un vistazo qué integración estás configurando: aparece atenuado mientras falta autorizar el servidor
@@ -221,13 +220,12 @@ No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos n
 bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
 real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qué servidor estás mapeando.
 
-### 7.1 Crea primero las bibliotecas en Emby
+### 7.1 Crea primero las bibliotecas en tu servidor multimedia
 
-Antes de entrar en HCC, Emby debe tener sus bibliotecas creadas y escaneadas: Películas, Series, Conciertos o las que
-vayas a usar. En Emby, una biblioteca agrupa una o varias carpetas físicas. HCC detecta esas bibliotecas y sus rutas,
-pero no crea la biblioteca por ti.
+Antes de entrar en HCC, Emby o Jellyfin debe tener sus bibliotecas creadas y escaneadas: Películas, Series, Conciertos o
+las que vayas a usar. HCC detecta esas bibliotecas y sus rutas, pero no crea la biblioteca por ti.
 
-Ruta típica en Emby:
+En Emby, una ruta típica es:
 
 ```text
 Dashboard de Emby -> Library -> Add Media Library
@@ -238,16 +236,17 @@ La documentación oficial de Emby cubre este paso en
 separar el contenido en carpetas por tipo, como Movies, TV Shows o Music:
 [Quick Start](https://emby.media/support/articles/Quick-Start.html).
 
-Cuando termines, entra en HCC y usa **Recargar bibliotecas** en Media Paths. Si no aparece una biblioteca, primero
-corrige Emby; no empieces a escribir rutas manuales a ciegas.
+Para Jellyfin, crea las bibliotecas desde su panel de administración y asegúrate de que el usuario autorizado para HCC
+puede acceder a ellas. Cuando termines, entra en HCC y usa **Recargar bibliotecas** en Media Paths. Si no aparece una
+biblioteca, corrige primero el servidor correspondiente; no empieces a escribir rutas manuales a ciegas.
 
 ### 7.2 Elige qué bibliotecas debe interceptar HCC
 
-No todo lo que existe en Emby tiene que pasar por el OPPO. Puedes dejar fuera música, documentales, pruebas o cualquier
-biblioteca que quieras reproducir normalmente desde el cliente Emby.
+No todo lo que existe en Emby o Jellyfin tiene que pasar por el OPPO. Puedes dejar fuera música, documentales, pruebas o
+cualquier biblioteca que quieras reproducir normalmente desde el cliente correspondiente.
 
 La pantalla muestra las bibliotecas detectadas y permite activar solo las que quieras que HCC controle. Las demás
-seguirán reproduciéndose por el flujo normal de Emby.
+seguirán reproduciéndose por el flujo normal del servidor multimedia.
 
 ### 7.3 Prepara NFS o SMB/CIFS en el NAS
 
@@ -412,8 +411,6 @@ de LG, aquí no hay un diálogo de emparejamiento en pantalla, se configura una 
 En la pantalla **Sala** de HCC, introduce la IP de la TV y la misma clave PSK, y pulsa "Probar conexión". Después,
 usa "Detectar apps" para que HCC liste las apps instaladas en esa TV y puedas elegir la de tu servidor multimedia.
 Este paso hace falta una sola vez por TV.
-
-*(Capturas de pantalla de los ajustes de Sony pendientes de añadir — requieren una TV Sony real.)*
 
 Nota sobre CEC/ARC:
 

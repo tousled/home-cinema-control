@@ -125,12 +125,10 @@ provider is still added but left unauthenticated, and the Media Server sidebar i
 finish connecting it from its own screen. If you don't have an XNOPPO `config.json`, or would rather not import it,
 choose "Configure from scratch" and follow the normal wizard.
 
-<!-- TODO: screenshot of the XNOPPO import modal on a fresh install -->
-
 ## 5. Media Server: Emby or Jellyfin
 
 Pick the provider (Emby or Jellyfin), then configure its URL, authentication, and the client/device HCC should
-monitor. Screenshots in this guide show Emby, but the flow is the same with Jellyfin.
+monitor. The setup flow is shared by both providers, with the differences called out in this guide.
 
 The page header shows the selected provider logo, for example Emby or Jellyfin, so you can immediately recognize which
 integration you are configuring. The logo is muted while the provider still needs authorization or connection setup, and
@@ -170,7 +168,7 @@ you can still search or type the IP address directly.
 
 ## 7. Media Paths: The Important Part
 
-This is the critical setup step because it solves the real problem: Emby knows where the movie lives on the server, but
+This is the critical setup step because it solves the real problem: the media server knows where the movie lives, but
 the OPPO/Chinoppo needs to reach that same movie as a NAS network share.
 
 Think of HCC as a path translator:
@@ -191,14 +189,12 @@ Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the sam
 provider's libraries, asks for the equivalent player-visible path, and tests it before a real viewing session. The
 screen shows an Emby/Jellyfin badge so you can tell which server you are mapping.
 
-### 7.1 Create Emby Libraries First
+### 7.1 Create Libraries In Your Media Server First
 
-Before opening HCC, Emby should already have scanned libraries: Movies, TV Shows, Concerts, or whatever you use. In
-Emby,
-a library groups one or more physical folders. HCC detects those libraries and paths, but it does not create the library
-for you.
+Before opening HCC, Emby or Jellyfin should already have scanned libraries: Movies, TV Shows, Concerts, or whatever you
+use. HCC detects those libraries and paths, but it does not create the library for you.
 
-Typical Emby path:
+For Emby, a typical path is:
 
 ```text
 Emby Dashboard -> Library -> Add Media Library
@@ -208,16 +204,17 @@ Emby's official [Library Setup](https://emby.media/support/articles/Library-Setu
 [Quick Start](https://emby.media/support/articles/Quick-Start.html) also recommends separating media by type, such as
 Movies, TV Shows, or Music.
 
-When done, go to HCC and use **Reload libraries** in Media Paths. If a library does not appear, fix Emby first instead
-of typing paths blindly.
+For Jellyfin, create the libraries from its administration panel and make sure the HCC user can access them. When done,
+go to HCC and use **Reload libraries** in Media Paths. If a library does not appear, fix the relevant server first
+instead of typing paths blindly.
 
 ### 7.2 Choose Which Libraries HCC Should Intercept
 
-Not everything in Emby has to go through the OPPO. You can leave music, documentaries, tests, or lightweight libraries
-on the normal Emby playback path.
+Not everything in Emby or Jellyfin has to go through the OPPO. You can leave music, documentaries, tests, or lightweight
+libraries on the normal playback path for the selected client.
 
 The screen shows detected libraries and lets you enable only the ones you want HCC to control. The rest keep playing
-through the normal Emby flow.
+through the normal media-server flow.
 
 ### 7.3 Prepare NFS Or SMB/CIFS On The NAS
 
@@ -372,8 +369,6 @@ itself: **Settings → Network & Internet → Home Network Setup → IP Control*
 **Pre-Shared Key**, and enter any string. Use that same key in HCC's Room Setup screen alongside the TV's IP. Sony
 so Room Setup includes a one-time "Detect apps" step that lists the TV's installed apps so you can pick your media
 server's.
-
-*(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
 
 ## 9. Connect HCC to Home Assistant
 
