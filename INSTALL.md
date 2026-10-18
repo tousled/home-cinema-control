@@ -1,20 +1,48 @@
-# Instalación de Home Cinema Control
+# Instalación y configuración de Home Cinema Control
 
 [English](INSTALL.en.md) · [README](README.md)
 
-Esta guía cubre la instalación de HCC como contenedor Docker y la configuración inicial desde la interfaz web.
+Esta guía cubre el despliegue de HCC y la configuración desde la interfaz web. Está pensada para evitar los problemas
+que más suelen aparecer en instalaciones con Emby/Jellyfin, NAS, OPPO/Chinoppo, TV y receptor AV: rutas mal mapeadas,
+IPs escritas a mano, montajes que fallan sin explicación, CEC/ARC cambiando entradas y logs difíciles de interpretar.
 
-## Requisitos
+Para capturas específicas de Synology, QNAP, Windows, Unraid o preparación del reproductor OPPO/Chinoppo, usa como
+referencia externa el tutorial de la comunidad de AVPasion sobre Xnoppo:
 
-- Docker en Linux, NAS o un host compatible.
-- Red host disponible para el contenedor.
-- Emby o Jellyfin accesible desde el host.
-- Reproductor OPPO/Chinoppo compatible con la API de control.
-- Bibliotecas multimedia visibles para el servidor y el reproductor.
-- Recursos NFS o SMB/CIFS preparados cuando sean necesarios.
-- TV y receptor AV opcionales.
+https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867
 
-## Inicio rápido
+Usa ese hilo para permisos de NAS, recursos compartidos y configuración del reproductor. Usa esta guía para HCC.
+
+## 1. Antes de empezar
+
+Necesitas:
+
+| Requisito                | Notas                                                                |
+|--------------------------|----------------------------------------------------------------------|
+| Docker                   | Linux recomendado. HCC usa red host.                                 |
+| Emby o Jellyfin          | Uno de los dos, accesible desde el host donde corre HCC.             |
+| OPPO/Chinoppo            | Debe exponer la API MediaControl de OPPO en la red local.            |
+| NAS o carpeta compartida | Debe ser visible desde tu servidor de medios y desde el reproductor. |
+| NFS o SMB/CIFS           | Se elige por cada mapeo de ruta en HCC.                              |
+| TV y receptor AV         | Opcionales. HCC puede funcionar sin ellos.                           |
+
+Recomendaciones antes de instalar:
+
+- Reserva IP fija para tu servidor de medios, NAS, OPPO/Chinoppo, TV y receptor AV.
+- Crea primero las bibliotecas en Emby o Jellyfin. HCC no inventa bibliotecas: lee las que ya existen en tu servidor.
+  Para Emby, ver [Library Setup](https://emby.media/support/articles/Library-Setup.html) y
+  [Quick Start](https://emby.media/support/articles/Quick-Start.html). Para Jellyfin, ver
+  [Adding Media Libraries](https://jellyfin.org/docs/general/server/libraries/).
+- Comparte las carpetas del NAS por NFS o SMB/CIFS y comprueba que el reproductor puede verlas desde su propio
+  explorador de red.
+- Decide qué bibliotecas debe interceptar HCC.
+- Si usas receptor AV, revisa HDMI CEC/ARC. En algunos Denon/Marantz y configuraciones similares, CEC/ARC puede volver a
+  seleccionar la entrada de TV después de que HCC haya cambiado a la entrada del reproductor. Si ves ese comportamiento,
+  desactiva CEC/ARC en el AVR o ajusta la configuración HDMI del receptor.
+
+## 2. Arranque rápido con Docker
+
+Puedes arrancar HCC directamente con `docker run`:
 
 ```bash
 docker volume create home-cinema-control-config
@@ -32,9 +60,19 @@ docker run -d \
   ghcr.io/tousled/home-cinema-control:latest
 ```
 
-Abre `http://<tu-host>:8090`. La red host permite que HCC comunique directamente con el servidor multimedia, el reproductor, los dispositivos opcionales y las herramientas de descubrimiento local.
+Abre:
 
-## Docker Compose
+```text
+http://<tu-host>:8090
+```
+
+`--network host` es importante porque HCC habla directamente con Emby, el OPPO/Chinoppo, TV, AVR y herramientas de
+descubrimiento como `arp-scan`.
+
+## 3. Instalación recomendada con Docker Compose
+
+Para una instalación permanente, crea `compose.yaml`. Es más cómodo para actualizar, fijar una versión concreta o hacer
+rollback:
 
 ```yaml
 services:
@@ -58,28 +96,623 @@ volumes:
     name: home-cinema-control-config
 ```
 
-Inicia el servicio con `docker compose pull && docker compose up -d`.
+Arranca:
 
-## Configuración inicial
+```bash
+docker compose pull
+docker compose up -d
+```
 
-1. Abre la interfaz web.
-2. Configura el proveedor de biblioteca: Emby o Jellyfin.
-3. Comprueba la conexión y selecciona las bibliotecas que HCC debe interceptar.
-4. Define el mapeo entre la ruta del servidor y la ruta visible para el reproductor.
-5. Elige NFS o SMB/CIFS según el recurso compartido que hayas preparado.
-6. Configura TV y receptor AV solo si forman parte de la sala.
-7. Ejecuta las pruebas de diagnóstico antes de iniciar una reproducción real.
+Abre `http://<tu-host>:8090`.
 
-Las credenciales y datos sensibles deben permanecer en la configuración protegida del despliegue. No los publiques en Issues, diagnósticos ni capturas.
+`network_mode: host` es necesario: HCC habla directamente con Emby/Jellyfin, el OPPO/Chinoppo, TV, AVR y herramientas
+de descubrimiento como `arp-scan`.
 
-## Actualización y rollback
+### 3.1 Instalar con Portainer u otra interfaz web
 
-Para actualizar a la última estable ejecuta `docker compose pull && docker compose up -d`.
+En Portainer: **Stacks → Add stack** y pega el `compose.yaml` de arriba.
 
-Para fijar una versión, sustituye `latest` por un tag concreto, por ejemplo `1.4.1`. Los prereleases usan tags como `1.4.1-rc.3` y `rc`.
+Para fijar una versión concreta (incluidas las release candidates), añade `HCC_VERSION` como variable de entorno del
+stack, por ejemplo `HCC_VERSION=1.1.0-rc.2`. Es lo único que decide qué imagen se descarga — sin ella, Portainer usa
+`latest` (la última estable). Para actualizar, cambia ese valor y vuelve a desplegar tirando de la imagen ("re-pull"),
+sin construir una imagen local.
 
-La configuración persistente vive en el volumen `home-cinema-control-config`, separado de la imagen. Conserva una copia del volumen antes de cambios importantes.
+Otras interfaces (Synology Container Manager, Unraid...) deberían funcionar igual si permiten definir variables de
+entorno para el stack — la lógica es la misma.
 
-## Ayuda
+## 4. Migración o instalación limpia
 
-Consulta [SUPPORT.md](SUPPORT.md) y abre un issue con información redactada si necesitas ayuda.
+Si HCC encuentra una configuración anterior compatible, mostrará una pantalla de migración. Puedes importar la
+configuración o empezar desde cero.
+
+La migración existe para conservar lo reutilizable, pero HCC guarda ahora la configuración por secciones y separa los
+secretos en `/config/secrets.json`.
+
+Si en cambio es una instalación completamente nueva (sin configuración previa de HCC) y vienes del proyecto
+predecesor XNOPPO/Chinoppo, HCC te ofrecerá un segundo aviso distinto: importar tu antiguo `config.json` de XNOPPO en
+lugar de configurarlo todo desde cero. Selecciona el fichero, HCC migra OPPO/TV/AV/rutas igual que en la migración
+normal, mueve la URL de tu Emby al nuevo formato y, si el servidor está accesible en ese momento, inicia sesión con
+el usuario/contraseña del fichero antiguo para obtener un token — si no puede, el proveedor queda añadido pero sin
+autenticar, y el indicador de Media Server en el menú lateral te avisará en naranja para que termines de conectarlo
+desde su pantalla. Si no tienes un `config.json` de XNOPPO o prefieres no importarlo, elige "Configurar desde cero" y
+sigue el asistente normal.
+
+<!-- TODO: captura de pantalla del modal de importación XNOPPO en instalación nueva -->
+
+## 5. Media Server: conecta Emby o Jellyfin
+
+En **Media Server** eliges el tipo de servidor (Emby o Jellyfin) y configuras su URL, el usuario y el dispositivo que
+HCC debe monitorizar. Las capturas de esta guía muestran Emby, pero el flujo es el mismo con Jellyfin.
+
+En la cabecera de esta pantalla verás el logo del proveedor seleccionado, por ejemplo Emby o Jellyfin. Ese logo sirve
+para reconocer de un vistazo qué integración estás configurando: aparece atenuado mientras falta autorizar el servidor
+o completar la conexión, y se muestra con más presencia cuando el proveedor queda autorizado. La URL, el usuario y los
+detalles de preparación siguen estando en los paneles de configuración para no duplicar información en la cabecera.
+
+Qué resuelve esta pantalla:
+
+- evita editar tokens a mano;
+- guarda credenciales sensibles en `secrets.json`;
+- permite recargar dispositivos del servidor multimedia;
+- detecta bibliotecas para usarlas después en el asistente de rutas;
+- mantiene el guardado limitado a la sección de Media Server.
+
+El dispositivo monitorizado es importante: HCC solo intercepta sesiones que lleguen desde ese cliente/dispositivo.
+
+### 5.1 Configuración recomendada de Emby para ISO Blu-ray y DVD
+
+Esta configuración es **opcional** y HCC funciona sin ella. Si tienes Blu-ray o DVD en formato ISO, te recomendamos
+instalar **IsoMounter** desde el catálogo de plugins de Emby, reiniciar Emby y actualizar la biblioteca o los elementos
+ISO existentes.
+
+El plugin permite que Emby analice el contenido del disco y devuelva sus pistas de audio y subtítulos. Así, la pantalla
+de Emby puede mostrar un selector con las diferentes pistas disponibles antes o durante la reproducción. HCC también
+consulta esa información cuando está disponible y conserva un fallback compatible si el plugin no está instalado.
+
+El idioma solo aparecerá si Emby lo devuelve en los metadatos de la pista. Si Emby no identifica el idioma, se mostrará
+la información técnica disponible —por ejemplo, `DTS-HD MA 5.1` para audio o `PGSSUB` para subtítulos—, pero no se
+podrá mostrar de forma fiable el idioma como: `ES`, `CAT`, `GA` o `JA`. La reproducción y el cambio de pistas seguirán
+funcionando.
+
+Si usas Jellyfin, la cuenta con la que autorizas HCC debe tener permisos de **administrador** para que la recarga de
+dispositivos
+y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
+
+## 6. Media Player: localiza el OPPO/Chinoppo
+
+En **Media Player** se configura la IP del reproductor y se prueba la API MediaControl.
+
+Cuando `arp-scan` está disponible dentro del contenedor, aparece el botón **Escanear red**. Al pulsarlo, HCC muestra
+dispositivos detectados como sugerencias bajo el campo de IP para no tener que escribir direcciones a ciegas.
+
+El buscador filtra por IP, nombre o fabricante cuando esa información está disponible. Para buscar por nombres como
+`oppo`, `lg` o `denon`, conviene configurar nombres de dispositivo, reservas DHCP o DNS local en el router. Si tu red no
+devuelve nombres, puedes buscar o escribir la IP directamente.
+
+Usa **Probar OPPO** antes de continuar. Si falla, revisa:
+
+- IP del reproductor;
+- que esté encendido o accesible en red;
+- firewall;
+- red host de Docker;
+- que el reproductor exponga la API compatible con OPPO MediaControl.
+
+## 7. Rutas de medios: la parte importante
+
+Esta es la parte más importante de la configuración porque aquí se resuelve el problema real: Emby o Jellyfin saben
+dónde está la película en el servidor, pero el OPPO/Chinoppo necesita llegar a la misma película como recurso de red
+del NAS.
+
+Piensa en HCC como un traductor de rutas:
+
+```text
+Emby ve:          /volume1/Video/Peliculas/Dune (2021).mkv
+OPPO ve por NFS:  volume1/Video/Peliculas/Dune (2021).mkv
+OPPO ve por SMB:  Video/Peliculas/Dune (2021).mkv
+HCC guarda:       esta biblioteca usa esta ruta OPPO y este protocolo
+```
+
+Si Emby tiene configurado **Shared network folder**, puede informar durante la reproducción una ruta de red alternativa
+en lugar de la ruta de biblioteca. HCC la traduce automáticamente a la ruta canónica de Emby antes de aplicar el
+mapeo hacia el OPPO. No hace falta crear un segundo mapeo para esa ruta alternativa. Jellyfin no expone actualmente
+ese campo equivalente en su API; sus `Locations` siguen siendo la ruta canónica que debes mapear.
+
+No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos nombres. Por eso HCC parte de las
+bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
+real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qué servidor estás mapeando.
+
+### 7.1 Crea primero las bibliotecas en Emby
+
+Antes de entrar en HCC, Emby debe tener sus bibliotecas creadas y escaneadas: Películas, Series, Conciertos o las que
+vayas a usar. En Emby, una biblioteca agrupa una o varias carpetas físicas. HCC detecta esas bibliotecas y sus rutas,
+pero no crea la biblioteca por ti.
+
+Ruta típica en Emby:
+
+```text
+Dashboard de Emby -> Library -> Add Media Library
+```
+
+La documentación oficial de Emby cubre este paso en
+[Library Setup](https://emby.media/support/articles/Library-Setup.html). Su guía rápida también recuerda que conviene
+separar el contenido en carpetas por tipo, como Movies, TV Shows o Music:
+[Quick Start](https://emby.media/support/articles/Quick-Start.html).
+
+Cuando termines, entra en HCC y usa **Recargar bibliotecas** en Media Paths. Si no aparece una biblioteca, primero
+corrige Emby; no empieces a escribir rutas manuales a ciegas.
+
+### 7.2 Elige qué bibliotecas debe interceptar HCC
+
+No todo lo que existe en Emby tiene que pasar por el OPPO. Puedes dejar fuera música, documentales, pruebas o cualquier
+biblioteca que quieras reproducir normalmente desde el cliente Emby.
+
+La pantalla muestra las bibliotecas detectadas y permite activar solo las que quieras que HCC controle. Las demás
+seguirán reproduciéndose por el flujo normal de Emby.
+
+### 7.3 Prepara NFS o SMB/CIFS en el NAS
+
+HCC no configura permisos del NAS. Necesitas que el OPPO/Chinoppo pueda navegar el recurso desde su propio menú de red.
+
+Para NFS:
+
+- activa NFS en el NAS;
+- exporta la carpeta de medios;
+- permite acceso desde la IP del reproductor;
+- revisa permisos de lectura;
+- comprueba desde el OPPO que el recurso aparece y que puedes entrar hasta la carpeta de la biblioteca.
+
+Para SMB/CIFS:
+
+- activa SMB en el NAS;
+- comparte la carpeta de medios;
+- crea o elige un usuario con permiso de lectura;
+- guarda usuario y contraseña en HCC si el recurso no es invitado;
+- comprueba desde el OPPO que puedes navegar hasta la carpeta.
+
+Cuando uses SMB/CIFS, HCC muestra las credenciales en la misma pantalla de rutas para que no tengas que saltar entre
+pantallas ni editar ficheros.
+
+Si necesitas capturas concretas de Synology, QNAP, Windows, Unraid o M9702/M920x, usa el hilo de AVPasion enlazado al
+principio de esta guía. HCC documenta su parte; la configuración exacta del NAS depende de tu plataforma.
+
+### 7.4 Encuentra la ruta como la ve el OPPO
+
+Este paso evita la mayoría de errores. No copies solo la ruta de Emby. Entra en el explorador de red del OPPO/Chinoppo y
+observa cómo aparece la carpeta.
+
+Ejemplos habituales:
+
+| Emby puede ver             | OPPO puede ver                 |
+|----------------------------|--------------------------------|
+| `/volume1/Video/Peliculas` | NFS: `volume1/Video/Peliculas` |
+| `/volume1/Video/Peliculas` | SMB: `Video/Peliculas`         |
+| `/mnt/media/Movies`        | SMB: `NAS/Movies`              |
+| `D:\Movies` en Windows     | SMB: `Servidor/Movies`         |
+
+Si dudas entre NFS y SMB, empieza por el protocolo que ya funcione manualmente desde el reproductor. Después podrás
+crear otro mapeo con otro protocolo si una biblioteca concreta lo necesita.
+
+### 7.5 Crea y prueba el mapeo en HCC
+
+En **Media Paths**, trabaja biblioteca por biblioteca:
+
+1. Pulsa **Recargar bibliotecas** para traer las bibliotecas actuales de Emby.
+2. Selecciona la biblioteca que quieres interceptar.
+3. Revisa la **ruta del servidor** que HCC ha leído desde Emby.
+4. Elige `nfs` o `cifs` para esa biblioteca.
+5. Escribe o selecciona la **ruta OPPO** tal como la ve el reproductor.
+6. Si usas SMB con usuario, rellena credenciales en la sección SMB.
+7. Pulsa **Probar ruta**.
+8. Guarda cuando la ruta quede verificada.
+
+HCC une las rutas como rutas, no como texto literal: la **Ruta OPPO** puede terminar en `/` o no, y las rutas de
+Las rutas de Emby con formato Windows como `Z:\` se normalizan automáticamente. Por ejemplo,
+`//192.168.1.10/media` más `Películas` produce `//192.168.1.10/media/Películas`.
+
+Qué significa cada estado:
+
+| Estado     | Qué debes hacer                                                                  |
+|------------|----------------------------------------------------------------------------------|
+| Verificada | Esa ruta ha montado correctamente desde el reproductor.                          |
+| Pendiente  | Has cambiado algo y falta probar de nuevo.                                       |
+| Revisable  | El mapeo existía, pero cambió alguna pieza relacionada. Repite la prueba.        |
+| Error      | HCC no pudo montar la ruta. Mira la sugerencia y los logs filtrados por errores. |
+
+### 7.6 Cuándo usar modo manual
+
+El modo manual existe para casos reales, no para volver al método antiguo:
+
+- Emby no devuelve la carpeta esperada;
+- una biblioteca mezcla varias carpetas físicas;
+- el NAS expone nombres distintos por NFS y SMB;
+- quieres crear una ruta de pruebas antes de tocar la principal;
+- vienes de una configuración anterior y quieres revisar cada mapeo.
+
+La mejora importante es que el modo manual ya no es “escribe algo y cruza los dedos”: puedes probar el montaje, ver el
+diagnóstico y guardar solo cuando entiendes qué ruta funciona.
+
+### 7.7 Conceptos clave del mapeo
+
+| Campo             | Qué significa                                                        |
+|-------------------|----------------------------------------------------------------------|
+| Ruta del servidor | Ruta física que Emby reporta para la biblioteca.                     |
+| Ruta OPPO         | Ruta NFS o SMB/CIFS que el reproductor ve desde su navegador de red. |
+| Protocolo         | `nfs` o `cifs`, elegido por cada ruta.                               |
+| Verificada        | HCC ha probado que el reproductor puede montar esa ruta.             |
+
+HCC no cambia silenciosamente de SMB a NFS ni de NFS a SMB. Si una ruta está configurada como SMB, se prueba y reproduce
+como SMB. Esto evita errores invisibles cuando una biblioteca funciona con un protocolo y otra necesita otro.
+
+HCC comprueba las rutas por carpetas completas: `/media/Movies` coincide con `/media/Movies/Alien.mkv`, pero no con
+`/media/Movies-Old/Alien.mkv`. Si tienes rutas anidadas, como `/media/Movies` y `/media/Movies/4K`, utiliza la más
+específica. Esa ruta concreta debe estar verificada; HCC no prueba otra más amplia ni envía una ruta no verificada al
+OPPO. Si la reproducción se bloquea, la pantalla de estado indica qué ruta falta o necesita probarse y guardarse.
+
+Si un elemento tiene varias versiones, HCC usa la versión que el usuario ha seleccionado en Emby o Jellyfin. El servidor
+identifica esa versión con `MediaSourceId`; HCC busca la ruta correspondiente en `MediaSources` y aplica el mapeo a esa
+ruta, en lugar de asumir siempre la ruta de la versión principal. Si el servidor no devuelve una coincidencia exacta,
+HCC conserva la ruta principal como fallback compatible.
+
+### 7.8 Por qué es importante este paso
+
+Emby o Jellyfin y el OPPO pueden referirse al mismo contenido con rutas distintas. La ruta que conoce el servidor
+multimedia no siempre es la que el reproductor puede abrir desde su red.
+
+Una ruta verificada le dice a HCC exactamente:
+
+- qué carpeta debe montar el OPPO;
+- con qué protocolo debe acceder a ella;
+- qué bibliotecas deben pasar por el reproductor;
+- qué configuración ha funcionado antes de iniciar una reproducción real.
+
+Por eso conviene probar y verificar cada mapeo. Si una ruta falla, el problema queda acotado al NAS, al protocolo o a
+los permisos, en lugar de aparecer más tarde como un fallo ambiguo al intentar reproducir.
+
+## 8. Sala: TV y receptor AV son opcionales
+
+La pantalla **Sala** controla qué debe hacer HCC al iniciar y terminar una reproducción: cambiar entrada de TV, encender
+o cambiar entrada del AVR, restaurar audio de TV, etc.
+
+El mismo escaneo de red sirve para localizar TV y receptor AV cuando los configuras desde **Sala**.
+
+Puntos importantes:
+
+- TV y AV se configuran por separado.
+- Si TV está desactivada, no entra en el flujo de reproducción.
+- Si AV está desactivado, no entra en el flujo de reproducción.
+- En LG WebOS, HCC puede detectar entradas HDMI y restaurar la app del servidor multimedia. El primer uso muestra el
+  diálogo normal de emparejamiento en la TV; tras actualizar HCC o la TV puede que tengas que aceptarlo de nuevo.
+- En Sony BRAVIA (2013 o posterior), HCC hace lo mismo vía la API REST oficial de Sony, autenticada con una
+  clave PSK — ver más abajo cómo activarla.
+- En AVR compatibles, HCC puede encender, apagar, cambiar entrada y aplicar esperas para mitigar problemas HDMI.
+- En Trinnov Altitude, HCC usa números de fuente/perfil en lugar de nombres de entrada HDMI. El protocolo requiere que
+  HCC y el procesador estén en la misma subred. Introduce la IP y usa **Detectar MAC** para que HCC intente rellenar
+  la MAC desde el escaneo de red; las acciones de encendido/apagado quedan bloqueadas hasta tener esa MAC.
+- Para configurar Trinnov: selecciona **TRINNOV**, introduce la IP, detecta o escribe la MAC, pulsa **Detectar entradas
+  HDMI** y elige el source/profile donde está conectado el OPPO.
+- La detección de entradas HDMI, "Cambiar a OPPO", "Detectar apps" y "Abrir Emby/Jellyfin" quedan bloqueados hasta
+  que "Probar conexión" confirma que la TV responde — no tiene sentido detectar nada contra una TV inalcanzable.
+  "Abrir Emby/Jellyfin" además requiere haber detectado esa app en la TV; si no aparece entre las detectadas, HCC te
+  lo indica para que la elijas manualmente si aparece con otro nombre.
+- Cambiar el modelo de TV limpia los campos del formulario (IP, MAC, entradas detectadas…), salvo que vuelvas al
+  modelo que ya tienes guardado, en cuyo caso se restaura su configuración.
+
+### Sony BRAVIA: activar el Pre-Shared Key (PSK)
+
+Antes de configurar la TV Sony en HCC, hay que activar el control por IP directamente en el televisor — a diferencia
+de LG, aquí no hay un diálogo de emparejamiento en pantalla, se configura una vez desde los ajustes:
+
+1. En el mando, ve a **Ajustes → Red y Internet → Configuración de red doméstica → Control IP**.
+2. Activa **Autenticación** y elige **Pre-Shared Key**.
+3. Escribe una clave (cualquier cadena de texto) y guárdala — es la misma clave que introducirás en HCC.
+
+> La ruta exacta del menú varía algo según el año del modelo; el camino general **Red → Configuración de red
+> doméstica → Control IP → Pre-Shared Key** se mantiene desde los modelos de 2014 en adelante.
+
+En la pantalla **Sala** de HCC, introduce la IP de la TV y la misma clave PSK, y pulsa "Probar conexión". Después,
+usa "Detectar apps" para que HCC liste las apps instaladas en esa TV y puedas elegir la de tu servidor multimedia.
+Este paso hace falta una sola vez por TV.
+
+*(Capturas de pantalla de los ajustes de Sony pendientes de añadir — requieren una TV Sony real.)*
+
+Nota sobre CEC/ARC:
+
+Si el receptor AV cambia a la entrada correcta pero vuelve solo a TV Audio, ARC o CEC probablemente está interviniendo.
+En ese caso, desactiva CEC/ARC en el receptor o revisa la configuración HDMI. HCC puede reintentar cambios de entrada,
+pero si el AVR o la TV fuerzan otra fuente por CEC, la automatización será inestable.
+
+## 9. Conecta HCC con Home Assistant
+
+Con esta integración, HCC avisa a Home Assistant cuando detecta una reproducción, empieza, se pausa, continúa o termina.
+Después,
+Home Assistant decide qué hacer: encender luces, activar una escena, enviar un aviso o simplemente guardar el evento en
+el
+registro. HCC no crea automatizaciones por su cuenta; tú eliges la reacción en Home Assistant.
+
+### 9.1 Crea la automatización en Home Assistant
+
+En Home Assistant crea una automatización con un disparador **Webhook**. Puedes copiar este ejemplo completo. De momento
+solo escribe cada cambio en el registro de Home Assistant, para que puedas comprobar que la conexión funciona antes de
+añadir luces, escenas o notificaciones.
+
+```yaml
+alias: HCC - eventos de reproducción
+triggers:
+  - trigger: webhook
+    webhook_id: reemplaza-esto-por-un-id-largo-y-aleatorio
+    allowed_methods:
+      - POST
+    local_only: true
+conditions:
+  - condition: template
+    value_template: >-
+      {{ trigger.json.event | default('') in ['detected', 'started', 'paused', 'resumed', 'stopped'] }}
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'detected' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción detectada: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'started' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción iniciada: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'paused' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción pausada: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'resumed' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción reanudada: {{ trigger.json.title | default('') }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'stopped' }}"
+        sequence:
+          - action: logbook.log
+            data:
+              name: HCC
+              message: "Reproducción detenida: {{ trigger.json.title | default('') }}"
+mode: queued
+```
+
+El texto `reemplaza-esto-por-un-id-largo-y-aleatorio` es un ejemplo. Sustitúyelo por un identificador nuevo y guárdalo:
+será el código que permitirá a HCC enviar eventos a esta automatización. Trátalo como una contraseña: no lo publiques ni
+lo compartas.
+
+Deja `local_only: true` si HCC y Home Assistant están en tu red local. Así Home Assistant no acepta este webhook desde
+Internet. El método `POST` es el que utiliza HCC para enviar los datos.
+
+Para aprender más sobre automatizaciones, consulta la
+[documentación oficial de Home Assistant](https://www.home-assistant.io/docs/automation/). Para las opciones del
+disparador,
+consulta la [documentación oficial del Webhook](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
+
+### 9.2 Configura HCC
+
+En la pantalla **Home Assistant** de HCC:
+
+1. Activa **Enviar eventos de HCC a Home Assistant**.
+2. Escribe la dirección de Home Assistant, por ejemplo `http://homeassistant.local:8123`. Escribe solo la dirección
+   base;
+   no añadas `/api/webhook`.
+3. Escribe el mismo código en **ID del webhook** que has puesto en la automatización.
+4. Pulsa **Guardar**.
+5. Pulsa **Reiniciar HCC** en el enlace que aparece debajo del botón para aplicar la configuración.
+
+El ajuste de timeout de **Ajustes avanzados** normalmente no tienes que cambiarlo. Solo úsalo si Home Assistant tarda
+más
+de lo normal en responder.
+
+### 9.3 Comprueba que funciona
+
+HCC envía estos cinco eventos:
+
+- `detected`: HCC ha detectado una reproducción válida en el dispositivo monitorizado y ha aceptado el handoff.
+- `started`: la reproducción ha comenzado.
+- `paused`: la reproducción está pausada.
+- `resumed`: la reproducción continúa.
+- `stopped`: la reproducción ha terminado o se ha detenido.
+
+El contenido de un evento se parece a esto:
+
+```json
+{
+  "event": "started",
+  "event_id": "57438c115b84467dafcf843368d9bef6",
+  "session_id": "33feec42b11b48799f749bf6534e371c",
+  "media_type": "movie",
+  "title": "Interstellar",
+  "source": "emby",
+  "player": "oppo"
+}
+```
+
+`event` indica qué ha ocurrido. `event_id` identifica ese envío y `session_id` agrupa los eventos de la misma
+reproducción.
+El título, el servidor y el reproductor aparecen cuando HCC dispone de esos datos.
+
+Para probarlo, inicia una reproducción desde el dispositivo que HCC monitoriza y revisa el **Registro** de Home
+Assistant.
+La pantalla de HCC también muestra la última entrega real. Antes de enviar el primer evento aparecerá como pendiente; no
+se envía una petición de prueba automática.
+
+Si Home Assistant no responde, HCC registra el error y la reproducción continúa. Si cambias la dirección o el ID del
+webhook, el estado vuelve a pendiente hasta que HCC consiga enviar un evento con la nueva configuración.
+
+Si HCC no puede cargar esta pantalla, muestra un error con la opción **Reintentar** en lugar de rellenar el formulario
+con
+valores que podrían no ser los tuyos.
+
+## 10. Diagnóstico: saber qué falla
+
+La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y acciones de soporte.
+
+Úsala para:
+
+- comprobar si HCC está conectado;
+- copiar un resumen de soporte;
+- enviar un diagnóstico: genera un informe redactado automáticamente (sin IPs, credenciales ni rutas), te deja
+  revisarlo y editarlo, y luego lo copia al portapapeles y abre un nuevo issue en GitHub para que lo pegues y lo
+  envíes tú mismo — nada se envía en segundo plano ni sin que lo veas antes;
+- ver el último fallo;
+- comprobar actualizaciones;
+- activar o desactivar telemetría anónima y enviar interés de roadmap;
+- reiniciar el servicio si tu despliegue lo permite.
+
+El bloque de versión muestra la versión instalada con el mismo formato que las etiquetas Docker (`1.1.1-rc.1`, por
+ejemplo). Si configuras un webhook de actualización, HCC guarda la versión actual antes de pedir el redeploy y muestra
+la información disponible para volver atrás si fuese necesario.
+
+El objetivo es que un fallo no sea simplemente “no reproduce”, sino una pista concreta: servidor no accesible, ruta sin
+verificar, montaje OPPO fallido, TV/AV desactivado, error de recuperación, etc.
+
+La telemetría es opcional y viene desactivada. Si la activas, HCC envía datos anónimos mínimos para entender adopción y
+priorizar desarrollo: instalación activa, versión, idioma, proveedor Emby/Jellyfin, uso de OPPO, TV/AV, NFS/SMB y
+eventos de intento, reproducción iniciada, finalizada, rechazada antes del handoff y fallida. Los eventos llevan
+identificadores aleatorios y anónimos de evento/intento, además del proveedor, componente y código diagnóstico
+normalizados, para poder analizar fallos repetidos por instalación. Si el backend de telemetría no está disponible, HCC
+guarda temporalmente esos eventos
+anónimos en `/config/telemetry_queue.json` y los reintenta después. No envía rutas, IPs, tokens, URLs, nombres de
+servidor, bibliotecas, títulos, IDs del servidor multimedia, logs, scripts ni comandos personalizados. Más detalle:
+[`docs/telemetry.md`](docs/telemetry.md).
+
+## 11. Logs entendibles
+
+La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtrar.
+
+La consola muestra por defecto las últimas 100 líneas visibles. Puedes cambiar el rango a más líneas o al log completo,
+filtrar por severidad y copiar al portapapeles exactamente las líneas mostradas, algo útil cuando compartes información
+desde el móvil. La descarga sigue generando el log completo.
+
+Esto sustituye el patrón de revisar logs crudos sin contexto. Los errores y avisos quedan marcados visualmente para que
+sea más fácil compartir información útil en soporte.
+
+## 12. Primera reproducción de validación
+
+Cuando las pantallas anteriores estén guardadas y verificadas, haz una primera prueba con una película de una biblioteca
+interceptada. No pruebes solo que el OPPO empieza a reproducir; prueba el ciclo completo.
+
+Checklist recomendado:
+
+| Prueba                                  | Qué confirma                                                         |
+|-----------------------------------------|----------------------------------------------------------------------|
+| Play desde el cliente Emby monitorizado | HCC intercepta solo el dispositivo correcto.                         |
+| Montaje NFS/SMB elegido                 | La biblioteca usa el protocolo configurado, sin fallback silencioso. |
+| Pausa y reanudación                     | Emby y OPPO no se quedan con estados distintos.                      |
+| Seek desde Emby                         | El reproductor responde a comandos interactivos básicos.             |
+| Cambio de audio/subtítulos              | La selección de pistas no queda acoplada a índices incorrectos.      |
+| Stop y final natural                    | Emby conserva visto/reanudar y HCC limpia la sesión.                 |
+| Vuelta a la app o entrada esperada      | TV/AV terminan en el estado previsto si los configuraste.            |
+| Diagnóstico tras fallo provocado        | El último fallo explica componente, razón y siguiente acción.        |
+
+La validación real de hardware sigue siendo importante: OPPO original, clones Chinoppo, firmware, NAS, TV y AVR pueden
+comportarse de forma distinta. Si algo falla, copia el resumen de soporte desde **Diagnóstico** y revisa los logs
+filtrando por avisos o errores.
+
+## 13. Actualización
+
+Si instalaste con Docker Compose:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Si instalaste con `docker run`:
+
+```bash
+docker pull ghcr.io/tousled/home-cinema-control:latest
+docker stop home-cinema-control
+docker rm home-cinema-control
+
+docker run -d \
+  --name home-cinema-control \
+  --network host \
+  --cap-add NET_RAW \
+  --restart unless-stopped \
+  -e TZ=Europe/Madrid \
+  -e PYTHONUNBUFFERED=1 \
+  -e HCC_CONFIG_FILE=/config/config.json \
+  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
+  -v home-cinema-control-config:/config \
+  ghcr.io/tousled/home-cinema-control:latest
+```
+
+Si instalaste con Portainer u otra interfaz web: cambia la variable de entorno `HCC_VERSION` del stack a la versión
+que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), sin construir una imagen local — ver
+[3.1](#31-instalar-con-portainer-u-otra-interfaz-web).
+
+Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
+muestra el comando para ejecutarlo manualmente.
+
+## 14. Problemas frecuentes
+
+### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
+
+- La cuenta de Jellyfin con la que autorizas HCC debe permisos de **administrador**. Jellyfin protege la lista de
+  dispositivos (`/Devices`) y la de carpetas de biblioteca (`/Library/VirtualFolders`) para cuentas con privilegios
+  elevados — una cuenta normal recibe un error 403 al cargarlas, aunque el login en sí (autorizar, reproducir,
+  reportar progreso) funcione con normalidad.
+- Si Jellyfin muestra errores `401` o `403` al recargar dispositivos o bibliotecas, actualiza HCC y vuelve a autorizar
+  Jellyfin desde la pantalla **Media Server**.
+- Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
+  usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
+
+### HCC no llega al reproductor
+
+- Comprueba la IP del OPPO/Chinoppo.
+- Comprueba `network_mode: host`.
+- Comprueba firewall.
+- Despierta el reproductor y repite la prueba.
+
+### El montaje NFS falla
+
+- Verifica que el export NFS existe.
+- Comprueba que el reproductor lo ve manualmente.
+- Reinicia físicamente el reproductor si el navegador de red funciona pero el montaje sigue bloqueado.
+
+### SMB devuelve `id_error`
+
+- Revisa nombre de recurso, usuario, contraseña y permisos.
+- Si tu combinación NAS/reproductor necesita preparar la sesión SMB, comprueba que las credenciales estén guardadas en
+  HCC y vuelve a probar la ruta.
+- Si se repite `id_error`, evita pulsar "Probar ruta" muchas veces seguidas: algunos OPPO/Chinoppo degradan su API de
+  control tras demasiados montajes SMB fallidos. Reinicia físicamente el reproductor antes de volver a probar.
+- Si esa biblioteca ya está verificada por NFS y SMB sigue fallando, usa NFS para ese mapeo.
+- No esperes fallback a NFS: corrige SMB o cambia explícitamente esa ruta a NFS.
+
+### SMB da timeout con carpetas de nombre largo o con caracteres especiales
+
+Algunos reproductores OPPO/Chinoppo dan timeout al montar por SMB una carpeta cuyo nombre es muy largo o
+incluye paréntesis, corchetes o el símbolo `+` (típico en nombres de release de series y películas, por
+ejemplo `The Veil red de mentiras (2024) S01 [PACK][DSNP WEB-DL 1080p AVC ES DD+ 5.1][HDO]`). El mismo
+contenido, en la misma carpeta NAS, monta y reproduce sin problema por NFS, y por SMB si se acorta o
+simplifica el nombre de la carpeta/fichero. Si una biblioteca concreta te da timeouts SMB recurrentes y el
+resto de bibliotecas SMB funcionan bien, sospecha primero de la longitud/caracteres del nombre antes de
+revisar red o NAS:
+
+- Cambia esa ruta concreta a NFS si el NAS lo expone (la forma más rápida de seguir viendo ese contenido).
+- O renombra la carpeta/fichero a algo más corto y sin paréntesis/corchetes si quieres seguir usando SMB.
+
+### El AVR cambia solo de entrada
+
+- Revisa CEC/ARC.
+- Desactiva CEC/ARC en el AVR si fuerza TV Audio.
+- Aumenta el delay de cambio HDMI si el receptor necesita más tiempo al salir de standby.

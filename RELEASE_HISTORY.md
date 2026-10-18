@@ -57,7 +57,7 @@ records; this is not a migration-generated duplicate.
 
 ## Prereleases and release candidates
 
-These releases had a GitHub Release but do not have a matching version heading in the historical CHANGELOG. Their complete original notes are preserved in [`docs/releases/`](docs/releases/) and in [`docs/release-migration-manifest.json`](docs/release-migration-manifest.json).
+These releases had a GitHub Release but do not have a matching version heading in the historical CHANGELOG. Their complete original notes are preserved in [`docs/releases/`](docs/releases/).
 
 | Tag | Original date | Channel | Original tag commit |
 | --- | --- | --- | --- |

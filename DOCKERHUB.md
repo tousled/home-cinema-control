@@ -1,6 +1,21 @@
 # Home Cinema Control
 
-Home Cinema Control coordinates Emby or Jellyfin playback with compatible OPPO/Chinoppo players, NAS paths, optional TV/AV control, diagnostics, and Docker-first deployment.
+Home Cinema Control (HCC) turns playback in Emby or Jellyfin into a complete home-cinema flow for OPPO and Chinoppo
+players:
+verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics, logs, and Docker-first updates.
+
+## What it does
+
+- Watches Emby or Jellyfin playback sessions.
+- Resolves the media-server path to the path visible from the OPPO or Chinoppo player.
+- Mounts NFS or SMB/CIFS shares per library mapping.
+- Starts playback on OPPO UDP-203/205 and compatible Chinoppo players.
+- Optionally switches TV and AV receiver inputs, including Trinnov Altitude source/profile control.
+- Reports playback progress and state back to Emby when supported by the device flow.
+- Exposes diagnostics, structured logs with copy/download support, version checks, update hooks, and rollback guidance.
+- Keeps the current web update banner available so releases can be reviewed before updating the deployment.
+- Offers opt-in anonymous telemetry and roadmap feedback; disabled by default and never sending paths, IPs, tokens,
+  server names, titles, logs, scripts, or custom commands.
 
 ## Quick start
 
@@ -20,16 +35,82 @@ docker run -d \
   tousled/home-cinema-control:latest
 ```
 
-Open `http://<host>:8090`. Host networking is required for direct communication with the media server, player, optional room devices, and network discovery.
+Open:
 
-## Tags
+```text
+http://<host>:8090
+```
+
+Host networking is required because HCC talks directly to Emby, the player, optional room devices, and local network
+discovery tools.
+
+## Recommended Docker Compose install
+
+```yaml
+services:
+  home-cinema-control:
+    image: tousled/home-cinema-control:latest
+    container_name: home-cinema-control
+    network_mode: host
+    cap_add:
+      - NET_RAW
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Madrid
+      PYTHONUNBUFFERED: "1"
+      HCC_CONFIG_FILE: /config/config.json
+      HCC_SECRETS_FILE_PATH: /config/secrets.json
+    volumes:
+      - home-cinema-control-config:/config
+
+volumes:
+  home-cinema-control-config:
+    name: home-cinema-control-config
+```
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Docker Compose is the better option for long-running installs, version pinning, updates, and rollback.
+
+## Image tags
 
 - `latest`: latest stable release.
-- `<version>`: a pinned stable or prerelease version.
-- `rc`: the latest release candidate.
+- `1.0.0`, `1.0.1`, ...: pinned stable releases.
+- `rc`: latest release candidate.
+- `1.0.0-rc.1`, ...: pinned release candidates.
 
 Images are published for `linux/amd64` and `linux/arm64`.
 
-Documentation and releases: https://github.com/tousled/home-cinema-control
+## Requirements
+
+- Docker host with host networking support.
+- Emby or Jellyfin server reachable from the HCC host.
+- OPPO UDP-203/205 or compatible Chinoppo player exposing the OPPO-compatible control API.
+- NAS or shared media folders reachable by both Emby and the player.
+- NFS or SMB/CIFS shares mapped per media library.
+- Optional TV and AV receiver control.
+- Optional Home Assistant webhook for provider-neutral playback events. Configure it from HCC's Home Assistant screen;
+  the webhook ID is stored in `/config/secrets.json`.
+- Trinnov Altitude support is contract-tested and pending real-hardware validation; power actions require a configured
+  or network-detected MAC address and same-subnet reachability.
+
+## Documentation
+
+- GitHub project: https://github.com/tousled/home-cinema-control
+- Installation guide: https://github.com/tousled/home-cinema-control/blob/main/INSTALL.md
+- English installation guide: https://github.com/tousled/home-cinema-control/blob/main/INSTALL.en.md
+- Release policy: https://github.com/tousled/home-cinema-control/blob/main/RELEASE_POLICY.md
+- Changelog: https://github.com/tousled/home-cinema-control/blob/main/CHANGELOG.md
+
+## Registries
+
+- Docker Hub: `tousled/home-cinema-control`
+- GitHub Container Registry: `ghcr.io/tousled/home-cinema-control`
+
+## License
 
 Home Cinema Control is proprietary software distributed by Llorente Software Solutions, S.L. under the Bytehund brand.
+The Home Cinema Control Proprietary Software License 2.0 does not grant access to the source code.
