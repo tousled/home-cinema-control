@@ -4,6 +4,26 @@ Issue migration is intentionally **not executed** in this phase. The source
 repository still owns the historical issue tracker, and the public repository
 has not received any issue, comment, or notification changes.
 
+## Definitive mapping
+
+The transfers are complete. Destination URLs below use the final repository
+name that is planned for the later cutover.
+
+| Original issue | Original state | Destination issue | Destination state | Original URL | Final URL |
+| --- | --- | --- | --- | --- | --- |
+| `#90` | open | `#1` | open | [old #90](https://github.com/tousled/home-cinema-control/issues/90) | [new #1](https://github.com/tousled/home-cinema-control/issues/1) |
+| `#89` | closed | `#2` | closed | [old #89](https://github.com/tousled/home-cinema-control/issues/89) | [new #2](https://github.com/tousled/home-cinema-control/issues/2) |
+| `#88` | closed | `#3` | closed | [old #88](https://github.com/tousled/home-cinema-control/issues/88) | [new #3](https://github.com/tousled/home-cinema-control/issues/3) |
+| `#87` | closed | `#4` | closed | [old #87](https://github.com/tousled/home-cinema-control/issues/87) | [new #4](https://github.com/tousled/home-cinema-control/issues/4) |
+| `#86` | closed | `#5` | closed | [old #86](https://github.com/tousled/home-cinema-control/issues/86) | [new #5](https://github.com/tousled/home-cinema-control/issues/5) |
+| `#85` | closed | `#6` | closed | [old #85](https://github.com/tousled/home-cinema-control/issues/85) | [new #6](https://github.com/tousled/home-cinema-control/issues/6) |
+| `#82` | closed | `#7` | closed | [old #82](https://github.com/tousled/home-cinema-control/issues/82) | [new #7](https://github.com/tousled/home-cinema-control/issues/7) |
+| `#66` | closed | `#8` | closed | [old #66](https://github.com/tousled/home-cinema-control/issues/66) | [new #8](https://github.com/tousled/home-cinema-control/issues/8) |
+
+The final URLs above are prepared for the later rename from
+`home-cinema-control-public` to `home-cinema-control`. They can only be
+verified at those exact paths after that rename.
+
 ## Original issues
 
 | Original | State | Title | Comments | Planned handling |
@@ -38,11 +58,12 @@ The audit found no milestones to recreate.
 
 ## Later execution notes
 
-The intended later sequence is to transfer `#90` while open, then handle each
-closed issue by reopening it, transferring it, and closing it in the target.
-This preserves the conversation, authors, and participants if GitHub accepts
-the operation. It may generate notifications; that is accepted for this
-project. The exact destination issue numbers must be recorded after transfer.
+The completed operation transferred `#90` while open. Each closed issue was
+reopened, transferred, and immediately closed in the destination. Authors,
+bodies, comments, and labels were checked against the pre-transfer inventory.
+GitHub automatically qualified a few issue references in transferred bodies
+with the historical repository name; no substantive body text was lost.
+The operation may generate notifications; that is accepted for this project.
 
 Release notes and public history currently retain original issue URLs. After
 the mapping is known, those links must be updated to the destination URLs in

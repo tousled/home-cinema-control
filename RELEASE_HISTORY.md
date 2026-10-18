@@ -2,7 +2,18 @@
 
 This document preserves the documented evolution of Home Cinema Control from `0.1.0` onward. The public repository was reconstructed as a documentation and distribution repository when product development moved to a private source repository; it is not a new beginning for the project.
 
-Dates below are the original historical dates. A version is marked `changelog-only` when it is documented in the historical changelog but has no matching historical tag or GitHub Release. A `tagged` version has a historical tag but no GitHub Release. `GitHub Release` identifies a version with a historical release; prereleases and release candidates are listed separately.
+Dates below preserve the source records rather than forcing one date system to
+match another. CHANGELOG dates, tag dates, and GitHub Release `published_at`
+dates can differ; when they do, both dates are preserved in the specific
+release record and its migration manifest. A version is marked `changelog-only`
+when it is documented in the historical changelog but has no matching
+historical tag or GitHub Release. A `tagged` version has a historical tag but no
+GitHub Release. `GitHub Release` identifies a version with a historical release;
+prereleases and release candidates are listed separately.
+
+The CHANGELOG genuinely contains two `0.8.0` entries, dated `2026-06-11` and
+`2026-06-13`. Both entries are retained because they are separate historical
+records; this is not a migration-generated duplicate.
 
 ## Documented versions
 
