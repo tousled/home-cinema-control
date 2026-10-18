@@ -96,6 +96,8 @@
     "telemetry": {
         "enabled": false,
         "installation_id": "",
+        "endpoint_url": "",
+        "ingest_key": "",
         "consent_prompted": false,
         "consent_reset_1_2_0": false,
         "schema_version": 1,
