@@ -71,3 +71,12 @@ distinct.
 - Historical commit SHA: `8534dfb6698adc53a8c8f226d8fe70f03ef2697c`
 - Historical GitHub Release: `no`
 - Documentary state: public documentation only
+
+## `1.1.0-rc.1`
+
+- Historical tag date: `2026-06-25T12:03:55+02:00`
+- Historical tag type: `lightweight`
+- Historical ref SHA: `98d60fdcaad7213a4eeae6fcec88c408a6bae809`
+- Historical commit SHA: `98d60fdcaad7213a4eeae6fcec88c408a6bae809`
+- Historical GitHub Release: `no`
+- Documentary state: public documentation only
