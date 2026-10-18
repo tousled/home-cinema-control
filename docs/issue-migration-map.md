@@ -61,8 +61,9 @@ The audit found no milestones to recreate.
 The completed operation transferred `#90` while open. Each closed issue was
 reopened, transferred, and immediately closed in the destination. Authors,
 bodies, comments, and labels were checked against the pre-transfer inventory.
-GitHub automatically qualified a few issue references in transferred bodies
-with the historical repository name; no substantive body text was lost.
+GitHub automatically rewrote a few issue references in transferred bodies,
+either qualifying them with the historical repository or resolving them to a
+destination issue number; no substantive body text was lost.
 The operation may generate notifications; that is accepted for this project.
 
 Release notes and public history currently retain original issue URLs. After

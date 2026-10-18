@@ -33,7 +33,9 @@
       87,
       88
     ],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.4.1",
+    "recreated_published_at": "2026-10-18T00:23:57Z"
   },
   {
     "id": 415297747,
@@ -64,7 +66,9 @@
       "message": "Merge pull request #83 from tousled/feature/media-player-abstraction"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.4.1-rc.3",
+    "recreated_published_at": "2026-10-18T00:23:58Z"
   },
   {
     "id": 414128736,
@@ -95,7 +99,9 @@
       "message": "Merge pull request #78 from tousled/feature/new_detected_playback_event"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.4.1-rc.2",
+    "recreated_published_at": "2026-10-18T00:24:00Z"
   },
   {
     "id": 412734150,
@@ -126,7 +132,9 @@
       "message": "Merge pull request #76 from tousled/hotfix/metrics_for_problems_identification"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.4.1-rc.1",
+    "recreated_published_at": "2026-10-18T00:24:02Z"
   },
   {
     "id": 411035229,
@@ -157,7 +165,9 @@
       "message": "Merge pull request #75 from tousled/develop"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.4.0",
+    "recreated_published_at": "2026-10-18T00:24:04Z"
   },
   {
     "id": 411036164,
@@ -188,7 +198,9 @@
       "message": "Merge pull request #74 from tousled/docs/home-assistant-1-4-0"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.4.0-rc.2",
+    "recreated_published_at": "2026-10-18T00:24:06Z"
   },
   {
     "id": 410932869,
@@ -219,7 +231,9 @@
       "message": "Merge pull request #68 from tousled/feature/home_assistant_v1_integration"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.4.0-rc.1",
+    "recreated_published_at": "2026-10-18T00:24:07Z"
   },
   {
     "id": 408336256,
@@ -250,7 +264,9 @@
       "message": "Merge pull request #71 from tousled/hotfix/strm-playback-66"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.3.3",
+    "recreated_published_at": "2026-10-18T00:24:09Z"
   },
   {
     "id": 408009246,
@@ -281,7 +297,9 @@
       "message": "Merge pull request #69 from tousled/hotfix/media-path-mapping"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.3.2",
+    "recreated_published_at": "2026-10-18T00:24:11Z"
   },
   {
     "id": 390820624,
@@ -312,7 +330,9 @@
       "message": "Merge pull request #67 from tousled/hotfix/reduce_oppo_audio_subtitles_calls"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.3.1",
+    "recreated_published_at": "2026-10-18T00:24:13Z"
   },
   {
     "id": 369558065,
@@ -343,7 +363,9 @@
       "message": "Merge pull request #64 from tousled/hotfix/webos26_certificate"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.3.0",
+    "recreated_published_at": "2026-10-18T00:24:14Z"
   },
   {
     "id": 352770677,
@@ -374,7 +396,9 @@
       "message": "Merge pull request #63 from tousled/bugfix/theme-resetting-monitored-state"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.3.0-rc.2",
+    "recreated_published_at": "2026-10-18T00:24:16Z"
   },
   {
     "id": 352747959,
@@ -405,7 +429,9 @@
       "message": "Merge pull request #61 from tousled/feature/trinnov-altitude"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.3.0-rc.1",
+    "recreated_published_at": "2026-10-18T00:24:18Z"
   },
   {
     "id": 350891760,
@@ -436,7 +462,9 @@
       "message": "Merge pull request #58 from tousled/hoftix/web-versions-bugs"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.1",
+    "recreated_published_at": "2026-10-18T00:24:20Z"
   },
   {
     "id": 350123613,
@@ -467,7 +495,9 @@
       "message": "Merge pull request #55 from tousled/develop"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.0",
+    "recreated_published_at": "2026-10-18T00:24:21Z"
   },
   {
     "id": 348820130,
@@ -498,7 +528,9 @@
       "message": "Merge pull request #54 from tousled/bugfix/smb-premount-mount-problems"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.0-rc.6",
+    "recreated_published_at": "2026-10-18T00:24:24Z"
   },
   {
     "id": 348017334,
@@ -529,7 +561,9 @@
       "message": "Merge pull request #52 from tousled/bugfix/sony-tv-integration"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.0-rc.5",
+    "recreated_published_at": "2026-10-18T00:24:25Z"
   },
   {
     "id": 347991351,
@@ -560,7 +594,9 @@
       "message": "Merge pull request #51 from tousled/bugfix/sony-tv-integration"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.0-rc.4",
+    "recreated_published_at": "2026-10-18T00:24:27Z"
   },
   {
     "id": 347970728,
@@ -591,7 +627,9 @@
       "message": "Merge pull request #50 from tousled/feature/sony-tv-integration"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.0-rc.3",
+    "recreated_published_at": "2026-10-18T00:24:29Z"
   },
   {
     "id": 347914702,
@@ -622,7 +660,9 @@
       "message": "Merge pull request #49 from tousled/feature/sony-tv-integration"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.0-rc.2",
+    "recreated_published_at": "2026-10-18T00:24:31Z"
   },
   {
     "id": 347508565,
@@ -653,7 +693,9 @@
       "message": "Merge pull request #48 from tousled/feature/sony-tv-integration"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.2.0-rc.1",
+    "recreated_published_at": "2026-10-18T00:24:32Z"
   },
   {
     "id": 347067976,
@@ -684,7 +726,9 @@
       "message": "Merge pull request #44 from tousled/hotfix/oppo-dirty-state-after-playback"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.4",
+    "recreated_published_at": "2026-10-18T00:24:34Z"
   },
   {
     "id": 346217512,
@@ -715,7 +759,9 @@
       "message": "Merge pull request #39 from tousled/develop"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.3",
+    "recreated_published_at": "2026-10-18T00:24:36Z"
   },
   {
     "id": 346203152,
@@ -746,7 +792,9 @@
       "message": "Merge pull request #38 from tousled/bugfix/missing-denon-marantz-inputs"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.3-rc.2",
+    "recreated_published_at": "2026-10-18T00:24:37Z"
   },
   {
     "id": 346008389,
@@ -777,7 +825,9 @@
       "message": "Merge pull request #37 from tousled/feature/version_visibility_metrics"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.3-rc.1",
+    "recreated_published_at": "2026-10-18T00:24:39Z"
   },
   {
     "id": 345694466,
@@ -808,7 +858,9 @@
       "message": "Merge pull request #35 from tousled/hotfix/logs-copy"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.2",
+    "recreated_published_at": "2026-10-18T00:24:41Z"
   },
   {
     "id": 345692439,
@@ -839,7 +891,9 @@
       "message": "Merge pull request #34 from tousled/develop"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.1",
+    "recreated_published_at": "2026-10-18T00:24:43Z"
   },
   {
     "id": 345688515,
@@ -870,7 +924,9 @@
       "message": "Merge pull request #33 from tousled/bugfix/web-stability"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.1-rc.3",
+    "recreated_published_at": "2026-10-18T00:24:45Z"
   },
   {
     "id": 345677975,
@@ -901,7 +957,9 @@
       "message": "Merge pull request #32 from tousled/bugfix/web-stability"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.1-rc.2",
+    "recreated_published_at": "2026-10-18T00:24:46Z"
   },
   {
     "id": 345673255,
@@ -932,7 +990,9 @@
       "message": "Merge pull request #31 from tousled/bugfix/jellyfin-modern-authentication"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.1-rc.1",
+    "recreated_published_at": "2026-10-18T00:24:48Z"
   },
   {
     "id": 345672427,
@@ -963,6 +1023,8 @@
       "message": "Merge pull request #29 from tousled/develop"
     },
     "original_issue_numbers": [],
-    "migration_status": "pending"
+    "migration_status": "recreated",
+    "new_public_url": "https://github.com/tousled/home-cinema-control-public/releases/tag/1.1.0",
+    "recreated_published_at": "2026-10-18T00:24:50Z"
   }
 ]
