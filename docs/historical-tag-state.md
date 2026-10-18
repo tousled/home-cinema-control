@@ -206,3 +206,12 @@ distinct.
 - Historical commit SHA: `fbf9245e74c5bc661ec35bfdeb90e2da19cabed5`
 - Historical GitHub Release: `yes`
 - Documentary state: public documentation only
+
+## `1.2.0-rc.1`
+
+- Historical tag date: `2026-07-01T16:11:13+02:00`
+- Historical tag type: `lightweight`
+- Historical ref SHA: `c7c1288b5f77c0e7a161172b2ada1f6f957ac387`
+- Historical commit SHA: `c7c1288b5f77c0e7a161172b2ada1f6f957ac387`
+- Historical GitHub Release: `yes`
+- Documentary state: public documentation only
