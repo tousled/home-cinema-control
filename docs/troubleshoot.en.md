@@ -14,17 +14,32 @@ Open **Diagnostics** in HCC to check connections, see the latest error and find 
   <img src="../assets/screenshots/install/06-status.png" alt="HCC diagnostics screen" width="860"/>
 </p>
 
-If you need support, use **Send diagnostics**. HCC prepares a summary without paths, IP addresses or credentials. You can review it before sharing; nothing is sent automatically.
+For help, click **Send diagnostics**. HCC prepares a status summary and up to **200 recent log lines** by default. It redacts credentials, IPs, MACs and paths known from your configuration, plus IPv4 addresses found in the text. **Review the report** before sharing. **Copy & open GitHub** copies it and opens an issue, but **you must paste it**; nothing is submitted automatically.
 
 ## Read logs only when needed
 
-Open **Logs** and filter recent errors or warnings. Copy relevant lines for support after checking for private information.
+Open **Logs** and filter recent errors or warnings. HCC avoids logging credentials in OPPO requests, but **the original log may include IP addresses and folder names**. For an extra-redacted support report, use **Send diagnostics**. You can also copy the visible lines or download `hcc.log`.
 
 <p align="center">
   <img src="../assets/screenshots/install/07-logs.png" alt="HCC logs screen with filters" width="860"/>
 </p>
 
 [Optional telemetry](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md) is separate from diagnostics you choose to share.
+
+## Contact and support
+
+If you think you've found an **HCC bug**, [open an issue in the public repository](https://github.com/tousled/home-cinema-control/issues/new). This makes it easier to reproduce the issue and share a fix.
+
+For **installation help**, email [llorente.software.solutions@gmail.com](mailto:llorente.software.solutions@gmail.com). Programming knowledge isn't required.
+
+### How to share a failed test log
+
+1. Repeat the failing action once, such as **Test connection** or **Test path**. Note what you expected and what error appeared.
+2. Open **Diagnostics** and check the latest failure. Click **Send diagnostics** for a report with known private values redacted. Review it, then click **Copy & open GitHub**. The report is copied, **but you must paste it yourself** into the issue. It is not posted automatically.
+3. Open **Logs**. Click **Refresh** if needed and filter for **Error** or **Warning**. Click **Copy lines** to share the relevant visible entries. To save the full file, click **Download**; this saves `hcc.log`.
+4. In the issue or email, include your **HCC version** (under Diagnostics), media server and device, **steps to reproduce**, the displayed error, and the relevant log entries from the test.
+
+**Privacy:** HCC avoids writing credentials in player requests and **Send diagnostics** applies additional redaction. Still, check for device addresses, folder names or other personal details before posting publicly. **Download** saves the complete `hcc.log`, not just the lines filtered on screen. For public issues, prefer the redacted Diagnostics report or the relevant log lines.
 
 ## Frequent Issues
 
@@ -41,10 +56,21 @@ Open **Logs** and filter recent errors or warnings. Copy relevant lines for supp
 
 ### HCC cannot reach the player
 
-- Check the OPPO/Chinoppo IP address.
+- Check the OPPO/Chinoppo IP address and make sure the player is powered on.
+- On **OPPO UDP-203/205**, open **SETUP → Network Setup → IP Control → On**. On a Chinoppo/clone, look for the equivalent IP/network-control option; wording and location may vary by firmware.
 - Check `network_mode: host`.
 - Check firewall rules.
 - Wake the player and test again.
+
+### Chinoppo times out while mounting a folder or starting playback
+
+Different timeouts have different causes:
+
+- **`Timeout in Mount Request`:** the player did not complete an NFS/SMB mount. **This may affect folder browsing, Test path and playback**, which share the same mount service. In one reported case, the Chinoppo's network API was not ready after power-up; opening its NFS browser once allowed the mount to complete. Check that **IP Control** is enabled, let the player finish starting, and retry once.
+- **`Timeout in Play Request`:** the player did not answer the play command in time. **This does not prove the media path is wrong.**
+- **Playback startup timeout:** HCC did not confirm active playback after starting the handoff. This is not necessarily a path-mapping problem; inspect the player state and the latest diagnostic.
+
+If it happens again, open **Diagnostics** and share the report and test log as explained in [Contact and support](#contact-and-support). HCC prepares the control API before mounting and retries one timed-out NFS mount; if the retry fails, investigate the specific cause instead of increasing timeouts blindly.
 
 ### NFS mount fails
 

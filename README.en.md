@@ -47,6 +47,12 @@ Choose the task you need; each link opens a dedicated guide:
 
 Already installed HCC? Follow the [illustrated setup](docs/getting-started.en.md): **Media Server, OPPO, [Media Paths](docs/configure-media-paths.en.md) and [Room (TV/AV receiver)](docs/getting-started.en.md#5-tv-and-av-receiver-optional)**.
 
+## Contact and support
+
+Need help? See [Troubleshooting](docs/troubleshoot.en.md) for **Diagnostics**, downloading a failed test log, and getting support.
+
+For suspected HCC bugs, [open a GitHub issue](https://github.com/tousled/home-cinema-control/issues/new). For installation questions, email [llorente.software.solutions@gmail.com](mailto:llorente.software.solutions@gmail.com).
+
 ## Problems HCC Tries To Solve
 
 HCC builds on years of real-world use, repeated forum questions, and hard-to-diagnose failures in setups involving Emby,
