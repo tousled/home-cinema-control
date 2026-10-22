@@ -67,7 +67,7 @@ For long-running installs, create `compose.yaml`. It is easier to update, pin to
 ```yaml
 services:
   home-cinema-control:
-    image: ghcr.io/tousled/home-cinema-control:latest
+    image: ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}
     container_name: home-cinema-control
     network_mode: host
     cap_add:
@@ -103,7 +103,7 @@ tools like `arp-scan`.
 In Portainer: **Stacks → Add stack**, then paste the `compose.yaml` above.
 
 To pin a specific version (release candidates included), add `HCC_VERSION` as a stack environment variable, e.g.
-`HCC_VERSION=1.1.0-rc.2`. That's the only thing that decides which image gets pulled — without it, Portainer uses
+`HCC_VERSION=1.4.2-rc.1`. The Compose example uses `${HCC_VERSION:-latest}` to select the image tag. This is Docker Compose variable interpolation; if your YAML hardcodes `:latest`, `HCC_VERSION` will not change the downloaded image. Without it, Portainer uses
 `latest` (the latest stable release). To update, change that value and redeploy by re-pulling the image, without
 building a local image.
 
