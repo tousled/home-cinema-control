@@ -6,6 +6,15 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+### Changed
+
+* **Simpler installation and update guidance.** The installation guides now start with task-based entry points, include
+  a
+  contents list, independent Compose/Portainer/NAS update procedures, explicit persistence checks, clearer screenshot
+  guidance, and prominent warnings to preserve the configuration volume.
+* **Reliable public documentation images.** The release synchronizer now carries the explicitly allowlisted installation
+  screenshots and validates their binary content in the public repository.
+
 ## [1.4.2] - 2026-10-21
 
 ### Fixed

@@ -13,6 +13,49 @@ https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinopp
 
 Usa ese hilo para permisos de NAS, recursos compartidos y configuración del reproductor. Usa esta guía para HCC.
 
+## ¿Qué quieres hacer?
+
+No necesitas leer toda la guía. Empieza por la opción que describe tu caso:
+
+- **Instalar HCC por primera vez:** ve a [Instalar HCC](#2-instalar-hcc). Para la mayoría de las instalaciones, usa
+  [Docker Compose](#3-instalación-con-docker-compose).
+- **Actualizar HCC:** ve directamente a [Actualizar HCC](#13-actualizar-hcc). No borres el volumen y ejecuta Compose
+  desde la carpeta que contiene `compose.yaml`.
+- **Usar Portainer, Synology o Unraid:**
+  sigue [Instalar con Portainer u otra interfaz web](#31-instalar-con-portainer-u-otra-interfaz-web).
+- **HCC ha perdido la configuración o aparece como una instalación nueva:** revisa
+  [Migración o instalación limpia](#4-migración-o-instalación-limpia). Si el volumen se borró, HCC no puede reconstruir
+  automáticamente los datos que había dentro.
+- **La instalación funciona pero no reproduce:** empieza por [Diagnóstico](#10-diagnóstico-saber-qué-falla) y después
+  consulta [Problemas frecuentes](#14-problemas-frecuentes).
+- **Consultar opciones avanzadas:** ve a la [Referencia avanzada](#15-referencia-avanzada) cuando necesites fijar una
+  versión, hacer rollback o entender el almacenamiento.
+
+Si no sabes qué opción elegir, usa Docker Compose. Guarda su carpeta y no borres nunca el volumen
+`home-cinema-control-config`: ahí viven la configuración, las credenciales y las rutas de HCC.
+
+## Índice
+
+1. [Antes de empezar](#1-antes-de-empezar)
+2. [Instalar HCC](#2-instalar-hcc)
+3. [Instalación con Docker Compose](#3-instalación-con-docker-compose)
+4. [Migración o instalación limpia](#4-migración-o-instalación-limpia)
+5. [Conectar Emby o Jellyfin](#5-media-server-conecta-emby-o-jellyfin)
+6. [Conectar el OPPO/Chinoppo](#6-media-player-localiza-el-oppochinoppo)
+7. [Configurar las rutas de medios](#7-rutas-de-medios-la-parte-importante)
+8. [Configurar la sala](#8-sala-tv-y-receptor-av-son-opcionales)
+9. [Conectar Home Assistant](#9-conecta-hcc-con-home-assistant)
+10. [Comprobar el estado](#10-diagnóstico-saber-qué-falla)
+11. [Leer los logs](#11-logs-entendibles)
+12. [Validar la primera reproducción](#12-primera-reproducción-de-validación)
+13. [Actualizar HCC](#13-actualizar-hcc)
+14. [Problemas frecuentes](#14-problemas-frecuentes)
+15. [Referencia avanzada](#15-referencia-avanzada)
+
+> **Importante:** la configuración de HCC está en el volumen Docker
+> `home-cinema-control-config`. No lo borres al actualizar ni al eliminar el contenedor. Borrar el contenedor es
+> seguro; borrar el volumen elimina la configuración y los secretos.
+
 ## 1. Antes de empezar
 
 Necesitas:
@@ -40,7 +83,16 @@ Recomendaciones antes de instalar:
   seleccionar la entrada de TV después de que HCC haya cambiado a la entrada del reproductor. Si ves ese comportamiento,
   desactiva CEC/ARC en el AVR o ajusta la configuración HDMI del receptor.
 
-## 2. Arranque rápido con Docker
+## 2. Instalar HCC
+
+Para la mayoría de las personas, la opción más sencilla es [Docker Compose](#3-instalación-con-docker-compose): deja
+todos los datos en un volumen con nombre y facilita las actualizaciones. Si utilizas Portainer, sigue la misma opción
+desde **Stacks**.
+
+La opción `docker run` de abajo es para quien ya está acostumbrado a usar comandos Docker. No mezcles los dos métodos:
+elige uno y conserva sus instrucciones para actualizarlo después.
+
+## 2.1 Arranque rápido con Docker
 
 Puedes arrancar HCC directamente con `docker run`:
 
@@ -69,10 +121,13 @@ http://<tu-host>:8090
 `--network host` es importante porque HCC habla directamente con Emby, el OPPO/Chinoppo, TV, AVR y herramientas de
 descubrimiento como `arp-scan`.
 
-## 3. Instalación recomendada con Docker Compose
+## 3. Instalación con Docker Compose
 
-Para una instalación permanente, crea `compose.yaml`. Es más cómodo para actualizar, fijar una versión concreta o hacer
-rollback:
+Esta es la opción recomendada. Docker Compose necesita encontrar el archivo `compose.yaml`, así que guarda el archivo en
+una carpeta propia y ejecuta siempre los comandos desde esa misma carpeta.
+
+1. Crea una carpeta para HCC, por ejemplo `home-cinema-control`.
+2. Crea dentro un archivo llamado exactamente `compose.yaml` y pega este contenido:
 
 ```yaml
 services:
@@ -88,6 +143,8 @@ services:
       PYTHONUNBUFFERED: "1"
       HCC_CONFIG_FILE: /config/config.json
       HCC_SECRETS_FILE_PATH: /config/secrets.json
+      HCC_TELEMETRY_ENDPOINT_URL: ${HCC_TELEMETRY_ENDPOINT_URL:-}
+      HCC_TELEMETRY_INGEST_KEY: ${HCC_TELEMETRY_INGEST_KEY:-}
     volumes:
       - home-cinema-control-config:/config
 
@@ -96,7 +153,22 @@ volumes:
     name: home-cinema-control-config
 ```
 
-Arranca:
+No tienes que crear `HCC_VERSION`: Compose utiliza `latest` si no has definido esa variable en el entorno ni en un archivo `.env`.
+Las variables de telemetría también pueden quedarse vacías.
+
+3. Abre un terminal en esa carpeta. Comprueba que estás en el lugar correcto: debes ver `compose.yaml` al listar los
+   archivos.
+
+Si la carpeta está en otra ubicación, entra en ella antes de ejecutar los comandos. Por ejemplo:
+
+```bash
+cd /ruta/a/home-cinema-control
+ls compose.yaml
+```
+
+El segundo comando debe mostrar `compose.yaml`. Si dice que el archivo no existe, no continúes: estás en otra carpeta.
+
+4. Arranca HCC:
 
 ```bash
 docker compose pull
@@ -105,12 +177,17 @@ docker compose up -d
 
 Abre `http://<tu-host>:8090`.
 
+Para actualizar más adelante, vuelve a esta carpeta y sigue [Actualizar HCC](#13-actualizar-hcc). No ejecutes
+`docker compose` desde otra carpeta: Docker podría no encontrar este servicio.
+
 `network_mode: host` es necesario: HCC habla directamente con Emby/Jellyfin, el OPPO/Chinoppo, TV, AVR y herramientas
 de descubrimiento como `arp-scan`.
 
 ### 3.1 Instalar con Portainer u otra interfaz web
 
-En Portainer: **Stacks → Add stack** y pega el `compose.yaml` de arriba.
+En Portainer: **Stacks → Add stack**, ponle un nombre como `home-cinema-control` y pega el `compose.yaml` de arriba en
+el editor. No añadas variables de entorno: el archivo ya usa `latest`, que es la última versión estable. Al actualizar,
+abre este mismo stack y pulsa **Update the stack**; si aparece la opción **Re-pull image**, actívala.
 
 Para fijar una versión concreta (incluidas las release candidates), añade `HCC_VERSION` como variable de entorno del
 stack, por ejemplo `HCC_VERSION=1.4.2-rc.1`. El ejemplo de Compose utiliza `${HCC_VERSION:-latest}` para seleccionar la etiqueta de la imagen. Esta variable se sustituye al desplegar el stack; si usas un Compose diferente que tiene `:latest` fijo, `HCC_VERSION` no surtirá efecto. Sin definirla, Portainer usa
@@ -120,7 +197,18 @@ no reconstruyendo desde el Dockerfile.
 Otras interfaces (Synology Container Manager, Unraid...) deberían funcionar igual si permiten definir variables de
 entorno para el stack — la lógica es la misma.
 
+En Synology Container Manager, Unraid u otra interfaz web, busca la opción equivalente a **Stack** o **Compose** y
+mantén este mismo archivo. No crees un contenedor nuevo cada vez: debe seguir usando el volumen
+`home-cinema-control-config`.
+
 ## 4. Migración o instalación limpia
+
+Si HCC aparece vacío después de una actualización y no querías empezar de cero, **no completes todavía la
+configuración**.
+Vuelve al stack o a la carpeta original y comprueba que sigues usando el volumen
+`home-cinema-control-config`. Si ese volumen todavía existe, la configuración debería reaparecer al arrancar el
+contenedor correcto. Si el volumen se borró, solo podrás recuperar la configuración desde una copia de seguridad de
+Docker o del host.
 
 Si HCC encuentra una configuración anterior compatible, mostrará una pantalla de migración. Puedes importar la
 configuración o empezar desde cero.
@@ -651,7 +739,7 @@ normalizados, para poder analizar fallos repetidos por instalación. Si el backe
 guarda temporalmente esos eventos
 anónimos en `/config/telemetry_queue.json` y los reintenta después. No envía rutas, IPs, tokens, URLs, nombres de
 servidor, bibliotecas, títulos, IDs del servidor multimedia, logs, scripts ni comandos personalizados. Más detalle:
-[`docs/telemetry.md`](docs/telemetry.md).
+la [documentación pública de telemetría](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
 
 ## 11. Logs entendibles
 
@@ -690,47 +778,158 @@ La validación real de hardware sigue siendo importante: OPPO original, clones C
 comportarse de forma distinta. Si algo falla, copia el resumen de soporte desde **Diagnóstico** y revisa los logs
 filtrando por avisos o errores.
 
-## 13. Actualización
+## 13. Actualizar HCC
 
-Si instalaste con Docker Compose:
+**Qué conseguirás:** actualizar la imagen de HCC y conservar la configuración, las credenciales y las rutas.
+
+La imagen y la configuración son cosas distintas. La actualización sustituye la imagen y vuelve a crear el contenedor;
+el volumen o montaje que apunta a `/config` debe permanecer exactamente igual.
+
+> **No borres el volumen.** No ejecutes `docker compose down -v`, `docker volume rm` ni elimines el volumen desde
+> Portainer o Docker Desktop durante una actualización. Borrar el contenedor puede ser parte de algunos métodos, pero
+> borrar el volumen elimina la configuración.
+
+Antes de empezar:
+
+1. Abre HCC y anota la versión que aparece en **Diagnóstico**.
+2. Decide qué método usas: **Docker Compose**, **Portainer** o un gestor de contenedores del NAS.
+3. Comprueba que existe una copia del volumen o del directorio que contiene `/config`. HCC no tiene un botón para
+   exportar y restaurar la configuración; usa las copias de seguridad o snapshots de tu NAS/host.
+4. Si no puedes identificar el volumen o la carpeta de configuración, detente aquí. No crees un contenedor nuevo.
+
+### 13.1 Actualizar con Docker Compose
+
+Usa este procedimiento si HCC se inició desde un archivo `compose.yaml`.
+
+1. **Localiza la instalación existente.** Si el contenedor está funcionando, ejecuta:
+
+   ```bash
+   docker inspect home-cinema-control --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}'
+   ```
+
+   El resultado debe ser la carpeta donde está el Compose de HCC. Si no aparece ninguna carpeta, busca `compose.yaml`
+   en el gestor de archivos del host o del NAS. No crees otro archivo para probar.
+
+2. **Entra en esa carpeta y comprueba el archivo.** Sustituye la ruta por la que has encontrado:
+
+   ```bash
+   cd /ruta/a/home-cinema-control
+   ls compose.yaml
+   ```
+
+   El segundo comando debe mostrar `compose.yaml`. Si indica que no existe, estás en otra carpeta y no debes continuar.
+
+3. **Comprueba la configuración persistente.** El archivo debe conservar este volumen:
+
+   ```yaml
+   services:
+     home-cinema-control:
+       volumes:
+         - home-cinema-control-config:/config
+
+   volumes:
+     home-cinema-control-config:
+       name: home-cinema-control-config
+   ```
+
+   Si tu instalación usa una carpeta del host en vez de un volumen con nombre, conserva esa misma carpeta. No la
+   sustituyas por una nueva.
+
+4. **Comprueba la versión.** La opción recomendada es dejar esta imagen:
+
+   ```yaml
+   image: ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}
+   ```
+
+   No tienes que crear `HCC_VERSION`. Si `HCC_VERSION` no está definida en el entorno ni en `.env`, Compose utiliza `latest`. Si ves una imagen
+   fija como `ghcr.io/tousled/home-cinema-control:1.3.0`, cámbiala por la línea anterior. Si existe un `.env` con
+   `HCC_VERSION=1.3.0`, elimina esa línea o cambia su valor a `latest`.
+
+5. **Descarga y arranca la nueva imagen desde esa misma carpeta:**
+
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
+
+   `docker pull` por sí solo solo descarga una imagen: no actualiza el contenedor que ya está funcionando.
+
+6. **Comprueba el resultado.** Ejecuta:
+
+   ```bash
+   docker compose ps
+   ```
+
+   El servicio debe aparecer como iniciado. Abre HCC, comprueba que sigue mostrando tu configuración y revisa la nueva
+   versión en **Diagnóstico**.
+
+Si algo falla, no borres el volumen ni ejecutes `down -v`. Revisa los últimos mensajes con
+`docker compose logs --tail=100 home-cinema-control` y vuelve a la versión anterior solo si conoces el tag que
+funcionaba.
+
+### 13.2 Actualizar con Portainer
+
+Usa este procedimiento si HCC aparece dentro de **Stacks** en Portainer.
+
+1. Abre Portainer y entra en **Stacks**.
+2. Busca el stack existente de HCC, normalmente llamado `home-cinema-control`. Abre ese stack; no pulses **Add stack**.
+3. Revisa el editor del stack. Debe conservar el servicio `home-cinema-control` y el volumen
+   `home-cinema-control-config:/config`. Si Portainer muestra que el volumen se va a eliminar, cancela la operación.
+4. Revisa la imagen. Usa `ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}` o
+   `ghcr.io/tousled/home-cinema-control:latest`. Si aparece `:1.3.0`, sustitúyelo por una de esas opciones.
+5. Si aparece una variable `HCC_VERSION` con `1.3.0`, elimínala o cambia su valor a `latest`. No necesitas añadir
+   ninguna variable para una actualización normal.
+6. Si tu NAS permite crear un snapshot o una copia del volumen, hazlo antes de actualizar. Portainer no convierte la
+   actualización en una copia de seguridad automática.
+7. Pulsa **Update the stack**. Activa **Re-pull image** si Portainer muestra esa opción. No elijas una opción que borre
+   el volumen ni crees un stack con otro nombre.
+8. Espera a que el stack termine y abre HCC. La configuración debe ser la misma y **Diagnóstico** debe mostrar la nueva
+   versión.
+
+Si HCC no vuelve a responder, revisa los logs del contenedor desde Portainer. Mantén el stack y el volumen existentes;
+no lo elimines para intentar empezar de nuevo.
+
+### 13.3 Actualizar desde un gestor del NAS
+
+Synology Container Manager, Unraid u otro gestor solo debe usarse para este procedimiento si permite editar o volver a
+desplegar el mismo proyecto Compose/Stack.
+
+1. Abre el proyecto o aplicación existente de HCC, no la pantalla para crear una aplicación nueva.
+2. Comprueba que conserva el mismo archivo Compose, el mismo servicio y el mismo volumen o montaje en `/config`.
+3. Cambia una imagen `:1.3.0` por `:latest` o elimina la variable que la fija.
+4. Usa **Update**, **Redeploy**, **Recreate** o el nombre equivalente del gestor, activando la descarga de la imagen si
+   ofrece esa opción.
+5. Confirma que el proyecto sigue usando el mismo volumen y comprueba HCC y su versión.
+
+Los nombres de los botones cambian según el gestor. Si no puedes confirmar que conserva `/config`, no continúes: usa la
+documentación de ese gestor o pide ayuda antes de eliminar nada.
+
+### 13.4 Si instalaste con `docker run`
+
+Este es un procedimiento avanzado. Primero comprueba que el contenedor usa el volumen correcto:
 
 ```bash
-docker compose pull
-docker compose up -d
+docker inspect home-cinema-control --format '{{range .Mounts}}{{println .Name .Source "->" .Destination}}{{end}}'
 ```
 
-Si instalaste con `docker run`:
+Debe aparecer `home-cinema-control-config` apuntando a `/config`, o la misma carpeta del host que usaste al instalar.
+Descarga la nueva imagen y recrea solo el contenedor con exactamente el mismo montaje. No borres el volumen. Si no
+conservas el comando original, no improvises otro: vuelve a instalar mediante Compose usando la guía anterior.
 
-```bash
-docker pull ghcr.io/tousled/home-cinema-control:latest
-docker stop home-cinema-control
-docker rm home-cinema-control
+### 13.5 Si la actualización ha fallado
 
-docker run -d \
-  --name home-cinema-control \
-  --network host \
-  --cap-add NET_RAW \
-  --restart unless-stopped \
-  -e TZ=Europe/Madrid \
-  -e PYTHONUNBUFFERED=1 \
-  -e HCC_CONFIG_FILE=/config/config.json \
-  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
-  -v home-cinema-control-config:/config \
-  ghcr.io/tousled/home-cinema-control:latest
-```
-
-Si instalaste con Portainer u otra interfaz web: cambia la variable de entorno `HCC_VERSION` del stack a la versión
-que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), no reconstruyendo desde el Dockerfile — ver
-[3.1](#31-instalar-con-portainer-u-otra-interfaz-web).
-
-Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
-muestra el comando para ejecutarlo manualmente.
+- Si HCC conserva la configuración, abre **Diagnóstico** y revisa la versión y el último fallo.
+- Si HCC aparece como nuevo, no completes el asistente: vuelve al stack o al Compose original y revisa `/config`.
+- Si el volumen todavía existe, arranca el contenedor correcto con ese volumen.
+- Si el volumen se borró, solo una copia de seguridad o snapshot del host/NAS puede recuperar la configuración.
+- Si necesitas volver atrás y conoces la versión anterior, usa el tag anterior en el Compose. `HCC_VERSION` está pensado
+  para ese caso avanzado; no es necesario para actualizar a `latest`.
 
 ## 14. Problemas frecuentes
 
 ### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
 
-- La cuenta de Jellyfin con la que autorizas HCC debe permisos de **administrador**. Jellyfin protege la lista de
+- La cuenta de Jellyfin con la que autorizas HCC debe tener permisos de **administrador**. Jellyfin protege la lista de
   dispositivos (`/Devices`) y la de carpetas de biblioteca (`/Library/VirtualFolders`) para cuentas con privilegios
   elevados — una cuenta normal recibe un error 403 al cargarlas, aunque el login en sí (autorizar, reproducir,
   reportar progreso) funcione con normalidad.
@@ -780,3 +979,55 @@ revisar red o NAS:
 - Revisa CEC/ARC.
 - Desactiva CEC/ARC en el AVR si fuerza TV Audio.
 - Aumenta el delay de cambio HDMI si el receptor necesita más tiempo al salir de standby.
+
+## 15. Referencia avanzada
+
+### Etiquetas de imagen
+
+- `latest`: última versión estable publicada. Es la opción recomendada para la mayoría de las instalaciones.
+- `1.4.2` o similar: versión estable fijada manualmente. Solo se actualiza cuando cambias el tag.
+- `1.4.2-rc.1` o similar: versión candidata. No la uses en una instalación normal salvo que quieras probarla.
+
+### `HCC_VERSION`
+
+El `compose.yaml` usa `${HCC_VERSION:-latest}`. Esto significa que Compose utiliza `latest` si no encuentra un valor en
+el archivo `.env` o en el entorno. No tienes que crear esa variable para instalar o actualizar HCC normalmente.
+
+Puedes usar `HCC_VERSION` para fijar una versión conocida o volver temporalmente a una versión anterior durante una
+recuperación. El archivo `.env`, si existe, debe estar junto a `compose.yaml`. No lo compartas ni lo subas a un
+repositorio.
+
+### Copia manual de un volumen con nombre
+
+HCC no exporta la configuración desde la interfaz. Si tu NAS o gestor no ofrece snapshots o copias de volúmenes, una
+persona con acceso al terminal puede crear una copia del volumen oficial sin modificarlo:
+
+```bash
+mkdir -p hcc-backups
+docker run --rm \
+  --mount source=home-cinema-control-config,target=/config,readonly \
+  --volume "$PWD/hcc-backups:/backup" \
+  alpine:3.20 \
+  tar -czf /backup/hcc-config-backup.tar.gz -C /config .
+```
+
+El archivo `hcc-backups/hcc-config-backup.tar.gz` debe aparecer en la carpeta actual. Guarda esa copia fuera del host
+Docker. Este procedimiento es opcional y está pensado para Linux/macOS; en Windows o en un NAS usa la herramienta de
+copias del propio sistema.
+
+### Dónde está la configuración
+
+El contenedor recibe la configuración en `/config`:
+
+- `config.json`: configuración general de HCC.
+- `secrets.json`: credenciales y secretos protegidos.
+- `home-cinema-control-config`: volumen con nombre usado por el Compose oficial.
+
+La imagen Docker se puede sustituir sin perder estos archivos si el mismo volumen o montaje sigue conectado. Borrar el
+volumen no es una actualización: es borrar los datos.
+
+### Botón de actualización de HCC
+
+HCC no ejecuta comandos Docker por su cuenta. Sin un webhook configurado, **Actualizar** muestra el comando manual para
+que lo ejecutes en tu gestor. Con un webhook, HCC avisa al gestor configurado y ese gestor descarga la imagen y reinicia
+el contenedor. En ambos casos, el volumen persistente debe conservarse.

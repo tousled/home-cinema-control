@@ -33,6 +33,18 @@ scripts y pruebas a ciegas.
 
 HCC une esas piezas en un flujo único: eliges la película en Emby y la sala se prepara para verla.
 
+## ¿Qué quieres hacer con HCC?
+
+Elige una tarea y ve directamente a la guía correspondiente:
+
+- **Instalar HCC por primera vez:** [seguir la instalación paso a paso](INSTALL.md#2-instalar-hcc).
+- **Actualizar HCC sin perder la configuración:** [abrir la guía de actualización](INSTALL.md#13-actualizar-hcc).
+- **Solucionar un problema:** [abrir Diagnóstico y problemas frecuentes](INSTALL.md#10-diagnóstico-saber-qué-falla).
+- **Recuperar una configuración:** [revisar migración y recuperación](INSTALL.md#4-migración-o-instalación-limpia).
+- **Configurar Emby/Jellyfin, OPPO o la
+  sala:** [seguir la configuración guiada](INSTALL.md#5-media-server-conecta-emby-o-jellyfin).
+- **Consultar opciones avanzadas:** [abrir la referencia avanzada](INSTALL.md#15-referencia-avanzada).
+
 ## Qué problemas intenta resolver
 
 HCC parte de años de uso real, dudas repetidas en foros y errores difíciles de diagnosticar en instalaciones con Emby,
@@ -86,7 +98,8 @@ convertir cada fallo en una pista accionable.
 También incluye una sección de telemetría opcional, desactivada por defecto, para ayudar a decidir el roadmap de HCC:
 instalaciones activas, proveedor usado, uso de TV/AV y eventos básicos de reproducción. La telemetría usa un
 identificador anónimo aleatorio por instalación y no envía rutas, IPs, tokens, servidores, bibliotecas, títulos, logs,
-scripts ni comandos personalizados. Ver [docs/telemetry.md](docs/telemetry.md).
+scripts ni comandos personalizados. Ver
+la [documentación pública de telemetría](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
 
 ## Sala opcional, pero bien integrada
 
@@ -184,8 +197,9 @@ La guía completa de configuración, el formato JSON y un ejemplo de automatizac
 
 ## Instalación rápida
 
-HCC se despliega como contenedor Docker con red host para poder hablar directamente con Emby, el reproductor, la TV, el
-receptor AV y las herramientas de descubrimiento de red.
+La forma recomendada es Docker Compose: guarda `compose.yaml` en una carpeta propia y ejecuta los comandos desde esa
+misma carpeta. Conserva el volumen `home-cinema-control-config`: contiene la configuración y no debe borrarse al
+actualizar ni al recrear el contenedor.
 
 Arranque rápido:
 
@@ -237,6 +251,9 @@ docker compose up -d
 ```
 
 La guía completa está en [INSTALL.md](INSTALL.md).
+
+La [guía de instalación](INSTALL.md) incluye capturas de cada pantalla y procedimientos separados para Docker Compose,
+Portainer y gestores de contenedores de NAS.
 
 ## Referencia AVPasion para NAS y reproductor
 
