@@ -50,7 +50,7 @@ discovery tools.
 ```yaml
 services:
   home-cinema-control:
-    image: tousled/home-cinema-control:latest
+    image: tousled/home-cinema-control:${HCC_VERSION:-latest}
     container_name: home-cinema-control
     network_mode: host
     cap_add:
@@ -79,7 +79,7 @@ Docker Compose is the better option for long-running installs, version pinning, 
 ## Image tags
 
 - `latest`: latest stable release.
-- `1.4.1`: current stable release.
+- Versioned tags such as `1.4.1`: pinned stable releases. Check GitHub Releases for the newest version.
 - `1.0.0`, `1.0.1`, ...: pinned stable releases.
 - `rc`: latest release candidate.
 - `1.0.0-rc.1`, ...: pinned release candidates.
