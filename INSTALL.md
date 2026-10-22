@@ -77,7 +77,7 @@ rollback:
 ```yaml
 services:
   home-cinema-control:
-    image: ghcr.io/tousled/home-cinema-control:latest
+    image: ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}
     container_name: home-cinema-control
     network_mode: host
     cap_add:
@@ -113,7 +113,7 @@ de descubrimiento como `arp-scan`.
 En Portainer: **Stacks → Add stack** y pega el `compose.yaml` de arriba.
 
 Para fijar una versión concreta (incluidas las release candidates), añade `HCC_VERSION` como variable de entorno del
-stack, por ejemplo `HCC_VERSION=1.1.0-rc.2`. Es lo único que decide qué imagen se descarga — sin ella, Portainer usa
+stack, por ejemplo `HCC_VERSION=1.4.2-rc.1`. El ejemplo de Compose utiliza `${HCC_VERSION:-latest}` para seleccionar la etiqueta de la imagen. Esta variable se sustituye al desplegar el stack; si usas un Compose diferente que tiene `:latest` fijo, `HCC_VERSION` no surtirá efecto. Sin definirla, Portainer usa
 `latest` (la última estable). Para actualizar, cambia ese valor y vuelve a desplegar tirando de la imagen ("re-pull"),
 sin construir una imagen local.
 
