@@ -48,6 +48,12 @@ Elige lo que necesitas hacer; cada enlace abre una guía específica:
 
 ¿Ya has instalado HCC? Sigue las [pantallas de configuración](docs/primeros-pasos.md): **Media Server, OPPO, [Media Paths](docs/configurar-rutas.md) y [Sala (TV/AVR)](docs/primeros-pasos.md#5-tv-y-receptor-av-opcional)**.
 
+## Contacto y soporte
+
+¿Necesitas ayuda? Sigue [solución de problemas](docs/solucionar-problemas.md), donde se explica cómo consultar **Diagnóstico**, descargar el log de una prueba y pedir soporte.
+
+Si crees que es un bug, [abre un issue en GitHub](https://github.com/tousled/home-cinema-control/issues/new). Para dudas sobre tu instalación, escribe a [llorente.software.solutions@gmail.com](mailto:llorente.software.solutions@gmail.com).
+
 ## Qué problemas intenta resolver
 
 HCC parte de años de uso real, dudas repetidas en foros y errores difíciles de diagnosticar en instalaciones con Emby,
