@@ -189,7 +189,7 @@ Para instalaciones permanentes, actualizaciones y rollback, Docker Compose es la
 ```yaml
 services:
   home-cinema-control:
-    image: ghcr.io/tousled/home-cinema-control:latest
+    image: ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}
     container_name: home-cinema-control
     network_mode: host
     cap_add:
