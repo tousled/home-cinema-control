@@ -35,15 +35,18 @@ HCC une esas piezas en un flujo único: eliges la película en Emby y la sala se
 
 ## ¿Qué quieres hacer con HCC?
 
-Elige una tarea y ve directamente a la guía correspondiente:
+Elige lo que necesitas hacer; cada enlace abre una guía específica:
 
-- **Instalar HCC por primera vez:** [seguir la instalación paso a paso](INSTALL.md#2-instalar-hcc).
-- **Actualizar HCC sin perder la configuración:** [abrir la guía de actualización](INSTALL.md#13-actualizar-hcc).
-- **Solucionar un problema:** [abrir Diagnóstico y problemas frecuentes](INSTALL.md#10-diagnóstico-saber-qué-falla).
-- **Recuperar una configuración:** [revisar migración y recuperación](INSTALL.md#4-migración-o-instalación-limpia).
-- **Configurar Emby/Jellyfin, OPPO o la
-  sala:** [seguir la configuración guiada](INSTALL.md#5-media-server-conecta-emby-o-jellyfin).
-- **Consultar opciones avanzadas:** [abrir la referencia avanzada](INSTALL.md#15-referencia-avanzada).
+- **Instalar HCC por primera vez:** [instalación sencilla con Portainer o Compose](INSTALL.md).
+- **Actualizar desde Portainer:** [actualizar sin perder los ajustes](docs/actualizar-portainer.md).
+- **Actualizar con Docker Compose:** [actualizar desde la carpeta correcta](docs/actualizar-compose.md).
+- **Recuperar la configuración:** [HCC parece recién instalado](docs/recuperar-configuracion.md).
+- **Solucionar un fallo de reproducción o conexión:** [diagnóstico y problemas frecuentes](docs/solucionar-problemas.md).
+- **Opciones y versiones de Docker:** [referencia avanzada](docs/referencia-avanzada.md).
+- **Gestores NAS, `docker run` y copias manuales:** [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).
+
+
+¿Ya has instalado HCC? Sigue las [pantallas de configuración](docs/primeros-pasos.md): **Media Server, OPPO, [Media Paths](docs/configurar-rutas.md) y [Sala (TV/AVR)](docs/primeros-pasos.md#5-tv-y-receptor-av-opcional)**.
 
 ## Qué problemas intenta resolver
 
@@ -193,67 +196,13 @@ funcione.
 Si Home Assistant no responde, HCC registra el error y la reproducción continúa.
 
 La guía completa de configuración, el formato JSON y un ejemplo de automatización con condiciones por evento están en
-[INSTALL.md](INSTALL.md#9-conecta-hcc-con-home-assistant).
+[guía de Home Assistant](docs/home-assistant.md).
 
 ## Instalación rápida
 
-La forma recomendada es Docker Compose: guarda `compose.yaml` en una carpeta propia y ejecuta los comandos desde esa
-misma carpeta. Conserva el volumen `home-cinema-control-config`: contiene la configuración y no debe borrarse al
-actualizar ni al recrear el contenedor.
+Para instalar HCC por primera vez, sigue la [guía de instalación fácil](INSTALL.md): explica dónde crear `compose.yaml`, desde qué carpeta ejecutar los comandos y cómo conservar el volumen `home-cinema-control-config`.
 
-Arranque rápido:
-
-```bash
-docker volume create home-cinema-control-config
-
-docker run -d \
-  --name home-cinema-control \
-  --network host \
-  --cap-add NET_RAW \
-  --restart unless-stopped \
-  -e TZ=Europe/Madrid \
-  -e PYTHONUNBUFFERED=1 \
-  -e HCC_CONFIG_FILE=/config/config.json \
-  -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
-  -v home-cinema-control-config:/config \
-  ghcr.io/tousled/home-cinema-control:latest
-```
-
-Abre `http://<tu-host>:8090` y sigue las pantallas de configuración.
-
-Para instalaciones permanentes, actualizaciones y rollback, Docker Compose es la opción recomendada:
-
-```yaml
-services:
-  home-cinema-control:
-    image: ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}
-    container_name: home-cinema-control
-    network_mode: host
-    cap_add:
-      - NET_RAW
-    restart: unless-stopped
-    environment:
-      TZ: Europe/Madrid
-      PYTHONUNBUFFERED: "1"
-      HCC_CONFIG_FILE: /config/config.json
-      HCC_SECRETS_FILE_PATH: /config/secrets.json
-    volumes:
-      - home-cinema-control-config:/config
-
-volumes:
-  home-cinema-control-config:
-    name: home-cinema-control-config
-```
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-La guía completa está en [INSTALL.md](INSTALL.md).
-
-La [guía de instalación](INSTALL.md) incluye capturas de cada pantalla y procedimientos separados para Docker Compose,
-Portainer y gestores de contenedores de NAS.
+Si HCC ya funciona y solo quieres actualizarlo, **no repitas la instalación**: utiliza la [guía de Portainer](docs/actualizar-portainer.md) o la [guía de Docker Compose](docs/actualizar-compose.md), según tu instalación.
 
 ## Referencia AVPasion para NAS y reproductor
 
