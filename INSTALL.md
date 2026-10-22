@@ -115,7 +115,7 @@ En Portainer: **Stacks → Add stack** y pega el `compose.yaml` de arriba.
 Para fijar una versión concreta (incluidas las release candidates), añade `HCC_VERSION` como variable de entorno del
 stack, por ejemplo `HCC_VERSION=1.4.2-rc.1`. El ejemplo de Compose utiliza `${HCC_VERSION:-latest}` para seleccionar la etiqueta de la imagen. Esta variable se sustituye al desplegar el stack; si usas un Compose diferente que tiene `:latest` fijo, `HCC_VERSION` no surtirá efecto. Sin definirla, Portainer usa
 `latest` (la última estable). Para actualizar, cambia ese valor y vuelve a desplegar tirando de la imagen ("re-pull"),
-sin construir una imagen local.
+no reconstruyendo desde el Dockerfile.
 
 Otras interfaces (Synology Container Manager, Unraid...) deberían funcionar igual si permiten definir variables de
 entorno para el stack — la lógica es la misma.
@@ -124,6 +124,10 @@ entorno para el stack — la lógica es la misma.
 
 Si HCC encuentra una configuración anterior compatible, mostrará una pantalla de migración. Puedes importar la
 configuración o empezar desde cero.
+
+<p align="center">
+  <img src="assets/screenshots/install/01-migration.png" alt="Pantalla de migración de configuración anterior" width="860"/>
+</p>
 
 La migración existe para conservar lo reutilizable, pero HCC guarda ahora la configuración por secciones y separa los
 secretos en `/config/secrets.json`.
@@ -137,16 +141,25 @@ autenticar, y el indicador de Media Server en el menú lateral te avisará en na
 desde su pantalla. Si no tienes un `config.json` de XNOPPO o prefieres no importarlo, elige "Configurar desde cero" y
 sigue el asistente normal.
 
+<!-- TODO: captura de pantalla del modal de importación XNOPPO en instalación nueva -->
+
 ## 5. Media Server: conecta Emby o Jellyfin
 
 En **Media Server** eliges el tipo de servidor (Emby o Jellyfin) y configuras su URL, el usuario y el dispositivo que
-HCC debe monitorizar. El flujo de configuración es el mismo para ambos proveedores, con las diferencias indicadas en
-esta guía.
+HCC debe monitorizar. Las capturas de esta guía muestran Emby, pero el flujo es el mismo con Jellyfin.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server.png" alt="Pantalla Media Server de Home Cinema Control" width="860"/>
+</p>
 
 En la cabecera de esta pantalla verás el logo del proveedor seleccionado, por ejemplo Emby o Jellyfin. Ese logo sirve
 para reconocer de un vistazo qué integración estás configurando: aparece atenuado mientras falta autorizar el servidor
 o completar la conexión, y se muestra con más presencia cuando el proveedor queda autorizado. La URL, el usuario y los
 detalles de preparación siguen estando en los paneles de configuración para no duplicar información en la cabecera.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server-pending.png" alt="Media Server con Jellyfin seleccionado pero pendiente de autorización" width="860"/>
+</p>
 
 Qué resuelve esta pantalla:
 
@@ -181,8 +194,16 @@ y bibliotecas funcione — ver [Problemas frecuentes](#14-problemas-frecuentes).
 
 En **Media Player** se configura la IP del reproductor y se prueba la API MediaControl.
 
+<p align="center">
+  <img src="assets/screenshots/install/03-media-player.png" alt="Pantalla Media Player de Home Cinema Control" width="860"/>
+</p>
+
 Cuando `arp-scan` está disponible dentro del contenedor, aparece el botón **Escanear red**. Al pulsarlo, HCC muestra
 dispositivos detectados como sugerencias bajo el campo de IP para no tener que escribir direcciones a ciegas.
+
+<p align="center">
+  <img src="assets/screenshots/install/03-media-player-ip-discovery.png" alt="Descubrimiento de IP del OPPO filtrando por nombre" width="860"/>
+</p>
 
 El buscador filtra por IP, nombre o fabricante cuando esa información está disponible. Para buscar por nombres como
 `oppo`, `lg` o `denon`, conviene configurar nombres de dispositivo, reservas DHCP o DNS local en el router. Si tu red no
@@ -220,12 +241,17 @@ No conviene adivinar estas rutas. NAS, NFS y SMB no siempre exponen los mismos n
 bibliotecas del proveedor activo, te pide la ruta equivalente vista por el reproductor y la prueba antes de una sesión
 real. La pantalla muestra una insignia de Emby/Jellyfin para que tengas claro qué servidor estás mapeando.
 
-### 7.1 Crea primero las bibliotecas en tu servidor multimedia
+<p align="center">
+  <img src="assets/screenshots/install/04-media-paths-overview.png" alt="Vista general del asistente de rutas de Home Cinema Control" width="860"/>
+</p>
 
-Antes de entrar en HCC, Emby o Jellyfin debe tener sus bibliotecas creadas y escaneadas: Películas, Series, Conciertos o
-las que vayas a usar. HCC detecta esas bibliotecas y sus rutas, pero no crea la biblioteca por ti.
+### 7.1 Crea primero las bibliotecas en Emby
 
-En Emby, una ruta típica es:
+Antes de entrar en HCC, Emby debe tener sus bibliotecas creadas y escaneadas: Películas, Series, Conciertos o las que
+vayas a usar. En Emby, una biblioteca agrupa una o varias carpetas físicas. HCC detecta esas bibliotecas y sus rutas,
+pero no crea la biblioteca por ti.
+
+Ruta típica en Emby:
 
 ```text
 Dashboard de Emby -> Library -> Add Media Library
@@ -236,17 +262,20 @@ La documentación oficial de Emby cubre este paso en
 separar el contenido en carpetas por tipo, como Movies, TV Shows o Music:
 [Quick Start](https://emby.media/support/articles/Quick-Start.html).
 
-Para Jellyfin, crea las bibliotecas desde su panel de administración y asegúrate de que el usuario autorizado para HCC
-puede acceder a ellas. Cuando termines, entra en HCC y usa **Recargar bibliotecas** en Media Paths. Si no aparece una
-biblioteca, corrige primero el servidor correspondiente; no empieces a escribir rutas manuales a ciegas.
+Cuando termines, entra en HCC y usa **Recargar bibliotecas** en Media Paths. Si no aparece una biblioteca, primero
+corrige Emby; no empieces a escribir rutas manuales a ciegas.
 
 ### 7.2 Elige qué bibliotecas debe interceptar HCC
 
-No todo lo que existe en Emby o Jellyfin tiene que pasar por el OPPO. Puedes dejar fuera música, documentales, pruebas o
-cualquier biblioteca que quieras reproducir normalmente desde el cliente correspondiente.
+No todo lo que existe en Emby tiene que pasar por el OPPO. Puedes dejar fuera música, documentales, pruebas o cualquier
+biblioteca que quieras reproducir normalmente desde el cliente Emby.
 
 La pantalla muestra las bibliotecas detectadas y permite activar solo las que quieras que HCC controle. Las demás
-seguirán reproduciéndose por el flujo normal del servidor multimedia.
+seguirán reproduciéndose por el flujo normal de Emby.
+
+<p align="center">
+  <img src="assets/screenshots/install/05-media-paths-library-filter.png" alt="Selección de bibliotecas interceptadas en Home Cinema Control" width="860"/>
+</p>
 
 ### 7.3 Prepara NFS o SMB/CIFS en el NAS
 
@@ -270,6 +299,10 @@ Para SMB/CIFS:
 
 Cuando uses SMB/CIFS, HCC muestra las credenciales en la misma pantalla de rutas para que no tengas que saltar entre
 pantallas ni editar ficheros.
+
+<p align="center">
+  <img src="assets/screenshots/install/07-media-paths-smb-credentials.png" alt="Credenciales SMB en el asistente de rutas de Home Cinema Control" width="860"/>
+</p>
 
 Si necesitas capturas concretas de Synology, QNAP, Windows, Unraid o M9702/M920x, usa el hilo de AVPasion enlazado al
 principio de esta guía. HCC documenta su parte; la configuración exacta del NAS depende de tu plataforma.
@@ -305,8 +338,12 @@ En **Media Paths**, trabaja biblioteca por biblioteca:
 8. Guarda cuando la ruta quede verificada.
 
 HCC une las rutas como rutas, no como texto literal: la **Ruta OPPO** puede terminar en `/` o no, y las rutas de
-Las rutas de Emby con formato Windows como `Z:\` se normalizan automáticamente. Por ejemplo,
-`//192.168.1.10/media` más `Películas` produce `//192.168.1.10/media/Películas`.
+Emby con formato Windows como `Z:\` se normalizan automáticamente. Por ejemplo, `//192.168.1.149/Z` más
+`HD-Olimpo/Película` produce `//192.168.1.149/Z/HD-Olimpo/Película`.
+
+<p align="center">
+  <img src="assets/screenshots/install/06-media-paths-nfs-mapping.png" alt="Mapeo NFS verificado entre Emby y OPPO" width="860"/>
+</p>
 
 Qué significa cada estado:
 
@@ -316,6 +353,10 @@ Qué significa cada estado:
 | Pendiente  | Has cambiado algo y falta probar de nuevo.                                       |
 | Revisable  | El mapeo existía, pero cambió alguna pieza relacionada. Repite la prueba.        |
 | Error      | HCC no pudo montar la ruta. Mira la sugerencia y los logs filtrados por errores. |
+
+<p align="center">
+  <img src="assets/screenshots/install/08-media-paths-states.png" alt="Leyenda de estados de rutas verificadas, pendientes y con error" width="860"/>
+</p>
 
 ### 7.6 Cuándo usar modo manual
 
@@ -329,6 +370,10 @@ El modo manual existe para casos reales, no para volver al método antiguo:
 
 La mejora importante es que el modo manual ya no es “escribe algo y cruza los dedos”: puedes probar el montaje, ver el
 diagnóstico y guardar solo cuando entiendes qué ruta funciona.
+
+<p align="center">
+  <img src="assets/screenshots/install/09-media-paths-manual.png" alt="Modo manual de rutas de Home Cinema Control" width="860"/>
+</p>
 
 ### 7.7 Conceptos clave del mapeo
 
@@ -372,7 +417,15 @@ los permisos, en lugar de aparecer más tarde como un fallo ambiguo al intentar 
 La pantalla **Sala** controla qué debe hacer HCC al iniciar y terminar una reproducción: cambiar entrada de TV, encender
 o cambiar entrada del AVR, restaurar audio de TV, etc.
 
+<p align="center">
+  <img src="assets/screenshots/install/05-room.png" alt="Configuración de sala con TV y receptor AV" width="860"/>
+</p>
+
 El mismo escaneo de red sirve para localizar TV y receptor AV cuando los configuras desde **Sala**.
+
+<p align="center">
+  <img src="assets/screenshots/install/05-room-ip-discovery.png" alt="Descubrimiento de IP en la pantalla Sala de Home Cinema Control" width="860"/>
+</p>
 
 Puntos importantes:
 
@@ -412,6 +465,8 @@ En la pantalla **Sala** de HCC, introduce la IP de la TV y la misma clave PSK, y
 usa "Detectar apps" para que HCC liste las apps instaladas en esa TV y puedas elegir la de tu servidor multimedia.
 Este paso hace falta una sola vez por TV.
 
+*(Capturas de pantalla de los ajustes de Sony pendientes de añadir — requieren una TV Sony real.)*
+
 Nota sobre CEC/ARC:
 
 Si el receptor AV cambia a la entrada correcta pero vuelve solo a TV Audio, ARC o CEC probablemente está interviniendo.
@@ -425,6 +480,10 @@ Después,
 Home Assistant decide qué hacer: encender luces, activar una escena, enviar un aviso o simplemente guardar el evento en
 el
 registro. HCC no crea automatizaciones por su cuenta; tú eliges la reacción en Home Assistant.
+
+<p align="center">
+  <img src="assets/screenshots/install/10-home-assistant.png" alt="Pantalla de configuración de Home Assistant en HCC" width="860"/>
+</p>
 
 ### 9.1 Crea la automatización en Home Assistant
 
@@ -561,6 +620,10 @@ valores que podrían no ser los tuyos.
 
 La pantalla **Diagnóstico** resume estado, recursos, último fallo, versión y acciones de soporte.
 
+<p align="center">
+  <img src="assets/screenshots/install/06-status.png" alt="Pantalla de diagnóstico de Home Cinema Control" width="860"/>
+</p>
+
 Úsala para:
 
 - comprobar si HCC está conectado;
@@ -593,6 +656,10 @@ servidor, bibliotecas, títulos, IDs del servidor multimedia, logs, scripts ni c
 ## 11. Logs entendibles
 
 La pantalla **Logs** muestra líneas estructuradas con severidad y permite filtrar.
+
+<p align="center">
+  <img src="assets/screenshots/install/07-logs.png" alt="Logs estructurados y filtrables de Home Cinema Control" width="860"/>
+</p>
 
 La consola muestra por defecto las últimas 100 líneas visibles. Puedes cambiar el rango a más líneas o al log completo,
 filtrar por severidad y copiar al portapapeles exactamente las líneas mostradas, algo útil cuando compartes información
@@ -653,7 +720,7 @@ docker run -d \
 ```
 
 Si instalaste con Portainer u otra interfaz web: cambia la variable de entorno `HCC_VERSION` del stack a la versión
-que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), sin construir una imagen local — ver
+que quieras y vuelve a desplegar tirando de la imagen ("re-pull"), no reconstruyendo desde el Dockerfile — ver
 [3.1](#31-instalar-con-portainer-u-otra-interfaz-web).
 
 Si configuras un webhook de redespliegue, la pantalla Diagnóstico puede lanzar la actualización desde la web. Si no, HCC
