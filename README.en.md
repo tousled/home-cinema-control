@@ -32,6 +32,18 @@ NFS/SMB mounts, room automation, diagnostics, and progress tracking working as o
 
 HCC connects those pieces. You pick a movie in Emby; the room prepares itself for playback.
 
+## What do you want to do with HCC?
+
+Choose a task and go directly to the relevant guide:
+
+- **Install HCC for the first time:** [follow the step-by-step installation](INSTALL.en.md#2-install-hcc).
+- **Update HCC without losing the configuration:** [open the update guide](INSTALL.en.md#13-updating-hcc).
+- **Fix a problem:** [open Diagnostics and frequent issues](INSTALL.en.md#10-diagnostics).
+- **Recover a configuration:** [review migration and recovery](INSTALL.en.md#4-migration-or-fresh-setup).
+- **Configure Emby/Jellyfin, the OPPO, or the
+  room:** [follow the setup guide](INSTALL.en.md#5-media-server-emby-or-jellyfin).
+- **Check advanced options:** [open the advanced reference](INSTALL.en.md#15-advanced-reference).
+
 ## Problems HCC Tries To Solve
 
 HCC builds on years of real-world use, repeated forum questions, and hard-to-diagnose failures in setups involving Emby,
@@ -79,7 +91,7 @@ disabled room device, or deployment/update problem.
 It also includes an optional telemetry section, disabled by default, to help decide HCC's roadmap: active
 installations, selected provider, TV/AV usage, and basic playback events. Telemetry uses a random anonymous
 installation ID and never sends paths, IPs, tokens, servers, libraries, titles, logs, scripts, or custom commands. See
-[docs/telemetry.md](docs/telemetry.md).
+[public telemetry documentation](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
 
 ## Optional Room Control
 
@@ -174,7 +186,9 @@ The complete setup, JSON payload, and a conditional automation example are in th
 
 ## Quick Install
 
-HCC runs as a Docker container with host networking.
+Docker Compose is the recommended option: keep `compose.yaml` in its own folder and run the commands from that same
+folder. Preserve the `home-cinema-control-config` volume: it contains the configuration and must not be deleted when
+updating or recreating the container.
 
 Quick start:
 
@@ -226,6 +240,9 @@ docker compose up -d
 ```
 
 Read the complete guide in [INSTALL.en.md](INSTALL.en.md).
+
+The [installation guide](INSTALL.en.md) includes screenshots and separate procedures for Docker Compose, Portainer, and
+NAS container managers.
 
 ## NAS And Player Preparation
 

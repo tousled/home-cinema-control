@@ -23,6 +23,13 @@ verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics,
 
 ## Quick start
 
+For the easiest installation and update path, use
+the [installation guide](https://github.com/tousled/home-cinema-control/blob/main/INSTALL.en.md).
+It starts with a choice by task, includes screenshots, and explains where to run Docker Compose commands.
+
+Keep the `home-cinema-control-config` volume: it contains HCC's configuration and secrets. Do not delete it when
+updating or recreating the container.
+
 ```bash
 docker volume create home-cinema-control-config
 
