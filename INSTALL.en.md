@@ -104,8 +104,8 @@ In Portainer: **Stacks → Add stack**, then paste the `compose.yaml` above.
 
 To pin a specific version (release candidates included), add `HCC_VERSION` as a stack environment variable, e.g.
 `HCC_VERSION=1.4.2-rc.1`. The Compose example uses `${HCC_VERSION:-latest}` to select the image tag. This is Docker Compose variable interpolation; if your YAML hardcodes `:latest`, `HCC_VERSION` will not change the downloaded image. Without it, Portainer uses
-`latest` (the latest stable release). To update, change that value and redeploy by re-pulling the image, without
-building a local image.
+`latest` (the latest stable release). To update, change that value and redeploy by re-pulling the image, not by
+rebuilding from the Dockerfile.
 
 Other web UIs (Synology Container Manager, Unraid, etc.) should work the same way if they let you set environment
 variables for the stack — same logic applies.
@@ -113,6 +113,10 @@ variables for the stack — same logic applies.
 ## 4. Migration Or Fresh Setup
 
 If HCC finds a compatible older configuration, it shows a migration screen.
+
+<p align="center">
+  <img src="assets/screenshots/install/01-migration.png" alt="HCC migration screen" width="860"/>
+</p>
 
 HCC now saves setup by section and keeps secrets in `/config/secrets.json`.
 
@@ -125,16 +129,26 @@ provider is still added but left unauthenticated, and the Media Server sidebar i
 finish connecting it from its own screen. If you don't have an XNOPPO `config.json`, or would rather not import it,
 choose "Configure from scratch" and follow the normal wizard.
 
+<!-- TODO: screenshot of the XNOPPO import modal on a fresh install -->
+
 ## 5. Media Server: Emby or Jellyfin
 
 Pick the provider (Emby or Jellyfin), then configure its URL, authentication, and the client/device HCC should
-monitor. The setup flow is shared by both providers, with the differences called out in this guide.
+monitor. Screenshots in this guide show Emby, but the flow is the same with Jellyfin.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server.png" alt="HCC Media Server setup" width="860"/>
+</p>
 
 The page header shows the selected provider logo, for example Emby or Jellyfin, so you can immediately recognize which
 integration you are configuring. The logo is muted while the provider still needs authorization or connection setup, and
 becomes more prominent once that provider is authorized. The server URL, user, and detailed readiness information stay
 in
 the configuration panels instead of being repeated in the header.
+
+<p align="center">
+  <img src="assets/screenshots/install/02-media-server-pending.png" alt="Media Server with Jellyfin selected but pending authorization" width="860"/>
+</p>
 
 This screen avoids manual token editing, reloads the media server's devices, and prepares library discovery for path
 mapping.
@@ -159,8 +173,16 @@ to work — see [Frequent Issues](#14-frequent-issues).
 
 Configure the OPPO/Chinoppo IP address and test the MediaControl API.
 
+<p align="center">
+  <img src="assets/screenshots/install/03-media-player.png" alt="HCC Media Player setup" width="860"/>
+</p>
+
 When `arp-scan` is available inside the container, HCC shows **Scan network** and suggests detected LAN IP addresses
 under the IP field.
+
+<p align="center">
+  <img src="assets/screenshots/install/03-media-player-ip-discovery.png" alt="OPPO IP discovery filtered by device name" width="860"/>
+</p>
 
 The search filters by IP, name, or vendor when that information is available. To search by names like `oppo`, `lg`, or
 `denon`, configure device names, DHCP reservations, or local DNS in your router. If your network does not return names,
@@ -168,7 +190,7 @@ you can still search or type the IP address directly.
 
 ## 7. Media Paths: The Important Part
 
-This is the critical setup step because it solves the real problem: the media server knows where the movie lives, but
+This is the critical setup step because it solves the real problem: Emby knows where the movie lives on the server, but
 the OPPO/Chinoppo needs to reach that same movie as a NAS network share.
 
 Think of HCC as a path translator:
@@ -189,12 +211,18 @@ Do not guess these paths. NAS vendors, NFS, and SMB do not always expose the sam
 provider's libraries, asks for the equivalent player-visible path, and tests it before a real viewing session. The
 screen shows an Emby/Jellyfin badge so you can tell which server you are mapping.
 
-### 7.1 Create Libraries In Your Media Server First
+<p align="center">
+  <img src="assets/screenshots/install/04-media-paths-overview.png" alt="HCC Media Paths assistant overview" width="860"/>
+</p>
 
-Before opening HCC, Emby or Jellyfin should already have scanned libraries: Movies, TV Shows, Concerts, or whatever you
-use. HCC detects those libraries and paths, but it does not create the library for you.
+### 7.1 Create Emby Libraries First
 
-For Emby, a typical path is:
+Before opening HCC, Emby should already have scanned libraries: Movies, TV Shows, Concerts, or whatever you use. In
+Emby,
+a library groups one or more physical folders. HCC detects those libraries and paths, but it does not create the library
+for you.
+
+Typical Emby path:
 
 ```text
 Emby Dashboard -> Library -> Add Media Library
@@ -204,17 +232,20 @@ Emby's official [Library Setup](https://emby.media/support/articles/Library-Setu
 [Quick Start](https://emby.media/support/articles/Quick-Start.html) also recommends separating media by type, such as
 Movies, TV Shows, or Music.
 
-For Jellyfin, create the libraries from its administration panel and make sure the HCC user can access them. When done,
-go to HCC and use **Reload libraries** in Media Paths. If a library does not appear, fix the relevant server first
-instead of typing paths blindly.
+When done, go to HCC and use **Reload libraries** in Media Paths. If a library does not appear, fix Emby first instead
+of typing paths blindly.
 
 ### 7.2 Choose Which Libraries HCC Should Intercept
 
-Not everything in Emby or Jellyfin has to go through the OPPO. You can leave music, documentaries, tests, or lightweight
-libraries on the normal playback path for the selected client.
+Not everything in Emby has to go through the OPPO. You can leave music, documentaries, tests, or lightweight libraries
+on the normal Emby playback path.
 
 The screen shows detected libraries and lets you enable only the ones you want HCC to control. The rest keep playing
-through the normal media-server flow.
+through the normal Emby flow.
+
+<p align="center">
+  <img src="assets/screenshots/install/05-media-paths-library-filter.png" alt="Intercepted libraries selection in Home Cinema Control" width="860"/>
+</p>
 
 ### 7.3 Prepare NFS Or SMB/CIFS On The NAS
 
@@ -238,6 +269,10 @@ For SMB/CIFS:
 
 When you use SMB/CIFS, HCC keeps credentials in the same Media Paths screen so you do not have to jump between screens
 or edit files.
+
+<p align="center">
+  <img src="assets/screenshots/install/07-media-paths-smb-credentials.png" alt="SMB credentials in the Home Cinema Control path assistant" width="860"/>
+</p>
 
 For Synology, QNAP, Windows, Unraid, or M9702/M920x screenshots, use the AVPasion thread linked at the top of this
 guide. HCC documents the HCC side; the exact NAS setup depends on your platform.
@@ -274,8 +309,12 @@ In **Media Paths**, work library by library:
 8. Save when the route is verified.
 
 HCC joins mappings as paths rather than literal text: the **OPPO path** may or may not end with `/`, and Windows-style
-Emby paths such as `Z:\` are normalized automatically. For example,
-`//192.168.1.10/media` plus `Movies` produces `//192.168.1.10/media/Movies`.
+Emby paths such as `Z:\` are normalized automatically. For example, `//192.168.1.149/Z` plus
+`HD-Olimpo/Movie` produces `//192.168.1.149/Z/HD-Olimpo/Movie`.
+
+<p align="center">
+  <img src="assets/screenshots/install/06-media-paths-nfs-mapping.png" alt="Verified NFS mapping between Emby and OPPO" width="860"/>
+</p>
 
 State meanings:
 
@@ -285,6 +324,10 @@ State meanings:
 | Pending  | Something changed and the route needs another test.                           |
 | Review   | The mapping exists, but related setup changed. Test again.                    |
 | Error    | HCC could not mount the route. Read the suggestion and filter logs by errors. |
+
+<p align="center">
+  <img src="assets/screenshots/install/08-media-paths-states.png" alt="Route state legend for verified, pending, and error states" width="860"/>
+</p>
 
 ### 7.6 When To Use Manual Mode
 
@@ -298,6 +341,10 @@ Manual mode exists for real edge cases, not as a return to the old workflow:
 
 The important improvement is that manual mode is no longer “type something and hope”: you can test the mount, read the
 diagnostic, and save only when you know which route works.
+
+<p align="center">
+  <img src="assets/screenshots/install/09-media-paths-manual.png" alt="Manual path mapping mode in Home Cinema Control" width="860"/>
+</p>
 
 ### 7.7 Mapping Concepts
 
@@ -340,7 +387,15 @@ protocol, or permissions instead of appearing later as an ambiguous playback fai
 
 TV and AV receiver control are optional and configured separately.
 
+<p align="center">
+  <img src="assets/screenshots/install/05-room.png" alt="HCC Room setup" width="860"/>
+</p>
+
 The same network scan helps locate the TV and AV receiver when you configure **Room Setup**.
+
+<p align="center">
+  <img src="assets/screenshots/install/05-room-ip-discovery.png" alt="IP discovery in the Home Cinema Control Room setup screen" width="860"/>
+</p>
 
 If TV or AV is disabled, HCC does not include it in the playback flow. If CEC/ARC forces the receiver back to TV Audio,
 disable CEC/ARC on the AVR or adjust HDMI settings before relying on automation.
@@ -370,6 +425,8 @@ itself: **Settings → Network & Internet → Home Network Setup → IP Control*
 so Room Setup includes a one-time "Detect apps" step that lists the TV's installed apps so you can pick your media
 server's.
 
+*(Screenshots of the Sony settings menu are pending — they require a real Sony TV.)*
+
 ## 9. Connect HCC to Home Assistant
 
 With this integration, HCC tells Home Assistant when it detects playback, starts it, pauses, resumes, or stops. Home
@@ -378,6 +435,10 @@ decides
 what to do: turn on lights, activate a scene, send an alert, or simply record the event. HCC does not create automations
 on
 its own; you choose the reaction in Home Assistant.
+
+<p align="center">
+  <img src="assets/screenshots/install/10-home-assistant.png" alt="HCC Home Assistant configuration screen" width="860"/>
+</p>
 
 ### 9.1 Create the automation in Home Assistant
 
@@ -516,6 +577,10 @@ values that may not be yours.
 
 The Status screen shows readiness, playback state, latest failure, version status, and support summary.
 
+<p align="center">
+  <img src="assets/screenshots/install/06-status.png" alt="HCC diagnostics screen" width="860"/>
+</p>
+
 Use it to understand whether the issue is Emby, path mapping, OPPO mount, optional room control, or deployment/update.
 A "Send diagnostics" button builds an automatically redacted report (no IPs, credentials, or paths), lets you review
 and edit it, then copies it to your clipboard and opens a new GitHub issue for you to paste it into and submit
@@ -536,6 +601,10 @@ scripts, or custom commands. See [`docs/telemetry.md`](docs/telemetry.md).
 ## 11. Readable Logs
 
 The Logs screen renders structured logs with severity and filtering.
+
+<p align="center">
+  <img src="assets/screenshots/install/07-logs.png" alt="HCC structured logs" width="860"/>
+</p>
 
 The console shows the latest 100 visible lines by default. You can switch to larger ranges or the full log, filter by
 severity, and copy exactly the shown lines to the clipboard, which is useful when sharing support details from a phone.
@@ -593,7 +662,7 @@ docker run -d \
 ```
 
 If you installed with Portainer or another web UI: change the stack's `HCC_VERSION` environment variable to the
-version you want and redeploy by re-pulling the image, without building a local image — see
+version you want and redeploy by re-pulling the image, not by rebuilding from the Dockerfile — see
 [3.1](#31-installing-with-portainer-or-another-web-ui).
 
 If configured, the Status screen can call a redeploy webhook. Otherwise it shows the manual command.

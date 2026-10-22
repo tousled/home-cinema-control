@@ -6,10 +6,12 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
-### Changed
+## [1.4.2] - 2026-10-21
 
-* Restored the complete user-facing installation, compatibility, Docker, telemetry, update, rollback, and troubleshooting documentation in the public product repository.
-* Corrected public configuration examples to use the current provider-scoped media-server and playback structure, and aligned the product documentation with current Emby and Jellyfin support.
+### Fixed
+
+* **OPPO playback now wakes the screen saver before startup timeout.** HCC dismisses an active OPPO screen saver before
+  mounting media and retries the `RET` wake key once during startup if the player still reports `SCREEN_SAVER`.
 
 ## [1.4.1] - 2026-10-17
 
@@ -327,7 +329,7 @@ integration activity.
   provider state shown before authorization.
 * Added a compact active-provider badge to Media Paths so the detected-library and route-mapping workflow keeps the
   configured Emby/Jellyfin context visible without overloading the refresh action.
-* Added a shared, provider-neutral `find_controlling_session_id` policy (`internal project component`) that
+* Added a shared, provider-neutral `find_controlling_session_id` policy (`media_servers/common/models.py`) that
   resolves which client session actually issued a remote Play command, used by both Emby and Jellyfin.
 * Instrumented two previously invisible OPPO startup phases — mounting the network share (`mount_oppo_network_share`,
   includes the device-list-ready wait) and waiting for the OPPO to actually report active playback
@@ -336,9 +338,9 @@ integration activity.
   the named steps and the printed `total` in "Playback startup timing summary," with no way to tell from the log
   alone whether the OPPO, the TV/AV output switch, or something else caused it. No behavior change: both are
   optional, timer-only wrapping.
-* Added a first-run modal offering to import a legacy XNOPPO `internal project component` (the predecessor project this app
+* Added a first-run modal offering to import a legacy XNOPPO `config.json` (the predecessor project this app
   replaces) on a fresh install with nothing configured yet, separate from the existing "legacy config already on
-  disk" migration modal. The user picks the old `internal project component` file, HCC migrates AV/TV/OPPO/playback settings the
+  disk" migration modal. The user picks the old `config.json` file, HCC migrates AV/TV/OPPO/playback settings the
   same way the existing migration pipeline already does, moves the Emby server URL into the new multi-provider
   config shape, and makes a best-effort live login with the file's username/password to obtain a real access token
   — if that login fails (e.g. the Emby server isn't reachable yet), the provider is just left unauthenticated, same
@@ -387,15 +389,15 @@ integration activity.
 * `find_controlling_session_id`'s Jellyfin-side session lookup now narrows server-side via the confirmed
   `controllableByUserId` query parameter instead of fetching every active session on the server for every single
   Play command.
-* Fixed the existing "legacy config found" migration silently discarding `emby_server`/`user_name`/`legacy credential field`
-  from an XNOPPO-era flat `internal project component` instead of migrating them — those keys were already listed as legacy
+* Fixed the existing "legacy config found" migration silently discarding `emby_server`/`user_name`/`user_password`
+  from an XNOPPO-era flat `config.json` instead of migrating them — those keys were already listed as legacy
   (so they got removed) but no step ever moved the server URL anywhere first. `TV_KEY`/`TV_DeviceName` (no current
   equivalent — LG pairing now goes through a separate key store) are now dropped instead of lingering as orphaned
   fields.
 * Fixed the Docker image being unable to complete a truly fresh install (no existing config volume at all):
-  the multi-stage build refactor dropped `internal project component` from the final runtime stage, so
-  `ensure_config_exists()` had nothing to seed `internal project component` from and crashed on every container start.
-* Fixed `internal project component` carrying a stale, empty single-provider `media_server` stub forever. It was seeded by
+  the multi-stage build refactor dropped `config.example.json` from the final runtime stage, so
+  `ensure_config_exists()` had nothing to seed `config.json` from and crashed on every container start.
+* Fixed `secrets.json` carrying a stale, empty single-provider `media_server` stub forever. It was seeded by
   default for every install before the multi-provider `media_servers.providers.*` shape existed, and was only ever
   cleaned up when the *public* config also had real legacy `media_server` data — which an XNOPPO-era flat config
   never has. It's no longer seeded for new installs, and existing installs self-heal it on the next config save or
@@ -405,11 +407,11 @@ integration activity.
   off on every page reload. As a result the version check always ran with pre-releases excluded no matter how the
   checkbox looked, even though the backend filtering logic itself (fixed in 1.1.0-rc.2) was already correct. The
   checkbox now loads its saved state and persists immediately on toggle.
-* Fixed `internal project component` (the file users/NAS deployments actually run) carrying both `image:` and `build:`. Several
+* Fixed `compose.yaml` (the file users/NAS deployments actually run) carrying both `image:` and `build:`. Several
   Docker GUIs (Portainer's "deploy stack from Git" pointed at a tag, among others) build from the compose file's
   `build:` section instead of pulling the named image — silently producing a locally-rebuilt image stamped
   `0.0.0.dev0` (the `SETUPTOOLS_SCM_PRETEND_VERSION` build-arg's fallback, since nothing sets `HCC_VERSION` in that
-  flow) instead of the real, correctly-versioned image from the registry. `internal project component` is now pull-only; the
+  flow) instead of the real, correctly-versioned image from the registry. `compose.yaml` is now pull-only; the
   `build:` section moved to a local-only, untracked override file for development.
 
 ### Changed
@@ -420,13 +422,13 @@ integration activity.
 * `README.md`/`README.en.md` and `INSTALL.md`/`INSTALL.en.md` updated to reflect Jellyfin as a shipped, supported
   media-server provider rather than a roadmap item.
 * Documented installing/updating via Portainer (or similarly-capable web UIs) in `INSTALL.md`/`INSTALL.en.md`'s
-  Docker Compose section — paste `internal project component` into the stack, then pin the running version via the stack's
+  Docker Compose section — paste `compose.yaml` into the stack, then pin the running version via the stack's
   `HCC_VERSION` environment variable.
 * Fixed `INSTALL.md`/`INSTALL.en.md` presenting Emby as the only supported media server in the requirements section
   — it never reflected Jellyfin support there, even though Jellyfin has been a shipped provider since 1.1.0-rc.1.
-* All backend routes moved from `/api/*` to `/api/v1/*`, ahead of splitting `internal project component`'s 800+ lines into one
-  router per domain. The frontend (`internal project component`'s base URL, plus the few hardcoded now-playing image/config-bootstrap
-  paths) moved with it; the dev proxy in `internal project component` still matches on the `/api` prefix unchanged.
+* All backend routes moved from `/api/*` to `/api/v1/*`, ahead of splitting `web/api_app.py`'s 800+ lines into one
+  router per domain. The frontend (`api/index.js`'s base URL, plus the few hardcoded now-playing image/config-bootstrap
+  paths) moved with it; the dev proxy in `vite.config.js` still matches on the `/api` prefix unchanged.
 
 ## [1.0.5] - 2026-06-22
 
@@ -509,12 +511,17 @@ integration activity.
 ### Added
 
 * Added a log-level selector (Off / Info / Debug) to the web Logs screen, so the verbosity of both the in-app logs
-  and the container console can be set without editing `internal project component`. The change is applied live (no restart needed).
+  and the container console can be set without editing `config.json`. The change is applied live (no restart needed).
 
 ### Changed
 
 * End-of-content detection no longer mixes the media server's duration into the decision; the OPPO is the single
   source of truth, with a minimum-duration floor so disc menus and copyright reels are never treated as the feature.
+
+### Tests
+
+* Added unit coverage for the OPPO-total end-of-content, next-title and "played" thresholds, for the web log-level
+  control applying live, and for log configuration; updated the polling and SVM3 observation tests to the new model.
 
 ## [1.0.3] - 2026-06-21
 
@@ -536,6 +543,13 @@ integration activity.
 * Consolidated the three places that talk to the OPPO's network-mount API (real playback, "Probar ruta", "Browse
   OPPO") into a single shared sequence, so future fixes to OPPO mount handling only need to happen once.
 
+### Tests
+
+* Added regression coverage for OPPO network-mount activation, login, and retry behavior across all three call sites.
+* Added regression coverage for playback monitoring correctly carrying a "still paused" hint across the SVM3/polling
+  observation handoff, and for skipping TV/AV restore when the player is still showing its screen saver.
+* Added regression coverage for clearing the stale source-client playback screen after a stop.
+
 ## [1.0.2] - 2026-06-20
 
 ### Fixed
@@ -547,6 +561,13 @@ integration activity.
 * Fixed a UI regression where detected Emby libraries could briefly show `Failed to fetch` after a successful connection
   test.
 * Kept the public API response sanitized so Emby access tokens and user ids are never exposed back to the frontend.
+
+### Tests
+
+* Added regression coverage to ensure Emby token configuration returns the effective internal config needed for secret
+  persistence.
+* Added API route coverage to ensure the Emby connection check saves verified config without triggering a full backend
+  restart.
 
 ## [1.0.0] - 2026-06-19
 
@@ -589,7 +610,7 @@ integration activity.
   name, and container format for the active playback session.
 - Added `playback_file_format`, `network_protocol`, and `production_year`
   fields to the active playback session and runtime status payload.
-- Added historical licensing terms and contribution guidance through
+- Added source-available licensing terms and contribution guidance through
   `LICENSE`, `CONTRIBUTING.md`, Python package license metadata, and frontend
   package license metadata.
 - Added Spanish and English installation guides with product screenshots for
@@ -624,17 +645,17 @@ integration activity.
   entry point and English documentation kept in sync.
 - Replaced the previous SVG favicon/mark direction with raster brand assets
   that match the new README and navbar identity.
-- Updated `internal project component` and `internal project component` to match the current
+- Updated `config.secrets.example.json` and `secrets.json` to match the current
   secrets layout, including Emby token/user fields and the SMB password slot.
-- Updated `internal project component` to include the public SMB username field, which
-  is stored outside `internal project component`.
+- Updated `config.example.json` to include the public SMB username field, which
+  is stored outside `secrets.json`.
 
 ### Fixed
 
 - Fixed the "Current playback" poster leaving empty space below it instead of
   filling the height of its info column.
 - Fixed stale secrets templates that still documented the removed
-  `legacy credential field`-only layout instead of the current Emby token and SMB
+  `user_password`-only layout instead of the current Emby token and SMB
   credential split.
 
 ## [0.9.0] - 2026-06-18
@@ -688,7 +709,7 @@ integration activity.
 - Changed `is_smb_active` to depend only on the OPPO "use SMB" toggle, no
   longer requiring stored credentials. Anonymous/guest SMB shares were
   previously downgraded to NFS silently because credentials were absent.
-- Changed `smb.username` storage from `internal project component` to `internal project component`, since
+- Changed `smb.username` storage from `secrets.json` to `config.json`, since
   it is not sensitive, so the UI can show the configured username directly.
 - Changed the SMB pre-mount option ("SMBTrick") so it actually runs during
   real playback mounts, not just the web path browser, and clarified its
@@ -720,7 +741,7 @@ integration activity.
   through section-scoped saves.
 - Removed explicit legacy bridge-client filtering from Emby device discovery.
 - Renamed AV, TV, and OPPO setup-control wrappers away from legacy web-control
-  names and removed the old `internal project component` modules.
+  names and removed the old `web_control.py` modules.
 - Restructured public documentation around a Spanish-default README and
   installation guide, with English mirrors, a product-oriented HCC vs legacy
   narrative, a visible roadmap for future providers/devices, a dedicated SVG
@@ -743,7 +764,7 @@ integration activity.
 - Replaced the first documentation logo with a new signal-routing HCC emblem
   and wordmark, moving the brand direction away from a generic screen/play
   icon.
-- Removed the stale `oppo.default_nfs` legacy key from `internal project component`
+- Removed the stale `oppo.default_nfs` legacy key from `config.example.json`
   so a clean install does not trigger the migration modal.
 
 ### Fixed
@@ -796,9 +817,9 @@ integration activity.
 - Added `GET /version/rollback` API route returning rollback availability and instructions.
 - Changed `GET /version/update` to `POST /version/update`.
 - Added `force` query parameter to `GET /version/check` to bypass the version cache.
-- Added the corresponding internal component — publishes Docker images to GHCR
+- Added `.github/workflows/release.yml` — publishes Docker images to GHCR
   (`ghcr.io/tousled/home-cinema-control`) and Docker Hub (`tousled/home-cinema-control`) on every `v*` tag push.
-- Updated `internal project component` to reference the published image via
+- Updated `compose.yaml` to reference the published image via
   `ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}`,
   enabling `docker compose pull` for over-the-air updates.
 
@@ -870,7 +891,7 @@ integration activity.
   behaviour on arbitrary controls (e.g. the scan button).
 - Added `IpInput` reusable component encapsulating IP-field + scan-suggestion
   dropdown logic, used in both Media Player and Sala configuration views.
-- Added backend unit tests for `internal project component`: ARP parse, header
+- Added backend unit tests for `network/devices.py`: ARP parse, header
   skipping, unknown vendor normalisation, empty output, missing arp table,
   binary not found, and IP numeric sort.
 
@@ -887,7 +908,7 @@ integration activity.
 - The currently configured IP for a field is always included at the top of the
   suggestion dropdown, even when the device is off and arp-scan does not detect
   it.
-- Docker `internal project component` updated to add `network_mode: host` and
+- Docker `compose.yaml` updated to add `network_mode: host` and
   `cap_add: [NET_RAW]` so arp-scan can send raw ARP frames from the host
   network stack.
 
@@ -921,7 +942,7 @@ integration activity.
 ### Changed
 
 - Moved the legacy web HTTP handler implementation into
-  the corresponding internal component. The old web entrypoint now acts as the
+  `src/home_cinema_control/web/handler.py`. The old web entrypoint now acts as the
   small process entrypoint that builds the web runtime composition and starts
   the server.
 - Updated the Docker image build to install the app package in editable mode
@@ -932,7 +953,7 @@ integration activity.
 ### Fixed
 
 - Fixed production Docker/Portainer deployments failing at:
-  the container installation step. The container build configuration now installs
+  `pip install --no-cache-dir --no-deps -e .`. The Dockerfile now installs
   package build requirements first and runs the editable install without build
   isolation.
 - Fixed `tv_set_prev` route handling after moving the web handler into the
@@ -1013,7 +1034,7 @@ integration activity.
 
 - Fixed Docker container producing no output in `docker logs` and Portainer log
   viewer. Python buffers stdout/stderr by default when not attached to a
-  terminal; adding `PYTHONUNBUFFERED=1` to the container build configuration forces immediate
+  terminal; adding `PYTHONUNBUFFERED=1` to the Dockerfile forces immediate
   flush so log lines appear as they are written.
 - Fixed disabled-AV and disabled-TV log lines not appearing in the application
   log when the corresponding device was configured as disabled in config.
@@ -1023,8 +1044,8 @@ integration activity.
 
 ### Removed
 
-- Removed `TvOutputAdapter` (`internal project component` TV section).
-- Removed `AvReceiverOutputAdapter` and `internal project component`
+- Removed `TvOutputAdapter` (`playback/device_output_adapters.py` TV section).
+- Removed `AvReceiverOutputAdapter` and `playback/device_output_adapters.py`
   entirely.
 - Removed `LegacyEmbyTrackResolver` and `legacy_startup_preparation`.
 
@@ -1034,7 +1055,7 @@ integration activity.
 
 - Fixed Docker container producing no output in `docker logs` and Portainer log
   viewer. Python buffers stdout/stderr by default when not attached to a
-  terminal; adding `PYTHONUNBUFFERED=1` to the container build configuration forces immediate
+  terminal; adding `PYTHONUNBUFFERED=1` to the Dockerfile forces immediate
   flush so log lines appear as they are written.
 
 ## [0.6.0] - 2026-06-06
@@ -1053,10 +1074,10 @@ integration activity.
   OPPO verbose preamble lines before `HTTP/1.1`. Required because OPPO injects
   verbose events before the HTTP status line when SVM 2 is active, causing
   `requests` to fail with `BadStatusLine`.
-- Added neutral observed playback event model (`internal project component`)
-  and OPPO verbose event translation (`internal project component`).
+- Added neutral observed playback event model (`playback/observed_events.py`)
+  and OPPO verbose event translation (`devices/oppo/observed_events.py`).
 - Added bidirectional Emby/OPPO track index mapping
-  (`internal project component`) so OPPO menu indexes can be reported
+  (`media_servers/emby/track_mapping.py`) so OPPO menu indexes can be reported
   as Emby stream IDs for audio and subtitle track-change events.
 - Added `ObservedPlaybackEventReporter`: stateful reporter that maps OPPO menu
   indexes to Emby stream IDs using the active-session track mapper and routes
@@ -1074,14 +1095,14 @@ integration activity.
 ### Changed
 
 - Moved the majority of the remaining codebase from `lib/` into
-  the corresponding internal component with proper module structure and public/private
+  `src/home_cinema_control/` with proper module structure and public/private
   boundaries. Legacy `lib/` modules that remain are kept only for the active
   legacy session/HTTP adapter boundary still used by the runtime.
 - Extracted `EmbySessionMonitor` from the legacy Emby websocket class into an
   independently testable module at
-  the corresponding internal component.
-- Moved `EmbyWebsocket` from `internal project component` to
-  the corresponding internal component. Removed
+  `src/home_cinema_control/media_servers/emby/session_monitor.py`.
+- Moved `EmbyWebsocket` from `lib/Emby_ws.py` to
+  `src/home_cinema_control/media_servers/emby/websocket_listener.py`. Removed
   `threading.Thread` inheritance; replaced manual reconnect loop with
   `run_forever(reconnect=10)`.
 - Unified Emby progress reporting through a single
@@ -1093,9 +1114,9 @@ integration activity.
   `oppo.*`, `tv.*`, `av.*`, `app.*`, `playback.*`. Older config files are
   migrated transparently on load.
 - Consolidated `EMBY_TICKS_PER_SECOND` from five definitions under three names
-  to a single canonical constant in `internal project component`.
+  to a single canonical constant in `media_servers/emby/constants.py`.
 - Extracted OPPO port/protocol constants into
-  the corresponding internal component.
+  `src/home_cinema_control/devices/oppo/constants.py`.
 - Updated the web-reported application version to `0.6.0`.
 
 ### Fixed
@@ -1127,6 +1148,17 @@ integration activity.
 
 - Removed `MediaServerPlaybackProgressReporter` and
   `MediaServerPlaybackStoppedReporter` (merged into `MediaServerPlaybackEventPublisher`).
+
+### Validated
+
+- Validated `@UAT` (audio track change on OPPO) → `AudioTrackChange` reported
+  to Emby with correct stream index.
+- Validated `@UPL PAUS` (OPPO remote pause) → `Pause` reported to Emby.
+- Validated SVM 2 active throughout playback with startup, audio selection,
+  subtitle selection, interactive commands, and finish cleanup all working
+  through the tolerant HTTP transport.
+- Validated SVM 0 correctly restored at finish cleanup.
+- Validated stable mode (`oppo.observation_mode = "stable"`) unaffected.
 
 ### Notes
 
@@ -1160,6 +1192,14 @@ integration activity.
 - The finish orchestrator now closes OPPO playback with `STP` after a natural
   end if the player still reports an active state, then confirms idle before
   restoring LG/AV outputs.
+
+### Validated
+
+- Real episode-ending logs showed OPPO stuck at `PLAY` with
+  `current=3533` / `total=3529` before eventually returning to `HOME_MENU`;
+  this release models that state directly.
+- Sending `STP` while OPPO was already idle (`SCREEN_SAVER`) returned success,
+  left OPPO idle, and a follow-up NFS mount succeeded.
 
 ## [0.5.0] - 2026-05-31
 
@@ -1246,6 +1286,20 @@ integration activity.
 - Removed unused legacy OPPO helpers that were no longer referenced by
   productive code.
 
+### Validated
+
+- Validated MKV playback from the LG Emby app.
+- Validated ISO / Full Blu-ray playback from remote Emby control.
+- Validated MKV -> ISO replacement.
+- Validated ISO -> MKV replacement when OPPO MediaControl mount state was
+  healthy.
+- Validated final stop after replacement returning LG to `com.emby.app` and
+  Denon to `SITV`.
+- Validated pause, chapter navigation, absolute seek, and 10-second
+  forward/back seek from the Emby mobile/web controller.
+- Validated preservation of the last valid OPPO playback position when
+  `getplayingtime` returns transient zero values during stop/transition.
+
 ### Notes
 
 - OPPO MediaControl can still enter a stale NFS mount state after some
@@ -1274,7 +1328,7 @@ integration activity.
   - script-based AV control
 - Added AV adapter selection from `config["AV_model"]`.
 - Added a socket-based TCP command sender for AV receivers that use simple TCP commands.
-- Added `internal project component` to isolate OPPO Autoscript-related unmount logic.
+- Added `lib/oppo_autoscript.py` to isolate OPPO Autoscript-related unmount logic.
 
 ### Changed
 
@@ -1293,6 +1347,13 @@ integration activity.
 - Removed AV runtime dependence on `telnetlib`.
 - Removed the `/move_av` web flow.
 - Removed unnecessary AV code duplication across vendor-specific files.
+
+### Validated
+
+- Validated Denon control with the receiver already powered on.
+- Validated Denon control with the receiver suspended/off.
+- Validated AV web interface after the adapter/factory migration.
+- Validated normal playback and AV HDMI switching after the migration.
 
 ### Notes
 
@@ -1323,6 +1384,8 @@ integration activity.
 - Simplified Emby connection checking logic.
 - Reduced noisy subtitle and MediaStreams logging.
 - Improved WebSocket callback handling and session logging.
+- Rotated exposed LG TV key after debugging.
+- Rotated exposed Emby password after debugging and validated the system afterwards.
 
 ### Fixed
 
@@ -1331,6 +1394,15 @@ integration activity.
 - Fixed the missing `EmbyHttp` import / broken `/check_emby` flow.
 - Fixed playback progress being overwritten with zero in common stop scenarios.
 - Fixed several noisy debug outputs that made real playback issues harder to diagnose.
+
+### Validated
+
+- Validated playback without subtitles.
+- Validated playback with selected subtitles.
+- Validated ISO / Full Blu-ray playback.
+- Validated normal movie playback.
+- Validated fast-forward, rewind and pause state observation.
+- Validated web configuration flow after `/check_emby` fix.
 
 ### Notes
 
@@ -1343,10 +1415,10 @@ integration activity.
 - Added Docker runtime support.
 - Added Portainer stack deployment support from Git.
 - Added persistent Docker volume for runtime configuration.
-- Added `internal project component` runtime configuration support.
+- Added `/config/config.json` runtime configuration support.
 - Added `XNOPPO_CONFIG_FILE` environment variable support.
 - Added `restart: unless-stopped` runtime behaviour.
-- Added first-run configuration creation from `internal project component`.
+- Added first-run configuration creation from `config.example.json`.
 - Added safe startup behaviour when configuration is incomplete.
 
 ### Changed
@@ -1361,6 +1433,14 @@ integration activity.
 - Fixed Docker runtime startup with persistent config.
 - Fixed missing configuration bootstrapping for fresh deployments.
 - Fixed runtime behaviour when config is incomplete.
+
+### Validated
+
+- Validated Docker build and runtime deployment on ASUSTOR.
+- Validated Portainer deployment from Git.
+- Validated persistent configuration volume.
+- Validated Emby WebSocket startup after real config was copied into the Docker volume.
+- Validated playback from Docker runtime.
 
 ## [0.1.1] - 2026-05-22
 
@@ -1377,13 +1457,13 @@ integration activity.
 ### Added
 
 - Established the clean baseline for the project.
-- Added the missing `internal project component` to the baseline.
+- Added the missing `lib/playback_manager.py` to the baseline.
 - Created the initial stable tag used as the reference point for later work.
 
 ### Fixed
 
 - Fixed Emby WebSocket callback binding by correcting callback method signatures.
-- Fixed callback instance usage in `internal project component`.
+- Fixed callback instance usage in `lib/Emby_ws.py`.
 
 ### Notes
 
