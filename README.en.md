@@ -182,7 +182,7 @@ For long-running installs, updates, and rollback, Docker Compose is the recommen
 ```yaml
 services:
   home-cinema-control:
-    image: ghcr.io/tousled/home-cinema-control:latest
+    image: ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}
     container_name: home-cinema-control
     network_mode: host
     cap_add:
