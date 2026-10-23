@@ -23,7 +23,7 @@ docker run -d \
   -e HCC_CONFIG_FILE=/config/config.json \
   -e HCC_SECRETS_FILE_PATH=/config/secrets.json \
   -v home-cinema-control-config:/config \
-  ghcr.io/tousled/home-cinema-control:latest
+  tousled/home-cinema-control:latest
 ```
 
 Abre:

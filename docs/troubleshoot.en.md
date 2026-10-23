@@ -43,6 +43,22 @@ For **installation help**, email [llorente.software.solutions@gmail.com](mailto:
 
 ## Frequent Issues
 
+### GHCR pull fails (`denied` or `403 Forbidden`)
+
+If Docker cannot pull `ghcr.io/tousled/home-cinema-control` when installing or updating HCC, use Docker Hub without reinstalling HCC. In **your existing Compose file**, replace only:
+
+```yaml
+image: ghcr.io/tousled/home-cinema-control:latest
+```
+
+with:
+
+```yaml
+image: tousled/home-cinema-control:latest
+```
+
+**Keep everything else, including the `/config` volume.** If you pin a release, retain its version tag when the same release is available on Docker Hub. If using `HCC_VERSION`, keep that variable too. Finish using the [Docker Compose guide](update-compose.en.md) or [Portainer guide](update-portainer.en.md) for your existing installation. Do not delete the volume or create a new stack.
+
 ### Jellyfin: devices and libraries don't show up when you click "Reload"
 
 - The Jellyfin account you authorize HCC with must be an **administrator**. Jellyfin restricts the device list

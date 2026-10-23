@@ -14,6 +14,8 @@ If the new version appears and your settings remain, **you're done**.
 
 **Don't delete the stack or HCC's volume.** The `/config` storage contains your settings.
 
+If GHCR returns `denied` or `403 Forbidden` during a download, see [how to switch this stack to Docker Hub](troubleshoot.en.md#ghcr-pull-fails-denied-or-403-forbidden).
+
 ## If the version hasn't changed
 
 Open the editor for the **same stack** and check the `image:` line.

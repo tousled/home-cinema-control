@@ -52,7 +52,7 @@ Copy everything from `services:` through the final `volumes:` entry. You don't n
 ```yaml
 services:
   home-cinema-control:
-    image: ghcr.io/tousled/home-cinema-control:latest
+    image: tousled/home-cinema-control:latest
     container_name: home-cinema-control
     network_mode: host
     cap_add:
@@ -70,6 +70,8 @@ volumes:
   home-cinema-control-config:
     name: home-cinema-control-config
 ```
+
+**Image source:** this example uses Docker Hub and needs no sign-in. If an existing installation still uses GHCR and gets `denied` or `403 Forbidden`, see [how to switch safely](docs/troubleshoot.en.md#ghcr-pull-fails-denied-or-403-forbidden).
 
 **Important:** keep the `home-cinema-control-config` volume. HCC stores your settings there. Don't delete it when updating.
 

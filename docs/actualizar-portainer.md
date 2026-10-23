@@ -14,6 +14,8 @@ Si aparece la nueva versión y tus ajustes siguen ahí, **has terminado**.
 
 **No elimines el stack ni el volumen de HCC.** El almacenamiento de `/config` contiene tu configuración.
 
+Si aparece `denied` o `403 Forbidden` al descargar la imagen desde GHCR, consulta [cómo cambiar a Docker Hub en este mismo stack](solucionar-problemas.md#error-de-descarga-desde-ghcr-denied-o-403-forbidden).
+
 ## Si la versión no ha cambiado
 
 Abre el editor del **mismo stack** y revisa la línea `image:`.

@@ -43,6 +43,22 @@ Para pedir **ayuda con tu instalación**, escribe a [llorente.software.solutions
 
 ## Problemas frecuentes
 
+### Error de descarga desde GHCR (`denied` o `403 Forbidden`)
+
+Si Docker no consigue descargar `ghcr.io/tousled/home-cinema-control` al instalar o actualizar, utiliza Docker Hub sin reinstalar HCC. En el archivo Compose **de tu instalación actual**, sustituye únicamente la línea:
+
+```yaml
+image: ghcr.io/tousled/home-cinema-control:latest
+```
+
+por:
+
+```yaml
+image: tousled/home-cinema-control:latest
+```
+
+**Conserva el resto del archivo y el volumen de `/config`.** Si usas una versión fija, conserva el mismo tag cuando esté publicado en Docker Hub. Si utilizas la variable `HCC_VERSION`, consérvala también. Para completar la actualización utiliza la [guía Docker Compose](actualizar-compose.md) o la [guía Portainer](actualizar-portainer.md) sobre tu instalación existente. No borres el volumen ni crees otro stack.
+
 ### Jellyfin: no aparecen dispositivos ni bibliotecas al pulsar "Actualizar"
 
 - La cuenta de Jellyfin con la que autorizas HCC debe tener permisos de **administrador**. Jellyfin protege la lista de

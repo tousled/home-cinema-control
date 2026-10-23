@@ -21,6 +21,8 @@ If the new version appears and your settings are still there, **you're done**.
 
 Do not delete HCC's volume or run `docker compose down -v`. The volume stores your settings.
 
+If `docker compose pull` fails with `denied` or `403 Forbidden` while accessing GHCR, follow [the Docker Hub fallback without losing your settings](troubleshoot.en.md#ghcr-pull-fails-denied-or-403-forbidden).
+
 ## If the version hasn't changed
 
 Check these items in order:
