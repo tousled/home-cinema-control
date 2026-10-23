@@ -102,10 +102,6 @@ installations, selected provider, TV/AV usage, and basic playback events. Teleme
 installation ID and never sends paths, IPs, tokens, servers, libraries, titles, logs, scripts, or custom commands. See
 [public telemetry documentation](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
 
-In the corrected 1.4.2 republication, enabling telemetry in HCC is sufficient: official images include the hub
-connection defaults without manual Compose or Portainer changes. Updates preserve consent and retry pending events
-within the retention limits.
-
 ## Optional Room Control
 
 Some rooms only need Emby and the player. Others need TV input switching, AV receiver power/input control, ARC/CEC
