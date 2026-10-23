@@ -52,7 +52,7 @@ Copia desde `services:` hasta la última línea de `volumes:`. No hace falta cam
 ```yaml
 services:
   home-cinema-control:
-    image: ghcr.io/tousled/home-cinema-control:latest
+    image: tousled/home-cinema-control:latest
     container_name: home-cinema-control
     network_mode: host
     cap_add:
@@ -70,6 +70,8 @@ volumes:
   home-cinema-control-config:
     name: home-cinema-control-config
 ```
+
+**Origen de descarga:** el archivo utiliza Docker Hub, sin necesidad de iniciar sesión. Si estás actualizando una instalación antigua que utiliza GHCR y ves `denied` o `403 Forbidden`, sigue la [solución para cambiar de registro sin perder los ajustes](docs/solucionar-problemas.md#docker-no-puede-descargar-la-imagen-desde-ghcr).
 
 **Muy importante:** conserva el volumen `home-cinema-control-config`: es donde HCC guarda los ajustes. No debes borrarlo al actualizar.
 

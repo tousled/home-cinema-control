@@ -21,6 +21,8 @@ Si aparece la nueva versión y tu configuración sigue ahí, **has terminado**.
 
 No borres el volumen de HCC ni ejecutes `docker compose down -v`: allí se guardan los ajustes.
 
+Si `docker compose pull` termina con `denied` o `403 Forbidden` al descargar desde GHCR, consulta [cómo cambiar a Docker Hub conservando tu configuración](solucionar-problemas.md#error-de-descarga-desde-ghcr-denied-o-403-forbidden).
+
 ## Si la versión no ha cambiado
 
 Comprueba lo siguiente, por este orden:

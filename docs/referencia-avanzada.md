@@ -10,7 +10,7 @@ Esta página permite consultar opciones sin ejecutar cambios sobre Docker. Para 
 
 | Elemento | Valor del Compose oficial | Para qué sirve |
 |---|---|---|
-| Imagen | `ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}` | Descarga la versión elegida; usa `latest` si no hay variable definida. |
+| Imagen | `tousled/home-cinema-control:${HCC_VERSION:-latest}` | Descarga la versión elegida; usa `latest` si no hay variable definida. |
 | `HCC_VERSION` | Sin definir | Opcional. Fija una versión cuando necesitas mantenerla o volver atrás. |
 | Montaje de configuración | `home-cinema-control-config:/config` | Conserva los ajustes entre actualizaciones. Debe respetarse el montaje de cada instalación. |
 | `HCC_CONFIG_FILE` | `/config/config.json` | Ruta de la configuración general dentro del contenedor. |

@@ -10,7 +10,7 @@ Use this page to look up options without changing Docker. For NAS managers, `doc
 
 | Item | Official Compose example | Purpose |
 |---|---|---|
-| Image | `ghcr.io/tousled/home-cinema-control:${HCC_VERSION:-latest}` | Pulls the selected version; uses `latest` if the variable is unset. |
+| Image | `tousled/home-cinema-control:${HCC_VERSION:-latest}` | Pulls the selected version; uses `latest` if the variable is unset. |
 | `HCC_VERSION` | Unset | Optional. Pins a version for testing or rollback. |
 | Configuration mount | `home-cinema-control-config:/config` | Preserves settings across updates. Keep the actual mount used by your installation. |
 | `HCC_CONFIG_FILE` | `/config/config.json` | General settings file inside the container. |
