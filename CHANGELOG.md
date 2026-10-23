@@ -6,15 +6,14 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+## [1.4.2] - 2026-10-21
 
-## [1.4.2] - 2026-10-23
-
-### Changed
+### Changed
 
 * **Simpler installation and update guidance.** The installation guides now start with task-based entry points, include
   a contents list, independent Compose/Portainer/NAS update procedures, explicit persistence checks, clearer screenshot
   guidance, and prominent warnings to preserve the configuration volume.
-  
+
 ### Fixed
 
 * **OPPO playback now wakes the screen saver before startup timeout.** HCC dismisses an active OPPO screen saver before
@@ -1372,7 +1371,7 @@ integration activity.
 ### Added
 
 - Added OPPO QPL diagnostics for playback-state observation.
-- Added OPPO playback-state classification for active, idle and transition states.
+- Added OPPO playback-state classification for active, idle, and transition states.
 - Added support for additional OPPO trick-play/navigation states observed during testing:
   - `FFWD`
   - `FREV`
@@ -1380,7 +1379,7 @@ integration activity.
   - `SREV`
   - `STEP`
 - Added preservation of the last valid non-zero playback position when OPPO reports zero at stop time.
-- Added cleaner debug logging around playback, QPL state observation and subtitle handling.
+- Added cleaner debug logging around playback, QPL state observation, and subtitle handling.
 
 ### Changed
 
