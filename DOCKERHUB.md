@@ -21,6 +21,10 @@ verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics,
 - Offers opt-in anonymous telemetry and roadmap feedback; disabled by default and never sending paths, IPs, tokens,
   server names, titles, logs, scripts, or custom commands.
 
+The corrected 1.4.2 republication includes public telemetry ingestion defaults; users only need to opt in within HCC.
+Updates preserve consent and retry queued events within the retention limits. The original 1.4.2 image was withdrawn
+because it omitted those defaults.
+
 ## Quick start
 
 For the easiest installation and update path, use
