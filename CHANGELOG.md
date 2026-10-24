@@ -6,6 +6,20 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+## [1.4.3] - 2026-10-24
+
+### Changed
+
+* **Uso agregado de Home Assistant.** Los snapshots opt-in indican la feature
+  `home_assistant` solo cuando está activada y tiene URL y webhook configurados,
+  sin transmitir esos valores.
+
+* **Telemetry chronology and playback semantics.** Opt-in telemetry preserves
+  the original event or snapshot timestamp across queued retries and correlates
+  handoff attempt, observed start and technical closure. It keeps the existing
+  opt-in-only delivery policy; a technical closure after an observed start
+  counts as a completed HCC playback without asserting its stop reason.
+
 ## [1.4.2] - 2026-10-23
 
 ### Changed
