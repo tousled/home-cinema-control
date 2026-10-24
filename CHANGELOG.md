@@ -8,6 +8,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [1.4.3] - 2026-10-24
 
+### Added
+
+* **Contacto opt-in preparado para aprobación.** La comprobación periódica
+  reutiliza el monitor y el `ping` existentes, con reintentos y cierre limpio.
+  Permanece desactivada hasta que Product Office apruebe un texto de
+  consentimiento que mencione el contacto diario.
+
 ### Changed
 
 * **Uso agregado de Home Assistant.** Los snapshots opt-in indican la feature
