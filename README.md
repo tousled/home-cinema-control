@@ -110,6 +110,10 @@ identificador anónimo aleatorio por instalación y no envía rutas, IPs, tokens
 scripts ni comandos personalizados. Ver
 la [documentación pública de telemetría](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
 
+En la reedición corregida de 1.4.2, basta con activarla en HCC: las imágenes oficiales incluyen la conexión al hub,
+sin cambios manuales en Compose o Portainer. La actualización conserva el consentimiento y reintenta la cola
+pendiente todavía vigente.
+
 ## Sala opcional, pero bien integrada
 
 No todas las salas tienen la misma complejidad. Algunas solo necesitan Emby y el OPPO. Otras quieren que la TV cambie de
