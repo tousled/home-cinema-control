@@ -104,10 +104,13 @@ Con esta pantalla el usuario puede distinguir entre un problema de Emby, una rut
 el OPPO, un dispositivo de sala desactivado o un error de actualización. La intención es reducir el “prueba otra vez” y
 convertir cada fallo en una pista accionable.
 
-También incluye una sección de telemetría opcional, desactivada por defecto, para ayudar a decidir el roadmap de HCC:
+También incluye una sección de telemetría opcional, desactivada por defecto, para ayudar a mejorar la fiabilidad de HCC:
 instalaciones activas, proveedor usado, uso de TV/AV y eventos básicos de reproducción. La telemetría usa un
-identificador anónimo aleatorio por instalación y no envía rutas, IPs, tokens, servidores, bibliotecas, títulos, logs,
-scripts ni comandos personalizados. Ver
+código seudónimo aleatorio por instalación para relacionar avisos técnicos sin conocer la identidad personal y no envía rutas, IPs, tokens, servidores, bibliotecas, títulos, logs,
+scripts ni comandos personalizados. Envía un heartbeat mínimo periódico solo
+con consentimiento vigente; los pings se reservan para cambios relevantes de
+configuración. Al revocarla, elimina los pendientes locales y puede comunicar
+una única revocación asociada a ese código y sin reintentos. Ver
 la [documentación pública de telemetría](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
 
 En la reedición corregida de 1.4.2, basta con activarla en HCC: las imágenes oficiales incluyen la conexión al hub,
@@ -156,7 +159,7 @@ más seria.
 | TV Sony BRAVIA (2013+)           | Cambio de entrada y app vía REST API local (Pre-Shared Key). Contract-tested, pendiente de validación en hardware real.                                |
 | Receptores AV                    | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude y scripts personalizados. Trinnov está contract-tested, pendiente de validación en hardware real. |
 | Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.                                                                                     |
-| Telemetría                       | Opt-in, anónima, documentada y orientada a priorizar roadmap.                                                                                          |
+| Telemetría                       | Opt-in, seudónima, documentada y orientada a mejorar la fiabilidad.                                                                                   |
 | Docker                           | Despliegue principal con red host y configuración persistente en `/config`.                                                                            |
 
 ## Qué define la 1.0.0

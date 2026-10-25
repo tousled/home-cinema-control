@@ -18,8 +18,10 @@ verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics,
 - Reports playback progress and state back to Emby when supported by the device flow.
 - Exposes diagnostics, structured logs with copy/download support, version checks, update hooks, and rollback guidance.
 - Keeps the current web update banner available so releases can be reviewed before updating the deployment.
-- Offers opt-in anonymous telemetry and roadmap feedback; disabled by default and never sending paths, IPs, tokens,
-  server names, titles, logs, scripts, or custom commands.
+- Offers opt-in pseudonymous telemetry; disabled by default and never sending paths, IPs, tokens,
+  server names, titles, logs, scripts, or custom commands. A local installation code relates technical reports without
+  identifying a person. Consent enables a minimal periodic heartbeat; revocation clears pending local telemetry and
+  makes one best-effort opt-out request with that code without retrying it.
 
 The corrected 1.4.2 republication includes public telemetry ingestion defaults; users only need to opt in within HCC.
 Updates preserve consent and retry queued events within the retention limits. The original 1.4.2 image was withdrawn
