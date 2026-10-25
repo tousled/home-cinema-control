@@ -6,6 +6,20 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+### Changed
+
+* **Telemetry consent contract.** Updates preserve existing consent, the pseudonymous installation code and legacy
+  pending events. A one-off, voluntary `telemetry-1.4.3` invitation is available only to prior opt-outs; it never
+  re-enables telemetry automatically. Opted-in installations send a minimal daily heartbeat to `/heartbeat`; `/ping`
+  is limited to activation and meaningful configuration changes.
+
+### Fixed
+
+* **Telemetry revocation and diagnostics.** Revocation blocks concurrent delivery, clears persistent and asynchronous
+  queues, then makes one non-retryable `install_opt_out` attempt. Playback-failure telemetry now retains permitted
+  operation, phase and correlation fields while marking genuinely unknown diagnostics without sending sensitive text.
+  Sony TVs are classified separately from other Android/Google TVs, and trusted diagnostics use a closed vocabulary.
+
 ## [1.4.3] - 2026-10-24
 
 ### Added

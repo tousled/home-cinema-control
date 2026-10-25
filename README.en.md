@@ -97,9 +97,11 @@ information.
 The purpose is to turn “try again” into actionable information: Emby issue, unverified route, OPPO mount failure,
 disabled room device, or deployment/update problem.
 
-It also includes an optional telemetry section, disabled by default, to help decide HCC's roadmap: active
-installations, selected provider, TV/AV usage, and basic playback events. Telemetry uses a random anonymous
-installation ID and never sends paths, IPs, tokens, servers, libraries, titles, logs, scripts, or custom commands. See
+It also includes an optional telemetry section, disabled by default, to help improve HCC's reliability: active
+installations, selected provider, TV/AV usage, and basic playback events. Telemetry uses a random pseudonymous
+installation code to relate technical reports without knowing a person's identity, and never sends paths, IPs, tokens, servers, libraries, titles, logs, scripts, or custom commands.
+It sends a minimal periodic heartbeat only while consent remains active, reserves pings for relevant configuration
+changes, and clears pending local data when consent is withdrawn before one best-effort revocation record associated with that code. See
 [public telemetry documentation](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
 
 In the corrected 1.4.2 republication, enabling telemetry in HCC is sufficient: official images include the hub
@@ -146,7 +148,7 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 | Sony BRAVIA TV (2013+)           | Input switching and app launch via local REST API (Pre-Shared Key). Contract-tested, pending real-hardware validation.                  |
 | AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude, and custom scripts. Trinnov is contract-tested, pending real-hardware validation. |
 | Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.                                                                     |
-| Telemetry                        | Opt-in, anonymous, documented, and used to prioritize roadmap work.                                                                     |
+| Telemetry                        | Opt-in, pseudonymous, documented, and used to improve reliability.                                                                     |
 | Docker                           | Primary deployment path with host networking and persistent `/config`.                                                                  |
 
 ## What Defines 1.0.0
