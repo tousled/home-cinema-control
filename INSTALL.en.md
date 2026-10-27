@@ -100,3 +100,6 @@ The screenshots walk you through **Media Server, OPPO/Chinoppo, Media Paths and 
 - **Update HCC:** [Portainer](docs/update-portainer.en.md) or [Docker Compose](docs/update-compose.en.md). You don't need to install it again.
 - **HCC looks unconfigured:** [configuration recovery](docs/recover-configuration.en.md), without deleting anything.
 - **Special deployments:** [advanced Docker operations](docs/advanced-docker-operations.en.md).
+
+- **Help improve HCC:** [short questions, interests, and consent](docs/participate.en.md). Taking part is optional; no
+  account or email is required.

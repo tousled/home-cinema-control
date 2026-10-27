@@ -100,3 +100,6 @@ Configurar la **TV o el receptor AV es habitual y está incluido en el recorrido
 - **Actualizar HCC:** [Portainer](docs/actualizar-portainer.md) o [Docker Compose](docs/actualizar-compose.md). No tendrás que instalarlo de nuevo.
 - **HCC aparece vacío:** [recuperar configuración](docs/recuperar-configuracion.md), sin borrar nada.
 - **Instalaciones especiales:** [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).
+
+- **Ayudar a mejorar HCC:** [preguntas breves, intereses y consentimiento](docs/participar.md). Es opcional; no
+  necesitas cuenta ni email.

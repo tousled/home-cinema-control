@@ -19,13 +19,21 @@ verified media paths, NFS/SMB mounts, optional TV/AV input control, diagnostics,
 - Exposes diagnostics, structured logs with copy/download support, version checks, update hooks, and rollback guidance.
 - Keeps the current web update banner available so releases can be reviewed before updating the deployment.
 - Offers opt-in pseudonymous telemetry; disabled by default and never sending paths, IPs, tokens,
-  server names, titles, logs, scripts, or custom commands. A local installation code relates technical reports without
-  identifying a person. Consent enables a minimal periodic heartbeat; revocation clears pending local telemetry and
+  server names, titles, logs, scripts, or custom commands. A pseudonymous installation code links technical reports; it
+  does not guarantee
+  anonymity. Consent enables a minimal periodic heartbeat; revocation clears pending local telemetry and
   makes one best-effort opt-out request with that code without retrying it.
 
 The corrected 1.4.2 republication includes public telemetry ingestion defaults; users only need to opt in within HCC.
 Updates preserve consent and retry queued events within the retention limits. The original 1.4.2 image was withdrawn
 because it omitted those defaults.
+
+**Take part** offers optional short questions and editable interests without an account or email.
+Opening it does not enable telemetry. **Help HCC** explicitly enables sharing; **Not now** postpones
+a question, and **Not interested** hides that question. The question indicator stays hidden during playback.
+Votes do not promise implementation.
+See [how to take part](https://github.com/tousled/home-cinema-control/blob/main/docs/participate.en.md)
+and the [telemetry contract](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.en.md).
 
 ## Quick start
 

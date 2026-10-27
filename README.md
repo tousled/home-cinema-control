@@ -104,14 +104,19 @@ Con esta pantalla el usuario puede distinguir entre un problema de Emby, una rut
 el OPPO, un dispositivo de sala desactivado o un error de actualización. La intención es reducir el “prueba otra vez” y
 convertir cada fallo en una pista accionable.
 
-También incluye una sección de telemetría opcional, desactivada por defecto, para ayudar a mejorar la fiabilidad de HCC:
-instalaciones activas, proveedor usado, uso de TV/AV y eventos básicos de reproducción. La telemetría usa un
-código seudónimo aleatorio por instalación para relacionar avisos técnicos sin conocer la identidad personal y no envía rutas, IPs, tokens, servidores, bibliotecas, títulos, logs,
-scripts ni comandos personalizados. Envía un heartbeat mínimo periódico solo
-con consentimiento vigente; los pings se reservan para cambios relevantes de
-configuración. Al revocarla, elimina los pendientes locales y puede comunicar
-una única revocación asociada a ese código y sin reintentos. Ver
-la [documentación pública de telemetría](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
+La sección **¿Nos ayudas a mejorar HCC?** explica el envío opcional de señales
+técnicas y ofrece **Ayudar a HCC**. **¿Qué datos enviamos y para qué?** detalla
+el código seudónimo de instalación, las integraciones, el contacto periódico
+y los resultados de reproducción. Ese código vincula señales de la misma
+instalación, sin garantizar anonimato absoluto. Al desactivar el envío, HCC
+cancela los pendientes locales e intenta comunicar la revocación una sola vez,
+sin reintentar ni borrar el histórico del hub. Los informes de soporte manuales
+siguen un proceso independiente. Consulta el [contrato de telemetría](docs/telemetry.md).
+
+**Participa** reúne preguntas breves e intereses editables, sin cuenta ni email.
+Abrirlo no activa el consentimiento. Las preguntas no abren modales y su
+indicador se oculta durante reproducción. **Ahora no** pospone; **No me interesa**
+retira solo esa pregunta. Consulta [cómo participar](docs/participar.md).
 
 En la reedición corregida de 1.4.2, basta con activarla en HCC: las imágenes oficiales incluyen la conexión al hub,
 sin cambios manuales en Compose o Portainer. La actualización conserva el consentimiento y reintenta la cola

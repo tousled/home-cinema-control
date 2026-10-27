@@ -97,12 +97,19 @@ information.
 The purpose is to turn “try again” into actionable information: Emby issue, unverified route, OPPO mount failure,
 disabled room device, or deployment/update problem.
 
-It also includes an optional telemetry section, disabled by default, to help improve HCC's reliability: active
-installations, selected provider, TV/AV usage, and basic playback events. Telemetry uses a random pseudonymous
-installation code to relate technical reports without knowing a person's identity, and never sends paths, IPs, tokens, servers, libraries, titles, logs, scripts, or custom commands.
-It sends a minimal periodic heartbeat only while consent remains active, reserves pings for relevant configuration
-changes, and clears pending local data when consent is withdrawn before one best-effort revocation record associated with that code. See
-[public telemetry documentation](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md).
+The **Help improve HCC** section explains optional technical signal sharing
+and offers **Help HCC**. **What data do we send, and why?** covers the
+pseudonymous installation code, integrations, periodic contact, and playback
+results. The code links signals from the same installation without guaranteeing
+absolute anonymity. Disabling sharing cancels pending local deliveries and
+tries to report revocation once, without retrying or deleting hub history.
+Manual support reports follow a separate process. Read the
+[telemetry contract](docs/telemetry.en.md).
+
+**Take part** groups short questions and editable interests without requiring
+an account or email. Opening it does not enable consent. Questions do not open
+modals, and the indicator is hidden during playback. **Not now** postpones; **Not interested** hides only that question.
+See [how to take part](docs/participate.en.md).
 
 In the corrected 1.4.2 republication, enabling telemetry in HCC is sufficient: official images include the hub
 connection defaults without manual Compose or Portainer changes. Updates preserve consent and retry pending events
