@@ -24,7 +24,7 @@ Open **Logs** and filter recent errors or warnings. HCC avoids logging credentia
   <img src="../assets/screenshots/install/07-logs.png" alt="HCC logs screen with filters" width="860"/>
 </p>
 
-[Optional telemetry](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.md) is separate from diagnostics you choose to share.
+[Optional telemetry](telemetry.en.md) is separate from diagnostics you choose to share.
 
 ## Contact and support
 

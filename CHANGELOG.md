@@ -4,9 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
 
-## Unreleased
+## [Unreleased]
+
+### Added
+
+* **Participación voluntaria (1.4.3).** Pregunta breve sobre Emby/Jellyfin con
+  respuesta múltiple editable, aplazamiento y descarte persistentes. Acceso
+  «Participa» e indicador discreto fuera de reproducción. Catálogo empaquetado,
+  evento cerrado y mecanismos existentes de reintento y consentimiento.
 
 ### Changed
+
+* **Consentimiento y votos ES/EN.** Botones «Ayudar a HCC» y «Ahora no», detalle
+  ampliable del contrato real, votos editables y catálogo sin funciones ya
+  disponibles. Se elimina el comentario libre que el receptor no almacenaba.
+  Guías y capturas actualizadas. El receptor compatible debe validarse antes
+  de habilitar los eventos de preguntas. Sin despliegue ni release.
 
 * **Telemetry consent contract.** Updates preserve existing consent, the pseudonymous installation code and legacy
   pending events. A one-off, voluntary `telemetry-1.4.3` invitation is available only to prior opt-outs; it never
