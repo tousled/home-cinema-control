@@ -171,6 +171,8 @@ más seria.
 | Telemetría                       | Opt-in, seudónima, documentada y orientada a mejorar la fiabilidad.                                                                                   |
 | Docker                           | Despliegue principal con red host y configuración persistente en `/config`.                                                                            |
 
+**Experimental — avisos de actualización en Sony:** si HCC detecta una nueva versión y la reproducción comienza desde una sesión de Emby/Jellyfin identificada, sustituye una sola vez el primer aviso de preparación por «HCC X.Y.Z disponible», usando exactamente el mismo canal y formato de mensajes del servidor multimedia. No instala nada en Sony ni espera respuestas de red durante el inicio: los avisos de preparación y actualización se envían mediante una cola asíncrona y ordenada. Si falla el servidor, HCC continuará reproduciendo; el aviso de actualización quedará pendiente para otra reproducción. El servidor puede aceptar un aviso sin que la app lo muestre. La recepción visible depende de la app y **no está comprobada en Sony real**. Si lo pruebas, cuéntanos desde «Participa» qué modelo de BRAVIA, qué app/versión de Emby o Jellyfin utilizas y si viste el aviso (sin incluir datos privados).
+
 ## Qué define la 1.0.0
 
 La 1.0.0 marca el primer corte estable de HCC como producto independiente: flujo Emby + OPPO/Chinoppo, rutas por
