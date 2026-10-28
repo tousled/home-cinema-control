@@ -1,58 +1,27 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to Home Cinema Control are documented here. Changes are written for people using HCC; internal implementation details are covered by their pull requests.
 
-The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows semantic versioning where practical.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic versioning where practical.
 
 ## [Unreleased]
 
-### Added
+No changes have been documented for the next release yet.
 
-* **Participación voluntaria (1.4.3).** Pregunta breve sobre Emby/Jellyfin con
-  respuesta múltiple editable, aplazamiento y descarte persistentes. Acceso
-  «Participa» e indicador discreto fuera de reproducción. Catálogo empaquetado,
-  evento cerrado y mecanismos existentes de reintento y consentimiento.
+## [1.4.3] - 2026-10-28
 
-### Changed
-
-* **Consentimiento y votos ES/EN.** Botones «Ayudar a HCC» y «Ahora no», detalle
-  ampliable del contrato real, votos editables y catálogo sin funciones ya
-  disponibles. Se elimina el comentario libre que el receptor no almacenaba.
-  Guías y capturas actualizadas. El receptor compatible debe validarse antes
-  de habilitar los eventos de preguntas. Sin despliegue ni release.
-
-* **Telemetry consent contract.** Updates preserve existing consent, the pseudonymous installation code and legacy
-  pending events. A one-off, voluntary `telemetry-1.4.3` invitation is available only to prior opt-outs; it never
-  re-enables telemetry automatically. Opted-in installations send a minimal daily heartbeat to `/heartbeat`; `/ping`
-  is limited to activation and meaningful configuration changes.
-
-### Fixed
-
-* **Telemetry revocation and diagnostics.** Revocation blocks concurrent delivery, clears persistent and asynchronous
-  queues, then makes one non-retryable `install_opt_out` attempt. Playback-failure telemetry now retains permitted
-  operation, phase and correlation fields while marking genuinely unknown diagnostics without sending sensitive text.
-  Sony TVs are classified separately from other Android/Google TVs, and trusted diagnostics use a closed vocabulary.
-
-## [1.4.3] - 2026-10-24
+HCC 1.4.3 improves the information and support available to users, while making it easier to help shape the project's future.
 
 ### Added
 
-* **Contacto opt-in preparado para aprobación.** La comprobación periódica
-  reutiliza el monitor y el `ping` existentes, con reintentos y cierre limpio.
-  Permanece desactivada hasta que Product Office apruebe un texto de
-  consentimiento que mencione el contacto diario.
+* **Participate.** A new section for answering short questions, voting on future improvements and sending suggestions voluntarily. Responses can be changed or skipped; participating is optional.
+* **Experimental Sony update notifications.** HCC can announce available updates through Emby/Jellyfin playback messages on Sony BRAVIA TVs. Whether the message appears depends on the TV app and has not yet been verified on real Sony hardware. Sony TV control itself is not experimental.
 
-### Changed
+### Improved
 
-* **Uso agregado de Home Assistant.** Los snapshots opt-in indican la feature
-  `home_assistant` solo cuando está activada y tiene URL y webhook configurados,
-  sin transmitir esos valores.
-
-* **Telemetry chronology and playback semantics.** Opt-in telemetry preserves
-  the original event or snapshot timestamp across queued retries and correlates
-  handoff attempt, observed start and technical closure. It keeps the existing
-  opt-in-only delivery policy; a technical closure after an observed start
-  counts as a completed HCC playback without asserting its stop reason.
+* **Clearer diagnostics in the web interface.** More useful information to help identify and troubleshoot problems, including clearing an outdated active error after playback starts successfully.
+* **Better playback error reporting.** When optional telemetry is enabled, HCC reports more precise technical failure categories so recurring problems can be identified and prioritized for fixes.
+* **Safer optional metrics.** Improved protection and consent handling when sharing technical metrics with HCC. Sharing remains optional and is never enabled automatically.
 
 ## [1.4.2] - 2026-10-23
 
