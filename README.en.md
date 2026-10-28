@@ -22,6 +22,10 @@
   </p>
 </div>
 
+**Demonstration video awaiting publication.**
+
+The video demonstrates HCC with supported equipment coordinating playback, TV and sound; it is not a claim of universal device support.
+
 ---
 
 Home Cinema Control exists so a home cinema stops feeling like a pile of disconnected devices.

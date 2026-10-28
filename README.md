@@ -22,6 +22,10 @@
   </p>
 </div>
 
+**Vídeo de demostración pendiente de publicación.**
+
+El vídeo muestra una configuración compatible de HCC coordinando reproductor, televisor y sonido. No implica compatibilidad universal con todos los equipos.
+
 ---
 
 Home Cinema Control nace para que el cine en casa deje de sentirse como una colección de piezas sueltas.
