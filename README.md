@@ -22,7 +22,7 @@
   </p>
 </div>
 
-**Vídeo de demostración pendiente de publicación.**
+**[Ver HCC en acción: vídeo de demostración (45 segundos)](assets/videos/hcc-demo.mp4)**
 
 El vídeo muestra una configuración compatible de HCC coordinando reproductor, televisor y sonido. No implica compatibilidad universal con todos los equipos.
 

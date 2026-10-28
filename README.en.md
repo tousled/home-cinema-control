@@ -22,7 +22,7 @@
   </p>
 </div>
 
-**Demonstration video awaiting publication.**
+**[See HCC in action: 45-second demonstration](assets/videos/hcc-demo.mp4)**
 
 The video demonstrates HCC with supported equipment coordinating playback, TV and sound; it is not a claim of universal device support.
 
