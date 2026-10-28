@@ -156,7 +156,7 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 | Chinoppo M9702/M9201/M9203/M9205 | Supported when the OPPO-compatible API is exposed.                                                                                      |
 | Per-library paths                | NFS or SMB/CIFS per mapping, with verification.                                                                                         |
 | LG WebOS TV                      | Input switching and app restore when configured.                                                                                        |
-| Sony BRAVIA TV (2013+)           | Input switching and app launch via local REST API (Pre-Shared Key). Contract-tested, pending real-hardware validation.                  |
+| Sony BRAVIA TV (2013+)           | Available integration: HDMI input switching and app launch via local REST API using a Pre-Shared Key.                  |
 | AV receivers                     | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude, and custom scripts. Trinnov is contract-tested, pending real-hardware validation. |
 | Diagnostics                      | Readiness, logs, version, latest failure, and recovery suggestions.                                                                     |
 | Telemetry                        | Opt-in, pseudonymous, documented, and used to improve reliability.                                                                     |
@@ -186,7 +186,7 @@ After 1.0.0, the architecture is intended to grow without mixing future integrat
 | Future area       | Intent                                                                                         |
 |-------------------|------------------------------------------------------------------------------------------------|
 | Plex              | Explore feasibility after the provider boundary is proven.                                     |
-| More TV brands    | Research Samsung, Android TV/Sony, and other ecosystems when hardware validation is possible.  |
+| More TV brands    | Research Samsung, Android TV/Google TV via ADB, and other ecosystems; Sony BRAVIA REST support is already included.  |
 | Multiroom         | Explore multiple rooms/players without compromising the current single-room reliability model. |
 | Lights and scenes | Possible future room automation, not a requirement for playback.                               |
 

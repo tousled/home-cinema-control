@@ -165,7 +165,7 @@ más seria.
 | Chinoppo M9702/M9201/M9203/M9205 | Soportado si expone la API compatible con OPPO.                                                                                                        |
 | Rutas por biblioteca             | NFS o SMB/CIFS por mapeo, con verificación.                                                                                                            |
 | TV LG WebOS                      | Cambio de entrada y retorno a la app, si se configura.                                                                                                 |
-| TV Sony BRAVIA (2013+)           | Cambio de entrada y app vía REST API local (Pre-Shared Key). Contract-tested, pendiente de validación en hardware real.                                |
+| TV Sony BRAVIA (2013+)           | Integración disponible: cambio de HDMI y apertura de apps por REST API local con clave PSK.                                |
 | Receptores AV                    | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude y scripts personalizados. Trinnov está contract-tested, pendiente de validación en hardware real. |
 | Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.                                                                                     |
 | Telemetría                       | Opt-in, seudónima, documentada y orientada a mejorar la fiabilidad.                                                                                   |
@@ -196,7 +196,7 @@ reproducción.
 | Futuro           | Intención                                                                                    |
 |------------------|----------------------------------------------------------------------------------------------|
 | Plex             | Explorar viabilidad después de estabilizar la frontera de proveedores.                       |
-| Más marcas de TV | Investigar Samsung, Android TV/Sony y otros ecosistemas cuando exista hardware para validar. |
+| Más marcas de TV | Investigar Samsung, Android TV/Google TV mediante ADB y otros ecosistemas; Sony BRAVIA por REST ya está integrado. |
 | Multiroom        | Estudiar varias salas/reproductores sin romper el modelo actual de una sala fiable.          |
 | Luces y escenas  | Posible integración futura como automatización de sala, no como requisito para reproducir.   |
 
