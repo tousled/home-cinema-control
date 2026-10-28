@@ -162,6 +162,8 @@ HCC also improves the parts a normal user should not have to inspect, but that m
 | Telemetry                        | Opt-in, pseudonymous, documented, and used to improve reliability.                                                                     |
 | Docker                           | Primary deployment path with host networking and persistent `/config`.                                                                  |
 
+**Experimental — Sony update notices:** when HCC knows a new release is available and playback starts from a known Emby/Jellyfin client session, it replaces the first playback-preparation message once with «HCC X.Y.Z available», using the media server's **existing message transport and formatting**. This needs no Sony app and never waits for a message HTTP response during playback startup: preparation and update toasts are delivered through a bounded asynchronous FIFO queue. If the media server fails, playback continues and the version notice can retry on a later playback. Server acceptance does not guarantee the TV app displayed the message. Actual visibility depends on the client and **has not been verified on Sony hardware**. Please share your BRAVIA model, Emby/Jellyfin app version and whether you saw the message via «Participate» (without personal data).
+
 ## What Defines 1.0.0
 
 1.0.0 is the first stable cut of HCC as an independent product: Emby + OPPO/Chinoppo playback, per-library paths,
