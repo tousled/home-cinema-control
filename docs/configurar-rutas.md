@@ -52,6 +52,9 @@ Repite estos tres pasos para las demás bibliotecas que quieras utilizar. Si tie
 
 ## ¿Qué pasa si no aparece «Ruta verificada»?
 
+**Al reproducir:** HCC no enviará al OPPO un título cuya ruta esté sin configurar o verificar. El cliente Emby/Jellyfin puede mostrar primero «Ruta sin verificar. La reproducción continúa en Emby.» y después «Verifica la ruta en Rutas multimedia de HCC.». Si falta una ruta, mostrará «Ruta sin configurar» y recomendará configurarla. Se utiliza el nombre de tu servidor multimedia, y la aparición de avisos depende del cliente.
+
+
 Abre el apartado **Qué significa cada estado** de Media Paths:
 
 | Estado | Qué hacer |

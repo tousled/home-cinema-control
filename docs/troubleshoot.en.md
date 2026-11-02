@@ -70,6 +70,26 @@ image: tousled/home-cinema-control:latest
 - If you only have one Jellyfin user, it's almost certainly already the administrator and there's nothing to change.
   If HCC uses a secondary account, grant it administrator rights from the Jellyfin dashboard.
 
+### Playback is not transferred to the OPPO and a notice appears
+
+HCC shows **what happened** first, then **what to do** in a separate message, if the Emby/Jellyfin client supports remote notifications:
+
+- **“OPPO isn't responding.”** Then: “Make sure it's powered on and connected to the network.” Check **Media Player → Test connection** and IP control. When the OPPO isn't available, HCC doesn't switch TV or receiver inputs.
+- **“Path not verified. Playback continues in Emby.”** (or Jellyfin). Then: “Verify the path in HCC Media Paths.” Open **Media Paths → Test path**.
+- **“Path not configured. Playback continues in Jellyfin.”** (or Emby). Then: “Configure the path in HCC Media Paths.” Choose and verify the correct OPPO folder.
+
+Without a valid media path, HCC won't start the content on the OPPO, and native playback may continue in Emby/Jellyfin. If the source app had already started playing when HCC detected that the OPPO was unreachable, you might need to stop it manually. Some clients don't show every remote message.
+
+### A Blu-ray ISO restarts when seeking from Emby/Jellyfin
+
+Some Blu-ray ISOs have interactive menus and their own resume logic. Starting the image again may open the disc menu with a **Continue** option; this differs from a direct MKV resume.
+
+If seeking **from the app** restarts playback, use the **OPPO remote** for now rather than repeatedly seeking through Emby/Jellyfin. We are investigating the interaction between HCC time-based seek commands and native Blu-ray controls. If reproducible, share a diagnostic and the logs from that attempt.
+
+### A movie takes unusually long to start
+
+A single delay might be caused by OPPO API activation, an NFS/SMB mount, a Blu-ray menu, or playback-start confirmation. Avoid increasing timeouts blindly. In **Logs**, look for `Playback startup timing` and which step took the longest; share it through **Send diagnostics** if delays recur.
+
 ### HCC cannot reach the player
 
 - Check the OPPO/Chinoppo IP address and make sure the player is powered on.

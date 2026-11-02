@@ -75,6 +75,7 @@ volumes:
 
 **Muy importante:** conserva el volumen `home-cinema-control-config`: es donde HCC guarda los ajustes. No debes borrarlo al actualizar.
 
+
 ## 2. Abre HCC
 
 Desde el navegador de un dispositivo de tu red, escribe:
@@ -94,6 +95,20 @@ Ahora viene la parte visual: [**primeros pasos en HCC**](docs/primeros-pasos.md)
 Te enseñará a conectar **Media Server, OPPO/Chinoppo, Media Paths y Sala (TV y/o receptor AV)**, cada uno con sus capturas. Si necesitas ayuda con las carpetas, tienes la [guía visual de Media Paths](docs/configurar-rutas.md).
 
 Configurar la **TV o el receptor AV es habitual y está incluido en el recorrido principal**; puedes hacerlo aunque solo tengas TV. **Home Assistant sí queda para más adelante**: es completamente opcional.
+
+## Si el OPPO o una ruta no están listos
+
+HCC **no envía la película al OPPO** si no puede confirmar que responde o si la ruta no está configurada y verificada. En un cliente Emby/Jellyfin compatible con notificaciones remotas verás el error y, después, la recomendación en un aviso separado.
+
+| Situación | Aviso de error | Aviso con la solución |
+|---|---|---|
+| OPPO apagado o inaccesible | «El OPPO no responde.» | «Comprueba que esté encendido y conectado a la red.» |
+| Ruta sin verificar (Emby) | «Ruta sin verificar. La reproducción continúa en Emby.» | «Verifica la ruta en Rutas multimedia de HCC.» |
+| Ruta sin configurar (Jellyfin) | «Ruta sin configurar. La reproducción continúa en Jellyfin.» | «Configura la ruta en Rutas multimedia de HCC.» |
+
+El nombre **Emby o Jellyfin se adapta al servidor configurado**. Si el OPPO no responde, HCC deja intactas las entradas de TV y receptor. Con una ruta sin configurar o verificar, no hay traspaso al OPPO y la reproducción puede continuar en la aplicación de Emby/Jellyfin. Si esta ya estaba reproduciendo cuando se detectó el OPPO inaccesible, puede que tengas que detenerla manualmente. La visualización de avisos depende del cliente.
+
+Para comprobarlos, utiliza **Media Player → Probar conexión** o **Media Paths → Probar ruta**. Encontrarás capturas en [Primeros pasos](docs/primeros-pasos.md#6-reproduce-tu-primera-película).
 
 ## ¿Y después?
 

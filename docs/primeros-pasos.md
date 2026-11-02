@@ -78,6 +78,22 @@ En televisores LG, acepta el emparejamiento en pantalla si aparece. En Sony pued
 
 Abre Emby/Jellyfin en el dispositivo que elegiste en **Media Server** y reproduce una película de una biblioteca que hayas verificado. Comprueba que el OPPO la reproduce. Prueba también pausa, reanudación y parada.
 
+**Antes de pulsar Play**, comprueba que el OPPO está encendido y las rutas están verificadas.
+
+**¿Qué avisos verás si algo falla?**
+
+HCC **no envía la película al OPPO** si no puede confirmar que responde o si la ruta no está configurada y verificada. En un cliente Emby/Jellyfin compatible con notificaciones remotas verás el error y, después, la recomendación en un aviso separado.
+
+| Situación | Aviso de error | Aviso con la solución |
+|---|---|---|
+| OPPO apagado o inaccesible | «El OPPO no responde.» | «Comprueba que esté encendido y conectado a la red.» |
+| Ruta sin verificar (Emby) | «Ruta sin verificar. La reproducción continúa en Emby.» | «Verifica la ruta en Rutas multimedia de HCC.» |
+| Ruta sin configurar (Jellyfin) | «Ruta sin configurar. La reproducción continúa en Jellyfin.» | «Configura la ruta en Rutas multimedia de HCC.» |
+
+El nombre **Emby o Jellyfin se adapta al servidor configurado**. Si el OPPO no responde, HCC deja intactas las entradas de TV y receptor. Con una ruta sin configurar o verificar, no hay traspaso al OPPO y la reproducción puede continuar en la aplicación de Emby/Jellyfin. Si esta ya estaba reproduciendo cuando se detectó el OPPO inaccesible, puede que tengas que detenerla manualmente. La visualización de avisos depende del cliente.
+
+**Si utilizas una imagen Blu-ray ISO con menús**, algunos discos ofrecen la opción de continuar desde el menú al reanudar. Eso no es una reanudación directa como la de un MKV. Si al intentar avanzar desde Emby/Jellyfin vuelve al principio, utiliza el mando del OPPO por ahora y consulta [solución de problemas](solucionar-problemas.md).
+
 Si algo falla, abre **Diagnóstico** y sigue [solución de problemas](solucionar-problemas.md).
 
 **HCC ya está listo.** ¿Quieres automatizar también las luces? [Home Assistant es opcional](home-assistant.md).
