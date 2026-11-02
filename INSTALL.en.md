@@ -95,6 +95,20 @@ The screenshots walk you through **Media Server, OPPO/Chinoppo, Media Paths and 
 
 **TV and AV receiver setup is part of the normal walkthrough**, including setups with just a TV. **Home Assistant can wait**: it is entirely optional.
 
+## If the OPPO or a media path is not ready
+
+HCC **doesn't hand a movie over to the OPPO** unless it can confirm the player responds and the media path is configured and verified. On Emby/Jellyfin clients supporting remote notifications, you'll see the problem first and the recommended action in a separate message.
+
+| Situation | Error message | Suggested action |
+|---|---|---|
+| OPPO off or unreachable | “OPPO isn't responding.” | “Make sure it's powered on and connected to the network.” |
+| Unverified path (Emby) | “Path not verified. Playback continues in Emby.” | “Verify the path in HCC Media Paths.” |
+| Missing path (Jellyfin) | “Path not configured. Playback continues in Jellyfin.” | “Configure the path in HCC Media Paths.” |
+
+**Emby or Jellyfin is taken from your configured media server**. When the OPPO is unreachable, HCC leaves TV and receiver inputs unchanged. For a missing or unverified media path, HCC doesn't hand over to the OPPO, and native playback may continue in Emby/Jellyfin. If the source app was already playing when HCC detected the unavailable OPPO, you may need to stop it manually. Notification visibility depends on the client.
+
+Check **Media Player → Test connection** or **Media Paths → Test path**. For screenshots, see [First steps](docs/getting-started.en.md#6-play-your-first-movie).
+
 ## After installation
 
 - **Update HCC:** [Portainer](docs/update-portainer.en.md) or [Docker Compose](docs/update-compose.en.md). You don't need to install it again.

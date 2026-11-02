@@ -37,6 +37,27 @@ libraries, content/session IDs, credentials, tokens, logs, scripts, and custom
 commands. Support reports are separate: you choose to review and share them
 manually, and they can contain additional diagnostic information.
 
+## Optional automatic playback diagnostics (1.4.4 hotfix)
+
+The **Diagnostics** screen has a separate opt-in checkbox for automatic
+playback diagnostics. It defaults to **off**, even for users who already
+enabled basic telemetry. You can turn it off at any time: pending diagnostic
+events are dropped, and disabling basic telemetry resets this choice too.
+
+When enabled, a failed handoff may produce an additional
+`playback_diagnostic` event with a recognized error code, a short closed-set
+step trace, NFS/SMB protocol when known, elapsed time and the result of
+**room/error recovery**. A successful room restoration does not mean playback
+started. This opt-in does **not** transmit raw logs, exceptions, IP addresses,
+media titles, file or library paths, credentials, custom commands, or arbitrary
+messages.
+
+Diagnostics are separate from playback outcomes; they do **not** increase the
+playback failure rate. A transient problem successfully recovered within the
+same attempt remains a successful start. Later cleanup problems do not undo
+an observed playback start. Details are available in the private installation
+event history.
+
 ## Queue and revocation
 
 Failed deliveries use the existing local queue, up to 100 events for seven

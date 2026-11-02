@@ -78,6 +78,22 @@ On LG TVs, accept the pairing prompt if one appears. On Sony TVs, IP control/PSK
 
 Open Emby/Jellyfin on the client selected in **Media Server** and play a movie in a library you've verified. Check that the OPPO starts playback. Pause, resume and stop to confirm everything responds.
 
+**Before pressing Play**, check the OPPO is on and your media paths are verified.
+
+**What happens if something isn't ready?**
+
+HCC **doesn't hand a movie over to the OPPO** unless it can confirm the player responds and the media path is configured and verified. On Emby/Jellyfin clients supporting remote notifications, you'll see the problem first and the recommended action in a separate message.
+
+| Situation | Error message | Suggested action |
+|---|---|---|
+| OPPO off or unreachable | “OPPO isn't responding.” | “Make sure it's powered on and connected to the network.” |
+| Unverified path (Emby) | “Path not verified. Playback continues in Emby.” | “Verify the path in HCC Media Paths.” |
+| Missing path (Jellyfin) | “Path not configured. Playback continues in Jellyfin.” | “Configure the path in HCC Media Paths.” |
+
+**Emby or Jellyfin is taken from your configured media server**. When the OPPO is unreachable, HCC leaves TV and receiver inputs unchanged. For a missing or unverified media path, HCC doesn't hand over to the OPPO, and native playback may continue in Emby/Jellyfin. If the source app was already playing when HCC detected the unavailable OPPO, you may need to stop it manually. Notification visibility depends on the client.
+
+**For Blu-ray ISO images with disc menus**, resuming can open the disc menu where the title offers its own Continue option, rather than seeking directly as an MKV does. If seeking from Emby/Jellyfin restarts the title, use the OPPO remote for now and see [troubleshooting](troubleshoot.en.md).
+
 If something fails, open **Diagnostics** and follow [troubleshooting](troubleshoot.en.md).
 
 **HCC is ready.** Want lighting automations too? [Home Assistant setup is optional](home-assistant.en.md).

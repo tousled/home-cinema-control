@@ -94,8 +94,13 @@ genera horas UTC y nunca las regenera durante un reintento.
 
 ### Significado de reproducción y activación
 
-- `playback_attempted` acredita que HCC admitió un handoff; no acredita que el
-  reproductor comenzase.
+- `playback_attempted` acredita que HCC ya preparó la sala y el cliente
+  de origen y va a intentar iniciar el reproductor; **no** acredita que el
+  reproductor haya comenzado. La aceptación inicial del handoff es un hecho
+  de dominio separado, pero no entra por sí sola en este contador.
+  Un fallo técnico anterior a esa fase se contabiliza como intento fallido;
+  un bloqueo controlado se registra como `playback_rejected`, fuera de la
+  tasa de fallos.
 - `playback_started` acredita que HCC observó el inicio técnico en el
   reproductor. Es la primera señal válida para una primera reproducción
   iniciada con éxito.
@@ -114,10 +119,21 @@ instalación activada deben distinguirse al menos el primer
 `playback_attempted` y el primer `playback_started` correlacionado. Los pings
 solo indican contacto opt-in y no sirven para inferir actividad o retención.
 
-Los rechazos antes del handoff usan el evento `playback_rejected`. Sólo incluyen el proveedor (`provider`), el componente
-(`component`) y el código diagnóstico (`error_code`). Se emiten cuando HCC ha detectado una reproducción en el dispositivo
-monitorizado pero la bloquea antes de contactar con el OPPO, por ejemplo por una ruta no verificada. Un dispositivo
-monitorizado que no aparece en un sondeo no cuenta como intento de reproducción y sólo genera un diagnóstico local.
+Los bloqueos controlados usan `playback_rejected`, tanto si se
+detectan antes del handoff como durante sus comprobaciones preliminares.
+Incluyen únicamente el proveedor cuando se conoce (`provider`), el componente
+(`component`), el código diagnóstico (`error_code`) y, si corresponde,
+la fase técnica autorizada (`operation`). No envían IDs del contenido,
+rutas, información de la sesión ni datos del dispositivo. Por ejemplo,
+OPPO apagado, ruta sin configurar/verificar o limpieza de cliente fuente
+bloqueada. Estos eventos son **fricciones de uso**, no `playback_failed`
+ni parte del denominador de la tasa de fiabilidad.
+
+Una avería real de TV/AVR, el fallo de comunicación que impide obtener el
+contenido o una regresión desconocida **sí** se registra como fallo técnico
+aunque ocurra antes del arranque del reproductor. Un dispositivo monitorizado
+que no aparece en un sondeo no cuenta como intento y solo genera un
+diagnóstico local.
 
 El hub relaciona estos eventos con el `instance_hash`, un hash HMAC del identificador local de instalación. Esto permite
 ver qué instalación tiene fallos repetidos sin guardar el UUID original. Es un
@@ -168,6 +184,29 @@ productor. Comprueba respuestas sintéticas, duplicados, ediciones, combinacione
 inválidas, votos legacy y revocación en un entorno de prueba autorizado.
 Implementar la issue no autoriza un despliegue, una release ni cambios en
 producción. Consulta [cómo participar](participar.md) para las instrucciones de uso.
+
+### Diagnósticos automáticos voluntarios (hotfix 1.4.4)
+
+Además de la telemetría general, la pantalla **Diagnóstico** ofrece una casilla
+independiente: **Enviar diagnósticos automáticos cuando falle una reproducción**.
+Está **desactivada por defecto**, incluso si ya compartes telemetría, y solo
+puede activarse cuando esta última está habilitada. Es reversible en cualquier
+momento; al desactivarla se eliminan de la cola local los diagnósticos todavía
+no enviados. Desactivar toda la telemetría también desactiva esta autorización.
+
+Con esa autorización, un traspaso fallido puede generar el evento adicional
+`playback_diagnostic`: código de error conocido, pasos predefinidos del intento
+(verificación de OPPO, rutas y confirmación de inicio), protocolo NFS/SMB cuando
+se conoce, duración y resultado de recuperación de la **sala**. No se transmiten
+mensajes libres, logs completos, excepciones, nombres de archivos, películas,
+rutas, IPs ni credenciales. La recuperación de la sala no implica que la
+reproducción haya comenzado.
+
+El evento de diagnóstico **no incrementa la tasa de fallos**. Si una operación
+transitoria se recupera y el mismo intento consigue iniciar la reproducción, es
+un inicio correcto. Los fallos de limpieza posteriores al inicio quedan
+separados de los fallos anteriores al inicio. En el dashboard privado se puede
+consultar el diagnóstico junto a los eventos del intento.
 
 ### Informes de soporte y telemetría automática
 

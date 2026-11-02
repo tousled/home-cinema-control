@@ -8,6 +8,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 No changes have been documented for the next release yet.
 
+## [1.4.4] - 2026-11-02
+
+HCC 1.4.4 is a playback reliability hotfix. It does not introduce new player or TV integrations.
+
+### Fixed
+
+* **Replacing one movie with another no longer powers the OPPO off unexpectedly.** HCC protects the final power-down against concurrent replacements and avoids powering off a player after a failed startup.
+* **Safer playback handoffs from Emby and Jellyfin.** HCC checks the original client's session and media item before stopping it, verifies the server-reported result, and avoids sending destructive commands to another user's device or a client that has started something else. The existing double Stop and Jellyfin Back workarounds remain in place.
+* **Recover the room when playback cannot proceed.** If the OPPO is unavailable, HCC does not change the TV/AVR inputs. If a source-client Stop is rejected after output preparation, HCC does not start the OPPO and invokes the existing output recovery. Startup failures notify the source client when supported.
+* **Controlled rejections no longer inflate playback failure telemetry.** An unavailable player, unavailable media item or path, failed output preparation, or blocked source-client cleanup does not generate a playback attempt or failure-rate event when HCC has not attempted to start the player. Actual player-start failures still count.
+* **Unmanaged media keeps playing in Emby or Jellyfin.** HCC checks that a library is selected and its media path is configured and verified before taking over playback. If the library is excluded or the path is missing or unverified, HCC leaves playback in the original app instead of stopping it, with an explanatory notice when possible.
+
+### Improved
+
+* **Clearer playback errors, with more time to read them.** Emby/Jellyfin notifications now explain whether the OPPO cannot be reached, a media path needs verification, a share could not be mounted or the player did not start in time. Error notices remain visible for eight seconds where the client supports it; routine status messages keep their usual duration. Technical details, filenames and NAS paths stay out of on-screen alerts.
+* **Safer OPPO readiness checks.** HCC requires confirmation that the player responds to control commands before switching TV/AVR, and checks again before preparing the room. Saving the OPPO settings also restores the OPPO selection if obsolete experimental player settings were left in the configuration.
+* **More cinematic playback messages.** HCC keeps its welcoming, cinema-inspired startup notices and now offers a tailored farewell after a film, episode or concert finishes naturally. If playback ends for another reason, HCC uses a neutral farewell; closing notices only appear when the original Emby/Jellyfin library has been restored successfully.
+* **Updated setup and troubleshooting guides.** Guidance explains what happens when the player is offline or a path is unverified, which playback notices the user may see, and the known Blu-ray ISO seeking limitation.
+
+**Known limitation:** With certain Blu-ray ISOs that have disc menus, seeking from Emby/Jellyfin may restart the title even though seeking with the OPPO remote works. This behavior predates 1.4.4 and remains under investigation; use the OPPO remote for those discs.
+
 ## [1.4.3] - 2026-10-28
 
 HCC 1.4.3 improves the information and support available to users, while making it easier to help shape the project's future.

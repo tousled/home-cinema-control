@@ -70,6 +70,26 @@ image: tousled/home-cinema-control:latest
 - Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
   usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 
+### La reproducción no cambia al OPPO y aparece un aviso
+
+HCC muestra primero **qué ha ocurrido** y después **qué hacer**, en dos avisos separados cuando el cliente Emby/Jellyfin admite notificaciones remotas:
+
+- **«El OPPO no responde.»** Después: «Comprueba que esté encendido y conectado a la red.» Ve a **Media Player → Probar conexión** y revisa el control IP. Si no se confirma que el OPPO esté disponible, no se cambian las entradas de TV y receptor.
+- **«Ruta sin verificar. La reproducción continúa en Emby.»** (o Jellyfin). Después: «Verifica la ruta en Rutas multimedia de HCC.» Utiliza **Media Paths → Probar ruta**.
+- **«Ruta sin configurar. La reproducción continúa en Jellyfin.»** (o Emby). Después: «Configura la ruta en Rutas multimedia de HCC.» Elige la carpeta del OPPO y compruébala.
+
+Si falta una ruta válida, HCC no inicia el contenido en el OPPO y la reproducción puede continuar en Emby/Jellyfin. Si la aplicación ya estaba reproduciendo cuando se detectó que el OPPO no respondía, tal vez necesites detenerla manualmente. Algunos clientes no muestran todas las notificaciones remotas.
+
+### Un Blu-ray ISO se reinicia al avanzar desde Emby/Jellyfin
+
+Algunas imágenes Blu-ray ISO tienen menús interactivos y sus propias reglas de reanudación. Al volver a iniciar la imagen, puede aparecer primero el menú del disco con una opción de **Continuar**. Esto es distinto de la reanudación directa de un archivo MKV.
+
+Si al **avanzar desde la aplicación** la película vuelve al principio, utiliza provisionalmente el **mando del OPPO** para avanzar y no repitas el salto desde Emby/Jellyfin. Estamos investigando la diferencia entre comandos de búsqueda por tiempo de HCC y los controles nativos en discos Blu-ray. Si puedes reproducirlo, comparte un diagnóstico y los logs correspondientes a ese intento.
+
+### La película tarda mucho en empezar
+
+Una espera aislada puede deberse a la activación de la API del OPPO, al montaje NFS/SMB, al menú del Blu-ray o a la comprobación de reproducción. No cambies los tiempos de espera sin saber qué fase es lenta. En **Logs**, busca los registros `Playback startup timing` y el paso con mayor duración; compártelos mediante **Enviar diagnóstico** si el problema se repite.
+
 ### HCC no llega al reproductor
 
 - Comprueba la IP del OPPO/Chinoppo y que el reproductor esté encendido.

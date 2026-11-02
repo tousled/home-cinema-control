@@ -52,6 +52,9 @@ Repeat for the other libraries you want to use. If one library contains multiple
 
 ## What if the path is not verified?
 
+**When playing content:** HCC won't send a title to the OPPO unless its path is configured and verified. The Emby/Jellyfin client may first show “Path not verified. Playback continues in Emby.” and then “Verify the path in HCC Media Paths.” If no path exists, you'll see “Path not configured” and a suggestion to configure it. HCC uses your configured provider name, and notification visibility varies by client.
+
+
 Open **What each state means** in Media Paths:
 
 | State | What to do |
