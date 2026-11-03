@@ -8,7 +8,7 @@ Si HCC aparece sin tus ajustes después de actualizar, empieza por [recuperar la
 
 ## Consulta el diagnóstico de HCC
 
-Abre **Diagnóstico** en HCC. Ahí puedes comprobar conexiones, ver el último error y consultar la versión instalada.
+Abre **Diagnóstico** en HCC. Ahí puedes comprobar conexiones, ver la **Incidencia actual** y consultar la versión instalada. **Sin incidencias activas** describe el estado actual, no un historial sin errores. Un sondeo vacío de Emby/Jellyfin o la desaparición del cliente durante la reproducción en el OPPO no generan por sí solos un aviso de dispositivo ausente.
 
 <p align="center">
   <img src="../assets/screenshots/install/06-status.png" alt="Pantalla de diagnóstico de Home Cinema Control" width="860"/>
