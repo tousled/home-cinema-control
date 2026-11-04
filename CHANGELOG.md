@@ -6,11 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+No changes have been documented for the next release yet.
+
+## [1.4.5] - 2026-11-04
+
+HCC 1.4.5 improves playback of full Blu-ray and UHD Blu-ray folders from Jellyfin on OPPO/Chinoppo players.
+
 ### Fixed
 
-* **Clearer Portainer update feedback.** HTTP errors stop the waiting indicator and show the failure. Interrupted connections keep checking the installed version without resending the webhook; logs record the outcome without exposing the webhook URL.
-* **Version checks respect GitHub rate limits.** A readable message and a 15-minute cooldown prevent repeated requests, including manual checks, before allowing another lookup.
-* **Fewer misleading device warnings.** Empty Emby/Jellyfin session snapshots and expected client disappearance during OPPO playback no longer report a missing monitored device. Diagnostics labels describe the current issue rather than historical failures.
+* **Blu-ray folders now use the correct playback command.** HCC recognizes Blu-ray folder structures even when Jellyfin identifies their container as TS or MPEG-TS, instead of treating them as ordinary video files.
+* **Existing formats remain supported.** MKV, regular TS/MPEG-TS files and ISO images retain their existing playback behavior.
+
+Thanks to [@ThorJane86](https://github.com/ThorJane86) for reporting this issue in [#37](https://github.com/tousled/home-cinema-control/issues/37).
 
 ## [1.4.4] - 2026-11-02
 

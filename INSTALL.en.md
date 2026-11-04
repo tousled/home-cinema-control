@@ -111,7 +111,7 @@ Check **Media Player → Test connection** or **Media Paths → Test path**. For
 
 ## After installation
 
-- **Update HCC:** [Portainer](docs/update-portainer.en.md) or [Docker Compose](docs/update-compose.en.md). You don't need to install it again. The Portainer guide also explains webhook errors and the wait when GitHub limits version lookups.
+- **Update HCC:** [Portainer](docs/update-portainer.en.md) or [Docker Compose](docs/update-compose.en.md). You don't need to install it again.
 - **HCC looks unconfigured:** [configuration recovery](docs/recover-configuration.en.md), without deleting anything.
 - **Special deployments:** [advanced Docker operations](docs/advanced-docker-operations.en.md).
 
