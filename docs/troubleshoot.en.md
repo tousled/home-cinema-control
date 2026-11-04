@@ -8,7 +8,7 @@ If HCC appears to have lost its settings after an update, start with [configurat
 
 ## Check HCC diagnostics
 
-Open **Diagnostics** in HCC to check connections, see the **Current issue** and find the installed version. **No active issues** describes the current state, not an error-free history. An empty Emby/Jellyfin session snapshot or the client's disappearance during OPPO playback does not by itself trigger a missing-device warning.
+Open **Diagnostics** in HCC to check connections, see the latest error and find the installed version.
 
 <p align="center">
   <img src="../assets/screenshots/install/06-status.png" alt="HCC diagnostics screen" width="860"/>

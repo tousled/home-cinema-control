@@ -112,7 +112,7 @@ Para comprobarlos, utiliza **Media Player → Probar conexión** o **Media Paths
 
 ## ¿Y después?
 
-- **Actualizar HCC:** [Portainer](docs/actualizar-portainer.md) o [Docker Compose](docs/actualizar-compose.md). No tendrás que instalarlo de nuevo. La guía de Portainer también explica los errores del webhook y la espera cuando GitHub limita la consulta de versiones.
+- **Actualizar HCC:** [Portainer](docs/actualizar-portainer.md) o [Docker Compose](docs/actualizar-compose.md). No tendrás que instalarlo de nuevo.
 - **HCC aparece vacío:** [recuperar configuración](docs/recuperar-configuracion.md), sin borrar nada.
 - **Instalaciones especiales:** [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).
 
