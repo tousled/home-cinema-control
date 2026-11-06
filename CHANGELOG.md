@@ -8,9 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
-* **Clearer Portainer update feedback.** HTTP errors stop the waiting indicator and show the failure. Interrupted connections keep checking the installed version without resending the webhook; logs record the outcome without exposing the webhook URL.
+* **Clearer Portainer update feedback.** HTTP errors stop the waiting indicator and show the failure. Interrupted connections keep checking the installed version without resending the webhook. The confirmation window ends even if a version check stalls, and logs record the outcome without exposing the webhook URL.
 * **Version checks respect GitHub rate limits.** A readable message and a 15-minute cooldown prevent repeated requests, including manual checks, before allowing another lookup.
-* **Fewer misleading device warnings.** Empty Emby/Jellyfin session snapshots and expected client disappearance during OPPO playback no longer report a missing monitored device. Diagnostics labels describe the current issue rather than historical failures.
+* **Fewer misleading device warnings.** Empty Emby/Jellyfin session snapshots and expected client disappearance during OPPO playback no longer report a missing monitored device. Diagnostics keeps unrelated incidents active, clears an OPPO availability error after a confirmed OPPO start and clears a missing-client warning when that client returns. Resolved incidents remain in the history.
 
 ## [1.4.5] - 2026-11-04
 
