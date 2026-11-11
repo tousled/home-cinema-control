@@ -6,11 +6,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+Prepared for the first **1.5.0** release after **1.4.5**. Not published; no release date has been assigned.
+
+### Added
+
+* **Kodi as a media player.** Connect Kodi through its HTTP remote control, validate and save its credentials, and start
+  and monitor playback from Emby or Jellyfin using NFS or SMB video sources. Connection tests work without an active
+  movie and explain rejected credentials, unreachable Kodi and communication errors. Kodi credentials are never accepted
+  as verified when anonymous access prevents checking them.
+
+### Improved
+
+* **Room setup guidance.** A wiring assistant helps prepare TV and receiver settings for an external player. Review the
+  prepared fields, test connections and save; existing room configurations are kept.
+* **Clearer installation and configuration guides in Spanish and English.** A shared first-run walkthrough covers both
+  players, explains folder matching and separates optional room and Home Assistant setup. Docker Hub instructions follow
+  the same installation and update flow.
+
 ### Fixed
 
-* **Clearer Portainer update feedback.** HTTP errors stop the waiting indicator and show the failure. Interrupted connections keep checking the installed version without resending the webhook. The confirmation window ends even if a version check stalls, and logs record the outcome without exposing the webhook URL.
-* **Version checks respect GitHub rate limits.** A readable message and a 15-minute cooldown prevent repeated requests, including manual checks, before allowing another lookup.
-* **Fewer misleading device warnings.** Empty Emby/Jellyfin session snapshots and expected client disappearance during OPPO playback no longer report a missing monitored device. Diagnostics keeps unrelated incidents active, clears an OPPO availability error after a confirmed OPPO start and clears a missing-client warning when that client returns. Resolved incidents remain in the history.
+* **Clearer Portainer update feedback.** HTTP errors stop the waiting indicator and show the failure. Interrupted
+  connections keep checking the installed version without resending the webhook.
+* **Version checks respect GitHub rate limits.** A readable message and a 15-minute cooldown prevent repeated requests,
+  including manual checks.
+* **Fewer misleading device warnings.** Empty Emby/Jellyfin session snapshots and expected client disappearance during
+  OPPO playback no longer report a missing monitored device. Diagnostics describe the current issue rather than
+  historical failures.
+
+### Compatibility and migration
+
+* Existing OPPO configurations remain readable. Older player settings and Kodi passwords are migrated without discarding
+  other player profiles or duplicating secrets in public settings. Omitting a password preserves the saved one;
+  replacing it updates that player's secret.
+* Earlier unscoped folder mappings remain associated with OPPO. Kodi mappings are configured separately; switching
+  players or restarting HCC preserves both sets.
+* Kodi support in this release covers NFS/SMB sources. Local Kodi folders are reserved for a later 1.5.x update without
+  an announced date; `plugin://` and other protocols are not supported. ISO, Blu-ray folder and menu playback on Kodi is
+  not verified as equivalent to OPPO.
 
 ## [1.4.5] - 2026-11-04
 

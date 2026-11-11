@@ -32,7 +32,8 @@ Abre:
 http://<tu-host>:8090
 ```
 
-`--network host` es importante porque HCC habla directamente con Emby, el OPPO/Chinoppo, TV, AVR y herramientas de
+`--network host` es importante porque HCC habla directamente con Emby/Jellyfin, OPPO/Chinoppo o Kodi, TV, AVR y
+herramientas de
 descubrimiento como `arp-scan`.
 
 ## Actualizar desde un gestor del NAS
@@ -74,6 +75,11 @@ docker volume inspect home-cinema-control-config
 
 Antes de hacer la copia, comprueba también que el contenedor de HCC usa **ese mismo volumen** en `/config` con `docker inspect home-cinema-control --format '{{range .Mounts}}{{println .Name .Destination}}{{end}}'`. Si `docker volume inspect` devuelve un error, **no ejecutes el comando de copia**: primero identifica el volumen correcto. Docker puede crear volúmenes vacíos al usar algunos comandos. Los archivos de copia contienen credenciales: protégelos y no los compartas.
 
+Antes de ejecutar la copia, detén HCC desde Portainer o con `docker stop home-cinema-control`. Así los ajustes y
+secretos corresponden al mismo guardado. Si guardas secretos fuera de `/config`, respalda también ese directorio
+completo y sus archivos ocultos con HCC detenido; este ejemplo solo copia el volumen indicado. Conserva los archivos de
+recuperación y las mismas rutas.
+
 ```bash
 mkdir -p hcc-backups
 docker run --rm \
@@ -82,6 +88,8 @@ docker run --rm \
   alpine:3.20 \
   tar -czf /backup/hcc-config-backup.tar.gz -C /config .
 ```
+
+Cuando termine la copia, inicia HCC desde Portainer o con `docker start home-cinema-control`.
 
 El archivo `hcc-backups/hcc-config-backup.tar.gz` debe aparecer en la carpeta actual. Guarda esa copia fuera del host
 Docker. Este procedimiento es opcional y está pensado para Linux/macOS; en Windows o en un NAS usa la herramienta de

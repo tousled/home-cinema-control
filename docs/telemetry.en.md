@@ -23,6 +23,10 @@ retries; `attempt_id` links events from one playback attempt. A technical
 closure does not distinguish natural completion from a manual stop or prove
 the exact watched position. Missing events do not prove a failure.
 
+`/ping` includes the room wiring layout (`split_av_tv`, `via_avr`, `direct_tv`, or `unknown`) only when telemetry
+participation is enabled. It does not include IP addresses, ports, or HDMI input names. Existing installations without
+an explicit selection are reported as `unknown`.
+
 `/ping` sends a technical snapshot on opt-in or meaningful configuration
 changes. Equivalent snapshots coalesce. `/heartbeat` sends minimal contact
 at most once every 24 hours while consent remains active. Contact does not

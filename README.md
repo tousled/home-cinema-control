@@ -24,220 +24,87 @@
 
 **[Ver HCC en acción: vídeo de demostración (45 segundos)](assets/videos/hcc-demo.mp4)**
 
-El vídeo muestra una configuración compatible de HCC coordinando reproductor, televisor y sonido. No implica compatibilidad universal con todos los equipos.
+Home Cinema Control conecta tu biblioteca de Emby o Jellyfin con el reproductor y los dispositivos de tu sala. Elige una
+película desde tu aplicación habitual: HCC prepara la reproducción en el equipo elegido, coordina las entradas de TV y
+receptor AV que hayas configurado y comunica el progreso al servidor multimedia.
 
----
+El vídeo muestra una sala compatible; no garantiza las mismas funciones en todos los equipos.
 
-Home Cinema Control nace para que el cine en casa deje de sentirse como una colección de piezas sueltas.
-
-Emby es una gran biblioteca. Los OPPO UDP-203/205 y Chinoppo M9xxx son reproductores excelentes para archivos locales,
-ISOs, carpetas Blu-ray/UHD y contenido de alto bitrate servido por NAS. El problema no es la calidad de cada pieza; el
-problema es que la experiencia completa suele depender de rutas manuales, entradas HDMI, montajes NFS/SMB, mandos,
-scripts y pruebas a ciegas.
-
-HCC une esas piezas en un flujo único: eliges la película en Emby y la sala se prepara para verla.
+> Documentación preparada para la futura **1.5.0**, todavía sin publicar. La última versión estable publicada es
+> **1.4.5**. Las funciones de Kodi descritas aquí corresponden a la 1.5.0; instalar `latest` no las añade antes de su
+> publicación.
 
 ## ¿Qué quieres hacer con HCC?
 
-Elige lo que necesitas hacer; cada enlace abre una guía específica:
+Elige el recorrido que necesitas:
 
-- **Instalar HCC por primera vez:** [instalación sencilla con Portainer o Compose](INSTALL.md).
-- **Actualizar desde Portainer:** [actualizar sin perder los ajustes](docs/actualizar-portainer.md).
-- **Actualizar con Docker Compose:** [actualizar desde la carpeta correcta](docs/actualizar-compose.md).
-- **Recuperar la configuración:** [HCC parece recién instalado](docs/recuperar-configuracion.md).
-- **Solucionar un fallo de reproducción o conexión:** [diagnóstico y problemas frecuentes](docs/solucionar-problemas.md).
-- **Opciones y versiones de Docker:** [referencia avanzada](docs/referencia-avanzada.md).
-- **Gestores NAS, `docker run` y copias manuales:** [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).
+- [Instalar HCC con Portainer o Docker Compose](INSTALL.md).
+- [Configurar Emby/Jellyfin, OPPO o Kodi y realizar la primera reproducción](docs/primeros-pasos.md).
+- [Relacionar las carpetas del servidor con las del reproductor](docs/configurar-rutas.md).
+- Actualizar sin perder ajustes: [Portainer](docs/actualizar-portainer.md)
+  o [Docker Compose](docs/actualizar-compose.md).
+- [Recuperar una configuración que parece haber desaparecido](docs/recuperar-configuracion.md).
+- [Resolver un problema y pedir ayuda](docs/solucionar-problemas.md).
+- Consultar [opciones avanzadas](docs/referencia-avanzada.md)
+  o [copias de seguridad y operaciones Docker](docs/operaciones-docker-avanzadas.md).
 
+## Qué ocurre cuando pulsas Play
 
-¿Ya has instalado HCC? Sigue las [pantallas de configuración](docs/primeros-pasos.md): **Media Server, OPPO, [Media Paths](docs/configurar-rutas.md) y [Sala (TV/AVR)](docs/primeros-pasos.md#5-tv-y-receptor-av-opcional)**.
+1. Abres Emby o Jellyfin en el dispositivo que has elegido para que HCC lo supervise y seleccionas una película.
+2. HCC comprueba el reproductor y la carpeta configurada antes de preparar la sala y entregar la reproducción.
+3. El reproductor abre la película desde tu NAS o carpeta compartida. HCC sigue su estado y actualiza el progreso en el
+   servidor multimedia.
+4. Al terminar, HCC aplica las acciones de cierre que hayas configurado. Si utilizas Home Assistant, también puede
+   comunicarle los eventos de reproducción para tus automatizaciones.
 
-## Contacto y soporte
+La TV, el receptor AV y Home Assistant son opcionales. Puedes empezar con servidor multimedia, reproductor y carpetas, y
+añadir el resto después.
 
-¿Necesitas ayuda? Sigue [solución de problemas](docs/solucionar-problemas.md), donde se explica cómo consultar **Diagnóstico**, descargar el log de una prueba y pedir soporte.
+## Con qué funciona
 
-Si crees que es un bug, [abre un issue en GitHub](https://github.com/tousled/home-cinema-control/issues/new). Para dudas sobre tu instalación, escribe a [llorente.software.solutions@gmail.com](mailto:llorente.software.solutions@gmail.com).
+Cada equipo conserva su función: Emby/Jellyfin organiza tu biblioteca y el reproductor abre los archivos de la red.
 
-## Qué problemas intenta resolver
+| Equipo                       | Compatibilidad                                                                                                                                                |
+|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Servidor multimedia          | Emby o Jellyfin; selecciona en HCC el dispositivo cuya reproducción quieres supervisar.                                                                       |
+| OPPO/Chinoppo                | OPPO UDP-203/205 y clones con control de red compatible. Acceso a carpetas mediante NFS o SMB; las opciones dependen del firmware.                            |
+| Kodi, desde HCC 1.5.0        | Control por HTTP y carpetas NFS/SMB configuradas en Kodi. HCC puede explorarlas, probarlas e iniciar y seguir la reproducción.                                |
+| TV y receptor AV, opcionales | LG webOS, Sony BRAVIA y las marcas de receptor disponibles en la pantalla Sala. Trinnov Altitude tiene pruebas de contrato; falta validación con equipo real. |
+| Home Assistant, opcional     | Recibe eventos para ejecutar las automatizaciones que tú configures.                                                                                          |
 
-HCC parte de años de uso real, dudas repetidas en foros y errores difíciles de diagnosticar en instalaciones con Emby,
-NAS, OPPO/Chinoppo, TV y receptores AV. El objetivo no es cambiar por cambiar: es reducir las zonas donde el usuario
-tenía que adivinar.
+Para Kodi, empieza con un archivo de vídeo habitual, como MKV. La compatibilidad de formatos depende de Kodi y del
+dispositivo; no se garantiza la misma experiencia de ISO, carpetas Blu-ray o menús que en OPPO. Las carpetas locales de
+Kodi quedan fuera de la 1.5.0 y se reservan para una actualización 1.5.x, sin fecha anunciada. Tampoco se admiten
+fuentes `plugin://` ni otros protocolos distintos de NFS/SMB.
 
-- **Instalación y migración más claras**: Docker como camino principal, variables `HCC_*`, configuración separada de
-  secretos y pantalla de migración para instalaciones anteriores.
-- **Menos rutas escritas a mano**: detección de bibliotecas de Emby, asistente de mapeo y modo manual cuando el entorno
-  necesita ajustes específicos.
-- **NFS y SMB/CIFS por biblioteca**: cada ruta declara el protocolo que usará el reproductor, sin fallback silencioso.
-- **Pruebas antes de reproducir**: HCC prueba los mapeos desde el OPPO/Chinoppo para detectar fallos antes de una sesión
-  real.
-- **Dispositivos más fáciles de localizar**: cuando `arp-scan` está disponible, la UI propone IPs detectadas en la red
-  local para evitar escribirlas a ciegas.
-- **TV y AV realmente opcionales**: si están desactivados, no entran en el flujo de reproducción.
-- **Arranque y salida más predecibles**: el flujo distingue errores de autenticación, ruta, montaje, OPPO, TV y AV en
-  vez de dejar al usuario con una pantalla negra o un “no reproduce”.
-- **Emby y OPPO más sincronizados**: HCC observa el estado del reproductor para reflejar pausa, reproducción, parada,
-  final natural, progreso y selección de pistas cuando el firmware lo permite.
-- **Logs y diagnósticos entendibles**: la interfaz muestra severidad, último fallo, sugerencias y resumen de soporte.
-- **Menos regresiones manuales**: los flujos críticos tienen tests simulados para cubrir rutas, protocolos y TV/AV
-  desactivados.
+HCC conserva los ajustes y las rutas de OPPO y Kodi por separado. Puedes alternar entre ellos y recuperar lo que ya
+habías configurado, sin volver a introducir las carpetas.
 
-## Qué ocurre al pulsar Play
+## Qué necesitas para empezar
 
-1. Emby inicia una sesión de reproducción.
-2. HCC comprueba que la biblioteca debe ser interceptada.
-3. Se resuelve el mapeo verificado entre la ruta de Emby y la ruta visible desde el reproductor.
-4. El OPPO/Chinoppo monta el recurso NFS o SMB elegido para esa biblioteca.
-5. El reproductor inicia la reproducción del archivo real.
-6. La TV y el receptor AV cambian de estado solo si el usuario los ha configurado.
-7. HCC observa progreso, pausa, parada, final natural, errores y limpieza de sesión.
-8. Emby recibe el estado necesario para conservar visto/reanudar y mantener la sesión coherente.
+Necesitas Docker en un NAS u ordenador de 64 bits, Emby o Jellyfin funcionando y un reproductor capaz de abrir tus
+películas desde la red. Todos deben poder comunicarse en tu red local. La guía explica Docker, las credenciales y las
+carpetas cuando hacen falta; no necesitas editar archivos de configuración de HCC.
 
-El cliente de Emby sigue siendo la biblioteca. El OPPO/Chinoppo sigue siendo el reproductor. HCC coordina la sala.
+Sigue la [instalación](INSTALL.md) y después los [primeros pasos](docs/primeros-pasos.md). Si ya tienes HCC, conserva el
+volumen `home-cinema-control-config` y sigue la guía de actualización de tu instalación.
 
-## Diagnóstico que evita pruebas a ciegas
+## Ayuda, privacidad y participación
 
-La pantalla de diagnóstico no está ahí como adorno. Es el lugar donde HCC muestra si el sistema está listo, qué parte ha
-fallado y qué información se puede copiar para pedir soporte.
+Abre **Diagnóstico** si falla una conexión o reproducción.
+La [guía de solución de problemas](docs/solucionar-problemas.md) explica cómo enviar información útil y contactar con
+soporte. Para errores de HCC,
+puedes [abrir una incidencia en GitHub](https://github.com/tousled/home-cinema-control/issues/new); para preguntas de
+instalación, escribe a [soporte](mailto:llorente.software.solutions@gmail.com).
 
-<p align="center">
-  <img src="assets/screenshots/status.png" alt="Pantalla de diagnóstico de Home Cinema Control" width="860"/>
-</p>
+La [telemetría](docs/telemetry.md) está desactivada por defecto y requiere tu
+consentimiento. [Participar](docs/participar.md) permite responder preguntas y proponer mejoras sin cuenta ni correo
+electrónico. No es necesario participar para usar HCC y los votos no prometen una implementación.
 
-Con esta pantalla el usuario puede distinguir entre un problema de Emby, una ruta no verificada, un montaje fallido en
-el OPPO, un dispositivo de sala desactivado o un error de actualización. La intención es reducir el “prueba otra vez” y
-convertir cada fallo en una pista accionable.
-
-La sección **¿Nos ayudas a mejorar HCC?** explica el envío opcional de señales
-técnicas y ofrece **Ayudar a HCC**. **¿Qué datos enviamos y para qué?** detalla
-el código seudónimo de instalación, las integraciones, el contacto periódico
-y los resultados de reproducción. Ese código vincula señales de la misma
-instalación, sin garantizar anonimato absoluto. Al desactivar el envío, HCC
-cancela los pendientes locales e intenta comunicar la revocación una sola vez,
-sin reintentar ni borrar el histórico del hub. Los informes de soporte manuales
-siguen un proceso independiente. Consulta el [contrato de telemetría](docs/telemetry.md).
-
-**Participa** reúne preguntas breves e intereses editables, sin cuenta ni email.
-Abrirlo no activa el consentimiento. Las preguntas no abren modales y su
-indicador se oculta durante reproducción. **Ahora no** pospone; **No me interesa**
-retira solo esa pregunta. Consulta [cómo participar](docs/participar.md).
-
-En la reedición corregida de 1.4.2, basta con activarla en HCC: las imágenes oficiales incluyen la conexión al hub,
-sin cambios manuales en Compose o Portainer. La actualización conserva el consentimiento y reintenta la cola
-pendiente todavía vigente.
-
-## Sala opcional, pero bien integrada
-
-No todas las salas tienen la misma complejidad. Algunas solo necesitan Emby y el OPPO. Otras quieren que la TV cambie de
-entrada, que el receptor AV despierte, que ARC/CEC no pise la fuente correcta y que todo vuelva al estado esperado al
-terminar.
-
-<p align="center">
-  <img src="assets/screenshots/room-setup.png" alt="Configuración de sala con TV y receptor AV" width="860"/>
-</p>
-
-Por eso TV y AV se configuran por separado. Si están desactivados, HCC no los instancia ni los mete en el flujo de
-reproducción. Trinnov Altitude se configura desde esta pantalla con IP, MAC para Wake-on-LAN y source/profile del OPPO
-en lugar de entradas HDMI genéricas. Esta decisión está cubierta por tests para evitar regresiones.
-
-## Mejoras que se notan aunque no se vean
-
-HCC también mejora partes que el usuario normal no debería tener que mirar, pero que hacen que la instalación se sienta
-más seria.
-
-| Mejora                         | Qué gana el usuario                                                                                                                                                                                                      |
-|--------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Observación SVM3 por defecto   | HCC intenta escuchar eventos del OPPO en vez de depender siempre de preguntar el estado cada segundo. El reproductor trabaja con menos ruido y la app conserva un fallback de polling acotado si el firmware no coopera. |
-| Progreso menos agresivo        | La posición de reproducción se reporta a Emby con cadencia controlada, no con consultas innecesarias constantes.                                                                                                         |
-| Rutas NFS/SMB explícitas       | Cada biblioteca usa el protocolo que has probado. No hay cambios silenciosos que funcionen una vez y fallen en la sesión importante.                                                                                     |
-| Guardado por secciones         | Cambiar la sala no pisa la configuración de Emby, y guardar rutas no reescribe secretos sin necesidad.                                                                                                                   |
-| Credenciales fuera de logs     | Las contraseñas SMB no aparecen en URLs registradas ni en trazas pensadas para soporte.                                                                                                                                  |
-| Diagnóstico antes que misterio | Cuando algo falla, HCC intenta decir qué pieza falló: Emby, ruta, OPPO, TV, AV, actualización o limpieza.                                                                                                                |
-| Tests de cableado              | Los casos de TV/AV desactivados, protocolos por biblioteca y guardados parciales tienen pruebas automatizadas para evitar regresiones.                                                                                   |
-
-## Estado actual
-
-| Área                             | Estado                                                                                                                                                 |
-|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Emby                             | Implementado como proveedor de media server.                                                                                                           |
-| Jellyfin                         | Implementado como proveedor de media server, con el mismo flujo que Emby.                                                                              |
-| OPPO UDP-203/205                 | Soportado mediante API MediaControl.                                                                                                                   |
-| Chinoppo M9702/M9201/M9203/M9205 | Soportado si expone la API compatible con OPPO.                                                                                                        |
-| Rutas por biblioteca             | NFS o SMB/CIFS por mapeo, con verificación.                                                                                                            |
-| TV LG WebOS                      | Cambio de entrada y retorno a la app, si se configura.                                                                                                 |
-| TV Sony BRAVIA (2013+)           | Integración disponible: cambio de HDMI y apertura de apps por REST API local con clave PSK.                                |
-| Receptores AV                    | Denon, Marantz, Yamaha, NAD, Onkyo, Trinnov Altitude y scripts personalizados. Trinnov está contract-tested, pendiente de validación en hardware real. |
-| Diagnóstico                      | Estado, logs, versión, último fallo y sugerencias de recuperación.                                                                                     |
-| Telemetría                       | Opt-in, seudónima, documentada y orientada a mejorar la fiabilidad.                                                                                   |
-| Docker                           | Despliegue principal con red host y configuración persistente en `/config`.                                                                            |
-
-**Experimental — avisos de actualización en Sony:** si HCC detecta una nueva versión y la reproducción comienza desde una sesión de Emby/Jellyfin identificada, sustituye una sola vez el primer aviso de preparación por «HCC X.Y.Z disponible», usando exactamente el mismo canal y formato de mensajes del servidor multimedia. No instala nada en Sony ni espera respuestas de red durante el inicio: los avisos de preparación y actualización se envían mediante una cola asíncrona y ordenada. Si falla el servidor, HCC continuará reproduciendo; el aviso de actualización quedará pendiente para otra reproducción. El servidor puede aceptar un aviso sin que la app lo muestre. La recepción visible depende de la app y **no está comprobada en Sony real**. Si lo pruebas, cuéntanos desde «Participa» qué modelo de BRAVIA, qué app/versión de Emby o Jellyfin utilizas y si viste el aviso (sin incluir datos privados).
-
-## Qué define la 1.0.0
-
-La 1.0.0 marca el primer corte estable de HCC como producto independiente: flujo Emby + OPPO/Chinoppo, rutas por
-biblioteca, sala opcional, diagnóstico operativo y release Docker documentada. No es solo un rediseño visual; es el
-punto donde configuración, soporte y actualización quedan tratados como parte del producto.
-
-| Área 1.0.0                 | Qué queda cubierto                                                                                        |
-|----------------------------|-----------------------------------------------------------------------------------------------------------|
-| Reproducción real          | MKV, ISO, carpetas Blu-ray/UHD, parada, reemplazo, final natural y recuperación validados.                |
-| Estado visto/reanudar      | Progreso coherente cuando se para desde OPPO, Emby o la sala.                                             |
-| Sincronización interactiva | Pausa, reproducción, parada, pistas y estado del reproductor sin acoplar Emby a detalles internos.        |
-| Compatibilidad hardware    | OPPO/Chinoppo, TV y AVR documentados con límites claros entre validado, no probado y fuera de scope.      |
-| Soporte exportable         | Diagnóstico, logs filtrables, último fallo, resumen de soporte y envío de diagnóstico redactado a GitHub. |
-| Release Docker             | Imágenes versionadas, rollback, política de actualización y licencia propietaria.                    |
-
-## Hacia dónde va
-
-Después de 1.0.0, la arquitectura está pensada para crecer sin mezclar futuras integraciones en el núcleo de
-reproducción.
-
-| Futuro           | Intención                                                                                    |
-|------------------|----------------------------------------------------------------------------------------------|
-| Plex             | Explorar viabilidad después de estabilizar la frontera de proveedores.                       |
-| Más marcas de TV | Investigar Samsung, Android TV/Google TV mediante ADB y otros ecosistemas; Sony BRAVIA por REST ya está integrado. |
-| Multiroom        | Estudiar varias salas/reproductores sin romper el modelo actual de una sala fiable.          |
-| Luces y escenas  | Posible integración futura como automatización de sala, no como requisito para reproducir.   |
-
-Estas líneas son roadmap, no promesas de la versión actual. HCC prefiere declarar claramente qué está implementado y qué
-está en exploración antes que vender compatibilidad no validada.
-
-## Home Assistant
-
-HCC puede avisar a Home Assistant cuando detecta una reproducción, empieza, se pausa, continúa o termina. Home Assistant
-decide
-qué
-hacer con cada evento: activar una escena, controlar luces, enviar un aviso o guardarlo en el registro.
-
-Para configurarlo, crea una automatización con un webhook, copia su **Webhook ID** en la pantalla **Home Assistant** de
-HCC, activa **Enviar eventos de HCC a Home Assistant**, guarda y reinicia HCC. El ID se guarda de forma protegida, no se
-muestra en la interfaz y no aparece en los diagnósticos.
-
-La pantalla muestra la última entrega real. Antes del primer evento aparece como pendiente; después indica si HCC pudo
-entregarlo. Si cambias la dirección o el webhook, el estado vuelve a pendiente hasta que la nueva configuración
-funcione.
-Si Home Assistant no responde, HCC registra el error y la reproducción continúa.
-
-La guía completa de configuración, el formato JSON y un ejemplo de automatización con condiciones por evento están en
-[guía de Home Assistant](docs/home-assistant.md).
-
-## Instalación rápida
-
-Para instalar HCC por primera vez, sigue la [guía de instalación fácil](INSTALL.md): explica dónde crear `compose.yaml`, desde qué carpeta ejecutar los comandos y cómo conservar el volumen `home-cinema-control-config`.
-
-Si HCC ya funciona y solo quieres actualizarlo, **no repitas la instalación**: utiliza la [guía de Portainer](docs/actualizar-portainer.md) o la [guía de Docker Compose](docs/actualizar-compose.md), según tu instalación.
-
-## Referencia AVPasion para NAS y reproductor
-
-HCC no mantiene capturas verificadas para cada NAS, sistema operativo o firmware de Chinoppo. Para Synology, QNAP,
-Windows, Unraid y preparación del reproductor, usa como referencia externa el tutorial histórico de AVPasion sobre
-Xnoppo:
-
-https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867
-
-Úsalo para permisos de NAS, recursos compartidos y contexto del reproductor. Para HCC usa los comandos Docker de este
-repositorio, las variables `HCC_CONFIG_FILE` / `HCC_SECRETS_FILE_PATH` y la configuración web.
+Consulta la [guía de Home Assistant](docs/home-assistant.md) para añadir luces o escenas a tus propias automatizaciones.
+Para preparar recursos compartidos en un NAS o un OPPO,
+el [tutorial histórico de AVPasión](https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867)
+aporta contexto; utiliza los pasos Docker de HCC para instalar esta aplicación.
 
 ## Documentación
 

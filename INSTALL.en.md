@@ -2,21 +2,31 @@
 
 [Español](INSTALL.md) · [Home](README.en.md)
 
-**Get HCC running in a few steps.** If you already have Emby or Jellyfin, an OPPO/Chinoppo player and Docker on your NAS or computer, you can follow this guide without being a Docker expert.
+Install HCC, then connect your media server, player, and movie folders in your browser. TV, AV receiver, and Home
+Assistant setup is optional.
 
-First, install HCC. Then use the screenshots to connect **Emby/Jellyfin, your OPPO/Chinoppo, movie folders, and TV and/or AV receiver**.
+> This guide prepares the future 1.5.0. The latest published stable release is 1.4.5, which `latest` installs until
+> another stable release is published. Kodi requires the 1.5.0 described here. To test a candidate beforehand, use only a
+> tag announced in the [project releases](https://github.com/tousled/home-cinema-control/releases); do not guess a tag.
 
 ## Before you start
 
-You need:
+Check that you have:
 
-- A **NAS or computer with Docker running**. If you already use **Portainer**, you can install from its web interface without a terminal.
-- **Emby or Jellyfin** and an **OPPO/Chinoppo** on the same local network as HCC.
-- A movie folder your player can browse over the network. You'll connect it later.
+- Docker running on a 64-bit NAS or computer, with Linux and host networking. Images target `linux/amd64` and
+  `linux/arm64`; 32-bit ARM images are not published.
+- A working Emby or Jellyfin server with movies visible in its library.
+- An OPPO/Chinoppo with compatible network control or Kodi on the same local network. Your player must be able to open
+  movies through NFS or SMB, the two supported types of shared folder.
 
-Need to prepare your NAS, PC, Raspberry Pi or player first? Follow the [AVPasión Xnoppo setup guide](https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867) for hardware and network shares, then return here to install HCC.
+For Docker Desktop, use Linux containers and enable **Settings → Resources → Network → Enable host networking**
+(available from Docker Desktop 4.34). This mode has network discovery limitations: enter addresses manually if
+suggestions are missing.
+See [Docker's host networking documentation](https://docs.docker.com/engine/network/drivers/host/). A NAS or Linux
+server is the recommended route.
 
-If Docker is missing, install it first using [Docker's official instructions](https://docs.docker.com/engine/install/) or your device's guide. HCC cannot install Docker for you.
+If Docker is not installed, follow the [official installation instructions](https://docs.docker.com/engine/install/) or
+your NAS manufacturer's guide. HCC does not install Docker. You do not need Home Assistant for your first movie.
 
 ## 1. Install HCC
 
@@ -71,49 +81,44 @@ volumes:
     name: home-cinema-control-config
 ```
 
-**Image source:** this example uses Docker Hub and needs no sign-in. If an existing installation still uses GHCR and gets `denied` or `403 Forbidden`, see [how to switch safely](docs/troubleshoot.en.md#ghcr-pull-fails-denied-or-403-forbidden).
+The example downloads the image from Docker Hub. If an older installation uses GHCR and reports `denied` or
+`403 Forbidden`,
+see [how to change registries while preserving settings](docs/troubleshoot.en.md#ghcr-pull-fails-denied-or-403-forbidden).
 
-**Important:** keep the `home-cinema-control-config` volume. HCC stores your settings there. Don't delete it when updating.
+The `home-cinema-control-config` volume is where Docker keeps your settings and passwords. Keep the same volume during
+updates; do not delete it. HCC stores settings in `config.json` and secrets in `secrets.json`. After an interrupted
+save, also keep hidden files in the volume and restart with the same
+mount: [recovering an interrupted save](docs/recover-configuration.en.md#if-a-save-is-interrupted).
 
 ## 2. Open HCC
 
-In a browser on your local network, enter:
+In a browser on your network, open `http://YOUR-NAS-IP:8090`. Replace `YOUR-NAS-IP` with the address of the NAS or
+computer running Docker. For example, if its address is `192.168.1.50`, open `http://192.168.1.50:8090`. Addresses in
+this guide are examples; use those of your own devices.
 
-```text
-http://YOUR-NAS-IP:8090
-```
+Expected result: HCC opens. If it does not, check that the container is running in Portainer or Docker and
+see [troubleshooting](docs/troubleshoot.en.md).
 
-Replace `YOUR-NAS-IP` with the local IP address of the NAS or computer running HCC. For example, if its address is `192.168.1.50`, open `http://192.168.1.50:8090`.
+## 3. Set up HCC and play your first movie
 
-**Expected result:** you see HCC's web interface. If it doesn't load, check in Portainer or Docker that the container is running, and see [troubleshooting](docs/troubleshoot.en.md).
+Follow [first steps in HCC](docs/getting-started.en.md). The complete walkthrough explains how to:
 
-## 3. Follow the illustrated setup
+1. Authorise Emby or Jellyfin and choose the device HCC monitors.
+2. Prepare and connect OPPO/Chinoppo or Kodi.
+3. Choose player folders, test the paths, and save the result.
+4. Set up your TV and/or AV receiver if you want HCC to coordinate inputs.
+5. Start your first movie from Emby/Jellyfin and check progress.
 
-Next, open [**your first steps in HCC**](docs/getting-started.en.md).
-
-The screenshots walk you through **Media Server, OPPO/Chinoppo, Media Paths and Room (TV and/or AV receiver)**. If you need help with your folders, use the [illustrated Media Paths guide](docs/configure-media-paths.en.md).
-
-**TV and AV receiver setup is part of the normal walkthrough**, including setups with just a TV. **Home Assistant can wait**: it is entirely optional.
-
-## If the OPPO or a media path is not ready
-
-HCC **doesn't hand a movie over to the OPPO** unless it can confirm the player responds and the media path is configured and verified. On Emby/Jellyfin clients supporting remote notifications, you'll see the problem first and the recommended action in a separate message.
-
-| Situation | Error message | Suggested action |
-|---|---|---|
-| OPPO off or unreachable | “OPPO isn't responding.” | “Make sure it's powered on and connected to the network.” |
-| Unverified path (Emby) | “Path not verified. Playback continues in Emby.” | “Verify the path in HCC Media Paths.” |
-| Missing path (Jellyfin) | “Path not configured. Playback continues in Jellyfin.” | “Configure the path in HCC Media Paths.” |
-
-**Emby or Jellyfin is taken from your configured media server**. When the OPPO is unreachable, HCC leaves TV and receiver inputs unchanged. For a missing or unverified media path, HCC doesn't hand over to the OPPO, and native playback may continue in Emby/Jellyfin. If the source app was already playing when HCC detected the unavailable OPPO, you may need to stop it manually. Notification visibility depends on the client.
-
-Check **Media Player → Test connection** or **Media Paths → Test path**. For screenshots, see [First steps](docs/getting-started.en.md#6-play-your-first-movie).
+The walkthrough includes current OPPO, Kodi, Paths, and Room screenshots captured in an isolated instance with
+demonstration data and simulated devices. The [folder guide](docs/configure-media-paths.en.md) expands on NFS/SMB
+options. Before choosing HDMI inputs, check
+the [wiring layouts](docs/getting-started.en.md#5-tv-and-av-receiver-optional).
 
 ## After installation
 
-- **Update HCC:** [Portainer](docs/update-portainer.en.md) or [Docker Compose](docs/update-compose.en.md). You don't need to install it again. The Portainer guide also explains webhook errors and the wait when GitHub limits version lookups.
-- **HCC looks unconfigured:** [configuration recovery](docs/recover-configuration.en.md), without deleting anything.
-- **Special deployments:** [advanced Docker operations](docs/advanced-docker-operations.en.md).
+Use the [Portainer](docs/update-portainer.en.md) or [Docker Compose](docs/update-compose.en.md) guide to update without
+reinstalling. If HCC appears empty, check [configuration recovery](docs/recover-configuration.en.md) before setting
+anything up again.
 
-- **Help improve HCC:** [short questions, interests, and consent](docs/participate.en.md). Taking part is optional; no
-  account or email is required.
+[Home Assistant](docs/home-assistant.en.md) and [Take part](docs/participate.en.md) are optional. For manual backups or
+special installations, see [advanced Docker operations](docs/advanced-docker-operations.en.md).

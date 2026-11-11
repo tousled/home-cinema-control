@@ -2,21 +2,32 @@
 
 [English](INSTALL.en.md) · [Inicio](README.md)
 
-**Vamos a poner HCC en marcha.** Si ya tienes Emby o Jellyfin, un reproductor OPPO/Chinoppo y Docker en tu NAS u ordenador, puedes seguir estos pasos aunque no seas experto en Docker.
+Instala HCC y después conecta tu servidor multimedia, el reproductor y las carpetas de películas desde el navegador. La
+TV, el receptor AV y Home Assistant son opcionales.
 
-Primero instalas HCC. Después, sigue las capturas para conectar **Emby/Jellyfin, el OPPO/Chinoppo, las carpetas de películas y tu TV y/o receptor AV**.
+> Esta guía prepara la futura 1.5.0. La última estable publicada es 1.4.5 y es la que instala `latest` hasta que se
+> publique otra estable. Kodi requiere la 1.5.0 descrita en esta documentación. Para probar antes una candidata, utiliza
+> únicamente una etiqueta anunciada en
+> las [releases del proyecto](https://github.com/tousled/home-cinema-control/releases); no hay que adivinar una etiqueta.
 
 ## Antes de empezar
 
-Solo necesitas:
+Comprueba que tienes:
 
-- Un **NAS u ordenador con Docker funcionando**. Si ya utilizas **Portainer**, puedes hacerlo desde su interfaz web, sin terminal.
-- **Emby o Jellyfin** y un **OPPO/Chinoppo** conectados a la misma red local que HCC.
-- Una carpeta de películas a la que el reproductor pueda acceder desde su menú de red. La conectaremos más adelante.
+- Docker funcionando en un NAS o equipo de 64 bits, con Linux y red de host. Las imágenes son para `linux/amd64` y
+  `linux/arm64`; no se publican para ARM de 32 bits.
+- Emby o Jellyfin funcionando y películas visibles en su biblioteca.
+- Un OPPO/Chinoppo con control por red compatible o Kodi, conectado a la misma red local. El reproductor debe poder
+  abrir las películas por NFS o SMB, los dos tipos de carpeta compartida admitidos.
 
-¿Todavía no tienes preparado el NAS, PC, Raspberry Pi o reproductor? Empieza por la [guía de AVPasión sobre Xnoppo](https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867), con instrucciones para preparar el equipo y compartir las carpetas. Después vuelve aquí para instalar HCC.
+Si utilizas Docker Desktop, necesitas contenedores Linux y activar **Settings → Resources → Network → Enable host
+networking** (disponible desde Docker Desktop 4.34). Ese modo tiene limitaciones para el descubrimiento de red: si no
+aparecen sugerencias, introduce las direcciones manualmente. Consulta
+la [documentación de Docker sobre red de host](https://docs.docker.com/engine/network/drivers/host/). Un NAS o servidor
+Linux es el recorrido recomendado.
 
-Si te falta Docker, instálalo primero siguiendo la [documentación oficial de Docker](https://docs.docker.com/engine/install/) o la guía de tu equipo. HCC no instala Docker automáticamente.
+Si todavía no tienes Docker, sigue la [instalación oficial](https://docs.docker.com/engine/install/) o las instrucciones
+del fabricante de tu NAS. HCC no instala Docker. No necesitas preparar Home Assistant para ver tu primera película.
 
 ## 1. Instala HCC
 
@@ -71,50 +82,43 @@ volumes:
     name: home-cinema-control-config
 ```
 
-**Origen de descarga:** el archivo utiliza Docker Hub, sin necesidad de iniciar sesión. Si estás actualizando una instalación antigua que utiliza GHCR y ves `denied` o `403 Forbidden`, sigue la [solución para cambiar de registro sin perder los ajustes](docs/solucionar-problemas.md#docker-no-puede-descargar-la-imagen-desde-ghcr).
+El ejemplo descarga la imagen desde Docker Hub. Si una instalación anterior usa GHCR y falla con `denied` o
+`403 Forbidden`,
+consulta [cómo cambiar de registro conservando los ajustes](docs/solucionar-problemas.md#error-de-descarga-desde-ghcr-denied-o-403-forbidden).
 
-**Muy importante:** conserva el volumen `home-cinema-control-config`: es donde HCC guarda los ajustes. No debes borrarlo al actualizar.
-
+El volumen `home-cinema-control-config` es el espacio donde Docker conserva tus ajustes y contraseñas. Mantén el mismo
+volumen al actualizar; no lo borres. HCC guarda los ajustes en `config.json` y los secretos en `secrets.json`. Si un
+guardado se interrumpe, conserva también los archivos ocultos del volumen y reinicia con el mismo
+montaje: [recuperación de un guardado interrumpido](docs/recuperar-configuracion.md#si-se-interrumpe-un-guardado).
 
 ## 2. Abre HCC
 
-Desde el navegador de un dispositivo de tu red, escribe:
+En un navegador de tu red, abre `http://IP-DE-TU-NAS:8090`. Sustituye `IP-DE-TU-NAS` por la dirección del NAS u
+ordenador que ejecuta Docker. Por ejemplo, si su dirección es `192.168.1.50`, abre `http://192.168.1.50:8090`. Las
+direcciones de esta guía son ejemplos; utiliza las de tus equipos.
 
-```text
-http://IP-DE-TU-NAS:8090
-```
+Resultado: aparece HCC. Si no abre, comprueba que el contenedor está en ejecución en Portainer o Docker y
+consulta [solución de problemas](docs/solucionar-problemas.md).
 
-Sustituye `IP-DE-TU-NAS` por la dirección de red del ordenador o NAS donde has instalado HCC. Por ejemplo, si su dirección es `192.168.1.50`, entrarías en `http://192.168.1.50:8090`.
+## 3. Configura y reproduce tu primera película
 
-**Resultado:** verás la interfaz de HCC. Si no abre, comprueba en Portainer o Docker que el contenedor está funcionando y consulta [solución de problemas](docs/solucionar-problemas.md).
+Sigue los [primeros pasos dentro de HCC](docs/primeros-pasos.md). El recorrido completo explica:
 
-## 3. Sigue las pantallas con capturas
+1. Autorizar Emby o Jellyfin y elegir el dispositivo que HCC supervisa.
+2. Preparar y conectar OPPO/Chinoppo o Kodi.
+3. Elegir las carpetas del reproductor, probar las rutas y guardar el resultado.
+4. Configurar la TV y/o receptor AV, si quieres que HCC coordine sus entradas.
+5. Iniciar una primera película desde Emby/Jellyfin y comprobar el progreso.
 
-Ahora viene la parte visual: [**primeros pasos en HCC**](docs/primeros-pasos.md).
+El recorrido incluye capturas actuales de OPPO, Kodi, Rutas y Sala, obtenidas en una instancia aislada con datos de
+demostración y equipos simulados. La [guía de carpetas](docs/configurar-rutas.md) amplía las opciones de NFS/SMB. Antes
+de elegir entradas HDMI, revisa los [esquemas de cableado](docs/primeros-pasos.md#5-tv-y-receptor-av-opcional).
 
-Te enseñará a conectar **Media Server, OPPO/Chinoppo, Media Paths y Sala (TV y/o receptor AV)**, cada uno con sus capturas. Si necesitas ayuda con las carpetas, tienes la [guía visual de Media Paths](docs/configurar-rutas.md).
+## Después de la instalación
 
-Configurar la **TV o el receptor AV es habitual y está incluido en el recorrido principal**; puedes hacerlo aunque solo tengas TV. **Home Assistant sí queda para más adelante**: es completamente opcional.
+Usa la guía de [Portainer](docs/actualizar-portainer.md) o [Docker Compose](docs/actualizar-compose.md) para actualizar
+sin reinstalar. Si HCC aparece vacío, consulta [recuperar configuración](docs/recuperar-configuracion.md) antes de
+volver a configurar nada.
 
-## Si el OPPO o una ruta no están listos
-
-HCC **no envía la película al OPPO** si no puede confirmar que responde o si la ruta no está configurada y verificada. En un cliente Emby/Jellyfin compatible con notificaciones remotas verás el error y, después, la recomendación en un aviso separado.
-
-| Situación | Aviso de error | Aviso con la solución |
-|---|---|---|
-| OPPO apagado o inaccesible | «El OPPO no responde.» | «Comprueba que esté encendido y conectado a la red.» |
-| Ruta sin verificar (Emby) | «Ruta sin verificar. La reproducción continúa en Emby.» | «Verifica la ruta en Rutas multimedia de HCC.» |
-| Ruta sin configurar (Jellyfin) | «Ruta sin configurar. La reproducción continúa en Jellyfin.» | «Configura la ruta en Rutas multimedia de HCC.» |
-
-El nombre **Emby o Jellyfin se adapta al servidor configurado**. Si el OPPO no responde, HCC deja intactas las entradas de TV y receptor. Con una ruta sin configurar o verificar, no hay traspaso al OPPO y la reproducción puede continuar en la aplicación de Emby/Jellyfin. Si esta ya estaba reproduciendo cuando se detectó el OPPO inaccesible, puede que tengas que detenerla manualmente. La visualización de avisos depende del cliente.
-
-Para comprobarlos, utiliza **Media Player → Probar conexión** o **Media Paths → Probar ruta**. Encontrarás capturas en [Primeros pasos](docs/primeros-pasos.md#6-reproduce-tu-primera-película).
-
-## ¿Y después?
-
-- **Actualizar HCC:** [Portainer](docs/actualizar-portainer.md) o [Docker Compose](docs/actualizar-compose.md). No tendrás que instalarlo de nuevo. La guía de Portainer también explica los errores del webhook y la espera cuando GitHub limita la consulta de versiones.
-- **HCC aparece vacío:** [recuperar configuración](docs/recuperar-configuracion.md), sin borrar nada.
-- **Instalaciones especiales:** [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).
-
-- **Ayudar a mejorar HCC:** [preguntas breves, intereses y consentimiento](docs/participar.md). Es opcional; no
-  necesitas cuenta ni email.
+[Home Assistant](docs/home-assistant.md) y [Participar](docs/participar.md) son opcionales. Para copias manuales o
+instalaciones especiales, consulta [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).

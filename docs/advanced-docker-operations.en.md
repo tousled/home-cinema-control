@@ -28,7 +28,8 @@ docker run -d \
 
 Open `http://<your-host>:8090`.
 
-Host networking is required so HCC can reach Emby, the player, TV, AVR, and network discovery tools directly.
+Host networking is required so HCC can reach Emby/Jellyfin, OPPO/Chinoppo or Kodi, TV, AVR, and network discovery tools
+directly.
 
 ## Update from a NAS manager
 
@@ -68,6 +69,10 @@ docker volume inspect home-cinema-control-config
 
 Before backing up, also confirm that the HCC container mounts **that same volume** at `/config` using `docker inspect home-cinema-control --format '{{range .Mounts}}{{println .Name .Destination}}{{end}}'`. If `docker volume inspect` fails, **do not run the backup command**. Identify the correct volume first. Some Docker commands automatically create an empty volume. Backups contain credentials: protect the archives and do not share them.
 
+Before copying, stop HCC in Portainer or with `docker stop home-cinema-control`. This keeps settings and secrets from
+the same saved revision. If secrets are outside `/config`, also back up that entire directory and its hidden files while
+HCC is stopped; this example copies only the named volume. Preserve recovery files and the same configured paths.
+
 ```bash
 mkdir -p hcc-backups
 docker run --rm \
@@ -76,6 +81,8 @@ docker run --rm \
   alpine:3.20 \
   tar -czf /backup/hcc-config-backup.tar.gz -C /config .
 ```
+
+After the copy finishes, start HCC in Portainer or with `docker start home-cinema-control`.
 
 The file `hcc-backups/hcc-config-backup.tar.gz` should appear in the current folder. Store that copy outside the Docker
 host. This procedure is optional and intended for Linux/macOS; on Windows or a NAS, use the system's own backup tool.

@@ -31,6 +31,10 @@ Los eventos de reproducción nuevos incluyen:
   del receptor admite el contrato v3. HCC conserva el valor incluso cuando
   reintenta el payload desde su cola local.
 
+`/ping` incluye el esquema de conexión de Sala (`split_av_tv`, `via_avr`, `direct_tv` o `unknown`), únicamente con la
+participación en telemetría activada. No incluye puertos, IP ni nombres de entradas HDMI. Las instalaciones anteriores
+sin elección explícita se clasifican como `unknown`.
+
 `/ping` envía un snapshot técnico al activar la telemetría o cuando cambia una
 configuración permitida. No se usa como latido periódico y los snapshots
 equivalentes se coalescen. `/heartbeat` envía como máximo un contacto mínimo
@@ -80,8 +84,8 @@ La revocación cancela los envíos pendientes, pero no borra lo ya recibido.
 2. Confirmar su CI y que el dashboard conserva los hechos históricos, muestra
    la revocación como tal y nunca interpreta el silencio como desinstalación.
 3. Publicar después una revisión aprobada de HCC y ejecutar sus pruebas de
-   cola, actualización, concurrencia de revocación y compatibilidad. No se
-   activa ni publica una imagen 1.4.3 como parte de este procedimiento.
+   cola, actualización, concurrencia de revocación y compatibilidad. Documentar
+   el contrato no autoriza por sí mismo un despliegue ni una publicación.
 4. Tras el despliegue autorizado, comprobar con una instalación de prueba que
    el opt-in conserva su identificador, `/ping` solo cambia ante un snapshot
    relevante, el heartbeat llega a `/heartbeat` y la revocación no deja cola.
