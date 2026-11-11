@@ -4,8 +4,6 @@
 
 Esta página permite consultar opciones sin ejecutar cambios sobre Docker. Para gestionar un NAS, usar `docker run` o crear una copia manual, consulta [operaciones Docker avanzadas](operaciones-docker-avanzadas.md).
 
-## Opciones y conceptos
-
 ## Consulta rápida
 
 | Elemento | Valor del Compose oficial | Para qué sirve |
@@ -23,8 +21,9 @@ Los valores de esta tabla describen **el ejemplo de instalación oficial**, no l
 ### Etiquetas de imagen
 
 - `latest`: última versión estable publicada. Es la opción recomendada para la mayoría de las instalaciones.
-- `1.4.2` o similar: versión estable fijada manualmente. Solo se actualiza cuando cambias el tag.
-- `1.4.2-rc.1` o similar: versión candidata. No la uses en una instalación normal salvo que quieras probarla.
+- `1.4.5`: versión estable fijada manualmente. Solo se actualiza cuando cambias el tag.
+- `rc` o una candidata exacta anunciada: para pruebas, solo cuando esté publicada. Consulta las releases antes de
+  elegirla; no implica que 1.5.0 ya esté disponible.
 
 ### `HCC_VERSION`
 
@@ -51,3 +50,21 @@ volumen no es una actualización: es borrar los datos.
 HCC no ejecuta comandos Docker por su cuenta. Sin un webhook configurado, **Actualizar** muestra el comando manual para
 que lo ejecutes en tu gestor. Con un webhook, HCC avisa al gestor configurado y ese gestor descarga la imagen y reinicia
 el contenedor. En ambos casos, el volumen persistente debe conservarse.
+
+### Perfiles y rutas de reproductores en 1.5.0
+
+La configuración pública utiliza `media_players.active` para el reproductor elegido y `media_players.providers` para los
+perfiles de OPPO y Kodi. El usuario, dirección, puerto y ajustes avanzados de Kodi son públicos; su contraseña solo se
+guarda en `secrets.json`, bajo `media_players.providers.kodi.password`. La interfaz indica si hay contraseña guardada
+sin devolverla. Una contraseña omitida conserva la anterior.
+
+Las rutas pertenecen al servidor multimedia y al reproductor:
+`media_servers.providers.<servidor>.playback.path_mappings_by_player`. HCC conserva la lectura de formatos anteriores y
+asigna las rutas antiguas sin reproductor a OPPO. No edites ni dupliques estos datos para alternar equipos: utiliza
+**Media Player** y **Media Paths**.
+
+El puerto HTTP de Kodi suele ser `8080`; utiliza el que muestre Kodi en sus ajustes de control. La interfaz web de HCC
+utiliza `8090`. No son el mismo servicio.
+
+Consulta [recuperación de configuración](recuperar-configuracion.md#si-se-interrumpe-un-guardado) para guardados
+interrumpidos. Mantén un único proceso HCC escribiendo en cada volumen de configuración.

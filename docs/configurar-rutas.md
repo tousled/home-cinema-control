@@ -2,86 +2,150 @@
 
 [Inicio](../README.md) · [Instalación](../INSTALL.md) · [Primeros pasos](primeros-pasos.md) · [English](configure-media-paths.en.md)
 
-**No tienes que escribir las rutas a mano.** HCC detecta las bibliotecas de Emby/Jellyfin y tiene un navegador para elegir las carpetas desde el OPPO/Chinoppo. Normalmente basta con seleccionar, explorar y probar.
+Una película puede tener una dirección en Emby/Jellyfin y otra en el reproductor. HCC guarda la relación entre ambas
+para abrir el mismo archivo. El navegador evita que tengas que adivinar la dirección del reproductor.
 
-Antes de empezar, las películas deben aparecer en Emby/Jellyfin y el OPPO debe poder abrir la carpeta compartida desde su propio menú. ¿Aún no tienes preparado el NAS, PC o Raspberry Pi? Sigue primero la [guía de AVPasión](https://foro.avpasion.com/t/xnoppo-lo-mejor-de-emby-en-tu-oppo-203-205-y-chinoppo-clones-m9702-m9201-m9203-m9205.2779/page-21#post-73867) y vuelve aquí.
+Por ejemplo, `/volume1/Video/Peliculas` y `smb://nas/Video/Peliculas/` pueden ser la misma carpeta vista desde dos
+equipos. Son ejemplos, no valores que debas copiar.
+
+Antes de empezar, conecta el servidor y el reproductor siguiendo los [primeros pasos](primeros-pasos.md). Comprueba que
+el propio reproductor abre una película desde la carpeta compartida. Las instrucciones de Kodi corresponden a HCC 1.5.0,
+pendiente de publicación.
 
 ## Configura una biblioteca
 
+Sigue estos pasos para cada carpeta que quieras utilizar. Si una biblioteca incluye varias carpetas, configura cada una.
+
 ### 1. Elige tu biblioteca
 
-Abre **Media Paths** en HCC. Se muestran las carpetas de las bibliotecas de tu servidor multimedia. Si acabas de añadir una biblioteca, pulsa **Actualizar bibliotecas**.
+1. Abre **Rutas** en HCC y confirma que has seleccionado el reproductor correcto en **Media Player**.
+2. Pulsa **Actualizar bibliotecas** si faltan carpetas del servidor multimedia.
+3. Elige la carpeta de la biblioteca, por ejemplo **Películas**. HCC ya conoce la ruta del servidor; normalmente no
+   tienes que editarla.
 
-Selecciona, por ejemplo, **Películas**. HCC ya conoce la **ruta del servidor**, así que no tienes que escribirla ni modificarla.
-
-<p align="center">
-  <img src="../assets/screenshots/install/04-media-paths-overview.png" alt="Bibliotecas detectadas y rutas en Media Paths" width="860"/>
-</p>
-
-Por defecto puedes usar todas las bibliotecas. Si solo quieres que algunas reproduzcan a través del OPPO, elígelas en el apartado de selección y guarda los cambios.
-
-<p align="center">
-  <img src="../assets/screenshots/install/05-media-paths-library-filter.png" alt="Selección de bibliotecas que HCC debe controlar" width="860"/>
-</p>
-
-### 2. Abre el navegador del OPPO
-
-En la sección **Acceso OPPO**, utiliza el protocolo con el que ya accedes a tus películas desde el reproductor: **NFS** o **Usar SMB/CIFS**.
-
-Pulsa el botón **Explorar OPPO**, junto al campo de ruta del reproductor. **Entra en las carpetas que aparecen en el navegador hasta llegar a la carpeta compartida correspondiente a la biblioteca.** A medida que navegas, HCC rellena la ruta del OPPO por ti.
-
-No copies aquí la ruta que aparece en Emby/Jellyfin: puede ser diferente aunque ambas apunten a las mismas películas.
-
-Si utilizas SMB y el recurso pide usuario y contraseña, introdúcelos en **Acceso OPPO** y pulsa **Guardar** en el apartado de acceso antes de probar.
+La selección de bibliotecas determina cuáles puede controlar HCC. Para limitarlo a algunas, abre **Bibliotecas
+interceptadas**, desmarca **Usar todas las bibliotecas**, elige las que quieras y pulsa **Guardar bibliotecas**. Una
+biblioteca excluida seguirá reproduciéndose en Emby/Jellyfin.
 
 <p align="center">
-  <img src="../assets/screenshots/install/07-media-paths-smb-credentials.png" alt="Acceso SMB con usuario y contraseña, solo cuando es necesario" width="860"/>
+  <img src="../assets/screenshots/install/04-media-paths-overview.png" alt="Ejemplo de bibliotecas y carpetas detectadas" width="860"/>
 </p>
+
+### 2. Elige la carpeta del reproductor
+
+Utiliza únicamente el apartado correspondiente a tu reproductor activo.
+
+#### OPPO/Chinoppo
+
+1. En **Acceso OPPO**, elige el protocolo que ya funciona desde el menú de red del reproductor: NFS o **Usar SMB/CIFS**.
+   NFS y SMB son dos maneras de acceder a una carpeta compartida por tu NAS u ordenador.
+2. Si SMB exige credenciales, introduce aquí el usuario y contraseña de esa carpeta y pulsa **Guardar** en el apartado
+   de acceso.
+3. Pulsa **Explorar OPPO**, junto a la ruta del reproductor. Entra en la carpeta compartida correspondiente a la
+   biblioteca. HCC completa la dirección a medida que navegas.
+
+No copies la ruta del servidor en el campo del OPPO: pueden ser diferentes aunque apunten a las mismas películas.
+
+<p align="center">
+  <img src="../assets/screenshots/install/07-media-paths-smb-credentials.png" alt="Ejemplo de credenciales SMB de Acceso OPPO" width="860"/>
+</p>
+
+#### Kodi
+
+Las credenciales HTTP guardadas en **Media Player** sirven para controlar Kodi. Las credenciales de la carpeta SMB se
+configuran en Kodi, no en **Acceso OPPO**. Para NFS, el NAS debe permitir el acceso al equipo donde se ejecuta Kodi.
+
+1. En Kodi, comprueba que la carpeta NFS o SMB está añadida en **Vídeos → Archivos** y que puedes abrirla. Si falta,
+   utiliza **Añadir vídeos**. HCC explora estas fuentes de vídeo; no busca recursos del NAS por su cuenta.
+2. En HCC, pulsa **Explorar carpetas de Kodi**. Se abre **Carpetas disponibles en Kodi** con las fuentes disponibles
+   primero y los nombres ordenados alfabéticamente dentro de cada grupo.
+3. Pulsa la fuente NFS/SMB y entra en la carpeta equivalente a la del servidor. Cada carpeta seleccionada completa la
+   ruta y el protocolo automáticamente. **Volver** regresa a la ubicación anterior; no hay un segundo botón para
+   confirmar la carpeta.
+4. Comprueba el campo de ruta del reproductor. Debe empezar por `nfs://` o `smb://`, sin usuario ni contraseña en la
+   dirección.
+   Las capturas de Kodi utilizan fuentes y equipos simulados en una instancia real de HCC con datos de demostración.
+
+<p align="center">
+  <img src="../assets/screenshots/install/04-kodi-sources.png" alt="Fuentes de vídeo disponibles en Kodi, con datos de demostración" width="860"/>
+</p>
+
+<p align="center">
+  <img src="../assets/screenshots/install/04-kodi-folder-browser.png" alt="Carpeta seleccionada y navegación Volver en Kodi" width="860"/>
+</p>
+
+
+Las fuentes locales de Kodi se muestran sin permitir su selección. Quedan fuera de la 1.5.0 y se reservan para una
+actualización 1.5.x, sin fecha anunciada. Tampoco se admiten fuentes `plugin://` ni otros protocolos. Esta limitación de
+HCC no impide usar esas fuentes directamente en Kodi.
+
+<p align="center">
+  <img src="../assets/screenshots/install/04-kodi-unsupported-source.png" alt="Fuente local de Kodi deshabilitada y explicación de compatibilidad" width="860"/>
+</p>
+
+
+Si HCC muestra una sugerencia basada en una relación de carpetas ya comprobada, puedes utilizarla como punto de partida.
+Revisa que corresponde a esta biblioteca y pulsa **Probar ruta** igualmente.
 
 ### 3. Pulsa «Probar ruta»
 
-Con la carpeta elegida, pulsa **Probar ruta**.
+Con la carpeta elegida, pulsa **Probar ruta**. Cuando aparece **Ruta verificada** en verde, HCC guarda la relación y
+puedes utilizar esa carpeta. No hace falta volver a guardarla manualmente.
 
-**Si todo funciona, HCC muestra «Ruta verificada» en verde y guarda el mapeo.** Ya puedes utilizar esa biblioteca para reproducir en el OPPO. No necesitas guardar una ruta manual adicional.
-
-<p align="center">
-  <img src="../assets/screenshots/install/06-media-paths-nfs-mapping.png" alt="Ejemplo de una ruta NFS correctamente verificada" width="860"/>
-</p>
-
-Repite estos tres pasos para las demás bibliotecas que quieras utilizar. Si tienes una biblioteca con varias carpetas, puedes configurar las rutas que necesites.
-
-## ¿Qué pasa si no aparece «Ruta verificada»?
-
-**Al reproducir:** HCC no enviará al OPPO un título cuya ruta esté sin configurar o verificar. El cliente Emby/Jellyfin puede mostrar primero «Ruta sin verificar. La reproducción continúa en Emby.» y después «Verifica la ruta en Rutas multimedia de HCC.». Si falta una ruta, mostrará «Ruta sin configurar» y recomendará configurarla. Se utiliza el nombre de tu servidor multimedia, y la aparición de avisos depende del cliente.
-
-
-Abre el apartado **Qué significa cada estado** de Media Paths:
-
-| Estado | Qué hacer |
-|---|---|
-| **Verificada** (verde) | Todo listo: la ruta se ha probado correctamente. |
-| **No verificada** | Falta probar la ruta o la prueba no se ha completado correctamente. Pulsa **Probar ruta**. |
-| **Revisar** | Has cambiado una ruta antes verificada. Vuelve a probarla. |
-| **Sin ruta** | Aún no has elegido la carpeta del OPPO. |
-| **No interceptada** | Esa biblioteca no está activada para que HCC controle su reproducción. |
-| **Error** | La última prueba ha fallado. Lee el motivo y la sugerencia que muestra HCC. |
+En Kodi, la prueba consulta el acceso a la carpeta y no inicia ninguna reproducción. Kodi abrirá las películas por su
+propia conexión NFS/SMB; HCC no monta esa carpeta en Kodi. Una prueba de carpeta no garantiza la compatibilidad de todos
+los archivos que contiene.
 
 <p align="center">
-  <img src="../assets/screenshots/install/08-media-paths-states.png" alt="Estados de rutas verificadas, pendientes y con error" width="860"/>
+  <img src="../assets/screenshots/install/06-kodi-path-verified.png" alt="Ruta Kodi verificada mediante el servicio simulado de demostración" width="860"/>
 </p>
 
-**Si el navegador no abre las carpetas**, comprueba primero que el OPPO esté encendido y que pueda entrar en ellas desde su propio menú. En los **OPPO UDP-203/205**, verifica **SETUP → Network Setup → IP Control → On**; en clones comprueba la opción equivalente según el firmware. Comprueba también el protocolo elegido y, si usas SMB, sus credenciales. No repitas muchas veces una prueba SMB fallida: algunos reproductores necesitan reiniciarse tras varios intentos.
 
-**Si el navegador no puede ayudarte**, puedes introducir la ruta del OPPO mediante el **modo avanzado/manual**. En ese caso:
-
-1. Comprueba en el explorador de red del OPPO cuál es la carpeta compartida real.
-2. Pulsa **Editar ruta del servidor** para abrir el modo avanzado y escribe o ajusta la ruta del OPPO para esa biblioteca.
-3. Pulsa **Probar ruta** y no la des por terminada hasta obtener **Ruta verificada**.
+**Guardar borrador** conserva una relación todavía pendiente. No la habilita para reproducir: falta obtener una prueba
+correcta.
 
 <p align="center">
-  <img src="../assets/screenshots/install/09-media-paths-manual.png" alt="Modo avanzado para introducir una ruta cuando no funciona el navegador" width="860"/>
+  <img src="../assets/screenshots/install/06-media-paths-nfs-mapping.png" alt="Ejemplo OPPO de una ruta NFS verificada" width="860"/>
 </p>
 
-Si el OPPO ve por SMB `Video/Peliculas` y Emby ve `/volume1/Video/Peliculas`, es normal que los nombres sean distintos: **el navegador evita que tengas que adivinarlos**.
+## Cambiar entre OPPO y Kodi
 
-Si el problema continúa, abre **Diagnóstico** y revisa el último fallo y su recomendación. En [Solucionar problemas](solucionar-problemas.md) encontrarás ayuda para NFS, SMB y los fallos de conexión; también explica cómo descargar los logs y [contactar con soporte](solucionar-problemas.md#contacto-y-soporte).
+HCC guarda rutas independientes para cada reproductor y servidor multimedia. Al elegir Kodi en **Media Player**,
+aparecen sus rutas; al volver a OPPO, recuperas las del OPPO. Configurar uno no sustituye las carpetas del otro. Si
+cambias de Emby a Jellyfin, cada servidor también conserva sus relaciones.
+
+Las configuraciones anteriores de rutas sin reproductor asignado se conservan para OPPO durante la migración. Configura
+y prueba las de Kodi por separado; no necesitas rehacer las del OPPO.
+
+## ¿Qué significa cada estado?
+
+El apartado **Qué significa cada estado** de Rutas explica qué falta para completar una carpeta.
+
+| Estado              | Qué hacer                                                                  |
+|---------------------|----------------------------------------------------------------------------|
+| **Verificada**      | La prueba terminó correctamente.                                           |
+| **No verificada**   | Pulsa **Probar ruta**.                                                     |
+| **Revisar**         | Has modificado una relación verificada; vuelve a probarla.                 |
+| **Sin ruta**        | Elige la carpeta del reproductor.                                          |
+| **No interceptada** | Esa biblioteca no está seleccionada para que HCC controle su reproducción. |
+| **Error**           | Lee el motivo y la recomendación de la última prueba.                      |
+
+Sin una ruta configurada y verificada, HCC no entrega esa película al reproductor. Puede continuar en Emby/Jellyfin; la
+visualización de avisos depende de su aplicación.
+
+## Si la carpeta no aparece o la prueba falla
+
+En Kodi, vuelve a **Vídeos → Archivos** y comprueba la misma carpeta. Si no se abre allí, revisa el recurso compartido y
+sus permisos o credenciales en Kodi. Si no aparecen fuentes en HCC, confirma que son fuentes de vídeo NFS/SMB, no
+entradas añadidas solo al gestor de archivos.
+
+En OPPO, comprueba que está encendido y que el control IP está activo: **SETUP → Network Setup → IP Control → On** en
+UDP-203/205, o su equivalente según el firmware del clon. Revisa el protocolo y las credenciales SMB. No repitas muchas
+veces una prueba SMB fallida: algunos OPPO/Chinoppo necesitan reiniciarse después.
+
+El modo avanzado/manual permite ajustar las rutas si el navegador no puede ayudarte. Modifica la ruta del reproductor;
+utiliza **Editar ruta del servidor** solo si necesitas corregir también cómo la identifica el servidor. Después pulsa
+**Probar ruta**.
+
+Abre **Diagnóstico** y consulta [solución de problemas](solucionar-problemas.md) si el fallo continúa. Para pedir ayuda,
+incluye el mensaje de la prueba sin publicar contraseñas.

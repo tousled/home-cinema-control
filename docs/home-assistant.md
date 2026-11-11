@@ -4,7 +4,7 @@
 
 **No necesitas Home Assistant para utilizar HCC.** Esta función opcional envía eventos de reproducción a Home Assistant para que puedas automatizar las luces o la sala. Sigue estos pasos solo si ya utilizas Home Assistant.
 
-## 9. Conecta HCC con Home Assistant
+## Conecta HCC con Home Assistant
 
 Con esta integración, HCC avisa a Home Assistant cuando detecta una reproducción, empieza, se pausa, continúa o termina.
 Después,
@@ -16,7 +16,7 @@ registro. HCC no crea automatizaciones por su cuenta; tú eliges la reacción en
   <img src="../assets/screenshots/install/10-home-assistant.png" alt="Pantalla de configuración de Home Assistant en HCC" width="860"/>
 </p>
 
-### 9.1 Crea la automatización en Home Assistant
+### 1. Crea la automatización en Home Assistant
 
 En Home Assistant crea una automatización con un disparador **Webhook**. Puedes copiar este ejemplo completo. De momento
 solo escribe cada cambio en el registro de Home Assistant, para que puedas comprobar que la conexión funciona antes de
@@ -91,7 +91,7 @@ Para aprender más sobre automatizaciones, consulta la
 disparador,
 consulta la [documentación oficial del Webhook](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
 
-### 9.2 Configura HCC
+### 2. Configura HCC
 
 En la pantalla **Home Assistant** de HCC:
 
@@ -107,7 +107,7 @@ El ajuste de timeout de **Ajustes avanzados** normalmente no tienes que cambiarl
 más
 de lo normal en responder.
 
-### 9.3 Comprueba que funciona
+### 3. Comprueba que funciona
 
 HCC envía estos cinco eventos:
 
@@ -146,3 +146,6 @@ webhook, el estado vuelve a pendiente hasta que HCC consiga enviar un evento con
 Si HCC no puede cargar esta pantalla, muestra un error con la opción **Reintentar** en lugar de rellenar el formulario
 con
 valores que podrían no ser los tuyos.
+
+El campo `player` identifica el reproductor utilizado, por ejemplo `oppo` o `kodi`. Las automatizaciones pueden
+reaccionar al mismo evento sin depender de cuál esté seleccionado.
