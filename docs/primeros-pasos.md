@@ -90,14 +90,16 @@ Kodi certificadas por HCC; comprueba la conexión y una película en tu equipo.
 4. En HCC, abre **Media Player** y elige **Kodi** en **Conexión**. Introduce su dirección, por ejemplo `192.168.1.20`,
    sin `http://`. En **Puerto**, a la derecha de la dirección, escribe el puerto HTTP que anotaste.
 5. En **Autorización**, escribe el usuario y la contraseña del control HTTP de Kodi, que pueden ser distintos de los del
-   NAS. Pulsa **Guardar** junto a los campos. HCC comprueba la conexión antes de guardar; si falla, conserva los ajustes
+   NAS. Pulsa **Guardar**, debajo de Conexión y Autorización. HCC comprueba la conexión antes de guardar; si falla, conserva los ajustes
    anteriores.
 6. Pulsa **Probar Kodi**. Debe confirmar la conexión sin necesitar una reproducción activa. Si falla, lee el motivo:
    dirección o puerto inválidos, credenciales rechazadas, Kodi inaccesible o error de comunicación. Corrige ese dato y
-   repite.
+   repite. Consulta
+   los [errores de conexión de Kodi y su captura de ejemplo](solucionar-problemas.md#probar-kodi-o-guardar-credenciales-falla)
+   si necesitas identificar el resultado.
 
 Resultado: quedan guardados el perfil y las credenciales de Kodi. Verás el usuario y **Contraseña guardada**. **Cambiar
-contraseña** abre la edición; **Guardar** valida los nuevos datos y **Cancelar** descarta la edición. Omitir una
+contraseña** abre la edición; el botón **Guardar** bajo ambos bloques valida los nuevos datos y **Cancelar** descarta la edición. Omitir una
 contraseña conserva la existente. **Probar Kodi** usa una contraseña nueva si la has escrito y, en caso contrario, la
 guardada.
 
@@ -111,12 +113,19 @@ guardada.
 </p>
 
 Si Kodi permite entrar sin autenticación, HCC no puede confirmar un usuario y contraseña: no los declara válidos. Activa
-la autenticación en Kodi y repite. Los demás ajustes de la pantalla se guardan con **Guardar** al final.
+la autenticación en Kodi y repite. El mismo botón **Guardar** conserva los demás ajustes de la pantalla.
 
 
 <p align="center">
   <img src="../assets/screenshots/install/03-kodi-connection-test.png" alt="Resultado de Probar Kodi en la instancia de demostración" width="860"/>
 </p>
+
+El control de energía es opcional. En **Opciones → Encendido y apagado**, deja **Mantener encendido** si utilizas el
+mando del dispositivo. El asistente prueba el apagado y, para el modo automático, también el encendido. WoL, Android TV
+Remote y ADB son alternativas de encendido; prepara solo la que corresponda a tu equipo. Un apagado experimental sin
+verificar requiere tu aceptación expresa y encendido manual. Si HCC acepta la cancelación antes del envío, la orden no
+se envía. Cancelar no deshace una orden que ya haya empezado. La compatibilidad con dispositivos físicos sigue pendiente
+de validación.
 
 ### 4. Conecta tus carpetas de películas
 

@@ -177,6 +177,10 @@ credentials.
 | Communication error                        | Confirm that the port serves Kodi's HTTP control and check the error in Diagnostics.                     |
 | Authentication not required                | Kodi permits anonymous access, so HCC cannot verify supplied credentials. Enable authentication in Kodi. |
 
+If the configured address returns an HTTP authentication error, first check that it belongs to Kodi. Another program
+may be responding at that address or port. That error alone does not prove the Kodi password is incorrect. The remote
+does not send a Wake-on-LAN signal in response to that error.
+
 Example credential rejection using the simulated Kodi demonstration service:
 
 <p align="center">
@@ -185,6 +189,49 @@ Example credential rejection using the simulated Kodi demonstration service:
 
 The test does not need an active movie. OPPO advanced settings must not block it. If an unrelated error appears, include
 the message and installed version when contacting support.
+
+#### The shutdown test cannot check playback
+
+If HCC cannot read Kodi's playback state, it stops the test without sending a shutdown command. Check the address and
+HTTP remote control port, then try again. An unreadable response does not confirm that Kodi is idle. Check the logs if
+the error continues.
+
+Availability checks distinguish available Kodi, network unavailability and an indeterminate state. An HTTP 401/403,
+another communication error or an invalid Ping leaves the state indeterminate: it does not establish shutdown and
+cannot verify shutdown or start a wake test. Check HTTP access, credentials and the address before retrying.
+
+A capability-query failure before sending does not count as a shutdown attempt either. Correct the problem and retry;
+that failure cannot enable experimental shutdown. An uncertain outcome is only possible after HCC starts the command
+and cannot determine its result.
+
+If Kodi settings change during testing or just before saving, HCC rejects the earlier result. Reopen the wizard and
+test the current settings. This also applies when another browser changes the selected player: saving an old test
+must not select Kodi again.
+
+Leaving **Media Player** cancels the wizard session when HCC can receive the request. A command that has already
+started may continue; cancellation does not wake or power off the device. You can start another test when you return.
+If the connection is lost before cancellation, the server session expires after 15 minutes.
+
+Pre-send checks do not block cancellation. If cancellation is accepted before the command starts, HCC does not start
+it; a command whose send has already started may continue even when the session is cancelled.
+
+#### Kodi responds, but wake is not verified
+
+If Kodi responds before HCC sends the Wake-on-LAN signal, the device is available, but the test does not establish
+that this method woke it. HCC does not save that method as verified. Suspend or power off the device manually and
+repeat the test from another device. Kodi responding again for another reason is insufficient.
+
+After sending Wake-on-LAN, HCC requires the Ping response to be exactly `pong`. A different response cannot verify
+wake, even if the HTTP server answered.
+
+#### Android TV pairing does not complete
+
+Enter the code while the test is active. If it expires, select **Pair Android TV** to start a new attempt; you do not
+need to restart HCC. Use the code from the new attempt. A code or result from an expired attempt cannot complete the
+new one. Pairing alone does not verify wake support: complete the wizard's wake test.
+
+If you change the profile or Android device during pairing, HCC does not confirm the earlier attempt as valid.
+Start pairing again with the current settings.
 
 #### Sources are missing or cannot be selected
 

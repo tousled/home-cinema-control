@@ -89,12 +89,14 @@ or platforms; test the connection and a movie on your device.
 4. In HCC, open **Media Player** and choose **Kodi** in **Connection**. Enter its address, for example `192.168.1.20`,
    without `http://`. In **Port**, to the right of the address, enter the HTTP port you noted.
 5. In **Authorization**, enter Kodi's HTTP control username and password, which may differ from the NAS credentials.
-   Click **Save** beside the fields. HCC checks the connection before saving; failure preserves the previous settings.
+   Click **Save** below Connection and Authorization. HCC checks the connection before saving; failure preserves the previous settings.
 6. Click **Test Kodi**. It should confirm the connection without active playback. On failure, read the reason: invalid
    address or port, rejected credentials, unreachable Kodi, or a communication error. Correct that setting and retry.
+   See [Kodi connection errors and an example screenshot](troubleshoot.en.md#test-kodi-or-saving-credentials-fails)
+   if you need help identifying the result.
 
 Expected result: Kodi's profile and credentials are saved. The screen shows the username and **Password saved**.
-**Change password** opens editing; **Save** validates the new details and **Cancel** discards edits. Omitting a password
+**Change password** opens editing; **Save** below both sections validates the new details and **Cancel** discards edits. Omitting a password
 preserves the stored one. **Test Kodi** uses a newly entered password, or the stored one when none is entered.
 
 
@@ -107,12 +109,18 @@ preserves the stored one. **Test Kodi** uses a newly entered password, or the st
 </p>
 
 If Kodi allows anonymous access, HCC cannot verify a supplied username and password and does not declare them valid.
-Enable authentication in Kodi and retry. Save other screen settings with **Save** at the bottom.
+Enable authentication in Kodi and retry. The same **Save** button saves the other settings on this screen.
 
 
 <p align="center">
   <img src="../assets/screenshots/install/03-kodi-connection-test.en.png" alt="Test Kodi result in the demonstration instance" width="860"/>
 </p>
+
+Power control is optional. Under **Options → Power management**, leave **Keep player on** selected if you use the
+device's remote. The wizard tests shutdown and, for automatic mode, wake as well. WoL, Android TV Remote and ADB are
+alternative wake methods; prepare only the one suitable for your device. Unverified experimental shutdown requires
+explicit opt-in and manual wake. If HCC accepts cancellation before sending a command, that command is not sent.
+Cancellation cannot undo a command that has already started. Compatibility with physical devices still needs validation.
 
 ### 4. Connect your movie folders
 

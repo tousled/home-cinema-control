@@ -100,8 +100,14 @@ Browse the sources from **Paths** and click **Test path**. This checks access wi
 
 Local Kodi folders are reserved for a later 1.5.x update, with no date announced. `plugin://` sources and other
 protocols are unsupported. Kodi format support depends on its device; ISO, Blu-ray folders, and disc menus are not
-verified as equivalent to OPPO. HCC does not provide Kodi power or disc-eject controls. There is no certified Kodi
-platform/version matrix.
+verified as equivalent to OPPO. Disc-eject control is not available for Kodi. There is no certified Kodi platform/version
+matrix.
+
+Power control is optional. Keep the player on, or use the guided setup to test shutdown and wake. Automatic mode
+requires both directions to be verified. An unverified experimental shutdown-only trial requires explicit opt-in and
+manual wake. WoL, Android TV Remote and ADB are alternative wake methods; physical-device compatibility remains
+unverified. Follow the [illustrated Kodi setup](https://github.com/tousled/home-cinema-control/blob/main/docs/getting-started.en.md#kodi-prepare-and-test-the-connection)
+before enabling power control.
 
 ## Guides and help
 
