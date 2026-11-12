@@ -76,6 +76,10 @@ Blu-ray folder, or disc-menu experience as OPPO is not guaranteed. Local Kodi fo
 a later 1.5.x update, with no announced date. Sources using `plugin://` or protocols other than NFS/SMB are also
 unsupported.
 
+Kodi has an optional power-setup wizard. Automatic mode requires verified shutdown and wake; unverified experimental
+shutdown requires explicit opt-in and manual wake. Support depends on the device and still needs physical validation.
+See [first steps](docs/getting-started.en.md).
+
 HCC keeps OPPO and Kodi settings and media paths separately. Switch between players to recover your previous setup
 without entering the folders again.
 

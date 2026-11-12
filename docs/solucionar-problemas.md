@@ -93,6 +93,10 @@ diferentes.
 | Error de comunicación | Confirma que el puerto pertenece al control HTTP de Kodi y revisa el error en Diagnóstico. |
 | Autenticación no exigida | Kodi permite acceso anónimo; HCC no puede validar las credenciales suministradas. Activa la autenticación en Kodi. |
 
+Si la dirección configurada devuelve un error de autenticación HTTP, comprueba primero que corresponde a Kodi.
+Otro programa puede responder en esa dirección o puerto. Ese error por sí solo no demuestra que la contraseña de Kodi
+sea incorrecta. El mando no envía una señal Wake-on-LAN ante ese error.
+
 Ejemplo de rechazo de credenciales con el servicio Kodi simulado de demostración:
 
 <p align="center">
@@ -101,6 +105,51 @@ Ejemplo de rechazo de credenciales con el servicio Kodi simulado de demostració
 
 La prueba no necesita una película activa. Los ajustes avanzados de OPPO no deben bloquearla. Si aparece un error ajeno
 a Kodi, incluye el mensaje y la versión instalada en tu consulta a soporte.
+
+#### La prueba de apagado no puede comprobar la reproducción
+
+Si HCC no puede interpretar el estado de reproducción de Kodi, detiene la prueba sin enviar la orden de apagado.
+Comprueba la dirección y el puerto del control remoto HTTP y vuelve a intentarlo. Una respuesta ilegible no confirma
+que Kodi esté libre. Si el error continúa, consulta los registros.
+
+La comprobación de disponibilidad distingue entre Kodi disponible, inaccesible por la red y estado indeterminado.
+Una respuesta HTTP 401/403, otro error de comunicación o un Ping inválido dejan el estado indeterminado: no prueban
+que Kodi esté apagado y no permiten verificar el apagado ni iniciar una prueba de encendido. Revisa el acceso HTTP,
+las credenciales y la dirección antes de repetir la comprobación.
+
+Un fallo al consultar las capacidades antes del envío tampoco cuenta como intento de apagado. HCC permite corregir
+el problema y repetir la prueba; ese fallo no habilita el apagado experimental. Un resultado incierto solo puede
+ofrecerse si HCC llegó a iniciar la orden y no pudo determinar su resultado.
+
+Si la configuración de Kodi cambia durante las pruebas o justo al guardar, HCC rechaza el resultado anterior.
+Vuelve a abrir el asistente y prueba la configuración actual. Esto también se aplica si otro navegador cambia el
+reproductor seleccionado: el asistente no debe volver a seleccionar Kodi al guardar una prueba antigua.
+
+Salir de **Media Player** cancela la sesión del asistente cuando HCC puede recibir la solicitud. Una orden que ya ha
+empezado a ejecutarse puede continuar; cancelar no vuelve a encender ni apagar el dispositivo. Al regresar puedes
+iniciar otra prueba. Si se pierde la conexión antes de cancelar, la sesión del servidor caduca a los 15 minutos.
+
+Las consultas previas al envío no bloquean la cancelación. Si la cancelación se acepta antes de iniciar la orden,
+HCC no la inicia; una orden cuyo envío ya haya empezado puede continuar aunque se cancele la sesión.
+
+#### Kodi responde, pero el encendido no queda verificado
+
+Si Kodi vuelve a responder antes de que HCC envíe la señal Wake-on-LAN, el dispositivo está disponible, pero la prueba
+no demuestra que ese método lo haya despertado. HCC no lo guarda como verificado. Suspende o apaga el dispositivo
+manualmente y repite la prueba desde otro equipo. No basta con que Kodi vuelva a responder por otra causa.
+
+Tras enviar Wake-on-LAN, HCC exige que la respuesta al Ping sea exactamente `pong`. Una respuesta distinta no verifica
+el encendido, aunque el servidor HTTP haya contestado.
+
+#### La vinculación Android TV no se completa
+
+Introduce el código mientras la prueba esté activa. Si caduca, pulsa **Vincular Android TV** para iniciar otro intento;
+no necesitas reiniciar HCC. Utiliza el código de la nueva prueba. Un código o resultado de un intento caducado no
+completa el nuevo. La vinculación no verifica por sí sola que el dispositivo pueda encenderse: completa la prueba de
+encendido del asistente.
+
+Si cambias el perfil o el dispositivo Android durante la vinculación, HCC no confirma la prueba anterior como válida.
+Inicia otra vinculación con los datos actuales.
 
 #### No aparecen fuentes o una fuente no se puede seleccionar
 
