@@ -8,7 +8,7 @@ Si HCC aparece sin tus ajustes después de actualizar, empieza por [recuperar la
 
 ## Consulta el diagnóstico de HCC
 
-Abre **Diagnóstico** en HCC. Ahí puedes comprobar conexiones, ver el último error y consultar la versión instalada.
+Abre **Diagnóstico** en HCC. Ahí puedes comprobar conexiones, ver la **Incidencia actual** y consultar la versión instalada. **Sin incidencias activas** describe el estado actual, no un historial sin errores. Un sondeo vacío de Emby/Jellyfin o la desaparición del cliente durante la reproducción en el OPPO no generan por sí solos un aviso de dispositivo ausente.
 
 <p align="center">
   <img src="../assets/screenshots/install/06-status.png" alt="Pantalla de diagnóstico de Home Cinema Control" width="860"/>
@@ -70,12 +70,118 @@ image: tousled/home-cinema-control:latest
 - Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
   usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 
+### Kodi: conexión y carpetas en 1.5.0
+
+Identifica primero si falla el control de Kodi o el acceso de Kodi a las películas. Son conexiones y credenciales
+diferentes.
+
+#### «Probar Kodi» o guardar credenciales falla
+
+1. Abre **Media Player → Conexión**. Comprueba la dirección de Kodi sin `http://` y su puerto HTTP, normalmente `8080`.
+   No uses `8090`, que pertenece a HCC.
+2. En Kodi, abre **Ajustes → Servicios → Control**. Activa el control remoto HTTP y **Requerir autenticación**. Mantén
+   Kodi abierto y comprueba que el equipo es accesible desde el servidor Docker.
+3. En **Autorización** de HCC, usa **Cambiar contraseña**, introduce los datos del control HTTP y pulsa **Guardar**. Una
+   contraseña incorrecta rechaza el guardado; no sustituye la anterior. **Probar Kodi** prueba los valores nuevos del
+   formulario o utiliza la contraseña guardada si no escribes otra.
+
+| Resultado | Qué revisar |
+| --- | --- |
+| Falta dirección o puerto/parámetros inválidos | Corrige los campos de conexión indicados. |
+| Credenciales rechazadas | Comprueba el usuario y contraseña HTTP de Kodi, no los de la carpeta del NAS. |
+| Kodi inaccesible | Comprueba que Kodi está abierto, su IP, puerto y el acceso de red o firewall. |
+| Error de comunicación | Confirma que el puerto pertenece al control HTTP de Kodi y revisa el error en Diagnóstico. |
+| Autenticación no exigida | Kodi permite acceso anónimo; HCC no puede validar las credenciales suministradas. Activa la autenticación en Kodi. |
+
+Si la dirección configurada devuelve un error de autenticación HTTP, comprueba primero que corresponde a Kodi.
+Otro programa puede responder en esa dirección o puerto. Ese error por sí solo no demuestra que la contraseña de Kodi
+sea incorrecta. El mando no envía una señal Wake-on-LAN ante ese error.
+
+Ejemplo de rechazo de credenciales con el servicio Kodi simulado de demostración:
+
+<p align="center">
+  <img src="../assets/screenshots/install/03-kodi-credentials-rejected.png" alt="Credenciales de ejemplo rechazadas; el formulario mantiene la edición" width="860"/>
+</p>
+
+La prueba no necesita una película activa. Los ajustes avanzados de OPPO no deben bloquearla. Si aparece un error ajeno
+a Kodi, incluye el mensaje y la versión instalada en tu consulta a soporte.
+
+#### La prueba de apagado no puede comprobar la reproducción
+
+Si HCC no puede interpretar el estado de reproducción de Kodi, detiene la prueba sin enviar la orden de apagado.
+Comprueba la dirección y el puerto del control remoto HTTP y vuelve a intentarlo. Una respuesta ilegible no confirma
+que Kodi esté libre. Si el error continúa, consulta los registros.
+
+La comprobación de disponibilidad distingue entre Kodi disponible, inaccesible por la red y estado indeterminado.
+Una respuesta HTTP 401/403, otro error de comunicación o un Ping inválido dejan el estado indeterminado: no prueban
+que Kodi esté apagado y no permiten verificar el apagado ni iniciar una prueba de encendido. Revisa el acceso HTTP,
+las credenciales y la dirección antes de repetir la comprobación.
+
+Un fallo al consultar las capacidades antes del envío tampoco cuenta como intento de apagado. HCC permite corregir
+el problema y repetir la prueba; ese fallo no habilita el apagado experimental. Un resultado incierto solo puede
+ofrecerse si HCC llegó a iniciar la orden y no pudo determinar su resultado.
+
+Si la configuración de Kodi cambia durante las pruebas o justo al guardar, HCC rechaza el resultado anterior.
+Vuelve a abrir el asistente y prueba la configuración actual. Esto también se aplica si otro navegador cambia el
+reproductor seleccionado: el asistente no debe volver a seleccionar Kodi al guardar una prueba antigua.
+
+Salir de **Media Player** cancela la sesión del asistente cuando HCC puede recibir la solicitud. Una orden que ya ha
+empezado a ejecutarse puede continuar; cancelar no vuelve a encender ni apagar el dispositivo. Al regresar puedes
+iniciar otra prueba. Si se pierde la conexión antes de cancelar, la sesión del servidor caduca a los 15 minutos.
+
+Las consultas previas al envío no bloquean la cancelación. Si la cancelación se acepta antes de iniciar la orden,
+HCC no la inicia; una orden cuyo envío ya haya empezado puede continuar aunque se cancele la sesión.
+
+#### Kodi responde, pero el encendido no queda verificado
+
+Si Kodi vuelve a responder antes de que HCC envíe la señal Wake-on-LAN, el dispositivo está disponible, pero la prueba
+no demuestra que ese método lo haya despertado. HCC no lo guarda como verificado. Suspende o apaga el dispositivo
+manualmente y repite la prueba desde otro equipo. No basta con que Kodi vuelva a responder por otra causa.
+
+Tras enviar Wake-on-LAN, HCC exige que la respuesta al Ping sea exactamente `pong`. Una respuesta distinta no verifica
+el encendido, aunque el servidor HTTP haya contestado.
+
+#### La vinculación Android TV no se completa
+
+Introduce el código mientras la prueba esté activa. Si caduca, pulsa **Vincular Android TV** para iniciar otro intento;
+no necesitas reiniciar HCC. Utiliza el código de la nueva prueba. Un código o resultado de un intento caducado no
+completa el nuevo. La vinculación no verifica por sí sola que el dispositivo pueda encenderse: completa la prueba de
+encendido del asistente.
+
+Si cambias el perfil o el dispositivo Android durante la vinculación, HCC no confirma la prueba anterior como válida.
+Inicia otra vinculación con los datos actuales.
+
+#### No aparecen fuentes o una fuente no se puede seleccionar
+
+Añade la carpeta en **Vídeos → Archivos → Añadir vídeos** de Kodi, mediante NFS o SMB. Añadirla solo al gestor de
+archivos no crea una fuente de vídeo. Vuelve a pulsar **Explorar carpetas de Kodi** en HCC.
+
+Las carpetas locales están reservadas para una actualización 1.5.x, sin fecha anunciada. Las fuentes `plugin://` y otros
+protocolos tampoco están disponibles en HCC 1.5.0. Aparecen sin permitir selección; utiliza NFS o SMB.
+
+#### Kodi conecta, pero «Probar ruta» falla
+
+Abre la misma carpeta desde Kodi. Para SMB, corrige las credenciales del NAS en Kodi; para NFS, comprueba los permisos
+del recurso para el dispositivo Kodi. Los datos HTTP de HCC no autorizan acceso al NAS. El navegador rellena la ruta al
+pulsar la carpeta; después utiliza **Probar ruta**, sin buscar un botón adicional para confirmarla.
+
+Si la carpeta se verifica pero una película no se abre, prueba primero ese archivo directamente en Kodi. Una prueba de
+carpeta no comprueba todos los formatos, códecs ni menús. Empieza por un MKV para separar los problemas de conexión de
+las limitaciones del archivo o dispositivo.
+
+#### Al volver a OPPO o Kodi parecen faltar carpetas
+
+Comprueba el reproductor activo y el servidor multimedia elegido. Cada combinación conserva sus propias rutas. Las rutas
+antiguas sin reproductor se mantienen para OPPO; las de Kodi se configuran aparte. No borres el volumen ni copies
+secretos entre archivos. Consulta [recuperar configuración](recuperar-configuracion.md).
+
 ### La reproducción no cambia al OPPO y aparece un aviso
 
 HCC muestra primero **qué ha ocurrido** y después **qué hacer**, en dos avisos separados cuando el cliente Emby/Jellyfin admite notificaciones remotas:
 
 - **«El OPPO no responde.»** Después: «Comprueba que esté encendido y conectado a la red.» Ve a **Media Player → Probar conexión** y revisa el control IP. Si no se confirma que el OPPO esté disponible, no se cambian las entradas de TV y receptor.
-- **«Ruta sin verificar. La reproducción continúa en Emby.»** (o Jellyfin). Después: «Verifica la ruta en Rutas multimedia de HCC.» Utiliza **Media Paths → Probar ruta**.
+- **«Ruta sin verificar. La reproducción continúa en Emby.»** (o Jellyfin). Después: «Verifica la ruta en Rutas
+  multimedia de HCC.» Utiliza **Rutas → Probar ruta**.
 - **«Ruta sin configurar. La reproducción continúa en Jellyfin.»** (o Emby). Después: «Configura la ruta en Rutas multimedia de HCC.» Elige la carpeta del OPPO y compruébala.
 
 Si falta una ruta válida, HCC no inicia el contenido en el OPPO y la reproducción puede continuar en Emby/Jellyfin. Si la aplicación ya estaba reproduciendo cuando se detectó que el OPPO no respondía, tal vez necesites detenerla manualmente. Algunos clientes no muestran todas las notificaciones remotas.
@@ -89,6 +195,8 @@ Si el Blu-ray ya se está reproduciendo y vuelve al principio al adelantar desde
 Una espera aislada puede deberse a la activación de la API del OPPO, al montaje NFS/SMB, al menú del Blu-ray o a la comprobación de reproducción. No cambies los tiempos de espera sin saber qué fase es lenta. En **Logs**, busca los registros `Playback startup timing` y el paso con mayor duración; compártelos mediante **Enviar diagnóstico** si el problema se repite.
 
 ### HCC no llega al reproductor
+
+Este apartado se refiere a OPPO/Chinoppo. Para Kodi, consulta su apartado de conexión y carpetas.
 
 - Comprueba la IP del OPPO/Chinoppo y que el reproductor esté encendido.
 - En **OPPO UDP-203/205**, abre **SETUP → Network Setup → IP Control → On**. En un Chinoppo/clon, busca la opción equivalente de control IP en los ajustes de red; el nombre y la ruta pueden variar según su firmware.
@@ -113,6 +221,8 @@ Si se repite, abre **Diagnóstico** y envía el informe junto al log de la prueb
 - Reinicia físicamente el reproductor si el navegador de red funciona pero el montaje sigue bloqueado.
 
 ### SMB devuelve `id_error`
+
+Este apartado se refiere a OPPO/Chinoppo. Para Kodi, consulta su apartado de conexión y carpetas.
 
 - Revisa nombre de recurso, usuario, contraseña y permisos.
 - Si tu combinación NAS/reproductor necesita preparar la sesión SMB, comprueba que las credenciales estén guardadas en

@@ -6,7 +6,17 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ## [Unreleased]
 
-- **Upcoming changes.** This is where we’ll list changes for the next release.
+- **Play from Kodi.** Connect through Kodi’s HTTP remote control and use NFS or SMB libraries from
+  Emby or Jellyfin. Connection tests explain authentication and network problems. Existing OPPO
+  profiles stay available with their own paths. Kodi credentials are kept separately. Local Kodi
+  folders, add-on sources, and equivalent Blu-ray menu behaviour are outside this release.
+- **Set up the room with guided steps.** The wiring assistant prepares TV and receiver settings
+  for review. The Spanish and English guides cover first playback, folder matching and optional
+  room and Home Assistant setup.
+- **Know what happened when you update.** A failed Portainer request shows an error. If the
+  connection drops, HCC keeps checking the installed version. Version checks respect GitHub rate limits.
+- **See the issues that affect playback now.** An empty Emby or Jellyfin session snapshot, or a
+  client leaving the screen during OPPO playback, no longer raises a misleading device warning.
 
 ## [1.4.6] - 2026-11-15
 

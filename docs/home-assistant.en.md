@@ -4,7 +4,7 @@
 
 **You do not need Home Assistant to use HCC.** This optional integration sends playback events to Home Assistant so you can create lighting or room automations. Only continue if you already use Home Assistant.
 
-## 9. Connect HCC to Home Assistant
+## Connect HCC to Home Assistant
 
 With this integration, HCC tells Home Assistant when it detects playback, starts it, pauses, resumes, or stops. Home
 Assistant then
@@ -17,7 +17,7 @@ its own; you choose the reaction in Home Assistant.
   <img src="../assets/screenshots/install/10-home-assistant.png" alt="HCC Home Assistant configuration screen" width="860"/>
 </p>
 
-### 9.1 Create the automation in Home Assistant
+### 1. Create the automation in Home Assistant
 
 In Home Assistant, create an automation with a **Webhook** trigger. You can copy this complete example. It only writes
 each
@@ -93,7 +93,7 @@ the [official Home Assistant documentation](https://www.home-assistant.io/docs/a
 For trigger options, see
 the [official Webhook documentation](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger).
 
-### 9.2 Configure HCC
+### 2. Configure HCC
 
 In HCC's **Home Assistant** screen:
 
@@ -109,7 +109,7 @@ You normally do not need to change the timeout under **Advanced settings**. Use 
 than
 usual to respond.
 
-### 9.3 Check that it works
+### 3. Check that it works
 
 HCC sends five playback events:
 
@@ -149,3 +149,6 @@ the status returns to pending until HCC successfully sends an event with the new
 If HCC cannot load this screen, it shows an actionable error with a **Try again** button instead of filling the form
 with
 values that may not be yours.
+
+The `player` field identifies the selected player, for example `oppo` or `kodi`. Automations can react to the same event
+regardless of the player selected.

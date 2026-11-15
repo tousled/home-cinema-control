@@ -6,7 +6,19 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 ## [Unreleased]
 
-- **Próximas mejoras.** Aquí publicaremos los cambios de la próxima versión.
+- **Reproduce desde Kodi.** Conéctalo por HTTP y usa bibliotecas NFS o SMB desde Emby o Jellyfin.
+  La prueba de conexión explica los errores de acceso y red. El perfil de OPPO conserva sus rutas
+  y Kodi guarda sus credenciales por separado. Las carpetas locales, las fuentes de complementos
+  y la experiencia equivalente con menús Blu-ray quedan fuera de esta versión.
+- **Configura la sala paso a paso.** El asistente prepara los ajustes de TV y receptor para que
+  puedas revisarlos. Las guías en español e inglés explican cómo reproducir por primera vez,
+  relacionar carpetas y configurar la sala y Home Assistant si los usas.
+- **Entérate de qué ha pasado al actualizar.** Si falla la petición a Portainer, HCC muestra el
+  error. Si se corta la conexión, sigue comprobando la versión instalada. Las consultas de
+  versión respetan los límites de GitHub.
+- **Consulta las incidencias que afectan a la reproducción.** Una lista de sesiones vacía en
+  Emby o Jellyfin, o que la aplicación deje de estar en pantalla durante la reproducción en
+  el OPPO, ya no genera un aviso incorrecto de dispositivo ausente.
 
 ## [1.4.6] - 2026-11-15
 
