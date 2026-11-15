@@ -16,14 +16,6 @@ Si aparece la nueva versión y tus ajustes siguen ahí, **has terminado**.
 
 Si aparece `denied` o `403 Forbidden` al descargar la imagen desde GHCR, consulta [cómo cambiar a Docker Hub en este mismo stack](solucionar-problemas.md#error-de-descarga-desde-ghcr-denied-o-403-forbidden).
 
-## Actualizar desde HCC con un webhook
-
-Si has configurado un webhook de actualización, HCC solo confirma que ha terminado cuando vuelve a responder con la versión esperada. Un error HTTP se muestra en pantalla; una desconexión durante el reinicio mantiene la comprobación sin volver a enviar el webhook.
-
-Si no se confirma la versión, revisa que el webhook corresponda al stack correcto, que su imagen use la versión deseada o `latest` y que Portainer descargue la imagen. Los logs de HCC registran el envío y su resultado sin mostrar la URL del webhook.
-
-Si GitHub limita la consulta de versiones, HCC muestra un aviso y espera 15 minutos antes de volver a consultar, también al pulsar la comprobación manual. Puedes actualizar el stack directamente desde Portainer mientras tanto.
-
 ## Si la versión no ha cambiado
 
 Abre el editor del **mismo stack** y revisa la línea `image:`.
