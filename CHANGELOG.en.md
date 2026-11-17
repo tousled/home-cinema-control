@@ -17,12 +17,12 @@ The changes that make HCC better for your home cinema, in plain language.
 
 - **Know where your update stands.** HCC tells you if a Portainer request fails. If the connection drops,
   it keeps checking the installed version so you can see whether the update has finished.
+- **Change your server address without losing your connection.** When you save a new Emby or Jellyfin address,
+  HCC keeps the previous one active until you authorize the change. If authorization fails, you can keep
+  using your existing server.
 
 ### Fixed
 
-- **Skip forward or backward in supported Blu-rays without restarting the movie.** HCC applies the position selected
-  in Emby Web to the OPPO/Chinoppo while playback continues. Verified with a Blu-ray folder; the original case
-  involving a menu-based ISO controlled from Emby mobile still needs validation.
 - **Fewer warnings interrupt your movie.** An empty Emby or Jellyfin session list, or leaving the app screen
   while the OPPO is playing, no longer triggers a misleading missing-device warning.
 
