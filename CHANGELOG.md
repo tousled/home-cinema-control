@@ -17,12 +17,12 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 - **Actualiza sin quedarte a ciegas.** Si falla la petición a Portainer, HCC te avisa. Si se corta la conexión,
   sigue comprobando la versión instalada para que sepas si la actualización ha terminado.
+- **Cambia la dirección del servidor sin perder la conexión.** Al guardar una nueva dirección de Emby o Jellyfin,
+  HCC mantiene la anterior activa hasta que autorices el cambio. Si falla la autorización, puedes seguir
+  utilizando tu servidor como antes.
 
 ### Corregido
 
-- **Avanza y retrocede por tus Blu-ray sin reiniciar la película.** En un Blu-ray compatible, HCC aplica en el
-  OPPO/Chinoppo el momento elegido desde Emby Web y mantiene la reproducción. Verificado en una carpeta Blu-ray;
-  el caso original de ISO con menús controlada desde Emby móvil sigue pendiente de validar.
 - **Menos avisos que interrumpen tu película.** Una lista de sesiones vacía en Emby o Jellyfin, o salir de la
   pantalla de la aplicación mientras reproduce el OPPO, ya no genera un aviso incorrecto de dispositivo ausente.
 
