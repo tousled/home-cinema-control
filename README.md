@@ -80,6 +80,7 @@ fuentes `plugin://` ni otros protocolos distintos de NFS/SMB.
 Kodi dispone de un asistente opcional de encendido y apagado. El modo automático exige verificar ambos sentidos;
 el apagado experimental sin verificar requiere aceptación expresa y encendido manual. La compatibilidad depende del
 dispositivo y sigue pendiente de validación física. Consulta los [primeros pasos](docs/primeros-pasos.md).
+Si el guardado ya ha comenzado, cancelar no lo interrumpe: espera el resultado y comprueba los ajustes guardados.
 
 HCC conserva los ajustes y las rutas de OPPO y Kodi por separado. Puedes alternar entre ellos y recuperar lo que ya
 habías configurado, sin volver a introducir las carpetas.

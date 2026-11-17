@@ -63,6 +63,14 @@ Sigue únicamente el apartado del equipo que vas a utilizar. OPPO y Kodi conserv
    puedes usar las sugerencias por IP, nombre o fabricante.
 3. Pulsa **Probar OPPO** y comprueba el resultado. Guarda los cambios.
 
+**Encendido y apagado automáticos (experimental):** enciende el OPPO **manualmente la primera vez**, activa
+**IP Control** y **Red en espera** (o sus equivalentes según firmware) y confirma que HCC puede comunicarse con él.
+Después podrás elegir **Opciones de HCC → Encendido y apagado → Encendido y apagado automáticos** y configurar el
+periodo de gracia. En equipos compatibles, HCC puede volver a encender el OPPO tras apagarlo por su cuenta; esto no
+equivale al apagado con el mando físico. **Si lo apagas con su mando, se corta la corriente o el equipo deja de
+responder por la red, el encendido automático puede dejar de funcionar**. Si HCC no consigue recuperarlo, enciéndelo
+de nuevo manualmente y comprueba la conexión. No se garantiza para todos los modelos ni firmwares.
+
 Si no hay sugerencias, introduce la IP manualmente. El descubrimiento depende de la red y del equipo que ejecuta Docker.
 El reproductor debe poder abrir tus películas desde su menú de red antes de configurar las carpetas de HCC.
 
@@ -126,6 +134,7 @@ Remote y ADB son alternativas de encendido; prepara solo la que corresponda a tu
 verificar requiere tu aceptación expresa y encendido manual. Si HCC acepta la cancelación antes del envío, la orden no
 se envía. Cancelar no deshace una orden que ya haya empezado. La compatibilidad con dispositivos físicos sigue pendiente
 de validación.
+Si el guardado ya ha comenzado, cancelar no lo interrumpe: espera el resultado y comprueba los ajustes guardados.
 
 ### 4. Conecta tus carpetas de películas
 
