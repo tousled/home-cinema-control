@@ -1,193 +1,342 @@
-# Changelog
+# Registro de cambios
 
-**English** · [Español](CHANGELOG.es.md)
+**Español** · [English](CHANGELOG.en.md)
 
-The changes that make HCC better for your home cinema, in plain language.
+Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa.
 
 ## [Unreleased]
 
-- **Play from Kodi.** Connect through Kodi’s HTTP remote control and use NFS or SMB libraries from
-  Emby or Jellyfin. Connection tests explain authentication and network problems. Existing OPPO
-  profiles stay available with their own paths. Kodi credentials are kept separately. Local Kodi
-  folders, add-on sources, and equivalent Blu-ray menu behaviour are outside this release.
-- **Set up the room with guided steps.** The wiring assistant prepares TV and receiver settings
-  for review. The Spanish and English guides cover first playback, folder matching and optional
-  room and Home Assistant setup.
-- **Know what happened when you update.** A failed Portainer request shows an error. If the
-  connection drops, HCC keeps checking the installed version. Version checks respect GitHub rate limits.
-- **See the issues that affect playback now.** An empty Emby or Jellyfin session snapshot, or a
-  client leaving the screen during OPPO playback, no longer raises a misleading device warning.
+### Añadido
+
+- **Kodi y una configuración guiada para tu sala.** Reproduce vídeos de Emby o Jellyfin desde NFS/SMB con Kodi,
+  manteniendo los ajustes de OPPO. Los asistentes ayudan a probar el encendido y apagado de Kodi y a configurar
+  la TV, el receptor y Home Assistant. Puedes cancelar antes de guardar; una vez iniciado el guardado,
+  revisa el resultado en tus ajustes. Incluye guías de instalación en español e inglés.
+
+### Mejorado
+
+- **Actualiza sin quedarte a ciegas.** Si falla la petición a Portainer, HCC te avisa. Si se corta la conexión,
+  sigue comprobando la versión instalada para que sepas si la actualización ha terminado.
+
+### Corregido
+
+- **Avanza y retrocede por tus Blu-ray sin reiniciar la película.** En un Blu-ray compatible, HCC aplica en el
+  OPPO/Chinoppo el momento elegido desde Emby Web y mantiene la reproducción. Verificado en una carpeta Blu-ray;
+  el caso original de ISO con menús controlada desde Emby móvil sigue pendiente de validar.
+- **Menos avisos que interrumpen tu película.** Una lista de sesiones vacía en Emby o Jellyfin, o salir de la
+  pantalla de la aplicación mientras reproduce el OPPO, ya no genera un aviso incorrecto de dispositivo ausente.
 
 ## [1.4.6] - 2026-11-15
 
-- **Pick up where you left off.** The OPPO or Chinoppo reaches your saved position in Emby or
-  Jellyfin more reliably, even if it needs a moment before it can seek. Turn on “Replay the last
-  2 seconds when resuming” to ease back into a supported video file. Playback starts up to two
-  seconds before where you left off. The option is off by default.
-- **Keep your watch progress in sync.** HCC saves your progress more reliably when you stop or switch
-  titles, and keeps your bookmark if you stop in the Blu-ray menu. When you return
-  to Jellyfin, HCC avoids sending you back a screen and shows its goodbye message more reliably.
-- **Resume Blu-rays even when the disc menu only offers Play.** Some discs used to start over
-  even when you selected Resume in Emby or Jellyfin. With experimental Blu-ray resume enabled,
-  HCC tries to pick up where you left off. To start over, choose Play from beginning in Emby
-  or Jellyfin.
+### Añadido
+
+- **Recupera el hilo, dos segundos antes.** Activa «Repetir los últimos 2 segundos al continuar» para retomar
+  un archivo de vídeo compatible hasta dos segundos antes de donde te quedaste. La opción está desactivada
+  por defecto.
+
+### Corregido
+
+- **Vuelve a lo que estabas viendo.** El OPPO o Chinoppo llega con más fiabilidad
+  al punto guardado en Emby o Jellyfin, aunque tarde un momento en aceptar el salto.
+- **Tu progreso, siempre al día.** HCC guarda mejor tu avance al parar o cambiar de título y conserva
+  el punto guardado si paras un Blu-ray antes de que empiece la reproducción. Al volver a Jellyfin, evita
+  retrocesos inesperados y muestra la despedida con más fiabilidad.
+- **Retoma tus Blu-ray aunque el menú solo ofrezca «Reproducir».** Antes, algunos discos empezaban
+  desde cero aunque eligieras «Continuar» en Emby o Jellyfin. Con la reanudación experimental
+  activada, HCC intenta retomar la reproducción donde te quedaste. Para empezar de cero, elige
+  «Reproducir desde el principio» en Emby o Jellyfin.
 
 ## [1.4.5] - 2026-11-04
 
-- **Blu-ray movies, without playback issues.** Some movies stored as Blu-ray or UHD Blu-ray folders failed to start correctly from Jellyfin. HCC now recognizes the disc structure so they can play on your OPPO/Chinoppo.
+### Corregido
+
+- **Tus películas Blu-ray, sin problemas de reproducción.** Algunas películas guardadas en carpetas Blu-ray o UHD
+  Blu-ray no se iniciaban correctamente desde Jellyfin. HCC ahora reconoce la estructura del disco y permite
+  reproducirlas en el OPPO/Chinoppo.
 
 ## [1.4.4] - 2026-11-02
 
-- **Switch movies without surprises.** Starting another title no longer shuts down the OPPO unexpectedly.
-- **A safer handoff to your cinema room.** If the player or media path isn't ready, HCC avoids disruptive TV and receiver changes and leaves unsupported library playback in your original app.
-- **Clearer guidance when something goes wrong.** Playback messages explain what needs attention without exposing technical details.
+### Mejorado
+
+- **Una transición más segura hacia tu sala de cine.** Si el reproductor o la ruta no están preparados, HCC evita
+  cambios molestos en la TV y el receptor y deja en la aplicación original el contenido que no puede gestionar.
+- **Avisos que se entienden.** Si algo impide empezar la reproducción, HCC explica qué revisar sin abrumarte con
+  información técnica.
+
+### Corregido
+
+- **Cambia de película sin sorpresas.** Al empezar otro contenido, el OPPO ya no se apaga inesperadamente.
 
 ## [1.4.3] - 2026-10-28
 
-- **Help shape what's next for HCC.** The new Participate section lets you vote on ideas and share suggestions whenever you choose.
-- **More useful diagnostics.** Clearer information makes it easier to understand playback issues; optional technical metrics remain under your control.
+### Añadido
+
+- **Participa en el futuro de HCC.** La nueva sección «Participa» te permite votar ideas y compartir sugerencias cuando
+  quieras.
+
+### Mejorado
+
+- **Diagnósticos más útiles.** Es más fácil entender qué ocurre si falla una reproducción, manteniendo siempre bajo tu
+  control el envío opcional de datos técnicos.
 
 ## [1.4.2] - 2026-10-23
 
-- **An easier installation and update experience.** Step-by-step guides help you install or update HCC without losing your settings.
-- **A smoother start from the OPPO screen saver.** HCC dismisses the screen saver before trying to play your content.
+### Mejorado
+
+- **Instalar y actualizar HCC es más sencillo.** Las guías paso a paso te ayudan a empezar o actualizar sin perder tu
+  configuración.
+
+### Corregido
+
+- **Menos interrupciones al empezar.** HCC sale del salvapantallas del OPPO antes de iniciar la película.
 
 ## [1.4.1] - 2026-10-17
 
-- **Keep your Continue Watching list intact.** HCC better preserves resume positions when playback stops or can't be started.
-- **Audio and subtitles, as you selected them.** More reliable track selection from Emby and improved OPPO startup handling.
-- **Get your room ready earlier.** Home Assistant can respond as soon as HCC detects that you're about to watch something.
+### Añadido
+
+- **Prepara la sala desde el primer momento.** Home Assistant puede reaccionar en cuanto HCC detecta que vas a
+  reproducir contenido.
+
+### Mejorado
+
+- **Audio y subtítulos como los elegiste.** Mejor selección de pistas desde Emby y arranque más fiable en el OPPO.
+
+### Corregido
+
+- **Tu lista «Continuar viendo», siempre en orden.** HCC conserva mejor los puntos de reanudación cuando detienes una
+  película o no llega a iniciarse.
 
 ## [1.4.0] - 2026-10-12
 
-- **Your cinema room reacts to playback.** Connect HCC with Home Assistant to automate lights and other room effects as playback starts, pauses or ends.
-- **A more reliable experience.** Improvements to playback coordination, diagnostics and the Home Assistant setup screen.
+### Añadido
+
+- **Tu sala de cine cobra vida.** Conecta HCC con Home Assistant para automatizar luces y otros elementos cuando
+  empieza, se pausa o termina una película.
+
+### Mejorado
+
+- **Una experiencia más fiable.** Mejor coordinación de reproducción, diagnósticos y configuración de Home Assistant.
 
 ## [1.3.3] - 2026-10-09
 
-- **STRM playback from Emby is fixed.** Titles backed by STRM files now resolve to the right media when handed off to the OPPO.
+### Corregido
+
+- **Reproducción de archivos STRM corregida.** Los contenidos STRM de Emby vuelven a localizarse correctamente al
+  enviarlos al OPPO.
 
 ## [1.3.2] - 2026-10-09
 
-- **More reliable media paths.** Shared folders resolve correctly even when Windows or Linux paths use different separators.
+### Corregido
+
+- **Rutas multimedia más fiables.** HCC encuentra las carpetas compartidas aunque Windows y Linux utilicen separadores
+  distintos.
 
 ## [1.3.1] - 2026-09-17
 
-- **Fewer interruptions during playback.** Better audio/subtitle readiness, safer media-server cleanup and clearer handling when an item can't be loaded.
+### Mejorado
+
+- **Menos interrupciones al reproducir.** Mayor fiabilidad con las pistas de audio y subtítulos, al volver a
+  Emby/Jellyfin y cuando un contenido no está disponible.
 
 ## [1.3.0] - 2026-08-13
 
-- **Trinnov Altitude joins your cinema room.** Native receiver control arrives, along with smoother LG pairing and more accurate playback detection.
+### Añadido
+
+- **Trinnov Altitude se suma a tu sala de cine.** Llega el control nativo del receptor, con un emparejamiento LG más
+  fiable y una detección de reproducción más precisa.
 
 ## [1.2.1] - 2026-07-08
 
-- **Better endings and faster feedback.** HCC detects the end of OPPO playback more accurately and shows clearer update status.
+### Mejorado
+
+- **Finales más precisos y avisos más claros.** HCC detecta mejor cuándo termina el contenido en el OPPO y muestra de
+  forma más sencilla si hay actualizaciones.
 
 ## [1.2.0] - 2026-07-07
 
-- **Sony BRAVIA support arrives.** Add compatible Sony TVs to your room setup and send diagnostics more easily when you need help.
+### Añadido
+
+- **Llega la compatibilidad con Sony BRAVIA.** Configura televisores Sony compatibles y comparte diagnósticos de forma
+  sencilla cuando necesites ayuda.
 
 ## [1.1.4] - 2026-06-30
 
-- **More dependable SMB playback.** Fixed an issue that could leave the OPPO unresponsive after playing content from SMB shares.
+### Corregido
+
+- **Reproducción SMB más fiable.** Corregido un problema que podía dejar el OPPO sin responder después de reproducir
+  contenido por SMB.
 
 ## [1.1.3] - 2026-06-29
 
-- **A voice in HCC's roadmap.** Optional feedback and usage insights help guide future improvements; receiver input detection is also better.
+### Añadido
+
+- **Tu opinión cuenta para el futuro de HCC.** Puedes compartir sugerencias y datos opcionales para orientar las
+  próximas mejoras. También se ha perfeccionado la detección de entradas del receptor.
 
 ## [1.1.2] - 2026-06-27
 
-- **Copy diagnostics without hassle.** The copy buttons now work in more browsers.
+### Corregido
+
+- **Copia tus diagnósticos sin complicaciones.** Los botones para copiar información funcionan en más navegadores.
 
 ## [1.1.1] - 2026-06-27
 
-- **Jellyfin compatibility and easier log sharing.** Updated Jellyfin authentication support and improved log controls on mobile.
+### Corregido
+
+- **Más compatibilidad con Jellyfin y registros más fáciles de compartir.** Autenticación actualizada y controles de
+  logs mejorados en el móvil.
 
 ## [1.1.0] - 2026-06-26
 
-- **Emby and Jellyfin in one experience.** Choose your media server and configure libraries, devices and paths with a clearer setup.
-- **More dependable playback on Jellyfin.** Improvements to playback notifications, session cleanup and returning from the OPPO.
+### Añadido
+
+- **Emby y Jellyfin en una misma experiencia.** Elige tu servidor multimedia y configura bibliotecas, dispositivos y
+  rutas de forma más sencilla.
+
+### Corregido
+
+- **Una reproducción más fiable con Jellyfin.** Mejoras en los avisos, la gestión de sesiones y el regreso desde el
+  OPPO.
 
 ## [1.0.5] - 2026-06-22
 
-- **A smoother start to movie night.** Playback handoffs, startup messages and shared-folder cleanup are more reliable.
+### Mejorado
+
+- **Una sesión de cine sin sobresaltos.** Más fiabilidad al iniciar películas, mostrar avisos y gestionar carpetas
+  compartidas.
 
 ## [1.0.4] - 2026-06-21
 
-- **Blu-ray endings now finish cleanly.** Watched status and OPPO playback are handled more reliably at the end of a disc.
+### Corregido
+
+- **Los Blu-ray terminan como deben.** Mejor gestión de contenidos vistos y de la parada del OPPO al finalizar un disco.
 
 ## [1.0.3] - 2026-06-21
 
-- **More resilient OPPO connections.** Improved browsing and network-share retries, plus smoother recovery from playback and screen-saver states.
+### Mejorado
+
+- **Conexiones al OPPO más resistentes.** Mejor exploración de carpetas, recuperación de recursos de red y
+  comportamiento durante las pausas y el salvapantallas.
 
 ## [1.0.2] - 2026-06-20
 
-- **More reliable Emby setup.** Safer handling of connection details and fewer false connection errors during setup.
+### Corregido
+
+- **Configuración de Emby más fiable.** Mejor protección de las credenciales y menos falsos errores al conectar el
+  servidor.
 
 ## [1.0.0] - 2026-06-19
 
-- **Welcome to HCC 1.0.** A redesigned, more cinematic control experience, with clearer setup, diagnostics and release updates.
+### Añadido
+
+- **Bienvenido a HCC 1.0.** Una interfaz renovada y más cinematográfica, con configuración, diagnósticos y
+  actualizaciones más claros.
 
 ## [0.9.1] - 2026-06-18
 
-- **Playback details at a glance.** A richer OPPO remote, current-title information and improved installation guides in both languages.
+### Añadido
+
+- **Toda la reproducción de un vistazo.** Un mando OPPO más completo, información del contenido en pantalla y guías de
+  instalación mejoradas en ambos idiomas.
 
 ## [0.9.0] - 2026-06-18
 
-- **A simpler path from library to player.** Guided media paths, clearer diagnostics and flexible NFS/SMB sharing.
+### Añadido
+
+- **De la biblioteca al reproductor, sin complicaciones.** Configuración guiada de rutas, diagnósticos claros y
+  compatibilidad con NFS y SMB.
 
 ## [0.8.1] - 2026-06-13
 
-- **Update HCC with more confidence.** Version checks, update shortcuts and rollback guidance arrive in the status screen.
+### Añadido
+
+- **Actualiza HCC con más confianza.** Consulta nuevas versiones, inicia actualizaciones y encuentra instrucciones para
+  volver a una versión anterior.
 
 ## [0.8.0] - 2026-06-13
 
-- **A new, friendlier HCC.** Modern web interface, guided setup, local device discovery and improved mobile navigation.
+### Añadido
+
+- **Un HCC renovado y más fácil de usar.** Nueva interfaz web, configuración guiada, detección de dispositivos y
+  navegación adaptada al móvil.
 
 ## [0.7.2] - 2026-06-09
 
-- **More reliable Docker installs.** Fixed a deployment problem affecting some Docker and Portainer setups.
+### Corregido
+
+- **Instalaciones Docker más fiables.** Solucionado un problema que impedía desplegar HCC en algunos entornos Docker y
+  Portainer.
 
 ## [0.7.1] - 2026-06-09
 
-- **Better audio selection for Blu-ray discs.** HCC can select the right track after a Blu-ray menu gives way to the movie.
+### Corregido
+
+- **Mejor selección de audio en discos Blu-ray.** HCC puede elegir la pista correcta cuando termina el menú del disco y
+  empieza la película.
 
 ## [0.7.0] - 2026-06-09
 
-- **More accurate playback progress.** Improved OPPO playback tracking and recovery when status updates are interrupted.
+### Mejorado
+
+- **Seguimiento de reproducción más preciso.** Mejor detección de lo que reproduce el OPPO y recuperación cuando se
+  interrumpe la comunicación.
 
 ## [0.6.1] - 2026-06-06
 
-- **Logs appear when you need them.** Docker and Portainer now show HCC log entries without unnecessary delays.
+### Corregido
+
+- **Los registros aparecen cuando los necesitas.** Docker y Portainer muestran los mensajes de HCC sin retrasos
+  innecesarios.
 
 ## [0.6.0] - 2026-06-06
 
-- **OPPO and Emby stay closer in sync.** Optional playback tracking reports play, pause and audio/subtitle changes.
+### Añadido
+
+- **OPPO y Emby, mejor sincronizados.** El seguimiento opcional informa de pausas, reanudaciones y cambios de audio o
+  subtítulos.
 
 ## [0.5.1] - 2026-06-01
 
-- **No more waiting on a finished movie.** HCC detects the end of playback more reliably and restores the room.
+### Corregido
+
+- **Sin esperas al terminar la película.** HCC detecta mejor el final del contenido y devuelve la sala a su estado
+  habitual.
 
 ## [0.5.0] - 2026-05-31
 
-- **Your devices, working together.** Playback, TV and receiver switching, remote commands and room recovery become part of one flow.
+### Añadido
+
+- **Tus dispositivos, trabajando juntos.** Reproducción, cambio de entradas, control remoto y recuperación de la sala en
+  un único flujo.
 
 ## [0.4.0] - 2026-05-23
 
-- **More receiver choices.** Support for Denon, Marantz, NAD, Onkyo, Yamaha and script-based control.
+### Añadido
+
+- **Más receptores compatibles.** Control de Denon, Marantz, NAD, Onkyo y Yamaha, además de opciones mediante scripts.
 
 ## [0.3.0] - 2026-05-23
 
-- **More accurate stopping and subtitles.** Better OPPO state detection avoids lost playback progress and subtitle confusion.
+### Corregido
+
+- **Paradas y subtítulos más precisos.** Mejor detección del OPPO para evitar pérdidas de progreso y problemas al
+  seleccionar subtítulos.
 
 ## [0.2.0] - 2026-05-22
 
-- **HCC comes to Docker and Portainer.** Persistent settings and simpler NAS deployments.
+### Añadido
+
+- **HCC llega a Docker y Portainer.** Configuración persistente e instalación más sencilla en NAS.
 
 ## [0.1.1] - 2026-05-22
 
-- **A small maintenance update.** Cleaner diagnostic logs with better protection for sensitive information.
+### Mejorado
+
+- **Una pequeña actualización de mantenimiento.** Registros de diagnóstico más claros y mejor protección de los datos
+  sensibles.
 
 ## [0.1.0] - 2026-05-22
 
-- **The starting point for HCC.** Initial working version and Emby playback connection fixes.
+### Añadido
+
+- **El comienzo de HCC.** Primera versión funcional y mejoras de conexión con Emby.

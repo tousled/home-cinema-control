@@ -63,6 +63,23 @@ observada sin eliminar el histórico. Hasta entonces, el dashboard solo puede
 ordenar por recepción. No debe inferirse cronología de origen ni latencia de
 entrega si el receptor no persiste ambas horas.
 
+### Diagnóstico local de entrega (1.5.0)
+
+La API local `GET /api/v1/telemetry` incluye `delivery_diagnostics`, con contadores agregados de eventos aceptados en el
+trabajador asíncrono, entregados por HTTP, guardados para reintento, errores de transporte, desbordamientos y fallos de
+persistencia. El bloque `playback` separa intentos, inicios, finales, fallos y rechazos para localizar el punto en el
+que una reproducción deja de aparecer en el hub.
+
+Estos contadores **solo cubren la vida del proceso actual**, se reinician al reiniciar HCC y no certifican que el hub
+haya contabilizado un evento: «delivered» significa que el transporte recibió una respuesta HTTP sin error. La cola
+local persistente sigue reflejada en `queue_count` y puede contener eventos anteriores al inicio del proceso.
+
+El diagnóstico se consulta **solo en la instancia local de HCC**. No se envía al hub ni incluye identificadores,
+títulos, IP, URLs, claves, rutas o contenidos. El consentimiento sigue siendo necesario para enviar eventos. Si el
+transporte falla con una excepción, se conserva el evento en la cola local para reintento, siempre que sea posible
+escribirla. Los errores de persistencia se avisan localmente y contabilizan, porque los eventos descartados no pueden
+reconstruirse.
+
 ### Comentarios voluntarios
 
 En «Participa», la persona puede escribir como máximo 400 caracteres y pulsar
@@ -226,3 +243,32 @@ La actualización conserva el consentimiento existente y nunca reactiva la telem
 invitación para conocer las mejoras de diagnóstico. Aceptarla activa la telemetría; rechazarla o cerrarla deja la
 telemetría desactivada y no vuelve a mostrar esa invitación. Las instalaciones sin decisión previa reciben solo la
 invitación habitual. Esta campaña no es un mecanismo reutilizable para futuras actualizaciones.
+
+
+### Experimento de reanudación Blu-ray para OPPO (1.5.0)
+
+El seek diferido en Blu-ray completos continúa siendo experimental y requiere
+que el usuario haya aceptado voluntariamente la telemetría básica. El interruptor
+explica la condición y ofrece aceptar o cancelar; nunca habilita telemetría de
+forma implícita. Las reproducciones normales y el guardado seguro de progreso
+siguen funcionando sin ella. La decisión de consentimiento se comprueba también
+en el backend. Los diagnósticos adicionales mantienen su propio opt-in.
+
+Con telemetría permitida, cada sesión de Blu-ray completa genera como máximo
+un `disc_resume_outcome` al detenerse, con resultado y proveedor estructurados
+y `experimental_enabled` booleano. Los resultados incluyen:
+`native_preserved`, `seek_verified`, `seek_rejected`, `seek_unverified`,
+`feature_unverified`, `feature_verified_no_seek` y
+`start_over_verified`. Un ACK de OPPO no es una posición verificada; solo
+dos muestras SVM3 consecutivas justifican `seek_verified`. No se transmiten
+títulos, posiciones, rutas, menús, IP, sesión o identificadores de contenido.
+
+Al iniciar HCC con un consentimiento existente, el productor envía una vez
+por proceso `consent_state_reported: {state: enabled}`, distinto de
+`install_opt_in`. La señal usa la cola y sus reintentos; si falla, el hub
+no presume que la recibió. El receptor mantiene `consent_source=saved_state`
+y sigue mostrando ausencia de señal cuando no hay evidencia explícita. No
+deduce consentimiento de un heartbeat ni de eventos de reproducción.
+
+**Despliegue:** publicar y verificar primero el receptor compatible, después
+el productor de HCC. Estos cambios no se despliegan automáticamente.

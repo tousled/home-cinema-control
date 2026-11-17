@@ -79,6 +79,7 @@ unsupported.
 Kodi has an optional power-setup wizard. Automatic mode requires verified shutdown and wake; unverified experimental
 shutdown requires explicit opt-in and manual wake. Support depends on the device and still needs physical validation.
 See [first steps](docs/getting-started.en.md).
+Once saving has started, cancellation does not interrupt it: wait for the result and check the saved settings.
 
 HCC keeps OPPO and Kodi settings and media paths separately. Switch between players to recover your previous setup
 without entering the folders again.

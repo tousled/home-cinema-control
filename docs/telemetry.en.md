@@ -113,3 +113,20 @@ environment. Preserve origin and receipt timestamps separately. Missing or
 invalid origin time in legacy events remains explicitly unknown.
 Implementing these changes does not authorize deployment, NAS production
 changes, or a release.
+
+### Local delivery diagnostics (1.5.0)
+
+The local `GET /api/v1/telemetry` endpoint includes `delivery_diagnostics`: aggregate counters for events accepted by
+the asynchronous worker, delivered over HTTP, persisted for retry, transport errors, asynchronous queue overflows, and
+persistence failures. The `playback` section separates attempts, starts, finishes, failures, and rejections to help
+locate missing playback observations.
+
+These counters **cover the current process only** and reset after HCC restarts. A "delivered" event indicates a
+non-error HTTP response, not proof that the hub counted it. The persistent retry queue remains available through
+`queue_count` and can include events from a previous process.
+
+Diagnostics are exposed **locally only**. They are never transmitted to the hub and contain no installation IDs, titles,
+IP addresses, URLs, keys, paths, or content identifiers. Consent is still required for telemetry delivery. Unexpected
+transport exceptions now preserve events in the retry queue when it is writable; local persistence failures are logged
+and counted because discarded events cannot be reconstructed.
+

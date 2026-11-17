@@ -194,6 +194,18 @@ Si el Blu-ray ya se está reproduciendo y vuelve al principio al adelantar desde
 
 Una espera aislada puede deberse a la activación de la API del OPPO, al montaje NFS/SMB, al menú del Blu-ray o a la comprobación de reproducción. No cambies los tiempos de espera sin saber qué fase es lenta. En **Logs**, busca los registros `Playback startup timing` y el paso con mayor duración; compártelos mediante **Enviar diagnóstico** si el problema se repite.
 
+### El encendido automático del OPPO deja de funcionar
+
+El modo **Encendido y apagado automáticos (experimental)** necesita un primer encendido manual con
+**Control IP** y **Red en espera** configurados. HCC puede despertar algunos equipos después de que el propio HCC
+los haya apagado, como se ha comprobado en un Chinoppo M9702, pero **no debe suponerse que puede recuperar un
+apagado desde el mando físico**.
+
+Si el OPPO no despierta después de apagarlo con el mando físico, un corte de corriente o una pérdida de conexión,
+**enciéndelo manualmente y vuelve a probar la conexión en HCC**. Una caída temporal de red no implica por sí misma
+que el modo automático quede permanentemente desactivado: es necesario comprobar si vuelve a responder. La
+compatibilidad depende del modelo, firmware y estado de espera.
+
 ### HCC no llega al reproductor
 
 Este apartado se refiere a OPPO/Chinoppo. Para Kodi, consulta su apartado de conexión y carpetas.

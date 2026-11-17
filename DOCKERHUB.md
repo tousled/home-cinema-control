@@ -108,6 +108,7 @@ requires both directions to be verified. An unverified experimental shutdown-onl
 manual wake. WoL, Android TV Remote and ADB are alternative wake methods; physical-device compatibility remains
 unverified. Follow the [illustrated Kodi setup](https://github.com/tousled/home-cinema-control/blob/main/docs/getting-started.en.md#kodi-prepare-and-test-the-connection)
 before enabling power control.
+Once saving has started, cancellation does not interrupt it: wait for the result and check the saved settings.
 
 ## Guides and help
 
@@ -118,7 +119,7 @@ before enabling power control.
 - [Home Assistant](https://github.com/tousled/home-cinema-control/blob/main/docs/home-assistant.en.md).
 - [Optional participation](https://github.com/tousled/home-cinema-control/blob/main/docs/participate.en.md)
   and [telemetry](https://github.com/tousled/home-cinema-control/blob/main/docs/telemetry.en.md), off by default.
-- [Changelog](https://github.com/tousled/home-cinema-control/blob/main/CHANGELOG.md) · [Registro de cambios](https://github.com/tousled/home-cinema-control/blob/main/CHANGELOG.es.md).
+- [Registro de cambios](https://github.com/tousled/home-cinema-control/blob/main/CHANGELOG.md) · [Changelog](https://github.com/tousled/home-cinema-control/blob/main/CHANGELOG.en.md).
 
 Trinnov Altitude control has contract tests and awaits real-hardware validation. See
 the [project README](https://github.com/tousled/home-cinema-control) for integrations and licensing.

@@ -90,6 +90,17 @@ If a Blu-ray ISO goes back to the beginning when you skip ahead in Emby or Jelly
 
 A single delay might be caused by OPPO API activation, an NFS/SMB mount, a Blu-ray menu, or playback-start confirmation. Avoid increasing timeouts blindly. In **Logs**, look for `Playback startup timing` and which step took the longest; share it through **Send diagnostics** if delays recur.
 
+### OPPO automatic wake stops working
+
+**Automatic power on and off (experimental)** needs a first manual power-on with **IP Control** and
+**Network Standby** configured. HCC may wake some devices after HCC itself powered them off, as demonstrated on
+one Chinoppo M9702, but **do not assume it can recover shutdown using the physical remote**.
+
+If your OPPO no longer wakes after physical-remote shutdown, a power interruption, or loss of network access,
+**turn it on manually and retest the HCC connection**. A temporary network interruption does not mean automatic
+mode is permanently disabled; check whether connectivity returns. Support depends on model, firmware and standby
+state.
+
 ### HCC cannot reach the player
 
 This section applies to OPPO/Chinoppo. For Kodi, use its connection and folders section.

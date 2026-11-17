@@ -62,6 +62,14 @@ Follow only the section for the player you will use. OPPO and Kodi keep independ
    you can use suggestions by address, name, or vendor.
 3. Click **Test OPPO**, check the result, and save your changes.
 
+**Automatic power on and off (experimental):** power on the OPPO **manually before first use**, enable **IP Control**
+and **Network Standby** (or the firmware's equivalents), and confirm HCC can reach it. Then choose
+**HCC options → Power management → Automatic power on and off** and select the grace period. On compatible devices,
+HCC may wake the OPPO after HCC itself powered it off; this does not imply that a shutdown with the physical remote
+is recoverable. **If you power it off using its physical remote, disconnect power, or the device becomes unreachable
+over the network, automatic wake can stop working.** If HCC cannot recover, turn it on manually and retest the
+connection. Compatibility depends on model and firmware.
+
 If suggestions are missing, enter the address manually. Discovery depends on your network and Docker host. The player
 must be able to open your movies from its own network menu before you configure HCC's folders.
 
@@ -121,6 +129,7 @@ device's remote. The wizard tests shutdown and, for automatic mode, wake as well
 alternative wake methods; prepare only the one suitable for your device. Unverified experimental shutdown requires
 explicit opt-in and manual wake. If HCC accepts cancellation before sending a command, that command is not sent.
 Cancellation cannot undo a command that has already started. Compatibility with physical devices still needs validation.
+Once saving has started, cancellation does not interrupt it: wait for the result and check the saved settings.
 
 ### 4. Connect your movie folders
 
