@@ -98,6 +98,15 @@ See [download troubleshooting](https://github.com/tousled/home-cinema-control/bl
 Enable HTTP remote control and authentication in Kodi, add NFS/SMB video sources there, then save and test Kodi in HCC.
 Browse the sources from **Paths** and click **Test path**. This checks access without starting a movie.
 
+HCC identifies content by its Emby or Jellyfin item ID and versions within one entry by their `MediaSourceId`.
+It recognizes different selections even when their display titles or file names match. The server must provide
+`MediaSourceId` to distinguish versions within the same entry.
+
+Selecting another item or version, through cast to Home Cinema Control or the monitored client, stops the active
+player and waits for playback reporting and cleanup before starting the selected file, including paused playback
+or a player still starting. Repeating the same pair of IDs does not restart playback. Additional requests during
+the switch do not start parallel playback. If Stop fails, the next playback does not start.
+
 Local Kodi folders are reserved for a later 1.5.x update, with no date announced. `plugin://` sources and other
 protocols are unsupported. Kodi format support depends on its device; ISO, Blu-ray folders, and disc menus are not
 verified as equivalent to OPPO. Disc-eject control is not available for Kodi. There is no certified Kodi platform/version

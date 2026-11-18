@@ -6,6 +6,8 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-18
+
 ### Añadido
 
 - **Kodi llega a HCC.** Ahora también puedes utilizar Kodi para reproducir tus películas y series desde Emby o Jellyfin, mediante carpetas compartidas NFS o SMB. HCC coordina la reproducción con tu televisor y receptor, permite controlar Kodi desde su mando web e incorpora una configuración guiada para ponerlo todo en marcha. Incluye guías de instalación en español e inglés.
@@ -24,6 +26,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 ### Corregido
 
+- **Cambia de título con seguridad, también en pausa.** HCC termina la reproducción anterior antes de iniciar la siguiente, incluso si el reproductor todavía está cargando. Las peticiones recibidas durante el cambio no pueden iniciar otra reproducción en paralelo.
+- **Cambia entre películas con el mismo título y entre versiones de una misma película.** HCC distingue el contenido y
+  la versión por los identificadores que comunica Emby o Jellyfin. Así detecta la selección de otra versión aunque el
+  título o el nombre del archivo coincidan, tanto desde el cliente supervisado como por cast a Home Cinema Control.
 - **Menos avisos incorrectos en Emby y Jellyfin.** Cuando el servidor devuelve temporalmente una lista de sesiones vacía, HCC ya no muestra un aviso engañoso de dispositivo ausente.
 - **Sin falsas alarmas al salir de la aplicación.** Si sales de Emby o Jellyfin mientras el OPPO continúa reproduciendo, HCC ya no muestra incorrectamente un aviso indicando que el dispositivo ha desaparecido.
 - **Audio y subtítulos correctos al elegir otra versión en Jellyfin.** Cuando una película tiene varias versiones, HCC utiliza las pistas de audio y subtítulos correspondientes al archivo que has elegido, evitando seleccionar por error las de otra versión.
