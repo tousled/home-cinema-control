@@ -84,6 +84,17 @@ Once saving has started, cancellation does not interrupt it: wait for the result
 HCC keeps OPPO and Kodi settings and media paths separately. Switch between players to recover your previous setup
 without entering the folders again.
 
+HCC distinguishes content by its Emby or Jellyfin item ID and versions within the same library entry by their
+`MediaSourceId`. It recognizes switches between items with the same display title and between versions of one movie,
+even when their files have the same name in different folders. The display title and file name do not determine
+whether the selection has changed. To distinguish versions within one entry, the server must provide their
+`MediaSourceId`.
+
+When you select another item or version, through cast to Home Cinema Control or the monitored client, HCC stops the
+previous playback and waits for its cleanup before starting the selected file, including paused playback or a player
+still starting. Repeating the same pair of IDs does not restart playback. While a switch is in progress, additional
+requests do not start another playback. If Stop fails, the next playback does not start.
+
 ## What you need
 
 You need Docker on a 64-bit NAS or computer, a working Emby or Jellyfin server, and a player that can open your movies

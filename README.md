@@ -85,6 +85,16 @@ Si el guardado ya ha comenzado, cancelar no lo interrumpe: espera el resultado y
 HCC conserva los ajustes y las rutas de OPPO y Kodi por separado. Puedes alternar entre ellos y recuperar lo que ya
 habías configurado, sin volver a introducir las carpetas.
 
+HCC distingue los contenidos por su ID en Emby o Jellyfin y las versiones de una misma ficha por su `MediaSourceId`.
+Así reconoce el cambio entre contenidos con el mismo título y entre versiones de una misma película, aunque los
+archivos se llamen igual y estén en carpetas distintas. El título visible y el nombre del fichero no determinan si
+la selección ha cambiado. Para distinguir versiones de una misma ficha, el servidor debe comunicar su `MediaSourceId`.
+
+Al seleccionar otro contenido o versión, por cast a Home Cinema Control o desde el cliente supervisado, HCC detiene
+la reproducción anterior y espera a que termine su limpieza antes de iniciar el archivo seleccionado, también si
+estaba en pausa o todavía arrancando. Repetir la misma pareja de IDs no reinicia la reproducción. Mientras hay un
+cambio en curso, las peticiones adicionales no inician otra reproducción. Si falla Stop, la siguiente no empieza.
+
 ## Qué necesitas para empezar
 
 Necesitas Docker en un NAS u ordenador de 64 bits, Emby o Jellyfin funcionando y un reproductor capaz de abrir tus

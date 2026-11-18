@@ -6,6 +6,8 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-18
+
 ### Added
 
 - **Kodi comes to HCC.** You can now play movies and shows from Emby or Jellyfin with Kodi using NFS or SMB network shares. HCC coordinates playback with your TV and AV receiver, lets you control Kodi through its web remote, and guides you through setup. Installation guides are available in English and Spanish.
@@ -24,6 +26,10 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ### Fixed
 
+- **Switch titles safely, even when paused.** HCC finishes the previous playback before starting the next one, including when the player is still loading. Requests arriving during a switch cannot start another playback in parallel.
+- **Switch between movies with the same title and between versions of one movie.** HCC distinguishes content and
+  versions by the identifiers supplied by Emby or Jellyfin. It recognizes another selected version even when the display
+  title or file name matches, through both the monitored client and cast to Home Cinema Control.
 - **Fewer incorrect Emby and Jellyfin warnings.** When the server temporarily returns an empty session list, HCC no longer shows a misleading missing-device warning.
 - **No false alarms when leaving the app.** If you leave Emby or Jellyfin while the OPPO keeps playing, HCC no longer incorrectly warns that the device has disappeared.
 - **Correct audio and subtitles when choosing another Jellyfin version.** When a movie has multiple versions, HCC uses the audio and subtitle tracks from the file you selected, rather than mistakenly using tracks from a different version.
