@@ -130,3 +130,9 @@ IP addresses, URLs, keys, paths, or content identifiers. Consent is still requir
 transport exceptions now preserve events in the retry queue when it is writable; local persistence failures are logged
 and counted because discarded events cannot be reconstructed.
 
+
+## Experimental features and upgrades from 1.4.6
+
+Some experimental features require telemetry to help validate and improve them. First-time activation of experimental Blu-ray resume in 1.5.0 requires an explicit telemetry opt-in. This does not enable sharing automatically or allow any events to be sent without consent.
+
+**If you already enabled experimental Blu-ray resume in 1.4.6**, HCC keeps it enabled after upgrading, even with telemetry turned off. You can disable the feature at any time; enabling it again later requires telemetry consent. If you revoke telemetry but keep this pre-existing preference, the feature can continue operating **without sending technical signals**. Normal playback progress protection remains unaffected.

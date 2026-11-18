@@ -272,3 +272,9 @@ deduce consentimiento de un heartbeat ni de eventos de reproducción.
 
 **Despliegue:** publicar y verificar primero el receptor compatible, después
 el productor de HCC. Estos cambios no se despliegan automáticamente.
+
+### Funciones experimentales y actualizaciones desde 1.4.6
+
+Algunas funciones experimentales necesitan la telemetría activada para conocer su funcionamiento y mejorarlas. Este requisito se aplica a quienes habilitan por primera vez la reanudación experimental de Blu-ray en 1.5.0. No activa por sí mismo la telemetría ni permite enviar señales sin consentimiento.
+
+**Si ya habías activado esa reanudación experimental en 1.4.6**, HCC conserva la función al actualizar, incluso con la telemetría desactivada. Podrás desactivarla libremente; para volver a habilitarla después necesitarás aceptar la telemetría. Si revocas la telemetría pero conservas aquella configuración anterior, la función puede seguir activa **sin enviar datos técnicos**. No se modifica el guardado normal del progreso de las películas.
