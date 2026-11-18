@@ -63,3 +63,11 @@ vice versa. Check the active player and media server before assuming data is mis
 
 Migration retains earlier paths for OPPO. Configure Kodi's own paths separately. Do not manually copy passwords into
 `config.json`: secrets belong in `secrets.json`.
+
+## If you need to return to an earlier version
+
+Upgrading to HCC 1.5.0 preserves previous settings, but **running an older version is not an automatic reverse migration**. An older release such as 1.4.6 does not understand all the settings and player profiles introduced in 1.5.0; it may ignore or overwrite them when saving.
+
+Before rolling back, **stop HCC and back up the entire `/config` volume** (including a separate secrets directory, if configured). To restore an older installation, restore **both** `config.json` and `secrets.json` from the same backup created before the upgrade, ideally a NAS snapshot. Do not mix an old config file with 1.5.0 secrets or the other way around.
+
+When upgrading from 1.4.6 with experimental Blu-ray resume already enabled, HCC also keeps `config.json.bak-migrate-disc-resume-1-5-0` and `secrets.json.bak-migrate-disc-resume-1-5-0`, captured before changing the configuration. These backups **will not necessarily exist on other installations** and do not replace a full NAS backup. Restoring a pre-upgrade backup discards later setting changes.
