@@ -8,28 +8,24 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ### Added
 
-- **Kodi joins your home cinema.** Play Emby or Jellyfin content with Kodi over NFS or SMB without losing
-  your OPPO configuration.
-- **Set up your devices step by step.** Wizards help you test Kodi power on and off and configure your TV,
-  receiver and Home Assistant. You can cancel before saving begins; if saving has already started, check
-  the result in your settings.
-- **Kodi installation guides.** Follow instructions in English and Spanish to prepare your player.
+- **Kodi comes to HCC.** You can now play movies and shows from Emby or Jellyfin with Kodi using NFS or SMB network shares. HCC coordinates playback with your TV and AV receiver, lets you control Kodi through its web remote, and guides you through setup. Installation guides are available in English and Spanish.
+- **Turn your OPPO on and off automatically.** HCC can power on your OPPO or Chinoppo when you start a movie from Emby or Jellyfin, then power it off when you finish. Choose how long HCC waits before switching it off; starting another playback during that time cancels the pending shutdown. This feature is experimental and depends on your player's capabilities.
+- **Set up your home cinema more easily.** Guided setup helps you connect and configure your devices, including the TV, AV receiver and Home Assistant. You can review settings and cancel before saving them.
 
 ### Improved
 
-- **Change your server address without losing the connection.** HCC keeps your previous Emby or Jellyfin
-  address active while you authorize the new one. If authorization fails, you can keep using your server.
-- **Clearer feedback during updates.** HCC notifies you when a Portainer request fails and keeps checking
-  which version is installed if the connection drops during an update.
+- **Diagnostics that tell you what's happening.** You can now view multiple issues at once, see which need attention, and distinguish active, resolved and dismissed issues. The history keeps information about previous problems.
+- **Follow the progress of updates.** When updating HCC from the app, you can see a countdown, how many times the new version has been checked, and whether HCC is responding. This makes it easier to tell whether an update has finished or is still awaiting confirmation.
+- **Clearer control over automatic diagnostics.** The voluntary diagnostics sharing setting has been redesigned. It's easier to find, understand whether it's enabled and change your choice, on desktop or mobile.
+- **Change your server address without losing the connection.** When you change your Emby or Jellyfin address, HCC keeps the previous connection working until you authorize the new one. If something goes wrong, you can keep using your server as before.
+- **More reliable updates, even if the connection drops.** If Portainer rejects an update request, HCC tells you. If the app temporarily stops responding during the update, HCC keeps checking the installed version to confirm the outcome.
+- **Skip forward and back in your Blu-rays without losing progress.** Use the progress bar in Emby or Jellyfin to seek within a movie when the disc and player support it. HCC also protects your saved position while Blu-ray menus are displayed, so you don't lose your place before returning to the movie.
 
 ### Fixed
 
-- **Fewer incorrect Emby and Jellyfin warnings.** An empty session list no longer triggers a misleading
-  missing-device warning.
-- **Leaving the app no longer interrupts your movie.** When you leave the app screen while the OPPO is
-  playing, HCC no longer shows an incorrect missing-device warning.
-- **Correct tracks when choosing another Jellyfin version.** If a movie has multiple versions, HCC uses
-  the audio and subtitle tracks of the selected version instead of those from another version.
+- **Fewer incorrect Emby and Jellyfin warnings.** When the server temporarily returns an empty session list, HCC no longer shows a misleading missing-device warning.
+- **No false alarms when leaving the app.** If you leave Emby or Jellyfin while the OPPO keeps playing, HCC no longer incorrectly warns that the device has disappeared.
+- **Correct audio and subtitles when choosing another Jellyfin version.** When a movie has multiple versions, HCC uses the audio and subtitle tracks from the file you selected, rather than mistakenly using tracks from a different version.
 
 ## [1.4.6] - 2026-11-15
 

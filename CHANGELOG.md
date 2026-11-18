@@ -8,28 +8,24 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 ### Añadido
 
-- **Kodi se suma a tu cine en casa.** Reproduce contenido de Emby o Jellyfin con Kodi a través de NFS o SMB sin perder
-  la configuración de tu OPPO.
-- **Configura tus dispositivos paso a paso.** Los asistentes te ayudan a probar el encendido y apagado de Kodi y a
-  configurar el televisor, el receptor y Home Assistant. Puedes cancelar antes de comenzar a guardar; si ya ha
-  empezado el guardado, comprueba el resultado en los ajustes.
-- **Guías de instalación para Kodi.** Consulta las instrucciones en español e inglés para preparar el reproductor.
+- **Kodi llega a HCC.** Ahora también puedes utilizar Kodi para reproducir tus películas y series desde Emby o Jellyfin, mediante carpetas compartidas NFS o SMB. HCC coordina la reproducción con tu televisor y receptor, permite controlar Kodi desde su mando web e incorpora una configuración guiada para ponerlo todo en marcha. Incluye guías de instalación en español e inglés.
+- **Enciende y apaga tu OPPO automáticamente.** HCC puede encender tu OPPO o Chinoppo cuando empiezas una película desde Emby o Jellyfin y apagarlo cuando terminas. Puedes elegir cuánto tiempo debe esperar antes de apagarse; si empiezas otra reproducción durante ese tiempo, el apagado se cancela. Esta función es experimental y depende de las capacidades de tu reproductor.
+- **Configura tu sala de cine más fácilmente.** Los asistentes te ayudan a conectar y configurar tus dispositivos, incluido el televisor, el receptor y Home Assistant. Puedes revisar los ajustes y cancelar antes de guardarlos.
 
 ### Mejorado
 
-- **Cambia la dirección del servidor sin perder tu conexión.** HCC mantiene la dirección anterior de Emby o Jellyfin
-  mientras autorizas la nueva. Si la autorización falla, puedes seguir utilizando tu servidor.
-- **Actualizaciones con información más clara.** Si falla una petición a Portainer, HCC te avisa; si se interrumpe
-  la conexión durante la actualización, continúa comprobando qué versión está instalada.
+- **Un diagnóstico que te cuenta qué está pasando.** Ahora puedes consultar varias incidencias al mismo tiempo, identificar cuáles requieren atención y ver cuáles siguen activas, se han resuelto o has descartado. El historial conserva la información de los problemas anteriores.
+- **Sigue el progreso de las actualizaciones.** Al actualizar HCC desde la aplicación, verás una cuenta atrás, cuántas veces se ha comprobado la nueva versión y si HCC responde durante el proceso. Así podrás distinguir si la actualización ha terminado o todavía está pendiente de confirmación.
+- **Un control más claro de los diagnósticos automáticos.** Hemos rediseñado la opción para compartir diagnósticos de forma voluntaria. Ahora es más fácil encontrarla, entender si está activada y cambiar tu decisión, tanto desde el ordenador como desde el móvil.
+- **Cambia la dirección de tu servidor sin perder la conexión.** Si necesitas modificar la dirección de Emby o Jellyfin, HCC mantiene funcionando la conexión anterior hasta que autorices la nueva. Si algo falla, podrás seguir utilizando tu servidor como antes.
+- **Actualizaciones más fiables, incluso si se interrumpe la conexión.** Si Portainer rechaza una solicitud de actualización, HCC te avisa. Y si la aplicación deja de responder temporalmente durante el proceso, continúa comprobando la versión instalada para confirmar el resultado.
+- **Avanza y retrocede en tus Blu-ray sin perder tu progreso.** Puedes desplazarte por la película desde la barra de progreso de Emby o Jellyfin cuando el disco y el reproductor lo permiten. Además, HCC protege el punto guardado cuando aparecen los menús del Blu-ray, evitando que pierdas tu avance antes de volver a la película.
 
 ### Corregido
 
-- **Menos avisos incorrectos en Emby y Jellyfin.** Una lista de sesiones vacía ya no genera un aviso engañoso
-  de dispositivo ausente.
-- **Salir de la aplicación no interrumpe tu película.** Al salir de la pantalla de la aplicación mientras
-  reproduce el OPPO, HCC ya no muestra un aviso incorrecto de dispositivo ausente.
-- **Pistas correctas al elegir otra versión en Jellyfin.** Si una película tiene varias versiones, HCC utiliza
-  las pistas de audio y subtítulos de la versión elegida, en lugar de las de otra versión.
+- **Menos avisos incorrectos en Emby y Jellyfin.** Cuando el servidor devuelve temporalmente una lista de sesiones vacía, HCC ya no muestra un aviso engañoso de dispositivo ausente.
+- **Sin falsas alarmas al salir de la aplicación.** Si sales de Emby o Jellyfin mientras el OPPO continúa reproduciendo, HCC ya no muestra incorrectamente un aviso indicando que el dispositivo ha desaparecido.
+- **Audio y subtítulos correctos al elegir otra versión en Jellyfin.** Cuando una película tiene varias versiones, HCC utiliza las pistas de audio y subtítulos correspondientes al archivo que has elegido, evitando seleccionar por error las de otra versión.
 
 ## [1.4.6] - 2026-11-15
 
