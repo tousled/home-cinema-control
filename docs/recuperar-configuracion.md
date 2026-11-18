@@ -65,11 +65,3 @@ viceversa. Comprueba el reproductor y el servidor multimedia activos antes de co
 
 La migración de configuraciones anteriores conserva las rutas antiguas para OPPO. Para Kodi se configuran las suyas por
 separado. No copies contraseñas manualmente a `config.json`: los secretos se conservan en `secrets.json`.
-
-## Si necesitas volver a una versión anterior
-
-La migración hacia HCC 1.5.0 conserva las opciones anteriores, pero **volver a una versión antigua no es una migración inversa automática**. Una versión como 1.4.6 no conoce todos los ajustes y perfiles añadidos en 1.5.0 y puede ignorarlos o sobrescribirlos al guardar.
-
-Antes de volver atrás, **detén HCC y haz una copia completa del volumen `/config`** (incluido el directorio de secretos si está separado). Para recuperar una instalación antigua, restaura **juntos** `config.json` y `secrets.json` de la misma copia anterior a la actualización, preferiblemente un snapshot del NAS. No mezcles un archivo anterior con otro de 1.5.0.
-
-Al migrar desde 1.4.6 con la reanudación experimental de Blu-ray ya activada, HCC conserva además las copias `config.json.bak-migrate-disc-resume-1-5-0` y `secrets.json.bak-migrate-disc-resume-1-5-0` de antes de modificar la configuración. Estas copias **no existen necesariamente en otras instalaciones** y no sustituyen una copia completa del NAS. Si ya has utilizado funciones nuevas de 1.5.0, restaurar una copia anterior descartará los cambios posteriores.
