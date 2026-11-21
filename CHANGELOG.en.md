@@ -6,11 +6,6 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ## [Unreleased]
 
-### Improved
-
-- **Follow setup on screen.** Installation and setup guides show current screenshots in English and Spanish, with
-  Samsung connection, HDMI and TV application steps illustrated separately.
-
 ## [1.5.0] - 2026-11-18
 
 ### Added
@@ -48,7 +43,7 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ### Acknowledgements
 
-- **Thank you, `@vicsuaes`.** His contribution was essential to discovering how Samsung control actually behaves on a real S90C TV. Through repeated physical tests and diagnostic scripts, we could document authorization, state readback, verified switching to HDMI3, errors for other inputs, and the different identifiers and methods used to detect versus launch Tizen applications. He also continued testing release candidates and helped us diagnose compatibility problems.
+- **Thank you, `@vicsuaes`.** His contribution was instrumental in discovering how the Samsung integration actually works on an S90C TV. Through his successive hands-on tests, we were able to document authorization, state readback, confirmed switching to an HDMI input, and launching Tizen applications. He also continued collaborating on release candidates to identify and diagnose compatibility issues.
 
 ## [1.4.6] - 2026-11-15
 

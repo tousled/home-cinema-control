@@ -6,11 +6,6 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 ## [Unreleased]
 
-### Mejorado
-
-- **Sigue la configuración en pantalla.** Las guías de instalación y configuración muestran capturas actuales en español
-  e inglés, con los pasos de conexión Samsung, HDMI y aplicaciones de la TV ilustrados por separado.
-
 ## [1.5.0] - 2026-11-18
 
 ### Añadido
