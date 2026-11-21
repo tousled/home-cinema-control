@@ -92,6 +92,11 @@ No borres el volumen de configuración ni repitas la instalación para corregir 
 - **Samsung:** pulsa **Guardar dirección** en el primer paso. Después activa **Control IP** en la TV, pulsa
   **Ya he activado Control IP**, usa **Vincular Samsung** y, una vez autorizada, **Probar TV**. Los ajustes de dirección
   y HDMI se guardan desde sus propios pasos. «Vinculada» significa autorizada, **no** que el cambio HDMI funcione.
+  Si el permiso aparece en la Samsung pero HCC informa de un fallo, abre **Logs** en HCC, selecciona
+  **INFO** como nivel de registro, guarda el ajuste y repite una sola vez **Vincular Samsung**. El registro
+  identificará la etapa (autorización, verificación `getTVStates` o guardado) y la categoría del error,
+  sin incluir tokens ni respuestas del televisor. Comparte preferentemente el **informe de soporte
+  sanitizado**, no archivos de configuración ni mensajes de red sin revisar.
 - **Receptor AV:** en **Dirección del receptor**, pulsa **Guardar y continuar**. Las pruebas **Encender** y **Apagar**
   del segundo paso son opcionales: puedes preparar la fuente en **Entrada del reproductor** y guardar con
   **Guardar receptor AV**. Para probar la energía de Trinnov necesitas su dirección MAC.
