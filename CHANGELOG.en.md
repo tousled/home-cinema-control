@@ -6,10 +6,16 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ## [Unreleased]
 
+### Improved
+
+- **Follow setup on screen.** Installation and setup guides show current screenshots in English and Spanish, with
+  Samsung connection, HDMI and TV application steps illustrated separately.
+
 ## [1.5.0] - 2026-11-18
 
 ### Added
 
+- **Samsung joins your movie nights (experimental).** HCC starts coordinating your TV with the rest of your home cinema, so you can enjoy your movies with fewer steps. If you have a Samsung TV, you can try this new feature and help us improve its integration with your model and others.
 - **Kodi comes to HCC.** You can now play movies and shows from Emby or Jellyfin with Kodi using NFS or SMB network shares. HCC coordinates playback with your TV and AV receiver, lets you control Kodi through its web remote, and guides you through setup. Installation guides are available in English and Spanish.
 - **Turn your OPPO on and off automatically.** HCC can power on your OPPO or Chinoppo when you start a movie from Emby or Jellyfin, then power it off when you finish. Choose how long HCC waits before switching it off; starting another playback during that time cancels the pending shutdown. This feature is experimental and depends on your player's capabilities.
 - **Set up your home cinema more easily.** Guided setup helps you connect and configure your devices, including the TV, AV receiver and Home Assistant. You can review settings and cancel before saving them.
@@ -18,11 +24,17 @@ The changes that make HCC better for your home cinema, in plain language.
 
 - **Diagnostics that tell you what's happening.** You can now view multiple issues at once, see which need attention, and distinguish active, resolved and dismissed issues. The history keeps information about previous problems.
 - **Follow the progress of updates.** When updating HCC from the app, you can see a countdown, how many times the new version has been checked, and whether HCC is responding. This makes it easier to tell whether an update has finished or is still awaiting confirmation.
-- **Clearer control over automatic diagnostics.** The voluntary diagnostics sharing setting has been redesigned. It's easier to find, understand whether it's enabled and change your choice, on desktop or mobile.
-- **Keep your Blu-ray preferences when upgrading.** If you already used experimental resume in 1.4.6, it remains enabled in 1.5.0, even without telemetry. You still decide whether to share technical signals.
-- **Change your server address without losing the connection.** When you change your Emby or Jellyfin address, HCC keeps the previous connection working until you authorize the new one. If something goes wrong, you can keep using your server as before.
 - **More reliable updates, even if the connection drops.** If Portainer rejects an update request, HCC tells you. If the app temporarily stops responding during the update, HCC keeps checking the installed version to confirm the outcome.
 - **Skip forward and back in your Blu-rays without losing progress.** Use the progress bar in Emby or Jellyfin to seek within a movie when the disc and player support it. HCC also protects your saved position while Blu-ray menus are displayed, so you don't lose your place before returning to the movie.
+- **Set up HCC at your own pace.** Prepare paths and Kodi connection details while devices are off, and continue without
+  completing every check immediately. HCC explains what remains pending and which functions are limited; saving details
+  does not verify a connection or path.
+- **Find your devices with fewer steps.** Filter suggested addresses by name, IP, or manufacturer to choose your TV or
+  receiver. If discovery cannot reach your home network, HCC explains the limitation and lets you enter the address
+  manually.
+- **Set up HCC more comfortably on mobile or with a keyboard.** Forms and dropdowns work better with touch and keyboard
+  controls, without losing your selection or focus. Lists fit the available space, mobile navigation is easier to find,
+  and dark-theme text has stronger contrast.
 
 ### Fixed
 

@@ -6,10 +6,16 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 ## [Unreleased]
 
+### Mejorado
+
+- **Sigue la configuración en pantalla.** Las guías de instalación y configuración muestran capturas actuales en español
+  e inglés, con los pasos de conexión Samsung, HDMI y aplicaciones de la TV ilustrados por separado.
+
 ## [1.5.0] - 2026-11-18
 
 ### Añadido
 
+- **Samsung se une a tus noches de cine (experimental).** HCC empieza a coordinar tu televisor con el resto de tu sala para que disfrutes de tus películas con menos pasos. Si tienes una Samsung, puedes probar esta novedad y ayudarnos a mejorar su integración con este y otros modelos.
 - **Kodi llega a HCC.** Ahora también puedes utilizar Kodi para reproducir tus películas y series desde Emby o Jellyfin, mediante carpetas compartidas NFS o SMB. HCC coordina la reproducción con tu televisor y receptor, permite controlar Kodi desde su mando web e incorpora una configuración guiada para ponerlo todo en marcha. Incluye guías de instalación en español e inglés.
 - **Enciende y apaga tu OPPO automáticamente.** HCC puede encender tu OPPO o Chinoppo cuando empiezas una película desde Emby o Jellyfin y apagarlo cuando terminas. Puedes elegir cuánto tiempo debe esperar antes de apagarse; si empiezas otra reproducción durante ese tiempo, el apagado se cancela. Esta función es experimental y depende de las capacidades de tu reproductor.
 - **Configura tu sala de cine más fácilmente.** Los asistentes te ayudan a conectar y configurar tus dispositivos, incluido el televisor, el receptor y Home Assistant. Puedes revisar los ajustes y cancelar antes de guardarlos.
@@ -18,11 +24,17 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 - **Un diagnóstico que te cuenta qué está pasando.** Ahora puedes consultar varias incidencias al mismo tiempo, identificar cuáles requieren atención y ver cuáles siguen activas, se han resuelto o has descartado. El historial conserva la información de los problemas anteriores.
 - **Sigue el progreso de las actualizaciones.** Al actualizar HCC desde la aplicación, verás una cuenta atrás, cuántas veces se ha comprobado la nueva versión y si HCC responde durante el proceso. Así podrás distinguir si la actualización ha terminado o todavía está pendiente de confirmación.
-- **Un control más claro de los diagnósticos automáticos.** Hemos rediseñado la opción para compartir diagnósticos de forma voluntaria. Ahora es más fácil encontrarla, entender si está activada y cambiar tu decisión, tanto desde el ordenador como desde el móvil.
-- **Conserva tus opciones de Blu-ray al actualizar.** Si ya utilizabas la reanudación experimental en la 1.4.6, seguirá activada al pasar a la 1.5.0, aunque no tengas activada la telemetría. La decisión de participar sigue siendo tuya.
-- **Cambia la dirección de tu servidor sin perder la conexión.** Si necesitas modificar la dirección de Emby o Jellyfin, HCC mantiene funcionando la conexión anterior hasta que autorices la nueva. Si algo falla, podrás seguir utilizando tu servidor como antes.
 - **Actualizaciones más fiables, incluso si se interrumpe la conexión.** Si Portainer rechaza una solicitud de actualización, HCC te avisa. Y si la aplicación deja de responder temporalmente durante el proceso, continúa comprobando la versión instalada para confirmar el resultado.
 - **Avanza y retrocede en tus Blu-ray sin perder tu progreso.** Puedes desplazarte por la película desde la barra de progreso de Emby o Jellyfin cuando el disco y el reproductor lo permiten. Además, HCC protege el punto guardado cuando aparecen los menús del Blu-ray, evitando que pierdas tu avance antes de volver a la película.
+- **Configura HCC a tu ritmo.** Puedes preparar las rutas y la conexión de Kodi aunque los equipos estén apagados, y
+  continuar sin completar todas las pruebas en ese momento. HCC te indica qué queda pendiente y qué funciones estarán
+  limitadas; guardar los datos no los convierte en una conexión o ruta verificada.
+- **Encuentra tus equipos con menos pasos.** Puedes filtrar las direcciones propuestas por nombre, IP o fabricante y
+  elegir la de tu TV o receptor. Si la búsqueda no alcanza tu red doméstica, HCC explica la limitación y permite
+  introducir la dirección a mano.
+- **Configura HCC con más comodidad desde móvil o teclado.** Los formularios y desplegables funcionan mejor con
+  controles táctiles y teclado, sin perder la selección ni el foco. Las listas se ajustan al espacio disponible, la
+  navegación móvil resulta más visible y el texto en modo oscuro tiene más contraste.
 
 ### Corregido
 

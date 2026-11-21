@@ -70,6 +70,60 @@ image: tousled/home-cinema-control:latest
 - Si solo tienes un usuario en tu Jellyfin, normalmente ya es el administrador y no tienes que hacer nada. Si usas un
   usuario secundario para HCC, dale permisos de administrador desde el panel de Jellyfin.
 
+### Sala (TV/AV): problemas frecuentes en 1.5.0-rc.2
+
+La pantalla **Sala** utiliza un asistente de tres pasos para TV y receptor AV. Para identificar qué falta, abre el paso
+marcado como pendiente y lee su estado: **dirección guardada**, **conexión comprobada** y **entrada guardada** representan
+operaciones distintas. Un tick verde de guardado no demuestra que el equipo responda por red ni que cambie de entrada.
+
+#### El esquema de conexión desaparece al recargar
+
+En **Sala → Cambiar esquema de conexión**, selecciona cómo están unidos el reproductor, la TV y el AVR, y pulsa
+**Guardar y preparar mi sala**. Espera la confirmación antes de recargar. Este botón guarda el esquema y los controles
+de TV/AV correspondientes, **no** prueba el cableado ni las entradas HDMI. Si vuelve a aparecer «Todavía no has elegido
+un esquema de conexión», revisa si se mostró un error al guardar y confirma la versión instalada en **Diagnóstico**.
+No borres el volumen de configuración ni repitas la instalación para corregir un fallo de guardado.
+
+#### La dirección está escrita, pero el siguiente paso sigue pendiente
+
+- **LG o Sony:** abre **Dirección del televisor**, introduce la IP y pulsa **Continuar a la conexión**. Con el equipo
+  encendido, ejecuta **Probar TV** en **Conexión con HCC**. Si modificaste campos, guárdalos con **Guardar TV**.
+  En Sony, verifica también el control IP y la PSK; en LG, acepta el permiso en pantalla si aparece.
+- **Samsung:** pulsa **Guardar dirección** en el primer paso. Después activa **Control IP** en la TV, pulsa
+  **Ya he activado Control IP**, usa **Vincular Samsung** y, una vez autorizada, **Probar TV**. Los ajustes de dirección
+  y HDMI se guardan desde sus propios pasos. «Vinculada» significa autorizada, **no** que el cambio HDMI funcione.
+- **Receptor AV:** en **Dirección del receptor**, pulsa **Guardar y continuar**. Las pruebas **Encender** y **Apagar**
+  del segundo paso son opcionales: puedes preparar la fuente en **Entrada del reproductor** y guardar con
+  **Guardar receptor AV**. Para probar la energía de Trinnov necesitas su dirección MAC.
+
+Si **Buscar dispositivos** no muestra tu TV o receptor, introduce la IP que indique el equipo. Comprueba que HCC
+pueda acceder a él desde la red del contenedor; las sugerencias de búsqueda no acreditan identidad ni conectividad.
+
+#### No puedo detectar entradas, cambiar al reproductor o abrir Emby/Jellyfin
+
+En LG y Sony, realiza **Probar TV** con el televisor encendido antes de usar las acciones de control. Selecciona la
+entrada que corresponde al esquema de cableado y guarda la configuración; una lista detectada no demuestra que el
+cambio sea correcto. En Samsung, además de vincular y probar la TV, selecciona un HDMI 1–4 y pulsa **Guardar HDMI**
+antes de **Cambiar al reproductor**. Esas cuatro opciones son candidatas, no entradas conectadas verificadas.
+Después de la orden, confirma la imagen real en pantalla si HCC te lo pide.
+
+Para **Abrir Emby** o **Abrir Jellyfin** en Samsung, configura previamente el servidor multimedia en HCC y comprueba
+que su aplicación esté instalada en la TV. HCC prueba un identificador interno candidato: puede no funcionar en tu
+modelo. Confirma visualmente si se abre la aplicación; sin esa confirmación no se habilita su regreso automático.
+No hace falta introducir manualmente códigos Tizen en el flujo actual.
+
+En el AVR, la fuente elegida debe coincidir con la entrada a la que llega el reproductor. Si el cambio de fuente
+falla, comprueba primero la dirección y la selección; la prueba de encendido por sí sola no verifica el HDMI.
+
+#### Al cambiar de marca reaparece una configuración anterior
+
+HCC conserva un perfil de TV o AVR por modelo. Al volver a una marca puede restaurar IP, entradas y comprobaciones
+anteriores, pero **no** conecta ni prueba automáticamente ese dispositivo. Comprueba que la dirección siga siendo la
+actual y repite las pruebas necesarias antes de confiar en el cambio HDMI.
+
+Si el problema persiste, abre **Diagnóstico** y usa [Enviar diagnóstico](#consulta-el-diagnóstico-de-hcc),
+indicando marca/modelo, paso que falla, versión de HCC y resultado mostrado, sin publicar contraseñas ni tokens.
+
 ### Kodi: conexión y carpetas en 1.5.0
 
 Identifica primero si falla el control de Kodi o el acceso de Kodi a las películas. Son conexiones y credenciales
@@ -259,6 +313,9 @@ revisar red o NAS:
 
 ### El AVR cambia solo de entrada
 
-- Revisa CEC/ARC.
-- Desactiva CEC/ARC en el AVR si fuerza TV Audio.
-- Aumenta el delay de cambio HDMI si el receptor necesita más tiempo al salir de standby.
+- Revisa el [esquema de cableado elegido en Sala](primeros-pasos.md#antes-de-configurar-sala-comprueba-el-cableado) y
+  comprueba que la entrada de la TV y la del AVR corresponden a las conexiones reales.
+- Si HDMI-CEC/ARC fuerza el regreso a «TV Audio», identifica primero qué función provoca el cambio. Desactiva
+  **solo la función conflictiva** si es necesario; no hace falta desactivar CEC/ARC en todas las instalaciones.
+- Aumenta el retardo de cambio HDMI si el receptor necesita más tiempo al salir del modo de espera. Guarda el
+  ajuste en **Sala → Receptor AV → Entrada del reproductor** y vuelve a probar el cambio.

@@ -21,7 +21,8 @@ Check that you have:
 
 For Docker Desktop, use Linux containers and enable **Settings → Resources → Network → Enable host networking**
 (available from Docker Desktop 4.34). This mode has network discovery limitations: enter addresses manually if
-suggestions are missing.
+suggestions are missing. The results can belong to Docker’s virtual network; a suggested address does not verify the
+identity of your TV or receiver.
 See [Docker's host networking documentation](https://docs.docker.com/engine/network/drivers/host/). A NAS or Linux
 server is the recommended route.
 
@@ -101,18 +102,18 @@ see [troubleshooting](docs/troubleshoot.en.md).
 
 ## 3. Set up HCC and play your first movie
 
-Follow [first steps in HCC](docs/getting-started.en.md). The complete walkthrough explains how to:
+Follow [first steps in HCC](docs/getting-started.en.md) to connect Emby/Jellyfin, configure your player and paths,
+and play your first movie. The TV and AV receiver are optional.
 
-1. Authorise Emby or Jellyfin and choose the device HCC monitors.
-2. Prepare and connect OPPO/Chinoppo or Kodi.
-3. Choose player folders, test the paths, and save the result.
-4. Set up your TV and/or AV receiver if you want HCC to coordinate inputs.
-5. Start your first movie from Emby/Jellyfin and check progress.
+You can prepare sections and save manual paths while devices are off. If a relevant check is pending, HCC explains the
+limitation when you continue. Saving does not verify connections or enable a path for playback. Tests and real
+operations keep their prerequisites.
 
-The walkthrough includes current OPPO, Kodi, Paths, and Room screenshots captured in an isolated instance with
-demonstration data and simulated devices. The [folder guide](docs/configure-media-paths.en.md) expands on NFS/SMB
-options. Before choosing HDMI inputs, check
-the [wiring layouts](docs/getting-started.en.md#5-tv-and-av-receiver-optional).
+For NFS/SMB, see the [folder guide](docs/configure-media-paths.en.md).
+Before choosing HDMI inputs, check the [wiring layouts](docs/getting-started.en.md#5-tv-and-av-receiver-optional).
+In **Room**, TV/AV setup separates address, connection and inputs: saving an address or HDMI choice does not prove
+the device or the switch works. If a step remains pending or an action is disabled, see
+[Room: TV/AV setup and tests](docs/troubleshoot.en.md#room-tvav-setup-and-tests-in-150-rc2).
 
 ## After installation
 
@@ -120,5 +121,5 @@ Use the [Portainer](docs/update-portainer.en.md) or [Docker Compose](docs/update
 reinstalling. If HCC appears empty, check [configuration recovery](docs/recover-configuration.en.md) before setting
 anything up again.
 
-[Home Assistant](docs/home-assistant.en.md) and [Take part](docs/participate.en.md) are optional. For manual backups or
-special installations, see [advanced Docker operations](docs/advanced-docker-operations.en.md).
+[Home Assistant](docs/home-assistant.en.md) and [Take part](docs/participate.en.md) are optional.
+For manual backups or special installations, see [advanced Docker operations](docs/advanced-docker-operations.en.md).

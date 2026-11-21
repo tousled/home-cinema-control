@@ -14,7 +14,7 @@ on
 its own; you choose the reaction in Home Assistant.
 
 <p align="center">
-  <img src="../assets/screenshots/install/10-home-assistant.png" alt="HCC Home Assistant configuration screen" width="860"/>
+  <img src="../assets/screenshots/install/10-home-assistant.en.png" alt="HCC Home Assistant configuration screen" width="860"/>
 </p>
 
 ### 1. Create the automation in Home Assistant

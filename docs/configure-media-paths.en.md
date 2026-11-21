@@ -8,8 +8,17 @@ same file. The browser avoids having to guess the player's address.
 For example, `/volume1/Video/Movies` and `smb://nas/Video/Movies/` may identify the same folder from two devices. These
 are examples, not values to copy.
 
-Before starting, connect your server and player using [first steps](getting-started.en.md). Check that the player itself
-can open a movie from the share. Kodi instructions apply to HCC 1.5.0, pending publication.
+You can prepare manual paths without connecting devices: open **Create manual path**, enter a name, server path, and
+player path, then click **Save draft**. They stay pending, survive reload, and can be corrected later. For Kodi,
+use <code>nfs://</code> or <code>smb://</code> without credentials in the address.
+
+To discover libraries, first check the server in **Media Server**. Browsing folders needs only a reachable player with a
+saved address. **Test path** needs a checked server and configured player. While these prerequisites are missing, you
+cannot delete or replace verified paths or change SMB credentials: valid settings are preserved. When you return to test
+a path, it must still identify the same folder.
+
+Before testing or playing, connect your server and player using [first steps](getting-started.en.md). Check that the
+player itself can open a movie from the share. Kodi instructions apply to HCC 1.5.0, pending publication.
 
 ## Set up a library
 
@@ -45,7 +54,7 @@ Use only the section for your active player.
 Do not copy the server path into the OPPO field: the names can differ even when they point to the same movies.
 
 <p align="center">
-  <img src="../assets/screenshots/install/07-media-paths-smb-credentials.png" alt="Example SMB credentials in OPPO access" width="860"/>
+  <img src="../assets/screenshots/install/07-media-paths-smb-credentials.en.png" alt="Example SMB credentials in OPPO access" width="860"/>
 </p>
 
 #### Kodi
@@ -99,7 +108,7 @@ HCC does not mount the folder on Kodi. A successful folder test does not guarant
 **Save draft** preserves a pending mapping. It does not enable playback: a successful test is still required.
 
 <p align="center">
-  <img src="../assets/screenshots/install/06-media-paths-nfs-mapping.png" alt="OPPO example of a verified NFS path" width="860"/>
+  <img src="../assets/screenshots/install/06-media-paths-nfs-mapping.en.png" alt="OPPO example of a verified NFS path" width="860"/>
 </p>
 
 ## Switch between OPPO and Kodi
