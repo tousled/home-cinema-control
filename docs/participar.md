@@ -33,7 +33,7 @@ Control Room muestra una invitación discreta fuera de la reproducción. No abre
 
 1. Abre **Participa**.
 2. Marca las opciones que utilizarías. En la pregunta sobre Emby y Jellyfin puedes elegir varias, pero **No lo necesito** excluye las demás.
-   En las preguntas sobre cómo inicias una película y qué reproductor añadir, elige una sola respuesta.
+   En la pregunta sobre cómo inicias una película, elige una sola respuesta.
 3. Pulsa **Siguiente** para pasar a otra pregunta: HCC guarda automáticamente la respuesta elegida, si ha cambiado. **Anterior** hace lo mismo al retroceder. En la última, usa **Terminar**. Si dejas una pregunta sin contestar, puedes pasar a la siguiente sin enviarla. Si falla el guardado, permanecerás en esa pregunta con tu selección intacta.
 
 **Ahora no** pospone la pregunta y mantiene el indicador. **No me interesa**
@@ -46,16 +46,25 @@ Si falla el envío, HCC usa su cola limitada y los reintentos existentes.
 El hub conserva el historial y cuenta la última respuesta recibida por
 instalación y pregunta, sin sumar una instalación por cada edición.
 
+La pregunta sobre el próximo reproductor ya no se muestra. Kodi forma parte de
+HCC y los intereses sobre otros reproductores se recogen en la lista de abajo.
+Las respuestas anteriores se conservan, sin reenviarlas por abrir esta pantalla.
+
+<p align="center">
+  <img src="../assets/screenshots/install/11-participation.png" alt="Participa en español: dos preguntas e intereses vigentes, con datos de prueba y vista de escritorio" width="860"/>
+</p>
+
 ## Cambiar tus intereses
 
 La lista describe mejoras posibles, no compatibilidad disponible ni promesas
-de implementación. Actualmente distingue Samsung (prueba de concepto local
-pendiente de validar por modelos), TCL, Hisense y Philips (viabilidad
-condicionada al sistema operativo); también distingue Zidoo de Dune HD.
+de implementación. Puedes indicar tu interés en Plex, TCL, Hisense, Philips,
+Zidoo y Dune HD. La viabilidad del control de los televisores depende de su
+modelo y sistema operativo.
 Panasonic, Xiaomi, Roku y Vizio no se ofrecen como candidatas inmediatas
 por falta de una vía suficientemente priorizada y validada.
-No muestra Sony TV, Home Assistant, OPPO ni Trinnov Altitude
+No muestra Samsung TV, Kodi, Sony TV, Home Assistant, OPPO ni Trinnov Altitude
 como nuevas integraciones pendientes porque HCC ya las incluye.
+Esto no implica que todos los modelos admitan las mismas operaciones.
 Las opciones históricas agrupadas permanecen en los votos antiguos.
 
 1. En **Participa**, marca o desmarca los intereses.

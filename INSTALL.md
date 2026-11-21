@@ -22,7 +22,8 @@ Comprueba que tienes:
 
 Si utilizas Docker Desktop, necesitas contenedores Linux y activar **Settings → Resources → Network → Enable host
 networking** (disponible desde Docker Desktop 4.34). Ese modo tiene limitaciones para el descubrimiento de red: si no
-aparecen sugerencias, introduce las direcciones manualmente. Consulta
+aparecen sugerencias, introduce las direcciones manualmente. Los resultados pueden pertenecer a la red virtual de
+Docker: una dirección sugerida no verifica la identidad de tu TV o receptor. Consulta
 la [documentación de Docker sobre red de host](https://docs.docker.com/engine/network/drivers/host/). Un NAS o servidor
 Linux es el recorrido recomendado.
 
@@ -102,17 +103,18 @@ consulta [solución de problemas](docs/solucionar-problemas.md).
 
 ## 3. Configura y reproduce tu primera película
 
-Sigue los [primeros pasos dentro de HCC](docs/primeros-pasos.md). El recorrido completo explica:
+Sigue los [primeros pasos dentro de HCC](docs/primeros-pasos.md) para conectar Emby/Jellyfin, configurar el
+reproductor y las rutas, y reproducir tu primera película. La TV y el receptor AV son opcionales.
 
-1. Autorizar Emby o Jellyfin y elegir el dispositivo que HCC supervisa.
-2. Preparar y conectar OPPO/Chinoppo o Kodi.
-3. Elegir las carpetas del reproductor, probar las rutas y guardar el resultado.
-4. Configurar la TV y/o receptor AV, si quieres que HCC coordine sus entradas.
-5. Iniciar una primera película desde Emby/Jellyfin y comprobar el progreso.
+Puedes preparar las secciones y guardar rutas manuales aunque los equipos estén apagados. Si queda una comprobación
+relevante, HCC explica la limitación al continuar. Guardar no verifica conexiones ni habilita una ruta para reproducir.
+Las pruebas y las operaciones reales conservan sus requisitos.
 
-El recorrido incluye capturas actuales de OPPO, Kodi, Rutas y Sala, obtenidas en una instancia aislada con datos de
-demostración y equipos simulados. La [guía de carpetas](docs/configurar-rutas.md) amplía las opciones de NFS/SMB. Antes
-de elegir entradas HDMI, revisa los [esquemas de cableado](docs/primeros-pasos.md#5-tv-y-receptor-av-opcional).
+Para NFS/SMB, consulta la [guía de carpetas](docs/configurar-rutas.md).
+Antes de elegir entradas HDMI, revisa los [esquemas de cableado](docs/primeros-pasos.md#5-tv-y-receptor-av-opcional).
+En **Sala**, el asistente separa dirección, conexión y entradas de TV/AV: guardar una dirección o HDMI no
+significa que se haya comprobado su funcionamiento. Si un paso queda pendiente o una acción está deshabilitada,
+consulta [Sala: problemas frecuentes](docs/solucionar-problemas.md#sala-tvav-problemas-frecuentes-en-150-rc2).
 
 ## Después de la instalación
 
@@ -120,5 +122,6 @@ Usa la guía de [Portainer](docs/actualizar-portainer.md) o [Docker Compose](doc
 sin reinstalar. Si HCC aparece vacío, consulta [recuperar configuración](docs/recuperar-configuracion.md) antes de
 volver a configurar nada.
 
-[Home Assistant](docs/home-assistant.md) y [Participar](docs/participar.md) son opcionales. Para copias manuales o
-instalaciones especiales, consulta [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).
+[Home Assistant](docs/home-assistant.md) y [Participar](docs/participar.md) son opcionales.
+Para copias manuales o instalaciones especiales,
+consulta [operaciones Docker avanzadas](docs/operaciones-docker-avanzadas.md).

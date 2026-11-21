@@ -7,7 +7,37 @@ Los nombres **Media Server**, **Media Player** y **Rutas** identifican las panta
 y carpetas. Las capturas actualizadas de OPPO, Kodi, Rutas y Sala muestran esta rama en una instancia aislada con datos
 de demostración y equipos simulados. Sirven para seguir la interfaz, no como certificación con dispositivos físicos.
 
+Control Room ofrece **Continuar configuración** como siguiente paso recomendado. Puedes visitar cualquier sección y
+preparar datos aunque los equipos estén apagados. TV, receptor y Home Assistant son opcionales. **Configurado** indica
+datos guardados pendientes de comprobar; **Verificado** acredita una comprobación guardada válida, sin afirmar que el
+equipo esté encendido ahora. **Revisar** indica que la comprobación anterior ya no corresponde a los datos actuales.
+
+Si avanzar deja una limitación relevante pendiente, HCC explica sus consecuencias. **Revisar configuración** vuelve al
+apartado correspondiente sin enviar comandos; **Continuar de todos modos** permite avanzar sin marcar nada como
+verificado. Escape o cerrar el aviso conserva la pantalla. La misma advertencia no se repite durante esa sesión de
+pestaña, ni tras recargar, salvo que cambien el estado o la identidad del equipo. Los recordatorios de cada pantalla
+siguen visibles.
+
+<p align="center">
+  <img src="../assets/screenshots/install/02-continue-pending.png" alt="Aviso al continuar con el servidor pendiente, con acciones para revisar o seguir preparando HCC" width="860"/>
+</p>
+
+Usa Tab para llegar a selectores y tarjetas. En un selector, usa las flechas, Inicio o Fin y confirma con Intro; Escape
+cancela. Los errores permanecen visibles hasta cerrarlos. Se muestran hasta tres avisos; los errores iguales comparten
+un contador de repeticiones. Los éxitos no desplazan errores pendientes. Si llegan más errores distintos, se conservan
+los tres más recientes.
+
 ## Configura HCC en cinco pasos
+
+Los selectores de servidor, reproductor, TV y receptor muestran el logotipo junto
+al nombre. En Sala, **Marca** ordena los fabricantes alfabéticamente y deja **Scripts** al final para el control con
+comandos personalizados.
+Elegir una marca nueva o volver a un perfil vacío no muestra un aviso de
+recuperación. **Configuración guardada recuperada** aparece solo si se recuperan
+ajustes anteriores; el cambio de marca no prueba la conexión.
+El mismo criterio se aplica al cambiar entre Kodi/OPPO o Emby/Jellyfin: un
+destino sin configurar no muestra un aviso de éxito. Recuperar ajustes no
+significa que se haya realizado una nueva prueba de conexión.
 
 1. Autoriza Emby o Jellyfin y elige el dispositivo que HCC debe supervisar.
 2. Prepara y conecta tu reproductor, OPPO/Chinoppo o Kodi.
@@ -36,18 +66,35 @@ otro asistente.
 2. Introduce la dirección del servidor, por ejemplo `http://192.168.1.10:8096`. Utiliza la dirección y el puerto de tu
    servidor; el ejemplo no corresponde a un equipo real.
 3. En **Autorización**, introduce tu usuario y contraseña y pulsa **Autorizar con Emby** o **Autorizar con Jellyfin**.
-   Espera a ver **Token activo**, que confirma el acceso guardado. Jellyfin necesita permisos de administrador para
+   Espera a ver **Token guardado**, que confirma el acceso guardado. Jellyfin necesita permisos de administrador para
    gestionar las sesiones supervisadas.
 4. Pulsa **Actualizar dispositivos** si hace falta. Selecciona el dispositivo desde el que vas a pulsar Play, por
    ejemplo la aplicación de Emby en tu TV, y pulsa **Guardar**. Si no aparece, abre esa aplicación e inicia sesión en tu
    servidor antes de actualizar la lista otra vez.
 
-Resultado: HCC muestra tus bibliotecas y el dispositivo supervisado. No tienes que recrear la biblioteca del servidor.
-Si sigue **pendiente**, termina la autorización antes de continuar.
+5. Pulsa **Probar conexión de Jellyfin** o **Probar conexión de Emby**, según el servidor elegido. Si no puedes probarla
+   ahora, puedes continuar con la preparación. Una dirección o un token guardados no completan la verificación. Una
+   comprobación guardada válida es histórica; no afirma que el servidor esté conectado en este momento.
+
+Resultado: aparecen el cliente seleccionado y las carpetas físicas que devuelve tu servidor. HCC no crea bibliotecas ni
+registra clientes por ti. Esta captura muestra un servidor preparado y simulado:
 
 <p align="center">
-  <img src="../assets/screenshots/install/02-media-server.png" alt="Servidor multimedia autorizado con bibliotecas detectadas" width="860"/>
+  <img src="../assets/screenshots/install/02-media-server-ready.png" alt="Servidor Emby de demostración verificado, con cliente seleccionado y carpeta de biblioteca Movies" width="860"/>
 </p>
+
+Si no hay clientes, abre Emby/Jellyfin en el equipo desde el que pulsarás Play, inicia sesión y pulsa **Actualizar
+dispositivos** en HCC. Si no hay carpetas, revisa las bibliotecas del servidor y los permisos de la cuenta y pulsa
+**Actualizar bibliotecas**. Este estado vacío es un ejemplo de recuperación, no una configuración terminada:
+
+<p align="center">
+  <img src="../assets/screenshots/install/02-media-server-audit.png" alt="Ejemplo de recuperación: el servidor no ha devuelto clientes ni carpetas de bibliotecas" width="860"/>
+</p>
+
+Puedes abrir **Rutas** y guardar correspondencias manuales sin esa prueba. Descubrir bibliotecas requiere comprobar el
+servidor; explorar carpetas requiere un reproductor configurado y accesible. **Probar ruta** y los cambios de acceso de
+red requieren la comprobación guardada del servidor y la dirección del reproductor. Si todo lo demás está preparado,
+Control Room te recomendará volver a la comprobación pendiente.
 
 ### 3. Conecta el reproductor
 
@@ -82,6 +129,12 @@ La captura muestra el selector de reproductor y la dirección de ejemplo en el b
 
 #### Kodi: preparar y comprobar la conexión
 
+Con Kodi apagado, puedes guardar únicamente la conexión, sin activar controles de energía.
+
+<p align="center">
+  <img src="../assets/screenshots/install/03-kodi-offline.png" alt="Conexión Kodi guardada con la acción de guardado sin probar y controles de energía separados" width="860"/>
+</p>
+
 Configura primero Kodi en el dispositivo que reproducirá las películas. HCC lo controla a través de HTTP JSON-RPC: una
 conexión de red para enviar órdenes, sin instalar un complemento en Kodi. No hay una lista de versiones o plataformas de
 Kodi certificadas por HCC; comprueba la conexión y una película en tu equipo.
@@ -100,7 +153,11 @@ Kodi certificadas por HCC; comprueba la conexión y una película en tu equipo.
 5. En **Autorización**, escribe el usuario y la contraseña del control HTTP de Kodi, que pueden ser distintos de los del
    NAS. Pulsa **Guardar**, debajo de Conexión y Autorización. HCC comprueba la conexión antes de guardar; si falla, conserva los ajustes
    anteriores.
-6. Pulsa **Probar Kodi**. Debe confirmar la conexión sin necesitar una reproducción activa. Si falla, lee el motivo:
+   Si Kodi está apagado, utiliza **Guardar conexión sin probar**: guarda solo dirección, puerto y autorización, sin
+   comprobarlos ni guardar ajustes de encendido/apagado. Los controles de energía mantienen sus propias pruebas. Al
+   cambiar la contraseña sin probarla, la verificación anterior deja de ser válida.
+6. Pulsa **Probar Kodi** cuando el equipo esté disponible. Debe confirmar la conexión sin necesitar una reproducción
+   activa. Si falla, lee el motivo:
    dirección o puerto inválidos, credenciales rechazadas, Kodi inaccesible o error de comunicación. Corrige ese dato y
    repite. Consulta
    los [errores de conexión de Kodi y su captura de ejemplo](solucionar-problemas.md#probar-kodi-o-guardar-credenciales-falla)
@@ -156,7 +213,18 @@ Las fuentes locales de Kodi no están disponibles en HCC 1.5.0: se reservan para
 concreta. Las fuentes `plugin://` y otros protocolos tampoco se pueden seleccionar. Usa una fuente NFS o SMB. Si no
 aparecen fuentes, añádelas en **Vídeos** de Kodi, no solo en su gestor de archivos.
 
-**Guardar borrador** permite conservar una ruta pendiente; no sustituye la prueba. Si cambias de OPPO a Kodi o vuelves a
+**Guardar borrador** permite escribir y guardar una ruta manual con los equipos apagados; no sustituye la prueba. Pulsa
+**Crear ruta manual**, completa nombre y ambas rutas y guarda. Para Kodi, utiliza <code>nfs://</code> o <code>
+smb://</code>, sin contraseñas en la dirección. Puedes corregir después un borrador y recuperarlo al recargar. Cuando
+faltan requisitos de conexión, este guardado conserva las rutas ya verificadas: no permite sobrescribirlas, renombrarlas
+ni borrarlas. No modifica las rutas de otros servidores o reproductores. Vuelve a la ruta y pulsa **Probar ruta** cuando
+las conexiones estén preparadas.
+
+<p align="center">
+  <img src="../assets/screenshots/install/04-path-offline.png" alt="Ruta manual OPPO guardada como pendiente con comprobaciones de conexión todavía pendientes" width="860"/>
+</p>
+
+Si cambias de OPPO a Kodi o vuelves a
 OPPO, HCC recupera las rutas de cada reproductor para el servidor elegido. La [guía de carpetas](configurar-rutas.md)
 explica los estados y las opciones avanzadas.
 
@@ -176,28 +244,78 @@ HCC contempla estas tres conexiones de un reproductor **externo** (OPPO/Chinoppo
 
 **Fuera del alcance de esta guía:** reproductor → TV → AVR mediante ARC/eARC. No debe confundirse con el caso 1, que utiliza dos salidas del reproductor.
 
-En la primera configuración, el asistente de Sala puede preparar los campos. **Preparar mi sala** rellena el formulario:
-revisa los datos, prueba los dispositivos y guarda. No detecta el cableado ni guarda de inmediato. **Cambiar esquema de
-conexión** permite abrirlo otra vez.
+En la primera configuración, el asistente de Sala permite declarar el cableado. **Guardar y preparar mi sala** guarda
+el esquema elegido y activa o desactiva los controles de TV y AVR según esa elección, sin modificar las entradas HDMI
+ni las credenciales existentes. Después revisa los campos, prueba los dispositivos y guarda sus ajustes por separado.
+El asistente no detecta físicamente el cableado ni verifica las conexiones. **Cambiar esquema de conexión** permite
+abrirlo otra vez.
+
 
 <p align="center">
   <img src="../assets/screenshots/install/05-room-wiring-wizard.png" alt="Asistente Sala con el esquema a través del receptor seleccionado" width="860"/>
 </p>
 
+Entra en **Sala** para configurar tu **TV, el receptor AV o ambos**. Elige primero el esquema real de conexión y pulsa
+**Guardar y preparar mi sala**. La selección se guarda aunque todavía no hayas terminado de configurar los equipos.
+Puedes modificarla más adelante con **Cambiar esquema de conexión**. Selecciona la **Marca** de cada equipo activo y
+comprueba su IP en el propio dispositivo. **Buscar dispositivos** ofrece sugerencias, no confirma conexiones.
 
-Entra en **Sala** para conectar tu **TV, el receptor AV o ambos**. Activa cada dispositivo que tengas, elige su modelo y configura la IP. Si aparece **Escanear red**, púlsalo y utiliza las sugerencias al escribir la dirección, igual que en Media Player. Pulsa **Probar conexión** antes de seleccionar entradas o funciones de la TV. Si no tienes receptor AV, configura solo la TV.
+#### TV LG y Sony: tres pasos
+
+1. **Dirección del televisor:** introduce o selecciona la IP y pulsa **Continuar a la conexión**. Esta acción prepara
+   el siguiente paso, pero no comprueba que la TV responda. Puedes guardar los ajustes con **Guardar TV**.
+2. **Conexión con HCC:** con la TV encendida, pulsa **Probar TV**. Acepta el permiso en la LG si aparece; en Sony,
+   configura el control IP y la clave PSK cuando corresponda. Una IP escrita no sustituye la prueba.
+3. **Entradas y aplicaciones:** selecciona el HDMI por el que llega la imagen del reproductor (o del receptor AV),
+   utiliza las acciones para detectar o probar las entradas y configura el regreso a la aplicación del servidor
+   multimedia si está disponible. **Guardar TV** conserva los ajustes; guardar una entrada no demuestra que el cambio
+   HDMI o la apertura de la aplicación funcionen. Realiza esas pruebas con el equipo disponible.
+
+#### Receptor AV: tres pasos
+
+1. **Dirección del receptor:** selecciona la marca y la IP (o el comando de encendido si utilizas **Scripts**) y pulsa
+   **Guardar y continuar**. En Trinnov también puedes necesitar la MAC para probar la energía.
+2. **Prueba de control:** utiliza **Encender** o **Apagar** si quieres verificar esas órdenes. Las pruebas de energía
+   son opcionales y no impiden preparar las entradas del reproductor.
+3. **Entrada del reproductor:** selecciona la fuente adecuada y ajusta las opciones HDMI. Puedes usar **Detectar
+   entradas HDMI** y **Cambiar al reproductor** cuando se cumplan sus requisitos. Termina con **Guardar receptor AV**.
+   En Trinnov, una lista de fuentes no prueba por sí sola la conexión.
+
+Los pasos se pueden abrir y plegar. Un **tick verde** significa que se ha guardado un dato o que una prueba se ha
+completado, **según el texto de ese paso**: «Dirección guardada», «Conexión comprobada» y «Entrada guardada» no son
+equivalentes. Un resultado guardado de una prueba anterior no confirma disponibilidad en este momento. Para las
+acciones de control de TV puede ser necesaria una nueva prueba **Probar TV** en la sesión actual. Cambiar de marca
+recupera el perfil guardado de esa marca, no establece una conexión nueva. Si desactivas y reactivas un equipo, sus
+datos y verificaciones históricas compatibles pueden conservarse. Si no tienes AVR, configura solo la TV.
+Si algo queda bloqueado o pendiente, consulta [Sala: problemas frecuentes](solucionar-problemas.md#sala-tvav-problemas-frecuentes-en-150-rc2).
 
 <p align="center">
-  <img src="../assets/screenshots/install/05-room-prepared.png" alt="Formulario de Sala preparado por el asistente, pendiente de completar y guardar" width="860"/>
+  <img src="../assets/screenshots/install/05-room-audit.png" alt="Sala con perfiles de demostración y comprobaciones históricas, sin hardware conectado" width="860"/>
 </p>
 
 <p align="center">
   <img src="../assets/screenshots/install/05-room-ip-discovery.png" alt="Descubrimiento de IP en la pantalla Sala de Home Cinema Control" width="860"/>
 </p>
 
-Si las sugerencias no aparecen, puedes escribir la IP manualmente; HCC y los dispositivos deben poder comunicarse en tu red local (mantén **`network_mode: host`**). El nombre visible depende de la información que facilite tu red o router.
+Los resultados son sugerencias, no equipos verificados. Docker Desktop puede mostrar su red virtual en vez de tu red
+local. Comprueba la IP en el propio equipo y escríbela manualmente si no aparece; HCC y los dispositivos deben poder
+comunicarse en tu red local (mantén **`network_mode: host`**). El nombre visible depende de la información que facilite
+tu red o router.
 
 En televisores LG, acepta el emparejamiento en pantalla si aparece. En Sony puede ser necesario activar el control IP/PSK en los ajustes de la TV. Si alguna prueba falla, consulta [Diagnóstico](solucionar-problemas.md#consulta-el-diagnóstico-de-hcc); si el receptor cambia solo a TV Audio, consulta [solución de problemas](solucionar-problemas.md#el-avr-cambia-solo-de-entrada).
+
+#### Samsung: conecta tu TV a HCC
+
+**Antes de empezar:** conecta la Samsung y el equipo donde está instalado HCC a la misma red local. Enciende el televisor y ten su mando a mano.
+
+1. **Encuentra el televisor.** En la Samsung, abre **Todos los ajustes → Conexión → Red → Estado de red → Ajustes IP** para consultar su dirección. En HCC, entra en **Sala**, activa la TV, selecciona **Samsung** y sigue el primer paso **Dirección del televisor**. Puedes buscarla en la red o introducir la IP; pulsa **Guardar dirección**.
+2. **Conecta HCC.** En la Samsung, abre **Todos los ajustes → Conexión → Red → Configuración para expertos → Control IP** y actívalo (los nombres pueden variar según el modelo). En el segundo paso de HCC, pulsa **Ya he activado Control IP** y **Vincular Samsung**. Si aparece una solicitud de conexión en la TV, acéptala con el mando. Después pulsa **Probar TV** para comprobar la conexión.
+3. **Configura entradas y aplicaciones.** En el tercer paso **Entradas y aplicaciones**, elige el HDMI conectado al reproductor o al receptor AV y pulsa **Guardar HDMI**. Con los equipos encendidos, usa **Detectar entradas HDMI** para comprobar las opciones de control disponibles y **Cambiar al reproductor** para probar la entrada elegida. Confirma si ves la imagen. Las cuatro entradas HDMI que muestra Samsung son opciones posibles, no una garantía de que estén conectadas.
+4. **Opcional: comprueba el regreso a Emby o Jellyfin.** Si ya has configurado ese servidor multimedia en HCC y tienes su aplicación instalada en la Samsung, pulsa **Abrir Emby** o **Abrir Jellyfin**, según corresponda. HCC utiliza internamente un identificador candidato; no tienes que introducir ningún código. Confirma si la aplicación aparece en la TV. Solo tras una confirmación positiva podrá utilizarse para el regreso automático.
+5. **Opcional: comparte compatibilidad.** Debajo del asistente encontrarás **Compartir compatibilidad**. Puedes activarlo o dejarlo desactivado; no es necesario para usar Samsung.
+
+**Si HCC no consigue conectarse**, comprueba que la TV esté encendida, que **Control IP** siga activado y que ambos equipos estén en la misma red. Revisa también que la dirección IP guardada en HCC coincida con la que muestra el televisor y vuelve a pulsar **Vincular Samsung**.
+
 
 ### 6. Reproduce tu primera película
 

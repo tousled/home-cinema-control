@@ -8,8 +8,19 @@ para abrir el mismo archivo. El navegador evita que tengas que adivinar la direc
 Por ejemplo, `/volume1/Video/Peliculas` y `smb://nas/Video/Peliculas/` pueden ser la misma carpeta vista desde dos
 equipos. Son ejemplos, no valores que debas copiar.
 
-Antes de empezar, conecta el servidor y el reproductor siguiendo los [primeros pasos](primeros-pasos.md). Comprueba que
-el propio reproductor abre una película desde la carpeta compartida. Las instrucciones de Kodi corresponden a HCC 1.5.0,
+Puedes preparar rutas manuales sin conectar los equipos: abre **Crear ruta manual**, escribe nombre, ruta del servidor y
+ruta del reproductor y pulsa **Guardar borrador**. Quedarán pendientes. Al recargar se conservan y puedes corregirlas.
+Para Kodi utiliza <code>nfs://</code> o <code>smb://</code> sin credenciales en la dirección.
+
+Para descubrir bibliotecas, comprueba antes el servidor en **Media Server**. Para explorar carpetas basta con la
+dirección guardada de un reproductor accesible. **Probar ruta** requiere el servidor comprobado y el reproductor
+configurado. Mientras falten estos requisitos, no puedes borrar ni reemplazar rutas verificadas ni modificar
+credenciales SMB: se conserva la configuración válida. Al volver a probar una ruta, debe seguir apuntando a la misma
+carpeta.
+
+Antes de probar o reproducir, conecta el servidor y el reproductor siguiendo los [primeros pasos](primeros-pasos.md).
+Comprueba que el propio reproductor abre una película desde la carpeta compartida. Las instrucciones de Kodi
+corresponden a HCC 1.5.0,
 pendiente de publicación.
 
 ## Configura una biblioteca

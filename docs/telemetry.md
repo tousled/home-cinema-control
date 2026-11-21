@@ -6,6 +6,32 @@ La telemetría de HCC es opcional y está desactivada por defecto. Cuando se act
 mínimas para medir adopción y fiabilidad de reproducción. Usa un código seudónimo de instalación para relacionar
 avisos de una misma instalación sin conocer la identidad personal de quien la usa.
 
+## Compatibilidad Samsung
+
+En **Sala**, **Ayudar a mejorar la compatibilidad Samsung** autoriza una categoría independiente. Está apagada por
+defecto y no es necesaria para usar la TV. Al activarla, HCC crea un ID aleatorio de instalación si todavía no existe;
+si ya tienes uno, lo reutiliza. Activar después la telemetría general conserva ese mismo ID.
+
+Si solo activas compatibilidad Samsung, HCC comparte únicamente esa categoría: modelo comercial detectado por la API
+local de la TV, operación y estrategia de control, resultado técnico, respuesta visual **Sí/No/No sé**, códigos de
+error acotados y versión de HCC. Los identificadores aleatorios de evento/prueba y sus fechas permiten relacionar la
+respuesta técnica con la observación y evitar duplicar los reintentos. No se envían IP, MAC, número de serie, nombres
+personalizados, certificados, credenciales, respuestas completas de la TV ni información de películas o servidores.
+
+No hay formulario de modelo ni informe manual. Si HCC no puede identificar el modelo, se registra como desconocido.
+Al activar la opción también puede compartir las comprobaciones válidas que ya guardaste; no realiza cambios de
+entrada, encendido o aplicaciones para recopilar datos. Una orden aceptada por la TV no equivale a una imagen
+confirmada.
+
+Si activas ambas opciones, se comparten ambas categorías. Desactivar una conserva la otra. Desactivar compatibilidad
+Samsung detiene nuevos envíos y elimina su cola pendiente, sin borrar los ajustes ni las comprobaciones de la TV.
+La entrega en curso termina antes de confirmar la desactivación; después no se inician nuevas entregas de esa categoría.
+La revocación no borra automáticamente informes ya recibidos por el Hub.
+
+El receptor debe admitir el contrato de compatibilidad Samsung. HCC consulta esa capacidad antes de enviar; si el Hub
+todavía no la admite, conserva los informes en su cola específica para reintentarlos. El panel privado separa modelos,
+operaciones, intentos, instalaciones y confirmaciones visuales. No considera una muestra vacía como incompatibilidad.
+
 En la reedición corregida de 1.4.2, las imágenes oficiales incluyen el destino y la clave pública de ingesta.
 Basta con activar la telemetría en HCC; no es necesario añadir variables en Compose o Portainer. Esa clave distribuida no concede
 acceso administrativo. Para un hub propio, las variables `HCC_TELEMETRY_ENDPOINT_URL` y

@@ -23,7 +23,7 @@ It does not guarantee absolute anonymity. Support reports you choose to review
 and share manually follow a separate process.
 
 <p align="center">
-  <img src="../assets/screenshots/install/12-help-hcc.png" alt="Optional consent invitation in Spanish, showing Help HCC and Not now in a test instance" width="860"/>
+  <img src="../assets/screenshots/install/12-help-hcc.en.png" alt="Optional consent invitation in English, showing Help HCC and Not now in a test instance" width="860"/>
 </p>
 
 ## Answer a short question
@@ -33,7 +33,7 @@ Control Room shows a discreet invitation outside playback. It does not open a mo
 
 1. Open **Take part**.
 2. Select the options you would use. For Emby and Jellyfin, you can select several, while **I don't need this** excludes all other options.
-   For how you start a movie or which player to support next, select just one option.
+   For how you start a movie, select just one option.
 3. Click **Next** to move on: HCC automatically saves your selected answer if it changed. **Previous** does the same when returning to an earlier question. Use **Finish** for the last question. You can skip an unanswered question without submitting it. If saving fails, you stay on the current question with the selection intact.
 
 **Not now** postpones the question and keeps the indicator. **Not interested**
@@ -46,15 +46,25 @@ deliveries use HCC's existing bounded queue and retries. The hub keeps the
 history and counts the last received answer per installation/question,
 without counting another installation for each edit.
 
+The question about the next player is no longer shown. Kodi is part of HCC,
+and interests in other players are collected in the list below. Previous
+answers are preserved without resending them when you open this screen.
+
+<p align="center">
+  <img src="../assets/screenshots/install/11-participation.en.png" alt="Take part in English: two questions and current interests, using test data in a desktop viewport" width="860"/>
+</p>
+
 ## Change your interests
 
 The list describes possible improvements, not available compatibility or
-implementation promises. Samsung (local proof of concept, model-specific
-validation pending), TCL, Hisense and Philips (OS-dependent feasibility)
-remain individual TV candidates; Zidoo and Dune HD are separate choices.
+implementation promises. You can indicate interest in Plex, TCL, Hisense,
+Philips, Zidoo, and Dune HD. TV control feasibility depends on the model and
+operating system.
 Panasonic, Xiaomi, Roku and Vizio are not presented as immediate candidates
-because no sufficiently validated, prioritized integration path has been found. Sony TV, Home Assistant, OPPO, and Trinnov Altitude
+because no sufficiently validated, prioritized integration path has been found.
+Samsung TV, Kodi, Sony TV, Home Assistant, OPPO, and Trinnov Altitude
 are absent as new integrations because HCC already supports them.
+This does not mean every model supports the same operations.
 Historical grouped votes are preserved.
 
 1. Under **Take part**, select or clear your interests.

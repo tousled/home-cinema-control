@@ -8,6 +8,32 @@ The one-off `telemetry-1.4.3` invitation for prior opt-outs does not enable
 sharing unless accepted. Dismissing or declining it prevents another display.
 Opening questions does not repeat the invitation or enable consent.
 
+## Samsung compatibility
+
+In **Room**, **Help improve Samsung compatibility** authorises an independent category. It is off by default and is
+not required to use your TV. Enabling it creates a random installation ID if needed, or reuses your existing ID.
+Enabling general telemetry later keeps that same ID.
+
+With only Samsung compatibility enabled, HCC shares only that category: the commercial model detected through the
+TV's local API, control operation and strategy, technical result, **Yes/No/I don't know** picture observations,
+bounded error codes, and HCC version. Random event/test identifiers and timestamps correlate technical replies with
+observations and deduplicate retries. IP addresses, MACs, serial numbers, custom names, certificates, credentials,
+complete TV replies, and movie or media-server information are excluded.
+
+There is no model form or manual report. If HCC cannot identify the model, it records unknown. Enabling the option
+may also share valid checks you already saved; collection does not switch inputs, change power, or open apps.
+A command accepted by the TV is kept separate from a picture confirmed by the user.
+
+With both options enabled, both categories are shared. Disabling either preserves the other. Disabling Samsung
+compatibility stops new deliveries and clears its pending queue, while keeping your TV settings and checks.
+An in-flight delivery finishes before deactivation is confirmed; no new deliveries for that category start afterwards.
+Revocation does not automatically delete reports already received by the Hub.
+
+The receiver must support the Samsung compatibility contract. HCC checks that capability before sending and keeps
+reports in their separate retry queue if the Hub does not yet support it. The private dashboard separates models,
+operations, attempts, contributing installations, and picture confirmations. Missing samples do not mean
+incompatibility.
+
 ## Data and purpose
 
 The automatic channel sends a random installation code, HCC version, deployment

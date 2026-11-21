@@ -11,7 +11,7 @@ If HCC appears to have lost its settings after an update, start with [configurat
 Open **Diagnostics** in HCC to check connections, see the **Current issue** and find the installed version. **No active issues** describes the current state, not an error-free history. An empty Emby/Jellyfin session snapshot or the client's disappearance during OPPO playback does not by itself trigger a missing-device warning.
 
 <p align="center">
-  <img src="../assets/screenshots/install/06-status.png" alt="HCC diagnostics screen" width="860"/>
+  <img src="../assets/screenshots/install/06-status.en.png" alt="HCC diagnostics screen" width="860"/>
 </p>
 
 For help, click **Send diagnostics**. HCC prepares a status summary and up to **200 recent log lines** by default. It redacts credentials, IPs, MACs and paths known from your configuration, plus IPv4 addresses found in the text. **Review the report** before sharing. **Copy & open GitHub** copies it and opens an issue, but **you must paste it**; nothing is submitted automatically.
@@ -21,7 +21,7 @@ For help, click **Send diagnostics**. HCC prepares a status summary and up to **
 Open **Logs** and filter recent errors or warnings. HCC avoids logging credentials in OPPO requests, but **the original log may include IP addresses and folder names**. For an extra-redacted support report, use **Send diagnostics**. You can also copy the visible lines or download `hcc.log`.
 
 <p align="center">
-  <img src="../assets/screenshots/install/07-logs.png" alt="HCC logs screen with filters" width="860"/>
+  <img src="../assets/screenshots/install/07-logs.en.png" alt="HCC logs screen with filters" width="860"/>
 </p>
 
 [Optional telemetry](telemetry.en.md) is separate from diagnostics you choose to share.
@@ -159,9 +159,66 @@ libraries work fine, suspect the name length/characters first, before checking t
 
 ### The AVR changes input by itself
 
-- Review CEC/ARC.
-- Disable CEC/ARC on the AVR if it forces TV Audio.
-- Increase HDMI switch delay if the receiver needs more time after standby.
+- Check the [wiring layout selected in Room](getting-started.en.md#5-tv-and-av-receiver-optional) and confirm that the TV
+  and AVR inputs match the actual cabling.
+- If HDMI-CEC/ARC forces the receiver back to “TV Audio”, find out which setting causes it first. Disable **only the
+  conflicting function** if needed; CEC/ARC does not have to be disabled for every installation.
+- Increase the HDMI switching delay if your receiver needs more time after standby. Save the setting under
+  **Room → AV receiver → Player input** and test the switch again.
+
+### Room (TV/AV): setup and tests in 1.5.0-rc.2
+
+The **Room** screen uses a three-step wizard for TVs and AV receivers. Open the pending step and read its status:
+**address saved**, **connection checked** and **input saved** are different operations. A green tick for a saved
+setting does not prove the device is reachable or that an HDMI switch works.
+
+#### The wiring choice disappears after refreshing the page
+
+In **Room → Change wiring layout**, select how your player, TV and receiver are connected and click
+**Save and set up my room**. Wait for the save confirmation before reloading. This saves the layout and
+corresponding TV/AV enablement, **not** a cable or HDMI test. If the page still says that no wiring layout was
+selected, check for a save error and confirm the installed HCC version in **Diagnostics**. Do not delete the
+configuration volume or reinstall HCC just to retry a failed save.
+
+#### I entered an address, but the next step is still pending
+
+- **LG or Sony:** open **TV address**, enter the IP, and select **Continue to connection**. With the TV powered on,
+  choose **Test TV** under **Connect to HCC**. Save any edited fields with **Save TV**. On Sony, also check IP
+  control and the PSK; on LG, approve the pairing prompt if shown.
+- **Samsung:** choose **Save TV address** in step one. Enable **IP Remote** on the TV, select **I've enabled
+  IP Remote**, then **Pair Samsung** and, once authorized, **Test TV**. The address and HDMI input have their own
+  save controls. “Paired” means authorized; it does **not** prove HDMI switching works.
+- **AV receiver:** select **Save and continue** under **Receiver address**. **Power on** and **Power off** tests
+  in step two are optional: you can prepare the source under **Player input** and use **Save AV receiver**.
+  Trinnov needs its MAC address for power testing.
+
+If **Find devices** does not show the TV or receiver, enter the IP from the device itself. Make sure HCC can
+reach it from the container's network. A discovery suggestion is not proof of identity or connectivity.
+
+#### I cannot discover HDMI inputs, switch to the player or open Emby/Jellyfin
+
+On LG and Sony, run **Test TV** with the TV powered on before trying control actions. Choose the input that
+matches your real cabling and save the settings; a detected list does not prove switching works. On Samsung,
+pair and test the TV, select HDMI 1–4 and choose **Save HDMI** before using **Switch to player**. The four
+HDMI values are candidates, not a verified inventory of connected ports. Confirm the actual picture if HCC
+asks you to.
+
+For **Open Emby** or **Open Jellyfin** on Samsung, first configure that media server in HCC and make sure its
+app is installed on the TV. HCC tries an internal candidate app ID, which may not work on every model.
+Confirm visually that the correct app opened; without this confirmation, automatic return cannot be enabled.
+The current flow does not require entering Tizen app codes manually.
+
+On an AV receiver, verify that the selected source corresponds to the player's physical input. If a switch
+fails, check the address and selected input first; a power-on test alone does not verify HDMI switching.
+
+#### An old configuration reappears after changing brands
+
+HCC keeps a TV or AV receiver profile for each model. Returning to a brand may restore its address, inputs
+and historical checks, but **does not** reconnect to or test that device. Check the actual IP and repeat any
+necessary tests before relying on the HDMI controls.
+
+If the problem persists, open **Diagnostics** and use [Send diagnostics](#check-hcc-diagnostics). Include the
+TV/AV brand and model, failing step, HCC version and displayed outcome. Never publish passwords or tokens.
 
 ### Kodi: connection and folders in 1.5.0
 
