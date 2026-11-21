@@ -46,6 +46,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 - **Sin falsas alarmas al salir de la aplicación.** Si sales de Emby o Jellyfin mientras el OPPO continúa reproduciendo, HCC ya no muestra incorrectamente un aviso indicando que el dispositivo ha desaparecido.
 - **Audio y subtítulos correctos al elegir otra versión en Jellyfin.** Cuando una película tiene varias versiones, HCC utiliza las pistas de audio y subtítulos correspondientes al archivo que has elegido, evitando seleccionar por error las de otra versión.
 
+### Agradecimientos
+
+- **Gracias a `@vicsuaes`.** Su colaboración fue decisiva para descubrir cómo funciona realmente la integración Samsung en un televisor S90C. Con sus sucesivas pruebas físicas y scripts de diagnóstico pudimos documentar la autorización, la lectura del estado, la conmutación confirmada a HDMI3, los errores al solicitar otras entradas y las diferencias entre identificar y abrir aplicaciones Tizen. También siguió colaborando en las versiones candidatas para localizar y diagnosticar fallos de compatibilidad.
+
 ## [1.4.6] - 2026-11-15
 
 ### Añadido
@@ -66,6 +70,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
   activada, HCC intenta retomar la reproducción donde te quedaste. Para empezar de cero, elige
   «Reproducir desde el principio» en Emby o Jellyfin.
 
+### Agradecimientos
+
+- **Gracias a `@bibizaza`.** Detectó que ciertos Blu-ray en ISO se reiniciaban desde el menú aunque Emby tuviera un punto de reanudación guardado. Su informe permitió investigar la causa y, tras publicar 1.4.6, comprobó en su Chinoppo que el salto a la posición guardada ya funcionaba.
+
 ## [1.4.5] - 2026-11-04
 
 ### Corregido
@@ -73,6 +81,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 - **Tus películas Blu-ray, sin problemas de reproducción.** Algunas películas guardadas en carpetas Blu-ray o UHD
   Blu-ray no se iniciaban correctamente desde Jellyfin. HCC ahora reconoce la estructura del disco y permite
   reproducirlas en el OPPO/Chinoppo.
+
+### Agradecimientos
+
+- **Gracias a `@ThorJane86`.** Identificó y documentó con pruebas reproducibles que HCC no abría correctamente las carpetas Blu-ray y UHD Blu-ray desde Jellyfin en su Chinoppo. Su informe llevó a la corrección de 1.4.5.
 
 ## [1.4.4] - 2026-11-02
 
@@ -110,6 +122,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 - **Menos interrupciones al empezar.** HCC sale del salvapantallas del OPPO antes de iniciar la película.
 
+### Agradecimientos
+
+- **Gracias a `@revin34`.** Identificó el problema del salvapantallas del OPPO durante el inicio de una reproducción, investigó su causa y propuso una solución que ayudó a reforzar el arranque.
+
 ## [1.4.1] - 2026-10-17
 
 ### Añadido
@@ -125,6 +141,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 - **Tu lista «Continuar viendo», siempre en orden.** HCC conserva mejor los puntos de reanudación cuando detienes una
   película o no llega a iniciarse.
+
+### Agradecimientos
+
+- **Gracias a `@revin34`.** Sus informes, análisis y propuestas de corrección sobre el traspaso al OPPO, las rutas y el progreso de reproducción ayudaron a evitar la pérdida de puntos de reanudación y a mantener «Continuar viendo».
 
 ## [1.4.0] - 2026-10-12
 
@@ -143,6 +163,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 - **Reproducción de archivos STRM corregida.** Los contenidos STRM de Emby vuelven a localizarse correctamente al
   enviarlos al OPPO.
+
+### Agradecimientos
+
+- **Gracias a `@231197671-stack`.** Documentó con detalle cuándo Emby enviaba referencias STRM que el OPPO no podía reproducir, y aportó las diferencias entre las rutas físicas y los archivos reproducibles que orientaron la corrección.
 
 ## [1.3.2] - 2026-10-09
 

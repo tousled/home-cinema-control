@@ -46,6 +46,10 @@ The changes that make HCC better for your home cinema, in plain language.
 - **No false alarms when leaving the app.** If you leave Emby or Jellyfin while the OPPO keeps playing, HCC no longer incorrectly warns that the device has disappeared.
 - **Correct audio and subtitles when choosing another Jellyfin version.** When a movie has multiple versions, HCC uses the audio and subtitle tracks from the file you selected, rather than mistakenly using tracks from a different version.
 
+### Acknowledgements
+
+- **Thank you, `@vicsuaes`.** His contribution was essential to discovering how Samsung control actually behaves on a real S90C TV. Through repeated physical tests and diagnostic scripts, we could document authorization, state readback, verified switching to HDMI3, errors for other inputs, and the different identifiers and methods used to detect versus launch Tizen applications. He also continued testing release candidates and helped us diagnose compatibility problems.
+
 ## [1.4.6] - 2026-11-15
 
 ### Added
@@ -66,12 +70,20 @@ The changes that make HCC better for your home cinema, in plain language.
   HCC tries to pick up where you left off. To start over, choose Play from beginning in Emby
   or Jellyfin.
 
+### Acknowledgements
+
+- **Thank you, `@bibizaza`.** Reported that Blu-ray ISO playback restarted at the disc menu despite a saved Emby resume point. The detailed report helped us investigate the cause, and after 1.4.6 shipped, they confirmed on their Chinoppo that playback resumed at the saved position.
+
 ## [1.4.5] - 2026-11-04
 
 ### Fixed
 
 - **Blu-ray movies, without playback issues.** Some movies stored as Blu-ray or UHD Blu-ray folders failed to start
   correctly from Jellyfin. HCC now recognizes the disc structure so they can play on your OPPO/Chinoppo.
+
+### Acknowledgements
+
+- **Thank you, `@ThorJane86`.** Provided reproducible evidence that HCC could not open Blu-ray and UHD Blu-ray folders from Jellyfin on a Chinoppo. Their report led to the fix in 1.4.5.
 
 ## [1.4.4] - 2026-11-02
 
@@ -109,6 +121,10 @@ The changes that make HCC better for your home cinema, in plain language.
 
 - **A smoother start from the OPPO screen saver.** HCC dismisses the screen saver before trying to play your content.
 
+### Acknowledgements
+
+- **Thank you, `@revin34`.** Identified the OPPO screen saver issue during playback startup, investigated its cause and proposed a solution that helped make startup more reliable.
+
 ## [1.4.1] - 2026-10-17
 
 ### Added
@@ -125,6 +141,10 @@ The changes that make HCC better for your home cinema, in plain language.
 
 - **Keep your Continue Watching list intact.** HCC better preserves resume positions when playback stops or can't be
   started.
+
+### Acknowledgements
+
+- **Thank you, `@revin34`.** Their detailed reports, investigations and suggested fixes for OPPO handoffs, media paths and playback progress helped protect saved resume points and keep Continue Watching working.
 
 ## [1.4.0] - 2026-10-12
 
@@ -144,6 +164,10 @@ The changes that make HCC better for your home cinema, in plain language.
 
 - **STRM playback from Emby is fixed.** Titles backed by STRM files now resolve to the right media when handed off to
   the OPPO.
+
+### Acknowledgements
+
+- **Thank you, `@231197671-stack`.** Carefully documented when Emby STRM-backed items were being sent to the OPPO with unplayable filenames, clarifying the difference between mapping paths and playable media that guided the fix.
 
 ## [1.3.2] - 2026-10-09
 
