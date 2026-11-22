@@ -35,7 +35,7 @@ See [Docker host networking](https://docs.docker.com/engine/network/drivers/host
 ```yaml
 services:
   home-cinema-control:
-    image: tousled/home-cinema-control:${HCC_VERSION:-latest}
+    image: tousled/home-cinema-control:latest
     container_name: home-cinema-control
     network_mode: host
     cap_add:
@@ -63,9 +63,7 @@ Keep the `home-cinema-control-config` volume. It contains both `config.json` (se
 (credentials). Replacing the image preserves them when the same volume stays mounted. Do not remove the volume or create
 a different stack when updating an existing installation.
 
-The installation example uses the official Compose settings with optional telemetry overrides omitted. `HCC_VERSION`
-selects an image tag here; leave it unset to use `latest`. TV, receiver, Home Assistant, and voluntary telemetry can be
-configured later.
+The installation example uses the same fixed image reference as the [repository's `compose.yaml`](https://github.com/tousled/home-cinema-control/blob/main/compose.yaml), without version variables, for compatibility with graphical Docker managers. To pin a published version, replace only `:latest` with its published tag. If you prefer to use `HCC_VERSION` in your own Compose file, see the [advanced reference](https://github.com/tousled/home-cinema-control/blob/main/docs/advanced-reference.en.md). TV, receiver, Home Assistant, and voluntary telemetry can be configured later.
 
 ## Update an existing installation
 
