@@ -273,21 +273,42 @@ invitación habitual. Esta campaña no es un mecanismo reutilizable para futuras
 
 ### Experimento de reanudación Blu-ray para OPPO (1.5.0)
 
-El seek diferido en Blu-ray completos continúa siendo experimental y requiere
-que el usuario haya aceptado voluntariamente la telemetría básica. El interruptor
-explica la condición y ofrece aceptar o cancelar; nunca habilita telemetría de
-forma implícita. Las reproducciones normales y el guardado seguro de progreso
-siguen funcionando sin ella. La decisión de consentimiento se comprueba también
-en el backend. Los diagnósticos adicionales mantienen su propio opt-in.
+La **función de reanudación Blu-ray** puede utilizarse, activarse y desactivarse
+sin aceptar ninguna telemetría. Revocar el consentimiento general no modifica
+el interruptor de reproducción ni las protecciones de progreso.
 
-Con telemetría permitida, cada sesión de Blu-ray completa genera como máximo
-un `disc_resume_outcome` al detenerse, con resultado y proveedor estructurados
-y `experimental_enabled` booleano. Los resultados incluyen:
-`native_preserved`, `seek_verified`, `seek_rejected`, `seek_unverified`,
-`feature_unverified`, `feature_verified_no_seek` y
-`start_over_verified`. Un ACK de OPPO no es una posición verificada; solo
-dos muestras SVM3 consecutivas justifican `seek_verified`. No se transmiten
-títulos, posiciones, rutas, menús, IP, sesión o identificadores de contenido.
+Existe otra opción totalmente independiente: **Compartir resultados
+experimentales de Blu-ray**. Está desactivada por defecto, incluso si la
+telemetría general está activada. Al habilitarla, solo se envían eventos
+acotados de compatibilidad `disc_resume_outcome` con resultados técnicos
+predefinidos; no se envían rutas, títulos, logs ni contenido multimedia.
+El consentimiento puede revocarse desde la configuración del reproductor.
+Si aparece un error, el usuario puede compartir logs explícitamente mediante
+soporte, sin envíos automáticos por esta función.
+
+### Registro mínimo de instalaciones y versiones (1.5.0)
+
+Una participación separada permite compartir únicamente `installation_id`
+y `hcc_version` con el receptor. Este canal usa **exactamente el mismo ID
+persistente** que la telemetría general y la compatibilidad Samsung/Blu-ray,
+si ya existe: no se generan identificadores diferentes por modalidad.
+El servidor anota la fecha de recepción para mostrar versiones vistas en
+los últimos 7 y 30 días. Un nuevo contacto se realiza al aceptar, si
+cambia de versión y como máximo aproximadamente cada siete días.
+
+No incluye IP, modelo de televisor, reproductor, servidor multimedia,
+reproducciones, películas ni diagnósticos en el payload. El receptor guarda
+solo el hash del ID (no el UUID en claro) y la versión en su tabla de
+instalaciones, sin persistir direcciones IP en esos registros. La
+infraestructura de proxy puede procesar la IP para establecer la conexión;
+debe verificarse por separado su configuración de logs.
+
+El registro mínimo está **desactivado por defecto**. Se invita una sola vez
+a usuarios nuevos y a quienes actualizan sin telemetría general. Si esta
+última está activa no se duplica el registro ni se vuelve a preguntar. El
+rechazo no afecta a la configuración, las actualizaciones ni la reproducción.
+Puede revocarse desde Estado; deja de contactar al servidor. La supresión de
+datos históricos puede solicitarse al responsable del servicio.
 
 Al iniciar HCC con un consentimiento existente, el productor envía una vez
 por proceso `consent_state_reported: {state: enabled}`, distinto de
@@ -301,6 +322,8 @@ el productor de HCC. Estos cambios no se despliegan automáticamente.
 
 ### Funciones experimentales y actualizaciones desde 1.4.6
 
-Algunas funciones experimentales necesitan la telemetría activada para conocer su funcionamiento y mejorarlas. Este requisito se aplica a quienes habilitan por primera vez la reanudación experimental de Blu-ray en 1.5.0. No activa por sí mismo la telemetría ni permite enviar señales sin consentimiento.
-
-**Si ya habías activado esa reanudación experimental en 1.4.6**, HCC conserva la función al actualizar, incluso con la telemetría desactivada. Podrás desactivarla libremente; para volver a habilitarla después necesitarás aceptar la telemetría. Si revocas la telemetría pero conservas aquella configuración anterior, la función puede seguir activa **sin enviar datos técnicos**. No se modifica el guardado normal del progreso de las películas.
+Las instalaciones que ya habían habilitado reanudación Blu-ray conservan esa
+preferencia al actualizar, aunque desactiven telemetría. Pueden desactivar o
+volver a habilitar la reproducción experimental sin aceptar compartir
+estadísticas. El permiso opcional para resultados Blu-ray es independiente y
+no se activa por migración.
