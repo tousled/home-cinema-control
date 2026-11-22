@@ -8,8 +8,8 @@ Esta página permite consultar opciones sin ejecutar cambios sobre Docker. Para 
 
 | Elemento | Valor del Compose oficial | Para qué sirve |
 |---|---|---|
-| Imagen | `tousled/home-cinema-control:latest` | Descarga la última versión estable publicada, sin variables. |
-| `HCC_VERSION` | No se utiliza en el ejemplo oficial | Opcional en un Compose personalizado, para fijar una versión. |
+| Imagen | `tousled/home-cinema-control:${HCC_VERSION:-latest}` | Descarga la versión elegida; usa `latest` si no hay variable definida. |
+| `HCC_VERSION` | Sin definir | Opcional. Fija una versión cuando necesitas mantenerla o volver atrás. |
 | Montaje de configuración | `home-cinema-control-config:/config` | Conserva los ajustes entre actualizaciones. Debe respetarse el montaje de cada instalación. |
 | `HCC_CONFIG_FILE` | `/config/config.json` | Ruta de la configuración general dentro del contenedor. |
 | `HCC_SECRETS_FILE_PATH` | `/config/secrets.json` | Ruta de credenciales y secretos dentro del contenedor. |
@@ -27,13 +27,12 @@ Los valores de esta tabla describen **el ejemplo de instalación oficial**, no l
 
 ### `HCC_VERSION`
 
-El [`compose.yaml` oficial](../compose.yaml) usa `image: tousled/home-cinema-control:latest` sin interpolación de variables. Así puede copiarse o importarse directamente en gestores gráficos que no resuelven expresiones de Compose. No necesitas crear `HCC_VERSION` para instalar HCC.
+El `compose.yaml` usa `${HCC_VERSION:-latest}`. Esto significa que Compose utiliza `latest` si no encuentra un valor en
+el archivo `.env` o en el entorno. No tienes que crear esa variable para instalar o actualizar HCC normalmente.
 
-Para fijar una versión estable publicada, cambia únicamente el tag `latest` de `image:` por el tag deseado, sin alterar el volumen de configuración. Si ya tienes una instalación funcionando, edita su Compose actual en vez de crear otro stack.
-
-**Opción avanzada:** si utilizas Docker Compose con soporte para interpolación, puedes modificar tu propio archivo para usar `image: tousled/home-cinema-control:${HCC_VERSION:-latest}`. En ese caso, `HCC_VERSION` se puede fijar en el entorno o en un archivo `.env` junto a `compose.yaml`; si falta, se utiliza `latest`. Comprueba la imagen resuelta con `docker compose config --images` antes de desplegar. **Definir `HCC_VERSION` por sí sola no cambia la imagen del Compose oficial**, que utiliza un tag fijo. No compartas ni subas archivos `.env` con información privada. En un gestor que no admita interpolación, usa siempre el tag explícito.
-
-Las instalaciones anteriores que ya utilizan `HCC_VERSION` pueden conservarla; no hay que cambiar el método de actualización si funciona.
+Puedes usar `HCC_VERSION` para fijar una versión conocida o volver temporalmente a una versión anterior durante una
+recuperación. El archivo `.env`, si existe, debe estar junto a `compose.yaml`. No lo compartas ni lo subas a un
+repositorio.
 
 ### Dónde está la configuración
 

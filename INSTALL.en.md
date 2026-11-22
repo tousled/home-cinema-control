@@ -42,8 +42,6 @@ your NAS manufacturer's guide. HCC does not install Docker. You do not need Home
 
 **Expected result:** Portainer shows the new stack and the running HCC container.
 
-If your Docker manager supports importing a Compose file directly, you can also use the [repository's `compose.yaml`](compose.yaml). It uses the same `tousled/home-cinema-control:latest` image without version variables.
-
 ### Option B. Docker Compose
 
 1. Create a folder for HCC (for example, `home-cinema-control`).
