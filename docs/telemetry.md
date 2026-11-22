@@ -277,20 +277,17 @@ La **función de reanudación Blu-ray** puede utilizarse, activarse y desactivar
 sin aceptar ninguna telemetría. Revocar el consentimiento general no modifica
 el interruptor de reproducción ni las protecciones de progreso.
 
-Existe otra opción totalmente independiente: **Compartir resultados
-experimentales de Blu-ray**. Está desactivada por defecto, incluso si la
-telemetría general está activada. Al habilitarla, solo se envían eventos
-acotados de compatibilidad `disc_resume_outcome` con resultados técnicos
-predefinidos; no se envían rutas, títulos, logs ni contenido multimedia.
-El consentimiento puede revocarse desde la configuración del reproductor.
-Si aparece un error, el usuario puede compartir logs explícitamente mediante
-soporte, sin envíos automáticos por esta función.
+La función no envía `disc_resume_outcome` ni otros resultados específicos de
+Blu-ray, aunque la telemetría general esté activada. La recogida automática
+de estos resultados se retira porque la función ya dispone de suficiente
+validación. Si aparece un error, el usuario puede aportar información
+voluntariamente mediante los mecanismos de soporte.
 
 ### Registro mínimo de instalaciones y versiones (1.5.0)
 
 Una participación separada permite compartir únicamente `installation_id`
 y `hcc_version` con el receptor. Este canal usa **exactamente el mismo ID
-persistente** que la telemetría general y la compatibilidad Samsung/Blu-ray,
+persistente** que la telemetría general y la compatibilidad Samsung,
 si ya existe: no se generan identificadores diferentes por modalidad.
 El servidor anota la fecha de recepción para mostrar versiones vistas en
 los últimos 7 y 30 días. Un nuevo contacto se realiza al aceptar, si
@@ -325,5 +322,5 @@ el productor de HCC. Estos cambios no se despliegan automáticamente.
 Las instalaciones que ya habían habilitado reanudación Blu-ray conservan esa
 preferencia al actualizar, aunque desactiven telemetría. Pueden desactivar o
 volver a habilitar la reproducción experimental sin aceptar compartir
-estadísticas. El permiso opcional para resultados Blu-ray es independiente y
-no se activa por migración.
+estadísticas. No se solicita ningún permiso de envío de resultados Blu-ray ni se envían
+resultados nuevos de esta función. Las preferencias de reproducción no cambian.
