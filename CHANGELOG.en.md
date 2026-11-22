@@ -11,7 +11,6 @@ The changes that make HCC better for your home cinema, in plain language.
 ### Added
 
 - **Share only your HCC version, if you wish.** A new optional choice helps us keep future updates compatible by sharing only a random installation ID and the HCC version. You don't need to share device, movie, error or playback details. Decline during setup or switch it off later.
-- **Blu-ray compatibility sharing is a separate choice.** You can optionally share bounded technical results of experimental Blu-ray resume through its own consent, independent of general telemetry and off by default.
 
 - **Samsung joins your movie nights (experimental).** HCC starts coordinating your TV with the rest of your home cinema, so you can enjoy your movies with fewer steps. If you have a Samsung TV, you can try this new feature and help us improve its integration with your model and others.
 - **Kodi comes to HCC.** You can now play movies and shows from Emby or Jellyfin with Kodi using NFS or SMB network shares. HCC coordinates playback with your TV and AV receiver, lets you control Kodi through its web remote, and guides you through setup. Installation guides are available in English and Spanish.

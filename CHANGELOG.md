@@ -11,7 +11,6 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 ### Añadido
 
 - **Comparte solo tu versión de HCC, si quieres.** Una nueva opción permite ayudar a mantener las futuras actualizaciones compatibles compartiendo únicamente un identificador aleatorio de instalación y la versión utilizada. No exige compartir dispositivos, películas, errores ni datos de reproducción, se puede rechazar durante la configuración y desactivar después.
-- **Decide por separado si compartes resultados Blu-ray.** Puedes colaborar con los resultados técnicos de la reanudación experimental mediante una autorización específica, independiente de la telemetría general y desactivada por defecto.
 
 - **Samsung se une a tus noches de cine (experimental).** HCC empieza a coordinar tu televisor con el resto de tu sala para que disfrutes de tus películas con menos pasos. Si tienes una Samsung, puedes probar esta novedad y ayudarnos a mejorar su integración con este y otros modelos.
 - **Kodi llega a HCC.** Ahora también puedes utilizar Kodi para reproducir tus películas y series desde Emby o Jellyfin, mediante carpetas compartidas NFS o SMB. HCC coordina la reproducción con tu televisor y receptor, permite controlar Kodi desde su mando web e incorpora una configuración guiada para ponerlo todo en marcha. Incluye guías de instalación en español e inglés.

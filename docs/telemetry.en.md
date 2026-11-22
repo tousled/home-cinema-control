@@ -157,18 +157,20 @@ transport exceptions now preserve events in the retry queue when it is writable;
 and counted because discarded events cannot be reconstructed.
 
 
-## Experimental features and upgrades from 1.4.6
+## Experimental OPPO Blu-ray resume and upgrades from 1.4.6
 
-Some experimental features require telemetry to help validate and improve them. First-time activation of experimental Blu-ray resume in 1.5.0 requires an explicit telemetry opt-in. This does not enable sharing automatically or allow any events to be sent without consent.
+Blu-ray resume does not require general telemetry or any other data-sharing
+permission. Existing playback settings are preserved on upgrade and after
+telemetry opt-out. No new Blu-ray-specific outcomes are sent, even when
+basic telemetry is enabled. Users may voluntarily provide troubleshooting
+information through the support channels if necessary.
 
-**If you already enabled experimental Blu-ray resume in 1.4.6**, HCC keeps it enabled after upgrading, even with telemetry turned off. You can disable the feature at any time; enabling it again later requires telemetry consent. If you revoke telemetry but keep this pre-existing preference, the feature can continue operating **without sending technical signals**. Normal playback progress protection remains unaffected.
 
-
-## HCC 1.5.0: minimal installations and optional Blu-ray outcomes
+## HCC 1.5.0: optional minimal installation contacts
 
 A new, separate consent allows HCC to send **only** `installation_id` and
 `hcc_version` to the receiver. It uses the **same stable installation ID**
-that general telemetry, Samsung compatibility and Blu-ray compatibility use
+that general telemetry and Samsung compatibility use
 when enabled. No IP address, device identifiers, media titles, playback
 history or diagnostics are included in this minimal payload. The receiver
 records the time of receipt and hashes the installation ID; reverse-proxy
@@ -177,9 +179,6 @@ consent is granted, on version changes and approximately once every seven
 days. The choice is optional, can be revoked in Status, and refusal never
 blocks setup, updates or playback.
 
-**Experimental OPPO Blu-ray resume works without general telemetry.**
-Enabling playback does not activate data sharing. A separate, off-by-default
-Blu-ray compatibility switch authorizes only bounded `disc_resume_outcome`
-reports, much like Samsung compatibility. It can be revoked independently.
-Existing enabled playback settings survive upgrades and telemetry opt-out.
-Users can voluntarily provide support logs when troubleshooting is needed.
+Experimental OPPO Blu-ray resume works without any telemetry consent.
+The Blu-ray compatibility reporting channel has been removed. Existing
+playback settings remain intact and no new outcome reports are sent.
