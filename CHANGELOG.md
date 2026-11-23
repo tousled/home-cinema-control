@@ -6,11 +6,10 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-11-18
+## [1.5.0] - 2026-11-24
 
 ### Añadido
 
-- **Comparte solo tu versión de HCC, si quieres.** Una nueva opción permite ayudar a mantener las futuras actualizaciones compatibles compartiendo únicamente un identificador aleatorio de instalación y la versión utilizada. No exige compartir dispositivos, películas, errores ni datos de reproducción, se puede rechazar durante la configuración y desactivar después.
 
 - **Samsung se une a tus noches de cine (experimental).** HCC empieza a coordinar tu televisor con el resto de tu sala para que disfrutes de tus películas con menos pasos. Si tienes una Samsung, puedes probar esta novedad y ayudarnos a mejorar su integración con este y otros modelos.
 - **Kodi llega a HCC.** Ahora también puedes utilizar Kodi para reproducir tus películas y series desde Emby o Jellyfin, mediante carpetas compartidas NFS o SMB. HCC coordina la reproducción con tu televisor y receptor, permite controlar Kodi desde su mando web e incorpora una configuración guiada para ponerlo todo en marcha. Incluye guías de instalación en español e inglés.
@@ -18,6 +17,9 @@ Las mejoras de HCC, explicadas para quienes quieren disfrutar de su cine en casa
 - **Configura tu sala de cine más fácilmente.** Los asistentes te ayudan a conectar y configurar tus dispositivos, incluido el televisor, el receptor y Home Assistant. Puedes revisar los ajustes y cancelar antes de guardarlos.
 
 ### Mejorado
+
+- **Información de equipos más precisa al compartir estadísticas.** Si tienes la telemetría general activada, HCC reconoce correctamente los televisores Samsung y puede registrar la marca admitida de tu receptor AV. No se envían modelos libres ni direcciones IP.
+
 
 - **Reanuda tus Blu-ray sin activar telemetría.** La función experimental del OPPO se activa y funciona de forma independiente de compartir estadísticas. Desactivar la telemetría tampoco desactiva la reproducción experimental que ya tenías configurada.
 
