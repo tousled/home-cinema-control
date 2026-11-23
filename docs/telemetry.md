@@ -260,7 +260,11 @@ consultar el diagnóstico junto a los eventos del intento.
 Los informes de soporte siguen un proceso distinto: tú decides revisar y
 compartir manualmente un informe que puede incluir logs y otros datos de
 diagnóstico. Las exclusiones anteriores se refieren al canal automático de
-telemetría. El snapshot de red no incluye la marca del receptor AV.
+telemetría. En el `/ping` de la telemetría general activada, HCC puede incluir
+la **marca admitida del receptor AV** cuando este está configurado y habilitado
+(Denon, Marantz, NAD, Onkyo, Yamaha o scripts). No transmite el modelo libre
+del equipo, su dirección IP ni sus credenciales. La marca Samsung se identifica
+igualmente en la lista cerrada de proveedores de TV.
 
 ### Invitación excepcional de 1.4.3
 
@@ -282,30 +286,6 @@ Blu-ray, aunque la telemetría general esté activada. La recogida automática
 de estos resultados se retira porque la función ya dispone de suficiente
 validación. Si aparece un error, el usuario puede aportar información
 voluntariamente mediante los mecanismos de soporte.
-
-### Registro mínimo de instalaciones y versiones (1.5.0)
-
-Una participación separada permite compartir únicamente `installation_id`
-y `hcc_version` con el receptor. Este canal usa **exactamente el mismo ID
-persistente** que la telemetría general y la compatibilidad Samsung,
-si ya existe: no se generan identificadores diferentes por modalidad.
-El servidor anota la fecha de recepción para mostrar versiones vistas en
-los últimos 7 y 30 días. Un nuevo contacto se realiza al aceptar, si
-cambia de versión y como máximo aproximadamente cada siete días.
-
-No incluye IP, modelo de televisor, reproductor, servidor multimedia,
-reproducciones, películas ni diagnósticos en el payload. El receptor guarda
-solo el hash del ID (no el UUID en claro) y la versión en su tabla de
-instalaciones, sin persistir direcciones IP en esos registros. La
-infraestructura de proxy puede procesar la IP para establecer la conexión;
-debe verificarse por separado su configuración de logs.
-
-El registro mínimo está **desactivado por defecto**. Se invita una sola vez
-a usuarios nuevos y a quienes actualizan sin telemetría general. Si esta
-última está activa no se duplica el registro ni se vuelve a preguntar. El
-rechazo no afecta a la configuración, las actualizaciones ni la reproducción.
-Puede revocarse desde Estado; deja de contactar al servidor. La supresión de
-datos históricos puede solicitarse al responsable del servicio.
 
 Al iniciar HCC con un consentimiento existente, el productor envía una vez
 por proceso `consent_state_reported: {state: enabled}`, distinto de

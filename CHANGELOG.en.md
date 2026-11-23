@@ -6,11 +6,10 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-11-18
+## [1.5.0] - 2026-11-24
 
 ### Added
 
-- **Share only your HCC version, if you wish.** A new optional choice helps us keep future updates compatible by sharing only a random installation ID and the HCC version. You don't need to share device, movie, error or playback details. Decline during setup or switch it off later.
 
 - **Samsung joins your movie nights (experimental).** HCC starts coordinating your TV with the rest of your home cinema, so you can enjoy your movies with fewer steps. If you have a Samsung TV, you can try this new feature and help us improve its integration with your model and others.
 - **Kodi comes to HCC.** You can now play movies and shows from Emby or Jellyfin with Kodi using NFS or SMB network shares. HCC coordinates playback with your TV and AV receiver, lets you control Kodi through its web remote, and guides you through setup. Installation guides are available in English and Spanish.
@@ -18,6 +17,9 @@ The changes that make HCC better for your home cinema, in plain language.
 - **Set up your home cinema more easily.** Guided setup helps you connect and configure your devices, including the TV, AV receiver and Home Assistant. You can review settings and cancel before saving them.
 
 ### Improved
+
+- **More accurate equipment information when sharing statistics.** With general telemetry enabled, HCC correctly recognizes Samsung TVs and can report an allowed AV receiver brand. No free-form model names or IP addresses are sent.
+
 
 - **Resume Blu-rays without enabling telemetry.** Experimental OPPO resume works independently of statistics sharing. Turning off telemetry no longer switches off experimental playback you have already configured.
 

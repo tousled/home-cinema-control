@@ -40,7 +40,11 @@ The automatic channel sends a random installation code, HCC version, deployment
 type, configured media-server/player types, TV provider, and enabled integration
 flags. The hub stores an HMAC hash of the code. Signals from the same
 installation can be linked: this is pseudonymization, not absolute anonymity.
-The network snapshot does not include the AV receiver brand.
+With general telemetry enabled, the `/ping` configuration snapshot may
+include the **allowlisted AV receiver brand** when configured and enabled
+(Denon, Marantz, NAD, Onkyo, Yamaha, or scripts). It does not send the
+free-form model name, IP address, or credentials. Samsung is also recognized
+as an allowlisted TV provider.
 
 Playback events include accepted handoff attempts, pre-handoff rejections,
 observed starts, technical closures, failures, permitted diagnostic codes,
@@ -164,21 +168,3 @@ permission. Existing playback settings are preserved on upgrade and after
 telemetry opt-out. No new Blu-ray-specific outcomes are sent, even when
 basic telemetry is enabled. Users may voluntarily provide troubleshooting
 information through the support channels if necessary.
-
-
-## HCC 1.5.0: optional minimal installation contacts
-
-A new, separate consent allows HCC to send **only** `installation_id` and
-`hcc_version` to the receiver. It uses the **same stable installation ID**
-that general telemetry and Samsung compatibility use
-when enabled. No IP address, device identifiers, media titles, playback
-history or diagnostics are included in this minimal payload. The receiver
-records the time of receipt and hashes the installation ID; reverse-proxy
-connection and access logs must be reviewed separately. Contacts occur when
-consent is granted, on version changes and approximately once every seven
-days. The choice is optional, can be revoked in Status, and refusal never
-blocks setup, updates or playback.
-
-Experimental OPPO Blu-ray resume works without any telemetry consent.
-The Blu-ray compatibility reporting channel has been removed. Existing
-playback settings remain intact and no new outcome reports are sent.
