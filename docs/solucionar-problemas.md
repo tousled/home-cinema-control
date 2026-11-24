@@ -114,7 +114,8 @@ Después de la orden, confirma la imagen real en pantalla si HCC te lo pide.
 
 Para **Abrir Emby** o **Abrir Jellyfin** en Samsung, configura previamente el servidor multimedia en HCC y comprueba
 que su aplicación esté instalada en la TV. HCC prueba un identificador interno candidato: puede no funcionar en tu
-modelo. Confirma visualmente si se abre la aplicación; sin esa confirmación no se habilita su regreso automático.
+modelo. El regreso automático se intenta con la TV vinculada aunque no hayas confirmado visualmente la apertura.
+Si no vuelve a la aplicación, prueba a abrirla desde Sala, acepta cualquier solicitud de permiso en la TV y confirma el resultado.
 No hace falta introducir manualmente códigos Tizen en el flujo actual.
 
 En el AVR, la fuente elegida debe coincidir con la entrada a la que llega el reproductor. Si el cambio de fuente

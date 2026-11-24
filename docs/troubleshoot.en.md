@@ -205,7 +205,8 @@ asks you to.
 
 For **Open Emby** or **Open Jellyfin** on Samsung, first configure that media server in HCC and make sure its
 app is installed on the TV. HCC tries an internal candidate app ID, which may not work on every model.
-Confirm visually that the correct app opened; without this confirmation, automatic return cannot be enabled.
+HCC attempts automatic return on a paired TV even without visual confirmation.
+If return does not work, use the Room app test, approve any TV permission request and confirm the result.
 The current flow does not require entering Tizen app codes manually.
 
 On an AV receiver, verify that the selected source corresponds to the player's physical input. If a switch
