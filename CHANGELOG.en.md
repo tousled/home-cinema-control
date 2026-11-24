@@ -6,6 +6,14 @@ The changes that make HCC better for your home cinema, in plain language.
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-25
+
+### Fixed
+
+- **Enjoy your movies without losing sound.** If you have a Denon or Marantz AV receiver and HDMI-CEC unexpectedly switches its input back to TV Audio when a movie or show begins, HCC attempts to restore your player's input automatically. It also better respects your configured input switching delay.
+- **Return to Emby or Jellyfin on your Samsung TV.** When you finish watching a movie or show, HCC attempts to return to the app you were using. If your TV cannot identify it, HCC uses your configured media server. You no longer need to test opening the app beforehand in Room.
+- **Share more accurate support reports.** When requesting help, HCC reports correctly indicate whether your TV is paired or your device and service credentials are configured, without displaying their private values.
+
 ## [1.5.0] - 2026-11-24
 
 ### Added
